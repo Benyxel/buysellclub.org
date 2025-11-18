@@ -2,6 +2,7 @@ import React, { useContext } from 'react';
 import { ShopContext } from '../context/ShopContext';
 import { Link } from 'react-router-dom';
 import { FaStar, FaHeart } from 'react-icons/fa';
+import OptimizedImage from './OptimizedImage';
 
 const ProductItem = ({ id, image, name, price, rating, average_rating, review_count, description }) => {
   const { currency, toggleFavorite, isFavorite } = useContext(ShopContext);
@@ -18,10 +19,11 @@ const ProductItem = ({ id, image, name, price, rating, average_rating, review_co
   return (
     <Link className='group relative bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden' to={`/product/${id}`}>
       <div className='relative overflow-hidden aspect-square'>
-        <img 
+        <OptimizedImage 
           className='w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-300' 
           src={Array.isArray(image) ? (image[0] || '') : (image || '')} 
-          alt={name} 
+          alt={name}
+          loading="lazy"
         />
         <button
           onClick={handleFavorite}

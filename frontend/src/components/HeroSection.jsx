@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useEffect } from "react";
 import Slider from "react-slick";
 import Button from "./shared/Button";
+import OptimizedImage from "./OptimizedImage";
 import heroSlide1 from "../assets/HeroS1.png";
 import heroSlide2 from "../assets/heros2.png";
 import heroSlide3 from "../assets/rmbi.png";
@@ -42,6 +43,19 @@ const HeroData = [
 ];
 
 function HeroSection({ title, description, image }) {
+  // Preload first hero image for faster initial render
+  useEffect(() => {
+    const link = document.createElement('link');
+    link.rel = 'preload';
+    link.as = 'image';
+    link.href = heroSlide1;
+    document.head.appendChild(link);
+    
+    return () => {
+      document.head.removeChild(link);
+    };
+  }, []);
+
   const settings = {
     dots: true,
     infinite: true,
@@ -80,10 +94,12 @@ function HeroSection({ title, description, image }) {
               </div>
               <div className="order-1 sm:order-2">
                 <div className="flex justify-center">
-                  <img
+                  <OptimizedImage
                     src={image || HeroData[0].src}
                     alt={title}
                     className="w-[300px] h-[300px] sm:h-[550px] sm:w-[400px] sm:scale-105 lg:scale-110 object-contain mx-auto drop-shadow-[-8px_4px_6px_rgba(0,0,0,.4)] relative z-40"
+                    preload={true}
+                    loading="eager"
                   />
                 </div>
               </div>
@@ -123,10 +139,12 @@ function HeroSection({ title, description, image }) {
                   </div>
                   <div className="order-1 sm:order-2">
                     <div className="flex justify-center">
-                      <img
+                      <OptimizedImage
                         src={data.src}
                         alt={data.alt}
                         className="w-[300px] h-[300px] sm:h-[550px] sm:w-[400px] sm:scale-105 lg:scale-110 object-contain mx-auto drop-shadow-[-8px_4px_6px_rgba(0,0,0,.4)] relative z-40"
+                        preload={data.id === 1}
+                        loading={data.id === 1 ? "eager" : "lazy"}
                       />
                     </div>
                   </div>
