@@ -1,0 +1,39 @@
+﻿{
+    "created_at":  "2025-11-09T00:25:27.2269035+00:00",
+    "form":  {
+                 "subtotal":  21,
+                 "shipping":  {
+                                  "city":  "Accra",
+                                  "cost":  0,
+                                  "country":  "Ghana",
+                                  "address":  "123 Test St",
+                                  "state":  "Greater Accra",
+                                  "zipCode":  "00000"
+                              },
+                 "paymentMethod":  "credit_card",
+                 "total":  23.1,
+                 "customer":  {
+                                  "email":  "test@example.com",
+                                  "name":  "Test User",
+                                  "phone":  "0123456789"
+                              },
+                 "tax":  2.1,
+                 "items":  [
+                               {
+                                   "price":  10.5,
+                                   "image":  "",
+                                   "name":  "Sample Product",
+                                   "quantity":  2,
+                                   "product":  1
+                               }
+                           ]
+             },
+    "id":  1762647927,
+    "items":  {
+                  "price":  10.5,
+                  "image":  "",
+                  "name":  "Sample Product",
+                  "quantity":  2,
+                  "product":  1
+              }
+}
