@@ -1,6 +1,6 @@
 import React, { useContext } from 'react';
 import { ShopContext } from '../context/ShopContext';
-import ProductItem from '../components/productItem';
+import ProductItem from '../components/ProductItem';
 import { FaHeart } from 'react-icons/fa';
 
 const Favorites = () => {

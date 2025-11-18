@@ -3,7 +3,7 @@ import { ShopContext } from '../context/ShopContext';
 import { IoMdArrowDropdown } from "react-icons/io";
 import { FaFilter, FaTimes } from "react-icons/fa";
 import Title from '../components/Title';
-import ProductItem from '../components/productItem';
+import ProductItem from '../components/ProductItem';
 
 const Shop = () => {
 
