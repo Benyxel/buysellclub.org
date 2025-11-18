@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FaEdit, FaTrash, FaPlus, FaVideo, FaEye, FaPlay, FaUpload } from 'react-icons/fa';
 import { toast } from 'react-toastify';
+import { getApiUrl } from '../../config/api';
 
 const PaidCourseManagement = () => {
   const [courses, setCourses] = useState([]);
@@ -21,7 +22,7 @@ const PaidCourseManagement = () => {
 
   const fetchCourses = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/admin/training-courses?type=paid', {
+      const response = await fetch(getApiUrl('api/admin/training-courses?type=paid'), {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
         }
@@ -72,7 +73,7 @@ const PaidCourseManagement = () => {
     formData.append('type', type);
 
     try {
-      const response = await fetch('http://localhost:5000/api/admin/upload', {
+      const response = await fetch(getApiUrl('api/admin/upload'), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
@@ -114,8 +115,8 @@ const PaidCourseManagement = () => {
       }
 
       const url = currentCourse 
-        ? `http://localhost:5000/api/admin/training-courses/${currentCourse._id}`
-        : 'http://localhost:5000/api/admin/training-courses';
+        ? getApiUrl(`api/admin/training-courses/${currentCourse._id}`)
+        : getApiUrl('api/admin/training-courses');
       
       const response = await fetch(url, {
         method: currentCourse ? 'PUT' : 'POST',
@@ -154,7 +155,7 @@ const PaidCourseManagement = () => {
     }
     
     try {
-      const response = await fetch(`http://localhost:5000/api/admin/training-courses/${id}`, {
+      const response = await fetch(getApiUrl(`api/admin/training-courses/${id}`), {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('adminToken')}`

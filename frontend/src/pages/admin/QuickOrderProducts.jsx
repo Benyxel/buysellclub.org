@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { getApiUrl } from '../../config/api';
 import {
   FaPlus,
   FaEdit,
@@ -109,7 +110,7 @@ const QuickOrderProducts = () => {
 
     try {
       const response = await fetch(
-        `http://localhost:5000/api/admin/quick-order-products/${id}`,
+        getApiUrl(`api/admin/quick-order-products/${id}`),
         {
           method: "DELETE",
           headers: {

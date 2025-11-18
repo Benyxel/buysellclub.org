@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FaEdit, FaTrash, FaPlus, FaYoutube, FaUpload } from 'react-icons/fa';
 import { toast } from 'react-toastify';
+import { getApiUrl } from '../../config/api';
 
 const YouTubeManagement = () => {
   const [videos, setVideos] = useState([]);
@@ -17,7 +18,7 @@ const YouTubeManagement = () => {
 
   const fetchVideos = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/admin/youtube-videos', {
+      const response = await fetch(getApiUrl('api/admin/youtube-videos'), {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
         }
@@ -59,7 +60,7 @@ const YouTubeManagement = () => {
     formData.append('type', 'thumbnail');
 
     try {
-      const response = await fetch('http://localhost:5000/api/admin/upload', {
+      const response = await fetch(getApiUrl('api/admin/upload'), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
@@ -97,8 +98,8 @@ const YouTubeManagement = () => {
       const defaultThumbnail = `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg`;
 
       const url = currentVideo 
-        ? `http://localhost:5000/api/admin/youtube-videos/${currentVideo._id}`
-        : 'http://localhost:5000/api/admin/youtube-videos';
+        ? getApiUrl(`api/admin/youtube-videos/${currentVideo._id}`)
+        : getApiUrl('api/admin/youtube-videos');
       
       const response = await fetch(url, {
         method: currentVideo ? 'PUT' : 'POST',
@@ -136,7 +137,7 @@ const YouTubeManagement = () => {
     }
     
     try {
-      const response = await fetch(`http://localhost:5000/api/admin/youtube-videos/${id}`, {
+      const response = await fetch(getApiUrl(`api/admin/youtube-videos/${id}`), {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('adminToken')}`

@@ -3,6 +3,7 @@ import { FaSearch, FaSortAmountDown, FaSortAmountUp, FaFilter, FaDownload, FaEye
 import { toast } from 'react-toastify';
 import API, { getOrders } from '../../api';
 import BulkActions from '../../components/shared/BulkActions';
+import { getApiUrl } from '../../config/api';
 
 const OrderManagement = () => {
   const [orders, setOrders] = useState([]);
@@ -124,7 +125,7 @@ const OrderManagement = () => {
 
   const generateInvoice = async (orderId) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/admin/orders/${orderId}/invoice`, {
+      const response = await fetch(getApiUrl(`api/admin/orders/${orderId}/invoice`), {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
         }

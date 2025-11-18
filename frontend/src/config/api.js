@@ -7,3 +7,10 @@ const envBase =
     : "";
 
 export const API_BASE_URL = envBase !== "" ? envBase : "";
+
+// Helper function to get full API URL for a given path
+export const getApiUrl = (path) => {
+  // Remove leading slash if present to avoid double slashes
+  const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+  return API_BASE_URL ? `${API_BASE_URL}/${cleanPath}` : `/${cleanPath}`;
+};

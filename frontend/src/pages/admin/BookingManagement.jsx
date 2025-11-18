@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FaCheck, FaTimes, FaClock } from 'react-icons/fa';
 import { toast } from 'react-toastify';
+import { getApiUrl } from '../../config/api';
 
 const BookingManagement = () => {
   const [bookings, setBookings] = useState([]);
@@ -12,7 +13,7 @@ const BookingManagement = () => {
 
   const fetchBookings = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/admin/training-bookings', {
+      const response = await fetch(getApiUrl('api/admin/training-bookings'), {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
         }
@@ -31,7 +32,7 @@ const BookingManagement = () => {
 
   const updateBookingStatus = async (bookingId, newStatus) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/admin/training-bookings/${bookingId}/status`, {
+      const response = await fetch(getApiUrl(`api/admin/training-bookings/${bookingId}/status`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
