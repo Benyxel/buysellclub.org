@@ -1,11 +1,15 @@
 import React from "react";
 import Slider from "react-slick";
 import Button from "./shared/Button";
+import heroSlide1 from "../assets/HeroS1.png";
+import heroSlide2 from "../assets/heros2.png";
+import heroSlide3 from "../assets/rmbi.png";
+import heroSlide4 from "../assets/store.png";
 
 const HeroData = [
   {
     id: 1,
-    src: "/src/assets/HeroS1.png",
+    src: heroSlide1,
     alt: "Slide 1",
     subtile: "Logisctic Services",
     title: "fofoofo Imports",
@@ -13,7 +17,7 @@ const HeroData = [
   },
   {
     id: 2,
-    src: "/src/assets/heros2.png",
+    src: heroSlide2,
     alt: "Slide 2",
     subtile: "Buy for me",
     title: "fofoofo Imports",
@@ -21,7 +25,7 @@ const HeroData = [
   },
   {
     id: 3,
-    src: "/src/assets/rmbi.png",
+    src: heroSlide3,
     alt: "Slide 3",
     subtile: "Paying Suppliers",
     title: "fofoofo Imports",
@@ -29,7 +33,7 @@ const HeroData = [
   },
   {
     id: 4,
-    src: "/src/assets/store.png",
+    src: heroSlide4,
     alt: "Slide 4",
     subtile: "Wholesale-Products",
     title: "BuySellClub",
