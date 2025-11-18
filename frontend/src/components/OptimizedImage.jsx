@@ -86,9 +86,13 @@ const OptimizedImage = ({
       ref={imgRef}
       src={imageSrc}
       alt={alt}
-      className={`${className} ${isLoaded ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}
+      className={`${className} ${isLoaded ? 'opacity-100' : 'opacity-50'} transition-opacity duration-300`}
       loading={preload ? 'eager' : loading}
       decoding="async"
+      style={{ 
+        backgroundColor: hasError ? '#f3f4f6' : 'transparent',
+        ...props.style 
+      }}
       {...props}
     />
   );
