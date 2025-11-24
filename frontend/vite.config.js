@@ -7,9 +7,9 @@ export default defineConfig({
   // GitHub Pages base path
   // Auto-detected from repository name in GitHub Actions workflow
   // Or set via VITE_BASE_PATH environment variable/GitHub Secret
+  // Repository: buysellclubproject
   // For custom domain, set to '/'
-  // Default to root if not set (works for custom domains)
-  base: process.env.VITE_BASE_PATH || '/',
+  base: process.env.VITE_BASE_PATH || '/buysellclubproject',
   resolve: {
     alias: {
       "jwt-decode": "/src/shims/jwt-decode.js",
