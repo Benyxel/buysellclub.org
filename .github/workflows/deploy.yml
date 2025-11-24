@@ -96,7 +96,22 @@ jobs:
           grep -i "script" dist/index.html || echo "No script tags found (this is wrong!)"
           echo ""
           echo "Checking for base path in script src:"
-          grep -o 'src="[^"]*"' dist/index.html || echo "No src attributes found"
+          SCRIPT_SRC=$(grep -o 'src="[^"]*"' dist/index.html | head -1)
+          echo "Script src found: $SCRIPT_SRC"
+          if echo "$SCRIPT_SRC" | grep -q "/src/main.jsx"; then
+            echo "ERROR: Built HTML still has source path /src/main.jsx instead of bundled asset!"
+            echo "This means VITE_BASE_PATH was not applied during build."
+            exit 1
+          fi
+          if [ -n "$VITE_BASE_PATH" ] && [ "$VITE_BASE_PATH" != "/" ]; then
+            if ! echo "$SCRIPT_SRC" | grep -q "$VITE_BASE_PATH"; then
+              echo "WARNING: Script src doesn't contain base path $VITE_BASE_PATH"
+              echo "Expected: $VITE_BASE_PATH/assets/..."
+              echo "Found: $SCRIPT_SRC"
+            else
+              echo "✓ Script src correctly includes base path"
+            fi
+          fi
 
       - name: Verify build output
         working-directory: ./frontend
