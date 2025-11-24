@@ -14,7 +14,7 @@ import Wholesale from "./pages/Quicklinks/Wholesale";
 import Suppliers from "./pages/Quicklinks/Suppliers";
 import Contact from "./pages/Contact";
 import PlaceOrder from "./pages/PlaceOrder";
-import Training from "./pages/Quicklinks/Training";
+import Training from "./pages/Quicklinks/Training"; 
 import AlipayPayment from "./pages/Quicklinks/AlipayPayment";
 import Payment from "./pages/Quicklinks/Payment";
 import Favorites from "./pages/Favorites";
