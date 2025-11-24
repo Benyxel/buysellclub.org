@@ -34,7 +34,7 @@ ERR_NETWORK
 
 **Solutions:**
 1. Verify backend is running: Check Railway dashboard
-2. Check `VITE_API_BASE_URL` in Vercel environment variables
+2. Check `VITE_API_BASE_URL` in GitHub Secrets (Settings → Secrets and variables → Actions)
 3. Test backend URL directly in browser: `https://your-backend.up.railway.app/buysellapi/products/`
 4. Check browser console for detailed error logs
 
@@ -89,10 +89,10 @@ Or check the browser console for:
 
 ## Configuration Checklist
 
-### Frontend (Vercel)
-- [ ] `VITE_API_BASE_URL` is set correctly
+### Frontend (GitHub Pages)
+- [ ] `VITE_API_BASE_URL` is set correctly in GitHub Secrets
 - [ ] Value should be: `https://your-backend.up.railway.app` (no trailing slash)
-- [ ] Environment variable is set for Production, Preview, and Development
+- [ ] Secret is set in: Settings → Secrets and variables → Actions
 
 ### Backend (Railway)
 - [ ] CORS is configured (see `CORS_FIX_GUIDE.md`)

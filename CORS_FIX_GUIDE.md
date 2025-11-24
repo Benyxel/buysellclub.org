@@ -3,7 +3,7 @@
 ## Current Error
 ```
 Access to XMLHttpRequest at 'https://buysellclub-backend-production.up.railway.app/buysellapi/user/register/' 
-from origin 'https://buysellclub-3t1elf9mf-buysellclubs-projects.vercel.app' 
+from origin 'https://your-username.github.io' 
 has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present
 ```
 
@@ -37,11 +37,11 @@ MIDDLEWARE = [
 
 ### Step 3: Add CORS Configuration
 
-**Recommended: Allow all Vercel preview URLs** (since they change with each deployment):
+**Recommended: Allow all GitHub Pages URLs** (useful for multiple repositories):
 ```python
 # CORS Configuration
 CORS_ALLOWED_ORIGIN_REGEXES = [
-    r"^https://.*\.vercel\.app$",  # Matches all *.vercel.app domains
+    r"^https://.*\.github\.io$",  # Matches all *.github.io domains
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -72,8 +72,8 @@ CORS_ALLOW_METHODS = [
 **Alternative: Specific domains only** (if you have a fixed production domain):
 ```python
 CORS_ALLOWED_ORIGINS = [
-    "https://buysellclub-3t1elf9mf-buysellclubs-projects.vercel.app",
-    "https://your-production-domain.vercel.app",  # Add your production domain
+    "https://your-username.github.io",  # Your GitHub Pages URL
+    "https://your-custom-domain.com",  # Add your custom domain if you have one
 ]
 
 CORS_ALLOW_CREDENTIALS = True

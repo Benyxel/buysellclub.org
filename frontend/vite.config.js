@@ -4,7 +4,11 @@ import react from "@vitejs/plugin-react";
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base:process.env.VITE_BASE_PATH || '/buysellclubproject',
+  // GitHub Pages base path
+  // Auto-detected from repository name in GitHub Actions
+  // Or set via VITE_BASE_PATH environment variable/GitHub Secret
+  // For custom domain, set to '/'
+  base: process.env.VITE_BASE_PATH || '/buysellclubproject',
   resolve: {
     alias: {
       "jwt-decode": "/src/shims/jwt-decode.js",
