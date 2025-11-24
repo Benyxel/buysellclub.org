@@ -48,6 +48,7 @@ import { API_BASE_URL } from "../config/api";
 import API from "../api";
 import Invoice from "./Invoice";
 import InvoiceModal from "./InvoiceModal";
+import { getPlaceholderImagePath } from "../utils/paths";
 import ConfirmModal from "./shared/ConfirmModal";
 
 const MyProfile = () => {
@@ -3361,7 +3362,7 @@ const MyProfile = () => {
                             <div className="space-y-3 mb-4">
                               {items.map((item, index) => {
                                 const itemName = item.name || item.product_name || 'Unnamed Product';
-                                const itemImage = item.image || item.image_url || '/placeholder-image.png';
+                                const itemImage = item.image || item.image_url || getPlaceholderImagePath();
                                 const itemQuantity = item.quantity || 0;
                                 const itemPrice = typeof item.price === 'number' ? item.price : parseFloat(item.price || 0);
                                 
@@ -3375,7 +3376,7 @@ const MyProfile = () => {
                                       alt={itemName}
                                       className="w-16 h-16 rounded-lg object-cover"
                                       onError={(e) => {
-                                        e.target.src = '/placeholder-image.png';
+                                        e.target.src = getPlaceholderImagePath();
                                       }}
                                     />
                                     <div className="flex-1">

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ShopContext } from '../context/ShopContext';
 import { toast } from 'react-toastify';
 import { createOrder } from '../api';
+import { getPlaceholderImagePath } from '../utils/paths';
 
 const Checkout = () => {
   const navigate = useNavigate();
@@ -245,11 +246,11 @@ const Checkout = () => {
                 {checkoutItems.map((item, index) => (
                   <div key={`${item.id}-${item.size || 'default'}-${index}`} className="flex items-center gap-4">
                     <img
-                      src={item.image || '/placeholder-image.png'}
+                      src={item.image || getPlaceholderImagePath()}
                       alt={item.name}
                       className="w-16 h-16 object-cover rounded"
                       onError={(e) => {
-                        e.target.src = '/placeholder-image.png';
+                        e.target.src = getPlaceholderImagePath();
                       }}
                     />
                     <div className="flex-1">
