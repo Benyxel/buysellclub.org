@@ -1,3 +1,6 @@
+// User registration API helper
+export const registerUser = (data) =>
+  API.post("/buysellapi/user/register/", data);
 import axios from "axios";
 
 // Helper to get CSRF token from cookie

@@ -105,7 +105,25 @@ const Signup = () => {
     setLoading(true);
 
     try {
-      // Call Django registration endpoint
+      // Fetch CSRF token before registration
+      await API.get("/get-csrf-token/");
+      // Helper to get CSRF token from cookie
+      function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== "") {
+          const cookies = document.cookie.split(";");
+          for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === name + "=") {
+              cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+              break;
+            }
+          }
+        }
+        return cookieValue;
+      }
+      const csrfToken = getCookie("csrftoken");
+      // Call Django registration endpoint with CSRF token
       const response = await API.post("/buysellapi/user/register/", {
         username: form.username,
         full_name: form.full_name,
@@ -114,6 +132,11 @@ const Signup = () => {
         confirm_password: form.confirm_password,
         contact: form.contact,
         location: form.location,
+      }, {
+        headers: {
+          "X-CSRFToken": csrfToken,
+          "Content-Type": "application/json",
+        },
       });
 
       // Show success message from backend
