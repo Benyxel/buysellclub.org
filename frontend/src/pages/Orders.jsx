@@ -4,6 +4,7 @@ import { FaShoppingBag, FaTruck, FaCheckCircle, FaTimesCircle, FaBox, FaMapMarke
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { getOrders, getOrder } from '../api';
+import { getPlaceholderImagePath } from '../utils/paths';
 
 const Orders = () => {
   const [orders, setOrders] = useState([]);
@@ -353,7 +354,7 @@ const Orders = () => {
                             {items.slice(0, 3).map((item, index) => {
                               // Normalize item data
                               const itemName = item.name || item.product_name || 'Unnamed Product';
-                              const itemImage = item.image || item.image_url || '/placeholder-image.png';
+                              const itemImage = item.image || item.image_url || getPlaceholderImagePath();
                               const itemQuantity = item.quantity || 0;
                               const itemPrice = typeof item.price === 'number' ? item.price : parseFloat(item.price || 0);
                               const itemSize = item.size && item.size !== 'default' && item.size !== 'null' && item.size !== null ? item.size : null;
@@ -365,7 +366,7 @@ const Orders = () => {
                                     alt={itemName}
                                     className="w-16 h-16 rounded-lg object-cover"
                                     onError={(e) => {
-                                      e.target.src = '/placeholder-image.png';
+                                      e.target.src = getPlaceholderImagePath();
                                     }}
                                   />
                                   <div className="flex-1">

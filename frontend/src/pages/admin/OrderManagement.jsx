@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import API, { getOrders } from '../../api';
 import BulkActions from '../../components/shared/BulkActions';
 import { getApiUrl } from '../../config/api';
+import { getPlaceholderImagePath } from '../../utils/paths';
 
 const OrderManagement = () => {
   const [orders, setOrders] = useState([]);
@@ -381,11 +382,11 @@ const OrderManagement = () => {
                     {selectedOrder.items && Array.isArray(selectedOrder.items) && selectedOrder.items.map((item, index) => (
                       <div key={index} className="flex items-center gap-4 bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
                         <img
-                          src={item.image || '/placeholder-image.png'}
+                          src={item.image || getPlaceholderImagePath()}
                           alt={item.name}
                           className="w-16 h-16 object-cover rounded"
                           onError={(e) => {
-                            e.target.src = '/placeholder-image.png';
+                            e.target.src = getPlaceholderImagePath();
                           }}
                         />
                         <div className="flex-1">

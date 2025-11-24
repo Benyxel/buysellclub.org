@@ -4,6 +4,7 @@ import { FaEye, FaTimes, FaShoppingBag, FaSpinner } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { getOrders, getOrder, updateOrder } from '../api';
+import { getPlaceholderImagePath } from '../utils/paths';
 
 const UserOrders = () => {
   const [orders, setOrders] = useState([]);
@@ -281,7 +282,7 @@ const UserOrders = () => {
                         <div className="space-y-4">
                           {items.map((item, index) => {
                             const itemName = item.name || item.product_name || 'Unnamed Product';
-                            const itemImage = item.image || item.image_url || '/placeholder-image.png';
+                            const itemImage = item.image || item.image_url || getPlaceholderImagePath();
                             const itemQuantity = item.quantity || 0;
                             const itemPrice = typeof item.price === 'number' ? item.price : parseFloat(item.price || 0);
                             const itemSize = item.size && item.size !== 'default' && item.size !== 'null' && item.size !== null ? item.size : null;
@@ -294,7 +295,7 @@ const UserOrders = () => {
                                   alt={itemName}
                                   className="w-20 h-20 rounded-lg object-cover"
                                   onError={(e) => {
-                                    e.target.src = '/placeholder-image.png';
+                                    e.target.src = getPlaceholderImagePath();
                                   }}
                                 />
                                 <div className="flex-1">
