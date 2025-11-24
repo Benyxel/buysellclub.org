@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main  # Change to your default branch name (main/master)
+      - master  # Support both main and master branches
   workflow_dispatch:  # Allow manual deployment
 
 # Set permissions for GitHub Pages
