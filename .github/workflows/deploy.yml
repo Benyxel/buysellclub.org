@@ -59,7 +59,10 @@ jobs:
           VITE_BASE_PATH: ${{ steps.base_path.outputs.base_path }}
         run: |
           echo "Building with VITE_BASE_PATH=$VITE_BASE_PATH"
+          echo "Repository: ${{ github.repository }}"
           npm run build
+          echo "Build complete. Checking dist folder..."
+          ls -la dist/ | head -10
 
       - name: Verify build output
         working-directory: ./frontend
