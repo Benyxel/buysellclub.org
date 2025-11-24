@@ -40,21 +40,26 @@ jobs:
         id: base_path
         run: |
           if [ -n "${{ secrets.VITE_BASE_PATH }}" ]; then
-            echo "base_path=${{ secrets.VITE_BASE_PATH }}" >> $GITHUB_OUTPUT
+            BASE_PATH="${{ secrets.VITE_BASE_PATH }}"
+            echo "Using secret VITE_BASE_PATH: $BASE_PATH"
           else
             # Auto-detect from repository name
             REPO_NAME="${{ github.repository }}"
             REPO_NAME_ONLY=$(echo "$REPO_NAME" | cut -d'/' -f2)
-            echo "base_path=/$REPO_NAME_ONLY" >> $GITHUB_OUTPUT
-            echo "Auto-detected base path: /$REPO_NAME_ONLY"
+            BASE_PATH="/$REPO_NAME_ONLY"
+            echo "Auto-detected base path from repository: $BASE_PATH"
           fi
+          echo "base_path=$BASE_PATH" >> $GITHUB_OUTPUT
+          echo "Final base path: $BASE_PATH"
 
       - name: Build
         working-directory: ./frontend
         env:
           VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
           VITE_BASE_PATH: ${{ steps.base_path.outputs.base_path }}
-        run: npm run build
+        run: |
+          echo "Building with VITE_BASE_PATH=$VITE_BASE_PATH"
+          npm run build
 
       - name: Verify build output
         working-directory: ./frontend
