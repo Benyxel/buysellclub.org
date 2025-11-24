@@ -30,6 +30,8 @@ export default defineConfig({
     },
   },
   build: {
+    // Ensure index.html is always generated
+    emptyOutDir: true,
     // Optimize image assets
     assetsInlineLimit: 4096, // Inline small images as base64 (4KB limit)
     rollupOptions: {
