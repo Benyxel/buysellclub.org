@@ -61,8 +61,15 @@ jobs:
         run: |
           echo "=== Build Configuration ==="
           echo "VITE_BASE_PATH: $VITE_BASE_PATH"
+          echo "VITE_API_BASE_URL: $VITE_API_BASE_URL"
           echo "Repository: ${{ github.repository }}"
-          echo "Building..."
+          echo ""
+          echo "Verifying environment variables are set..."
+          if [ -z "$VITE_BASE_PATH" ]; then
+            echo "WARNING: VITE_BASE_PATH is empty, using default"
+          fi
+          echo ""
+          echo "Building with base path: $VITE_BASE_PATH"
           npm run build
           echo ""
           echo "=== Build Output Verification ==="
@@ -80,6 +87,16 @@ jobs:
           fi
           echo "✓ index.html found in dist/"
           echo "index.html size: $(wc -c < dist/index.html) bytes"
+          echo ""
+          echo "=== Checking built index.html content ==="
+          echo "First 20 lines of built index.html:"
+          head -20 dist/index.html
+          echo ""
+          echo "Checking for script tags:"
+          grep -i "script" dist/index.html || echo "No script tags found (this is wrong!)"
+          echo ""
+          echo "Checking for base path in script src:"
+          grep -o 'src="[^"]*"' dist/index.html || echo "No src attributes found"
 
       - name: Verify build output
         working-directory: ./frontend
