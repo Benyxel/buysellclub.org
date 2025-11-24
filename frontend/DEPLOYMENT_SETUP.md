@@ -32,20 +32,112 @@ To connect the frontend to your Railway backend, you need to set the following e
 
 ## Backend CORS Configuration
 
-Make sure your Railway backend has CORS configured to allow requests from your Vercel domain:
+**⚠️ IMPORTANT: This is a CORS error - you MUST fix this in your Django backend!**
 
+The error shows your backend at `https://buysellclub-backend-production.up.railway.app` is not allowing requests from your Vercel frontend.
+
+### Fix in Django Backend (settings.py)
+
+You need to add `django-cors-headers` if not already installed, and configure it:
+
+1. **Install django-cors-headers** (if not already installed):
+```bash
+pip install django-cors-headers
+```
+
+2. **Add to INSTALLED_APPS in settings.py**:
 ```python
-# In your Django settings.py
-CORS_ALLOWED_ORIGINS = [
-    "https://your-vercel-app.vercel.app",
-    "https://your-custom-domain.com",  # if you have one
+INSTALLED_APPS = [
+    # ... other apps
+    'corsheaders',
+    # ... rest of apps
 ]
 ```
 
-Or for development/testing:
+3. **Add CORS middleware** (must be near the top, before CommonMiddleware):
 ```python
-CORS_ALLOW_ALL_ORIGINS = True  # Only for development
+MIDDLEWARE = [
+    'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',  # Add this
+    'django.middleware.common.CommonMiddleware',
+    # ... rest of middleware
+]
 ```
+
+4. **Configure CORS settings** (add to settings.py):
+
+**Option A: Allow specific Vercel domains** (Recommended for production):
+```python
+# CORS Configuration
+CORS_ALLOWED_ORIGINS = [
+    "https://buysellclub-3t1elf9mf-buysellclubs-projects.vercel.app",  # Current preview
+    "https://buysellclub-g0epzozqd-buysellclubs-projects.vercel.app",  # Previous preview
+    # Add your production domain when you have one:
+    # "https://your-production-domain.vercel.app",
+    # "https://your-custom-domain.com",
+]
+
+# Allow credentials (cookies, authorization headers)
+CORS_ALLOW_CREDENTIALS = True
+
+# Allow specific headers
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+```
+
+**Option B: Allow all Vercel preview URLs** (Useful since Vercel preview URLs change):
+```python
+import os
+
+# CORS Configuration
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https://.*\.vercel\.app$",  # Allow all Vercel preview URLs
+]
+
+# Or use environment variable for production domain
+CORS_ALLOWED_ORIGINS = [
+    os.environ.get('FRONTEND_URL', 'https://your-production-domain.vercel.app'),
+]
+
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+```
+
+**Option C: Allow all origins** (⚠️ ONLY for development/testing):
+```python
+CORS_ALLOW_ALL_ORIGINS = True  # ⚠️ Only use in development!
+CORS_ALLOW_CREDENTIALS = True
+```
+
+### After Making Changes:
+
+1. **Restart your Railway backend** for changes to take effect
+2. **Test the connection** - the CORS error should be resolved
+3. **Check Railway logs** if issues persist
+
+### Current Error Details:
+- **Frontend Origin**: `https://buysellclub-3t1elf9mf-buysellclubs-projects.vercel.app`
+- **Backend URL**: `https://buysellclub-backend-production.up.railway.app`
+- **Issue**: Backend is not sending `Access-Control-Allow-Origin` header
 
 ## Testing the Connection
 
