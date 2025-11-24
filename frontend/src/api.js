@@ -18,8 +18,14 @@ function getCookie(name) {
 }
 
 // API wrapper for Django backend communication
+// Ensure baseURL doesn't have trailing slash to avoid double slashes
+const normalizedBaseURL = API_BASE_URL ? API_BASE_URL.replace(/\/+$/, "") : "";
+
+console.log("[API Config] API_BASE_URL:", API_BASE_URL);
+console.log("[API Config] Normalized baseURL:", normalizedBaseURL);
+
 const API = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: normalizedBaseURL,
   headers: {
     "Content-Type": "application/json",
   },
@@ -47,6 +53,18 @@ API.interceptors.request.use(
     }
 
     config.withCredentials = true;
+    
+    // Debug: Log the actual URL being called
+    const fullUrl = config.baseURL 
+      ? (config.baseURL.endsWith('/') ? config.baseURL.slice(0, -1) : config.baseURL) + 
+        (config.url.startsWith('/') ? config.url : '/' + config.url)
+      : config.url;
+    console.log(`[API] ${config.method?.toUpperCase()} ${fullUrl}`, {
+      baseURL: config.baseURL,
+      url: config.url,
+      fullUrl
+    });
+    
     return config;
   },
   (error) => {
@@ -71,10 +89,11 @@ API.interceptors.response.use(
       if (refreshToken) {
         try {
           // Try to refresh the token
-          const response = await axios.post(
-            `${API_BASE_URL}/buysellapi/token/refresh/`,
-            { refresh: refreshToken }
-          );
+          // Use the same API instance to ensure consistent baseURL
+          const refreshUrl = normalizedBaseURL 
+            ? `${normalizedBaseURL}/buysellapi/token/refresh/`
+            : "/buysellapi/token/refresh/";
+          const response = await axios.post(refreshUrl, { refresh: refreshToken });
 
           const { access } = response.data;
           localStorage.setItem("token", access);
@@ -92,6 +111,37 @@ API.interceptors.response.use(
           return Promise.reject(refreshError);
         }
       }
+    }
+
+    // Enhanced error logging for debugging
+    if (error.response) {
+      const { status, statusText, data, config } = error.response;
+      console.error(`[API Error] ${config?.method?.toUpperCase()} ${config?.url}`, {
+        status,
+        statusText,
+        data,
+        baseURL: config?.baseURL,
+        fullUrl: config?.baseURL 
+          ? `${config.baseURL.replace(/\/+$/, "")}${config.url.startsWith('/') ? config.url : '/' + config.url}`
+          : config?.url
+      });
+      
+      // Log specific 405 errors with more detail
+      if (status === 405) {
+        console.error("[API 405 Error] Method Not Allowed - Possible causes:", {
+          attemptedMethod: config?.method?.toUpperCase(),
+          attemptedUrl: config?.url,
+          baseURL: config?.baseURL,
+          fullUrl: config?.baseURL 
+            ? `${config.baseURL.replace(/\/+$/, "")}${config.url.startsWith('/') ? config.url : '/' + config.url}`
+            : config?.url,
+          suggestion: "Check if the endpoint supports this HTTP method or if the URL is correct"
+        });
+      }
+    } else if (error.request) {
+      console.error("[API Error] No response received:", error.request);
+    } else {
+      console.error("[API Error] Request setup error:", error.message);
     }
 
     return Promise.reject(error);
