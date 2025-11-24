@@ -1,4 +1,20 @@
 import axios from "axios";
+
+// Helper to get CSRF token from cookie
+function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== "") {
+    const cookies = document.cookie.split(";");
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.substring(0, name.length + 1) === name + "=") {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}
 import { API_BASE_URL } from "./config/api";
 
 // API wrapper for Django backend communication
@@ -7,21 +23,30 @@ const API = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  withCredentials: true, // Always send cookies
 });
 
-// Add request interceptor to attach JWT token to all requests
+// Add request interceptor to attach JWT token and CSRF token to all requests
 API.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("token");
     const adminToken = localStorage.getItem("adminToken");
-
-    // Use whichever token is available
     const authToken = token || adminToken;
 
     if (authToken) {
       config.headers.Authorization = `Bearer ${authToken}`;
     }
 
+    // Attach CSRF token for unsafe methods
+    const unsafeMethods = ["post", "put", "patch", "delete"];
+    if (unsafeMethods.includes(config.method)) {
+      const csrfToken = getCookie("csrftoken");
+      if (csrfToken) {
+        config.headers["X-CSRFToken"] = csrfToken;
+      }
+    }
+
+    config.withCredentials = true;
     return config;
   },
   (error) => {
@@ -102,8 +127,7 @@ export const getOrder = (id) => API.get(`/buysellapi/orders/${id}/`);
 export const createOrder = (data) => API.post("/buysellapi/orders/", data);
 export const updateOrder = (id, data) =>
   API.put(`/buysellapi/orders/${id}/`, data);
-export const deleteOrder = (id) =>
-  API.delete(`/buysellapi/orders/${id}/`);
+export const deleteOrder = (id) => API.delete(`/buysellapi/orders/${id}/`);
 // Admin order helpers
 export const getAdminOrders = (params = {}) =>
   API.get("/buysellapi/admin/orders/", { params });
@@ -111,8 +135,10 @@ export const getAdminOrders = (params = {}) =>
 // Buy4me Request API helpers (User)
 export const getBuy4meRequests = (params = {}) =>
   API.get("/buysellapi/buy4me-requests/", { params });
-export const getBuy4meRequest = (id) => API.get(`/buysellapi/buy4me-requests/${id}/`);
-export const createBuy4meRequest = (data) => API.post("/buysellapi/buy4me-requests/", data);
+export const getBuy4meRequest = (id) =>
+  API.get(`/buysellapi/buy4me-requests/${id}/`);
+export const createBuy4meRequest = (data) =>
+  API.post("/buysellapi/buy4me-requests/", data);
 export const updateBuy4meRequest = (id, data) =>
   API.put(`/buysellapi/buy4me-requests/${id}/`, data);
 export const deleteBuy4meRequest = (id) =>
@@ -121,7 +147,8 @@ export const deleteBuy4meRequest = (id) =>
 // Buy4me Request API helpers (Admin)
 export const getAdminBuy4meRequests = (params = {}) =>
   API.get("/buysellapi/admin/buy4me-requests/", { params });
-export const getAdminBuy4meRequest = (id) => API.get(`/buysellapi/admin/buy4me-requests/${id}/`);
+export const getAdminBuy4meRequest = (id) =>
+  API.get(`/buysellapi/admin/buy4me-requests/${id}/`);
 export const updateAdminBuy4meRequest = (id, data) =>
   API.put(`/buysellapi/admin/buy4me-requests/${id}/`, data);
 export const deleteAdminBuy4meRequest = (id) =>
@@ -129,27 +156,36 @@ export const deleteAdminBuy4meRequest = (id) =>
 export const updateBuy4meRequestStatus = (id, status) =>
   API.put(`/buysellapi/admin/buy4me-requests/${id}/status/`, { status });
 export const updateBuy4meRequestTracking = (id, tracking_status) =>
-  API.put(`/buysellapi/admin/buy4me-requests/${id}/tracking/`, { tracking_status });
+  API.put(`/buysellapi/admin/buy4me-requests/${id}/tracking/`, {
+    tracking_status,
+  });
 export const createBuy4meRequestInvoice = (id, amount) =>
   API.post(`/buysellapi/admin/buy4me-requests/${id}/invoice/`, { amount });
 export const updateBuy4meRequestInvoiceStatus = (id, status) =>
   API.put(`/buysellapi/admin/buy4me-requests/${id}/invoice/`, { status });
 
 // Quick Order Product API helpers (Public)
-export const getQuickOrderProducts = () => API.get("/buysellapi/quick-order-products/");
+export const getQuickOrderProducts = () =>
+  API.get("/buysellapi/quick-order-products/");
 
 // Quick Order Product API helpers (Admin)
-export const getAdminQuickOrderProducts = () => API.get("/buysellapi/admin/quick-order-products/");
-export const getAdminQuickOrderProduct = (id) => API.get(`/buysellapi/admin/quick-order-products/${id}/`);
-export const createQuickOrderProduct = (data) => API.post("/buysellapi/admin/quick-order-products/", data);
-export const updateQuickOrderProduct = (id, data) => API.put(`/buysellapi/admin/quick-order-products/${id}/`, data);
-export const deleteQuickOrderProduct = (id) => API.delete(`/buysellapi/admin/quick-order-products/${id}/`);
+export const getAdminQuickOrderProducts = () =>
+  API.get("/buysellapi/admin/quick-order-products/");
+export const getAdminQuickOrderProduct = (id) =>
+  API.get(`/buysellapi/admin/quick-order-products/${id}/`);
+export const createQuickOrderProduct = (data) =>
+  API.post("/buysellapi/admin/quick-order-products/", data);
+export const updateQuickOrderProduct = (id, data) =>
+  API.put(`/buysellapi/admin/quick-order-products/${id}/`, data);
+export const deleteQuickOrderProduct = (id) =>
+  API.delete(`/buysellapi/admin/quick-order-products/${id}/`);
 
 // Category API helpers
 export const getCategories = (params = {}) =>
   API.get("/buysellapi/categories/", { params });
 export const getCategory = (slug) => API.get(`/buysellapi/categories/${slug}/`);
-export const createCategory = (data) => API.post("/buysellapi/categories/", data);
+export const createCategory = (data) =>
+  API.post("/buysellapi/categories/", data);
 export const updateCategory = (slug, data) =>
   API.put(`/buysellapi/categories/${slug}/`, data);
 export const deleteCategory = (slug) =>
@@ -158,8 +194,10 @@ export const deleteCategory = (slug) =>
 // Product Type API helpers
 export const getProductTypes = (params = {}) =>
   API.get("/buysellapi/product-types/", { params });
-export const getProductType = (slug) => API.get(`/buysellapi/product-types/${slug}/`);
-export const createProductType = (data) => API.post("/buysellapi/product-types/", data);
+export const getProductType = (slug) =>
+  API.get(`/buysellapi/product-types/${slug}/`);
+export const createProductType = (data) =>
+  API.post("/buysellapi/product-types/", data);
 export const updateProductType = (slug, data) =>
   API.put(`/buysellapi/product-types/${slug}/`, data);
 export const deleteProductType = (slug) =>
