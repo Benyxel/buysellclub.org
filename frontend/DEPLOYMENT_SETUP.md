@@ -1,8 +1,16 @@
 # Frontend Deployment Setup Guide
 
+## Deployment Platform
+
+This project is configured for **GitHub Pages** deployment.
+
+For complete setup instructions, see:
+- `GITHUB_PAGES_SETUP.md` - Complete setup guide
+- `MIGRATION_TO_GITHUB_PAGES.md` - Quick migration guide
+
 ## Environment Variables
 
-To connect the frontend to your Railway backend, you need to set the following environment variable in Vercel:
+To connect the frontend to your Railway backend, you need to set the following environment variable in GitHub Secrets:
 
 ### Required Environment Variables
 
@@ -10,7 +18,7 @@ To connect the frontend to your Railway backend, you need to set the following e
    - **Description**: The base URL of your Railway backend API
    - **Example**: `https://your-app-name.up.railway.app`
    - **For local development**: Leave empty (uses Vite proxy to `http://localhost:8000`)
-   - **Where to set**: Vercel Dashboard → Your Project → Settings → Environment Variables
+   - **Where to set**: GitHub Repository → Settings → Secrets and variables → Actions → New repository secret
 
 ### Optional Environment Variables
 
@@ -18,23 +26,24 @@ To connect the frontend to your Railway backend, you need to set the following e
    - **Description**: Base path for the application
    - **Default**: `/buysellclubproject`
    - **Example**: `/` or `/buysellclubproject`
+   - **Where to set**: GitHub Repository → Settings → Secrets and variables → Actions
 
-## Setting Up in Vercel
+## Setting Up in GitHub
 
-1. Go to your Vercel project dashboard
-2. Navigate to **Settings** → **Environment Variables**
-3. Add the following:
+1. Go to your GitHub repository
+2. Navigate to **Settings** → **Secrets and variables** → **Actions**
+3. Click **New repository secret**
+4. Add the following:
    - **Name**: `VITE_API_BASE_URL`
    - **Value**: Your Railway backend URL (e.g., `https://your-app-name.up.railway.app`)
-   - **Environments**: Select Production, Preview, and Development
-4. Click **Save**
-5. **Redeploy** your application for the changes to take effect
+5. Click **Add secret**
+6. Push to `main` branch to trigger deployment
 
 ## Backend CORS Configuration
 
 **⚠️ IMPORTANT: This is a CORS error - you MUST fix this in your Django backend!**
 
-The error shows your backend at `https://buysellclub-backend-production.up.railway.app` is not allowing requests from your Vercel frontend.
+The error shows your backend at `https://buysellclub-backend-production.up.railway.app` is not allowing requests from your GitHub Pages frontend.
 
 ### Fix in Django Backend (settings.py)
 
@@ -66,14 +75,12 @@ MIDDLEWARE = [
 
 4. **Configure CORS settings** (add to settings.py):
 
-**Option A: Allow specific Vercel domains** (Recommended for production):
+**Option A: Allow specific GitHub Pages domains** (Recommended for production):
 ```python
 # CORS Configuration
 CORS_ALLOWED_ORIGINS = [
-    "https://buysellclub-3t1elf9mf-buysellclubs-projects.vercel.app",  # Current preview
-    "https://buysellclub-g0epzozqd-buysellclubs-projects.vercel.app",  # Previous preview
-    # Add your production domain when you have one:
-    # "https://your-production-domain.vercel.app",
+    "https://your-username.github.io",  # Your GitHub Pages URL
+    # Add your custom domain if you have one:
     # "https://your-custom-domain.com",
 ]
 
@@ -94,18 +101,18 @@ CORS_ALLOW_HEADERS = [
 ]
 ```
 
-**Option B: Allow all Vercel preview URLs** (Useful since Vercel preview URLs change):
+**Option B: Allow all GitHub Pages URLs** (Useful for multiple repositories):
 ```python
 import os
 
 # CORS Configuration
 CORS_ALLOWED_ORIGIN_REGEXES = [
-    r"^https://.*\.vercel\.app$",  # Allow all Vercel preview URLs
+    r"^https://.*\.github\.io$",  # Allow all GitHub Pages URLs
 ]
 
 # Or use environment variable for production domain
 CORS_ALLOWED_ORIGINS = [
-    os.environ.get('FRONTEND_URL', 'https://your-production-domain.vercel.app'),
+    os.environ.get('FRONTEND_URL', 'https://your-username.github.io'),
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -135,14 +142,14 @@ CORS_ALLOW_CREDENTIALS = True
 3. **Check Railway logs** if issues persist
 
 ### Current Error Details:
-- **Frontend Origin**: `https://buysellclub-3t1elf9mf-buysellclubs-projects.vercel.app`
+- **Frontend Origin**: `https://your-username.github.io` (or your custom domain)
 - **Backend URL**: `https://buysellclub-backend-production.up.railway.app`
 - **Issue**: Backend is not sending `Access-Control-Allow-Origin` header
 
 ## Testing the Connection
 
 After deployment:
-1. Open your Vercel site
+1. Open your GitHub Pages site
 2. Open browser DevTools → Network tab
 3. Try logging in or making an API request
 4. Verify that requests are going to your Railway backend URL (not localhost)

@@ -23,7 +23,7 @@ This document outlines the image optimization strategies implemented to improve 
 - Image assets are organized in `assets/images/` directory
 - Content-based hashing for better caching
 
-### 4. **Vercel Cache Headers**
+### 4. **Cache Headers**
 - Images cached for 1 year (31536000 seconds)
 - Immutable cache headers for better performance
 
@@ -91,7 +91,7 @@ import OptimizedImage from './components/OptimizedImage';
    />
    ```
 
-3. **Consider using a CDN** for image delivery (Vercel automatically uses CDN)
+3. **Consider using a CDN** for image delivery (GitHub Pages uses CDN)
 
 4. **Monitor Core Web Vitals**:
    - Largest Contentful Paint (LCP) - should be < 2.5s
