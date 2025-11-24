@@ -105,8 +105,6 @@ const Signup = () => {
     setLoading(true);
 
     try {
-      // Fetch CSRF token before registration
-      await API.get("/get-csrf-token/");
       // Helper to get CSRF token from cookie
       function getCookie(name) {
         let cookieValue = null;

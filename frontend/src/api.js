@@ -1,7 +1,5 @@
-// User registration API helper
-export const registerUser = (data) =>
-  API.post("/buysellapi/user/register/", data);
 import axios from "axios";
+import { API_BASE_URL } from "./config/api";
 
 // Helper to get CSRF token from cookie
 function getCookie(name) {
@@ -18,7 +16,6 @@ function getCookie(name) {
   }
   return cookieValue;
 }
-import { API_BASE_URL } from "./config/api";
 
 // API wrapper for Django backend communication
 const API = axios.create({
@@ -209,3 +206,7 @@ export const deleteProductType = (slug) =>
 // Analytics API helpers
 export const getAdminAnalytics = (params = {}) =>
   API.get("/buysellapi/admin/analytics/", { params });
+
+// User registration API helper
+export const registerUser = (data) =>
+  API.post("/buysellapi/user/register/", data);

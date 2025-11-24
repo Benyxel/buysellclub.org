@@ -6,7 +6,21 @@ const envBase =
     ? import.meta.env.VITE_API_BASE_URL.trim()
     : "";
 
-export const API_BASE_URL = envBase !== "" ? envBase : "";
+// Normalize the base URL: ensure it has a protocol and no trailing slash
+let normalizedBase = "";
+if (envBase !== "") {
+  // Remove trailing slash if present
+  let base = envBase.replace(/\/+$/, "");
+  
+  // If it doesn't start with http:// or https://, add https://
+  if (!base.match(/^https?:\/\//i)) {
+    base = `https://${base}`;
+  }
+  
+  normalizedBase = base;
+}
+
+export const API_BASE_URL = normalizedBase;
 
 // Helper function to get full API URL for a given path
 export const getApiUrl = (path) => {
