@@ -58,21 +58,49 @@ jobs:
           VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
           VITE_BASE_PATH: ${{ steps.base_path.outputs.base_path }}
         run: |
-          echo "Building with VITE_BASE_PATH=$VITE_BASE_PATH"
+          echo "=== Build Configuration ==="
+          echo "VITE_BASE_PATH: $VITE_BASE_PATH"
           echo "Repository: ${{ github.repository }}"
+          echo "Building..."
           npm run build
-          echo "Build complete. Checking dist folder..."
-          ls -la dist/ | head -10
+          echo ""
+          echo "=== Build Output Verification ==="
+          if [ ! -d dist ]; then
+            echo "ERROR: dist directory not created!"
+            exit 1
+          fi
+          echo "Dist directory contents:"
+          ls -la dist/
+          echo ""
+          if [ ! -f dist/index.html ]; then
+            echo "ERROR: dist/index.html not found after build!"
+            echo "This is a critical error - index.html must exist."
+            exit 1
+          fi
+          echo "✓ index.html found in dist/"
+          echo "index.html size: $(wc -c < dist/index.html) bytes"
 
       - name: Verify build output
         working-directory: ./frontend
         run: |
+          echo "Checking build output..."
+          if [ ! -d dist ]; then
+            echo "ERROR: dist directory not found!"
+            exit 1
+          fi
           if [ ! -f dist/index.html ]; then
             echo "ERROR: dist/index.html not found!"
+            echo "Contents of dist directory:"
+            ls -la dist/
             exit 1
           fi
           echo "✓ index.html exists"
+          echo "✓ Build output verified"
+          echo "Files in dist:"
           ls -la dist/ | head -20
+          echo ""
+          echo "First few lines of index.html:"
+          head -5 dist/index.html
 
       - name: Copy 404.html to dist
         working-directory: ./frontend
@@ -107,10 +135,36 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
+      - name: Verify artifact before upload
+        working-directory: ./frontend
+        run: |
+          echo "=== Final verification before upload ==="
+          echo "Working directory: $(pwd)"
+          echo "Dist directory exists: $([ -d dist ] && echo 'YES' || echo 'NO')"
+          echo "index.html exists: $([ -f dist/index.html ] && echo 'YES' || echo 'NO')"
+          echo "404.html exists: $([ -f dist/404.html ] && echo 'YES' || echo 'NO')"
+          echo ""
+          echo "All files in dist:"
+          find dist -type f | sort
+          echo ""
+          echo "HTML files:"
+          find dist -name "*.html" -type f
+          echo ""
+          echo "index.html size: $(wc -c < dist/index.html) bytes"
+          echo "index.html first 10 lines:"
+          head -10 dist/index.html
+          echo ""
+          if [ ! -f dist/index.html ]; then
+            echo "ERROR: index.html is missing! Build may have failed."
+            exit 1
+          fi
+          echo "✓ All checks passed"
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: './frontend/dist'
+          retention-days: 1
 
   deploy:
     environment:
