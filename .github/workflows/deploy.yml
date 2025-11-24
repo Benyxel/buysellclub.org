@@ -1,0 +1,117 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main  # Change to your default branch name (main/master)
+  workflow_dispatch:  # Allow manual deployment
+
+# Set permissions for GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Determine base path
+        id: base_path
+        run: |
+          if [ -n "${{ secrets.VITE_BASE_PATH }}" ]; then
+            echo "base_path=${{ secrets.VITE_BASE_PATH }}" >> $GITHUB_OUTPUT
+          else
+            # Auto-detect from repository name
+            REPO_NAME="${{ github.repository }}"
+            REPO_NAME_ONLY=$(echo "$REPO_NAME" | cut -d'/' -f2)
+            echo "base_path=/$REPO_NAME_ONLY" >> $GITHUB_OUTPUT
+            echo "Auto-detected base path: /$REPO_NAME_ONLY"
+          fi
+
+      - name: Build
+        working-directory: ./frontend
+        env:
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+          VITE_BASE_PATH: ${{ steps.base_path.outputs.base_path }}
+        run: npm run build
+
+      - name: Verify build output
+        working-directory: ./frontend
+        run: |
+          if [ ! -f dist/index.html ]; then
+            echo "ERROR: dist/index.html not found!"
+            exit 1
+          fi
+          echo "✓ index.html exists"
+          ls -la dist/ | head -20
+
+      - name: Copy 404.html to dist
+        working-directory: ./frontend
+        run: |
+          if [ -f public/404.html ]; then
+            cp public/404.html dist/404.html
+            echo "✓ 404.html copied to dist"
+          else
+            echo "Warning: public/404.html not found, creating default..."
+            cat > dist/404.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <meta charset="utf-8">
+              <title>BuySellClub</title>
+              <script>
+                var l = window.location;
+                var pathParts = l.pathname.split('/').filter(Boolean);
+                var pathSegmentsToKeep = pathParts.length > 0 ? 1 : 0;
+                var redirect = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
+                  l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + '/?/' +
+                  l.pathname.slice(1).split('/').slice(pathSegmentsToKeep).join('/').replace(/&/g, '~and~') +
+                  (l.search ? '&' + l.search.slice(1).replace(/&/g, '~and~') : '') + l.hash;
+                l.replace(redirect);
+              </script>
+            </head>
+            <body><p>Redirecting...</p></body>
+          </html>
+          EOF
+          fi
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './frontend/dist'
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+

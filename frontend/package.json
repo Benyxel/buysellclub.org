@@ -7,10 +7,10 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy": "npm run build && echo 'Build complete. Push to GitHub to deploy via GitHub Actions.'"
   },
   "dependencies": {
-    "@vercel/speed-insights": "^1.2.0",
     "axios": "^1.8.4",
     "bootstrap": "^5.3.5",
     "boxicons": "^2.1.4",

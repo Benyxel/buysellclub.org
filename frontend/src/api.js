@@ -350,7 +350,7 @@ export const testConnection = async () => {
         error: error.message || "Network error",
         suggestion: normalizedBaseURL 
           ? "Check if the backend URL is correct and the server is running"
-          : "VITE_API_BASE_URL is not set. Set it in Vercel environment variables."
+          : "VITE_API_BASE_URL is not set. Set it in GitHub Secrets (Settings → Secrets and variables → Actions)."
       };
     } else {
       return { 
