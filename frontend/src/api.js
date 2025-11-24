@@ -30,6 +30,8 @@ const API = axios.create({
     "Content-Type": "application/json",
   },
   withCredentials: true, // Always send cookies
+  timeout: 30000, // 30 seconds timeout
+  timeoutErrorMessage: "Request timed out. Please check your internet connection.",
 });
 
 // Add request interceptor to attach JWT token and CSRF token to all requests
@@ -54,20 +56,27 @@ API.interceptors.request.use(
 
     config.withCredentials = true;
     
+    // Validate baseURL configuration
+    if (!config.baseURL && !config.url.startsWith('http')) {
+      console.warn("[API Warning] No baseURL configured and URL is not absolute. This may cause connection issues.");
+    }
+    
     // Debug: Log the actual URL being called
     const fullUrl = config.baseURL 
       ? (config.baseURL.endsWith('/') ? config.baseURL.slice(0, -1) : config.baseURL) + 
         (config.url.startsWith('/') ? config.url : '/' + config.url)
       : config.url;
     console.log(`[API] ${config.method?.toUpperCase()} ${fullUrl}`, {
-      baseURL: config.baseURL,
+      baseURL: config.baseURL || "(using relative URL)",
       url: config.url,
-      fullUrl
+      fullUrl,
+      timeout: config.timeout
     });
     
     return config;
   },
   (error) => {
+    console.error("[API] Request interceptor error:", error);
     return Promise.reject(error);
   }
 );
@@ -126,7 +135,7 @@ API.interceptors.response.use(
           : config?.url
       });
       
-      // Log specific 405 errors with more detail
+      // Log specific errors with more detail
       if (status === 405) {
         console.error("[API 405 Error] Method Not Allowed - Possible causes:", {
           attemptedMethod: config?.method?.toUpperCase(),
@@ -137,11 +146,58 @@ API.interceptors.response.use(
             : config?.url,
           suggestion: "Check if the endpoint supports this HTTP method or if the URL is correct"
         });
+      } else if (status === 500) {
+        console.error("[API 500 Error] Internal Server Error:", {
+          url: config?.url,
+          method: config?.method?.toUpperCase(),
+          data: data,
+          suggestion: "Check backend logs for detailed error information"
+        });
+      } else if (status === 0 || statusText === '') {
+        // CORS or network issue
+        console.error("[API CORS/Network Error] Possible CORS or network issue:", {
+          url: config?.url,
+          method: config?.method?.toUpperCase(),
+          baseURL: config?.baseURL,
+          suggestion: "Check CORS configuration in backend settings.py"
+        });
       }
     } else if (error.request) {
-      console.error("[API Error] No response received:", error.request);
+      // Network error - no response received
+      const fullUrl = originalRequest?.baseURL 
+        ? `${originalRequest.baseURL.replace(/\/+$/, "")}${originalRequest.url.startsWith('/') ? originalRequest.url : '/' + originalRequest.url}`
+        : originalRequest?.url;
+      
+      console.error("[API Error] No response received (Network Error):", {
+        url: fullUrl,
+        method: originalRequest?.method?.toUpperCase(),
+        baseURL: originalRequest?.baseURL,
+        error: error.message,
+        code: error.code,
+        possibleCauses: [
+          "Backend server is down or unreachable",
+          "Network connection issue",
+          "CORS configuration problem",
+          "Firewall blocking the request",
+          "Backend URL is incorrect"
+        ]
+      });
+      
+      // Provide more helpful error message
+      if (error.code === 'ERR_NETWORK' || error.code === 'ECONNABORTED') {
+        error.userMessage = "Unable to connect to the server. Please check your internet connection and try again.";
+      } else if (error.code === 'ETIMEDOUT' || error.message?.includes('timeout')) {
+        error.userMessage = "Request timed out. The server is taking too long to respond.";
+      } else {
+        error.userMessage = "Network error. Please check your connection and try again.";
+      }
     } else {
-      console.error("[API Error] Request setup error:", error.message);
+      // Request setup error
+      console.error("[API Error] Request setup error:", {
+        message: error.message,
+        config: error.config
+      });
+      error.userMessage = "Failed to send request. Please try again.";
     }
 
     return Promise.reject(error);
@@ -260,3 +316,48 @@ export const getAdminAnalytics = (params = {}) =>
 // User registration API helper
 export const registerUser = (data) =>
   API.post("/buysellapi/user/register/", data);
+
+// Connection test utility
+export const testConnection = async () => {
+  try {
+    // Try a simple GET request to test connectivity
+    const response = await API.get("/buysellapi/products/", { 
+      params: { limit: 1 },
+      timeout: 10000 // 10 seconds for connection test
+    });
+    return { 
+      success: true, 
+      message: "Connection successful",
+      baseURL: normalizedBaseURL || "(relative URL)",
+      status: response.status
+    };
+  } catch (error) {
+    if (error.response) {
+      // Got a response, so connection works but endpoint might have issues
+      return { 
+        success: true, 
+        message: "Connection successful (endpoint returned error)",
+        baseURL: normalizedBaseURL || "(relative URL)",
+        status: error.response.status,
+        warning: true
+      };
+    } else if (error.request) {
+      // No response received - connection issue
+      return { 
+        success: false, 
+        message: "Cannot connect to backend",
+        baseURL: normalizedBaseURL || "(relative URL)",
+        error: error.message || "Network error",
+        suggestion: normalizedBaseURL 
+          ? "Check if the backend URL is correct and the server is running"
+          : "VITE_API_BASE_URL is not set. Set it in Vercel environment variables."
+      };
+    } else {
+      return { 
+        success: false, 
+        message: "Request setup failed",
+        error: error.message
+      };
+    }
+  }
+};
