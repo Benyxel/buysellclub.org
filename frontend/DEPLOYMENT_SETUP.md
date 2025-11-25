@@ -10,6 +10,8 @@ For complete setup instructions, see:
 
 ## Environment Variables
 
+Copy `env.frontend.example` to `.env`, `.env.local`, or `.env.production` and update the values before building. GitHub Actions secrets can mirror the same keys.
+
 To connect the frontend to your Railway backend, you need to set the following environment variable in GitHub Secrets:
 
 ### Required Environment Variables
