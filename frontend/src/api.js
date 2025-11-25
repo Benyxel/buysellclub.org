@@ -1,5 +1,27 @@
 import axios from "axios";
-import { API_BASE_URL } from "./config/api";
+
+const DEFAULT_API_BASE_URL = "https://buysellclub-backend-production.up.railway.app";
+
+const resolveApiBaseUrl = () => {
+  // Prefer Vite-style env variables
+  if (typeof import.meta !== "undefined" && import.meta?.env?.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL;
+  }
+
+  // Fallback to process.env (Next.js / CRA builds)
+  if (typeof process !== "undefined" && process?.env?.VITE_API_BASE_URL) {
+    return process.env.VITE_API_BASE_URL;
+  }
+
+  // Fallback to window-injected env (for static hosts)
+  if (typeof window !== "undefined" && window.__ENV__?.VITE_API_BASE_URL) {
+    return window.__ENV__.VITE_API_BASE_URL;
+  }
+
+  return DEFAULT_API_BASE_URL;
+};
+
+const API_BASE_URL = resolveApiBaseUrl();
 
 // Helper to get CSRF token from cookie
 function getCookie(name) {
