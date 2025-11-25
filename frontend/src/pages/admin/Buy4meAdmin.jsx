@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import InvoiceModal from '../../components/InvoiceModal';
 import Invoice from '../../components/Invoice';
 import BulkActions from '../../components/shared/BulkActions';
+import ConfirmModal from '../../components/shared/ConfirmModal';
 import {
   getAdminBuy4meRequests,
   updateBuy4meRequestStatus,
@@ -21,10 +22,16 @@ const Buy4meAdmin = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showInvoiceForm, setShowInvoiceForm] = useState(false);
   const [invoiceAmount, setInvoiceAmount] = useState('');
+  const [invoiceProductCostRmb, setInvoiceProductCostRmb] = useState('');
+  const [invoiceRmbToGhsRate, setInvoiceRmbToGhsRate] = useState('');
+  const [invoiceShippingMethod, setInvoiceShippingMethod] = useState('sea');
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [showPrintableInvoice, setShowPrintableInvoice] = useState(false);
   const [selectedRequests, setSelectedRequests] = useState([]);
   const [selectAll, setSelectAll] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
 
   useEffect(() => {
     fetchBuy4meRequests();
@@ -116,18 +123,21 @@ const Buy4meAdmin = () => {
     }
   };
 
-  const handleDeleteRequest = async (requestId) => {
-    if (!window.confirm('Are you sure you want to delete this request?')) {
-      return;
-    }
+  const handleDeleteRequest = (requestId) => {
+    setDeleteTarget(requestId);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteRequest = async () => {
+    if (!deleteTarget) return;
     
     try {
-      await deleteAdminBuy4meRequest(requestId);
+      await deleteAdminBuy4meRequest(deleteTarget);
 
       // Update local state
-      setRequests(requests.filter(req => (req.id !== requestId && req._id !== requestId)));
+      setRequests(requests.filter(req => (req.id !== deleteTarget && req._id !== deleteTarget)));
       
-      if (selectedRequest && (selectedRequest.id === requestId || selectedRequest._id === requestId)) {
+      if (selectedRequest && (selectedRequest.id === deleteTarget || selectedRequest._id === deleteTarget)) {
         setSelectedRequest(null);
       }
       
@@ -136,13 +146,28 @@ const Buy4meAdmin = () => {
       console.error('Error deleting request:', error);
       const errorMessage = error.response?.data?.error || error.response?.data?.detail || error.message || 'Failed to delete request';
       toast.error(errorMessage);
+    } finally {
+      setShowDeleteModal(false);
+      setDeleteTarget(null);
     }
   };
 
   const handleCreateInvoice = async () => {
+    // Validate required fields
+    if (!invoiceProductCostRmb || !invoiceRmbToGhsRate) {
+      toast.error('Please fill in all required fields (Product Cost in RMB and RMB to GHS Rate)');
+      return;
+    }
+    
     try {
       const requestId = selectedRequest.id || selectedRequest._id;
-      const response = await createBuy4meRequestInvoice(requestId, parseFloat(invoiceAmount));
+      const invoiceData = {
+        product_cost_rmb: parseFloat(invoiceProductCostRmb),
+        rmb_to_ghs_rate: parseFloat(invoiceRmbToGhsRate),
+        shipping_method: invoiceShippingMethod,
+        service_fee_percent: 5.0, // 5% service fee
+      };
+      const response = await createBuy4meRequestInvoice(requestId, invoiceData);
       const updatedRequest = response.data;
       
       // Transform response to match frontend expectations
@@ -252,19 +277,27 @@ const Buy4meAdmin = () => {
     setSelectAll(selectedRequests.length === filteredRequests.length && filteredRequests.length > 0);
   }, [selectedRequests, filteredRequests]);
 
-  const handleBulkDelete = async (selectedIds) => {
-    if (!window.confirm(`Are you sure you want to delete ${selectedIds.length} request(s)?`)) {
-      return;
-    }
+  const handleBulkDelete = (selectedIds) => {
+    if (selectedIds.length === 0) return;
+    setDeleteTarget('selected');
+    setShowBulkDeleteModal(true);
+  };
+
+  const confirmBulkDelete = async () => {
+    if (selectedRequests.length === 0) return;
+    
     try {
-      const deletePromises = selectedIds.map((id) => deleteAdminBuy4meRequest(id));
+      const deletePromises = selectedRequests.map((id) => deleteAdminBuy4meRequest(id));
       await Promise.all(deletePromises);
-      toast.success(`${selectedIds.length} request(s) deleted successfully`);
+      toast.success(`${selectedRequests.length} request(s) deleted successfully`);
       setSelectedRequests([]);
       fetchBuy4meRequests();
     } catch (error) {
       console.error('Error bulk deleting requests:', error);
       toast.error('Failed to delete some requests');
+    } finally {
+      setShowBulkDeleteModal(false);
+      setDeleteTarget(null);
     }
   };
 
@@ -363,7 +396,7 @@ const Buy4meAdmin = () => {
         {/* Bulk Actions */}
         <BulkActions
           selectedItems={selectedRequests}
-          onBulkDelete={handleBulkDelete}
+          onBulkDelete={() => handleBulkDelete(selectedRequests)}
           onBulkUpdateStatus={handleBulkUpdateStatus}
           availableStatuses={[
             { value: 'pending', label: 'Pending' },
@@ -733,29 +766,89 @@ const Buy4meAdmin = () => {
                           <h5 className="text-md font-medium text-gray-900 dark:text-white mb-3">Create New Invoice</h5>
                           <div className="space-y-4">
                             <div>
-                              <label htmlFor="invoiceAmount" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                Invoice Amount
+                              <label htmlFor="invoiceProductCostRmb" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Product Cost (RMB) <span className="text-red-500">*</span>
                               </label>
                               <div className="mt-1 flex rounded-md shadow-sm">
                                 <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-gray-400">
-                                  $
+                                  ¥
                                 </span>
                                 <input
                                   type="number"
-                                  id="invoiceAmount"
-                                  value={invoiceAmount}
-                                  onChange={(e) => setInvoiceAmount(e.target.value)}
+                                  id="invoiceProductCostRmb"
+                                  value={invoiceProductCostRmb}
+                                  onChange={(e) => setInvoiceProductCostRmb(e.target.value)}
                                   className="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-r-md border dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                                   placeholder="0.00"
                                   min="0"
                                   step="0.01"
+                                  required
                                 />
                               </div>
                             </div>
+                            <div>
+                              <label htmlFor="invoiceRmbToGhsRate" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                RMB to GHS Conversion Rate <span className="text-red-500">*</span>
+                              </label>
+                              <div className="mt-1 flex rounded-md shadow-sm">
+                                <input
+                                  type="number"
+                                  id="invoiceRmbToGhsRate"
+                                  value={invoiceRmbToGhsRate}
+                                  onChange={(e) => setInvoiceRmbToGhsRate(e.target.value)}
+                                  className="flex-1 min-w-0 block w-full px-3 py-2 rounded-md border dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                  placeholder="0.0000"
+                                  min="0"
+                                  step="0.0001"
+                                  required
+                                />
+                              </div>
+                              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                Current rate: 1 RMB = {invoiceRmbToGhsRate || '0'} GHS
+                              </p>
+                            </div>
+                            <div>
+                              <label htmlFor="invoiceShippingMethod" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Shipping Method <span className="text-red-500">*</span>
+                              </label>
+                              <select
+                                id="invoiceShippingMethod"
+                                value={invoiceShippingMethod}
+                                onChange={(e) => setInvoiceShippingMethod(e.target.value)}
+                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm"
+                                required
+                              >
+                                <option value="sea">Sea Shipping</option>
+                                <option value="air">Air Shipping</option>
+                              </select>
+                            </div>
+                            {invoiceProductCostRmb && invoiceRmbToGhsRate && (
+                              <div className="bg-blue-50 dark:bg-blue-900 rounded-lg p-3 border border-blue-200 dark:border-blue-700">
+                                <p className="text-sm font-medium text-blue-900 dark:text-blue-200 mb-2">Invoice Calculation:</p>
+                                <div className="space-y-1 text-sm text-blue-800 dark:text-blue-300">
+                                  <div className="flex justify-between">
+                                    <span>Product Cost (RMB):</span>
+                                    <span>¥{parseFloat(invoiceProductCostRmb || 0).toFixed(2)}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span>Product Cost (GHS):</span>
+                                    <span>₵{(parseFloat(invoiceProductCostRmb || 0) * parseFloat(invoiceRmbToGhsRate || 0)).toFixed(2)}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span>Service Fee (5%):</span>
+                                    <span>₵{((parseFloat(invoiceProductCostRmb || 0) * parseFloat(invoiceRmbToGhsRate || 0)) * 0.05).toFixed(2)}</span>
+                                  </div>
+                                  <div className="flex justify-between font-bold border-t border-blue-200 dark:border-blue-700 pt-1 mt-1">
+                                    <span>Total Amount (GHS):</span>
+                                    <span>₵{((parseFloat(invoiceProductCostRmb || 0) * parseFloat(invoiceRmbToGhsRate || 0)) * 1.05).toFixed(2)}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                             <div className="flex gap-2">
                               <button
                                 onClick={handleCreateInvoice}
-                                disabled={!invoiceAmount || parseFloat(invoiceAmount) <= 0}
+                                disabled={!invoiceProductCostRmb || !invoiceRmbToGhsRate || parseFloat(invoiceProductCostRmb) <= 0 || parseFloat(invoiceRmbToGhsRate) <= 0}
                                 className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
                               >
                                 <FaFileInvoiceDollar className="mr-2" />
@@ -765,6 +858,9 @@ const Buy4meAdmin = () => {
                                 onClick={() => {
                                   setShowInvoiceForm(false);
                                   setInvoiceAmount('');
+                                  setInvoiceProductCostRmb('');
+                                  setInvoiceRmbToGhsRate('');
+                                  setInvoiceShippingMethod('sea');
                                 }}
                                 className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                               >
@@ -922,6 +1018,36 @@ const Buy4meAdmin = () => {
         onClose={() => setShowInvoiceModal(false)} 
         invoice={selectedRequest?.invoice} 
         request={selectedRequest} 
+      />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setDeleteTarget(null);
+        }}
+        onConfirm={confirmDeleteRequest}
+        title="Delete Buy4ME Request"
+        message="Are you sure you want to delete this request? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        type="danger"
+      />
+
+      {/* Bulk Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showBulkDeleteModal}
+        onClose={() => {
+          setShowBulkDeleteModal(false);
+          setDeleteTarget(null);
+        }}
+        onConfirm={confirmBulkDelete}
+        title="Delete Buy4ME Requests"
+        message={`Are you sure you want to delete ${selectedRequests.length} request${selectedRequests.length > 1 ? 's' : ''}? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        type="danger"
       />
     </div>
   );

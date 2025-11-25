@@ -325,8 +325,8 @@ export const updateBuy4meRequestTracking = (id, tracking_status) =>
   API.put(`/buysellapi/admin/buy4me-requests/${id}/tracking/`, {
     tracking_status,
   });
-export const createBuy4meRequestInvoice = (id, amount) =>
-  API.post(`/buysellapi/admin/buy4me-requests/${id}/invoice/`, { amount });
+export const createBuy4meRequestInvoice = (id, data) =>
+  API.post(`/buysellapi/admin/buy4me-requests/${id}/invoice/`, data);
 export const updateBuy4meRequestInvoiceStatus = (id, status) =>
   API.put(`/buysellapi/admin/buy4me-requests/${id}/invoice/`, { status });
 

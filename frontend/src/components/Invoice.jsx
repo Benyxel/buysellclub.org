@@ -56,11 +56,20 @@ const Invoice = ({ invoice, request, printable = false }) => {
   };
 
   const calculateTotal = () => {
+    // For buy4me invoices, use totalGhs if available, otherwise fall back to amount
+    if (invoice.totalGhs) {
+      return invoice.totalGhs;
+    }
     let total = invoice.amount || 0;
     if (invoice.tax) total += invoice.tax;
     if (invoice.shipping) total += invoice.shipping;
     if (invoice.serviceFee) total += invoice.serviceFee;
     return total;
+  };
+
+  const getCurrencySymbol = () => {
+    // For buy4me invoices, use GHS (₵), otherwise USD ($)
+    return invoice.totalGhs ? '₵' : '$';
   };
 
   return (
@@ -146,39 +155,83 @@ const Invoice = ({ invoice, request, printable = false }) => {
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                   <div className="font-medium">{request?.title || 'Buy4Me Service'}</div>
                   <div className="text-gray-500 dark:text-gray-400 mt-1">{request?.description || 'Product procurement services'}</div>
+                  {invoice.shippingMethod && (
+                    <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                      Shipping: {invoice.shippingMethod === 'sea' ? 'Sea' : 'Air'}
+                    </div>
+                  )}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-white font-medium">
-                  ${invoice.amount?.toFixed(2) || '0.00'}
+                  {getCurrencySymbol()}{invoice.amount?.toFixed(2) || '0.00'}
                 </td>
               </tr>
-              {/* Only show these rows if values exist */}
-              {invoice.tax > 0 && (
+              
+              {/* Buy4Me Invoice Details */}
+              {invoice.productCostRmb && invoice.rmbToGhsRate && (
+                <>
+                  <tr>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      Product Cost (RMB)
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-white">
+                      ¥{invoice.productCostRmb.toFixed(2)}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      RMB to GHS Rate
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-white">
+                      {invoice.rmbToGhsRate.toFixed(4)}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      Product Cost (GHS)
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-white">
+                      ₵{(invoice.productCostRmb * invoice.rmbToGhsRate).toFixed(2)}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      Service Fee ({invoice.serviceFeePercent || 5}%)
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-white">
+                      ₵{((invoice.productCostRmb * invoice.rmbToGhsRate) * ((invoice.serviceFeePercent || 5) / 100)).toFixed(2)}
+                    </td>
+                  </tr>
+                </>
+              )}
+              
+              {/* Legacy invoice fields (for other invoice types) */}
+              {!invoice.productCostRmb && invoice.tax > 0 && (
                 <tr>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                     Tax
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-white">
-                    ${invoice.tax.toFixed(2)}
+                    {getCurrencySymbol()}{invoice.tax.toFixed(2)}
                   </td>
                 </tr>
               )}
-              {invoice.shipping > 0 && (
+              {!invoice.productCostRmb && invoice.shipping > 0 && (
                 <tr>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                     Shipping
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-white">
-                    ${invoice.shipping.toFixed(2)}
+                    {getCurrencySymbol()}{invoice.shipping.toFixed(2)}
                   </td>
                 </tr>
               )}
-              {invoice.serviceFee > 0 && (
+              {!invoice.productCostRmb && invoice.serviceFee > 0 && (
                 <tr>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                     Service Fee
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-white">
-                    ${invoice.serviceFee.toFixed(2)}
+                    {getCurrencySymbol()}{invoice.serviceFee.toFixed(2)}
                   </td>
                 </tr>
               )}
@@ -189,7 +242,7 @@ const Invoice = ({ invoice, request, printable = false }) => {
                   Total:
                 </td>
                 <td className="px-6 py-4 text-right text-lg font-bold text-gray-900 dark:text-white">
-                  ${calculateTotal().toFixed(2)}
+                  {getCurrencySymbol()}{calculateTotal().toFixed(2)}
                 </td>
               </tr>
             </tfoot>
