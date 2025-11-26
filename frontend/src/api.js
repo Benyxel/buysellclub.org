@@ -330,6 +330,44 @@ export const createBuy4meRequestInvoice = (id, data) =>
 export const updateBuy4meRequestInvoiceStatus = (id, status) =>
   API.put(`/buysellapi/admin/buy4me-requests/${id}/invoice/`, { status });
 
+// Training Booking API helpers (User)
+export const getTrainingBookings = (params = {}) =>
+  API.get("/buysellapi/training-bookings/", { params });
+export const getTrainingBooking = (id) =>
+  API.get(`/buysellapi/training-bookings/${id}/`);
+export const createTrainingBooking = (data) =>
+  API.post("/buysellapi/training-bookings/", data);
+export const updateTrainingBooking = (id, data) =>
+  API.put(`/buysellapi/training-bookings/${id}/`, data);
+export const deleteTrainingBooking = (id) =>
+  API.delete(`/buysellapi/training-bookings/${id}/`);
+
+// Admin Training Booking API helpers
+export const getAdminTrainingBookings = (params = {}) =>
+  API.get("/buysellapi/admin/training-bookings/", { params });
+export const getAdminTrainingBooking = (id) =>
+  API.get(`/buysellapi/admin/training-bookings/${id}/`);
+export const updateAdminTrainingBooking = (id, data) =>
+  API.put(`/buysellapi/admin/training-bookings/${id}/`, data);
+export const deleteAdminTrainingBooking = (id) =>
+  API.delete(`/buysellapi/admin/training-bookings/${id}/`);
+
+// Training Course API helpers (Public)
+export const getTrainingCourses = (params = {}) =>
+  API.get("/buysellapi/training-courses/", { params });
+
+// Admin Training Course API helpers
+export const getAdminTrainingCourses = (params = {}) =>
+  API.get("/buysellapi/admin/training-courses/", { params });
+export const getAdminTrainingCourse = (id) =>
+  API.get(`/buysellapi/admin/training-courses/${id}/`);
+export const createTrainingCourse = (data) =>
+  API.post("/buysellapi/admin/training-courses/", data);
+export const updateTrainingCourse = (id, data) =>
+  API.put(`/buysellapi/admin/training-courses/${id}/`, data);
+export const deleteTrainingCourse = (id) =>
+  API.delete(`/buysellapi/admin/training-courses/${id}/`);
+
 // Quick Order Product API helpers (Public)
 export const getQuickOrderProducts = () =>
   API.get("/buysellapi/quick-order-products/");

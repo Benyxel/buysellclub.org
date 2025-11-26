@@ -12,7 +12,6 @@ import {
 } from "react-icons/fa";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import HeroSection from "../../components/HeroSection";
 import buyimg from "../../assets/bm2.jpg";
 import product1 from "../../assets/products/pro1.jpg";
 import product2 from "../../assets/products/p2.jpg";
@@ -435,7 +434,6 @@ const Buy4me = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <HeroSection />
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
