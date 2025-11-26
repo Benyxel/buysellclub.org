@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { FaEdit, FaTrash, FaPlus, FaYoutube, FaUpload } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaPlus, FaYoutube } from 'react-icons/fa';
 import { toast } from 'react-toastify';
-import { getApiUrl } from '../../config/api';
+import {
+  getAdminTrainingCourses,
+  createTrainingCourse,
+  updateTrainingCourse,
+  deleteTrainingCourse,
+} from '../../api';
 
 const YouTubeManagement = () => {
   const [videos, setVideos] = useState([]);
@@ -9,125 +14,93 @@ const YouTubeManagement = () => {
   const [showModal, setShowModal] = useState(false);
   const [currentVideo, setCurrentVideo] = useState(null);
   const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    videoUrl: ''
+    video_url: '',
+    thumbnail: '',
   });
-  const [thumbnailFile, setThumbnailFile] = useState(null);
-  const [uploadProgress, setUploadProgress] = useState(0);
+
+  useEffect(() => {
+    fetchVideos();
+  }, []);
 
   const fetchVideos = async () => {
     try {
-      const response = await fetch(getApiUrl('api/admin/youtube-videos'), {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch videos');
-      }
-
-      const data = await response.json();
-      setVideos(data);
+      setLoading(true);
+      const response = await getAdminTrainingCourses();
+      const allCourses = response.data || [];
+      // Filter only YouTube courses
+      const youtubeCourses = allCourses.filter(course => course.course_type === 'youtube');
+      setVideos(youtubeCourses);
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error fetching videos:', error);
       toast.error('Failed to fetch videos');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchVideos();
-  }, []);
-
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    // Validate image file
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please upload a valid image file');
-      return;
+  const getYouTubeVideoId = (url) => {
+    if (!url) return '';
+    try {
+      const urlObj = new URL(url);
+      if (urlObj.hostname === 'youtu.be') {
+        return urlObj.pathname.slice(1);
+      }
+      return urlObj.searchParams.get('v') || '';
+    } catch {
+      // Try regex extraction as fallback
+      const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
+      return match ? match[1] : '';
     }
-    setThumbnailFile(file);
   };
 
-  const uploadFile = async (file) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('type', 'thumbnail');
-
-    try {
-      const response = await fetch(getApiUrl('api/admin/upload'), {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-        },
-        body: formData
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to upload thumbnail');
-      }
-
-      const data = await response.json();
-      return data.filePath;
-    } catch (error) {
-      console.error('Upload error:', error);
-      throw error;
+  const getYouTubeThumbnail = (url) => {
+    const videoId = getYouTubeVideoId(url);
+    if (videoId) {
+      return `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
     }
+    return '';
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      setUploadProgress(0);
-      let thumbnailUrl = currentVideo?.thumbnail;
-
-      // Upload thumbnail if new file is selected
-      if (thumbnailFile) {
-        setUploadProgress(50);
-        thumbnailUrl = await uploadFile(thumbnailFile);
-        setUploadProgress(80);
+      // Auto-generate thumbnail from YouTube URL if not provided
+      let thumbnail = formData.thumbnail;
+      if (!thumbnail && formData.video_url) {
+        thumbnail = getYouTubeThumbnail(formData.video_url);
       }
 
-      // Get YouTube video ID for thumbnail if no custom thumbnail is provided
-      const youtubeId = getYouTubeVideoId(formData.videoUrl);
-      const defaultThumbnail = `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg`;
+      // Extract video ID for title if needed
+      const videoId = getYouTubeVideoId(formData.video_url);
+      const defaultTitle = videoId ? `YouTube Video ${videoId}` : 'YouTube Video';
 
-      const url = currentVideo 
-        ? getApiUrl(`api/admin/youtube-videos/${currentVideo._id}`)
-        : getApiUrl('api/admin/youtube-videos');
-      
-      const response = await fetch(url, {
-        method: currentVideo ? 'PUT' : 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-        },
-        body: JSON.stringify({
-          title: formData.title,
-          description: formData.description,
-          videoUrl: formData.videoUrl,
-          thumbnail: thumbnailUrl || defaultThumbnail
-        })
-      });
+      const data = {
+        title: currentVideo ? currentVideo.title : defaultTitle, // Keep existing title if editing, otherwise use default
+        description: currentVideo ? currentVideo.description : '', // Keep existing description if editing
+        course_type: 'youtube', // Always set to youtube for this component
+        video_url: formData.video_url,
+        thumbnail: thumbnail || getYouTubeThumbnail(formData.video_url),
+        duration: currentVideo ? currentVideo.duration : '', // Keep existing duration if editing
+        price: 0, // YouTube videos are free
+        order: currentVideo ? currentVideo.order : 0, // Keep existing order if editing
+        is_active: currentVideo ? (currentVideo.is_active !== undefined ? currentVideo.is_active : true) : true, // Keep existing status if editing
+      };
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to save video');
+      if (currentVideo) {
+        await updateTrainingCourse(currentVideo.id, data);
+        toast.success('Video updated successfully');
+      } else {
+        await createTrainingCourse(data);
+        toast.success('Video added successfully');
       }
 
-      setUploadProgress(100);
-      toast.success(`Video ${currentVideo ? 'updated' : 'added'} successfully`);
       setShowModal(false);
-      fetchVideos();
       resetForm();
+      fetchVideos();
     } catch (error) {
-      console.error('Error:', error);
-      toast.error(error.message || 'Failed to save video');
+      console.error('Error saving video:', error);
+      const errorMessage = error.response?.data?.error || error.response?.data?.detail || error.message || 'Failed to save video';
+      toast.error(errorMessage);
     }
   };
 
@@ -137,56 +110,31 @@ const YouTubeManagement = () => {
     }
     
     try {
-      const response = await fetch(getApiUrl(`api/admin/youtube-videos/${id}`), {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete video');
-      }
-      
+      await deleteTrainingCourse(id);
       toast.success('Video deleted successfully');
       fetchVideos();
     } catch (error) {
-      console.error('Error:', error);
-      toast.error('Failed to delete video');
+      console.error('Error deleting video:', error);
+      const errorMessage = error.response?.data?.error || error.response?.data?.detail || error.message || 'Failed to delete video';
+      toast.error(errorMessage);
     }
   };
 
   const resetForm = () => {
     setFormData({
-      title: '',
-      description: '',
-      videoUrl: ''
+      video_url: '',
+      thumbnail: '',
     });
-    setThumbnailFile(null);
     setCurrentVideo(null);
-    setUploadProgress(0);
   };
 
   const editVideo = (video) => {
     setCurrentVideo(video);
     setFormData({
-      title: video.title,
-      description: video.description,
-      videoUrl: video.videoUrl
+      video_url: video.video_url || '',
+      thumbnail: video.thumbnail || '',
     });
     setShowModal(true);
-  };
-
-  const getYouTubeVideoId = (url) => {
-    try {
-      const urlObj = new URL(url);
-      if (urlObj.hostname === 'youtu.be') {
-        return urlObj.pathname.slice(1);
-      }
-      return urlObj.searchParams.get('v') || '';
-    } catch {
-      return '';
-    }
   };
 
   return (
@@ -212,23 +160,33 @@ const YouTubeManagement = () => {
           <div className="flex justify-center items-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-500"></div>
           </div>
+        ) : videos.length === 0 ? (
+          <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+            <FaYoutube className="mx-auto text-4xl mb-4" />
+            <p>No YouTube videos found</p>
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {videos.map(video => (
-              <div key={video._id} className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
+              <div key={video.id} className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border border-gray-200 dark:border-gray-700">
                 <div className="relative h-48">
-                  <img
-                    src={video.thumbnail}
-                    alt={video.title}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.target.onerror = null;
-                      e.target.src = 'https://via.placeholder.com/400x225?text=Video+Thumbnail';
-                    }}
-                  />
+                  {video.thumbnail ? (
+                    <img
+                      src={video.thumbnail}
+                      alt={video.title}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                      }}
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                      <FaYoutube className="text-4xl text-gray-400" />
+                    </div>
+                  )}
                   <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
                     <a
-                      href={video.videoUrl}
+                      href={video.video_url}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="p-2 bg-white rounded-full text-red-600 hover:text-red-700"
@@ -236,11 +194,26 @@ const YouTubeManagement = () => {
                       <FaYoutube size={24} />
                     </a>
                   </div>
+                  <div className="absolute top-2 right-2">
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${
+                      video.is_active 
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                        : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                    }`}>
+                      {video.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
                 </div>
                 
                 <div className="p-4">
                   <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">{video.title}</h3>
-                  <p className="text-gray-600 dark:text-gray-400 mb-4">{video.description}</p>
+                  <p className="text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">{video.description}</p>
+                  
+                  {video.duration && (
+                    <div className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                      Duration: {video.duration}
+                    </div>
+                  )}
                   
                   <div className="flex justify-end">
                     <div className="flex gap-2">
@@ -252,7 +225,7 @@ const YouTubeManagement = () => {
                         <FaEdit />
                       </button>
                       <button
-                        onClick={() => handleDelete(video._id)}
+                        onClick={() => handleDelete(video.id)}
                         className="p-2 text-red-500 hover:text-red-600"
                         title="Delete video"
                       >
@@ -270,79 +243,53 @@ const YouTubeManagement = () => {
       {/* Add/Edit Video Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-2xl">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-4">
               {currentVideo ? 'Edit Video' : 'Add New Video'}
             </h3>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Title</label>
-                <input
-                  type="text"
-                  value={formData.title}
-                  onChange={(e) => setFormData({...formData, title: e.target.value})}
-                  className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                  required
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({...formData, description: e.target.value})}
-                  className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                  rows="3"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">YouTube Video URL</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  YouTube Video URL *
+                </label>
                 <input
                   type="url"
-                  value={formData.videoUrl}
-                  onChange={(e) => setFormData({...formData, videoUrl: e.target.value})}
+                  value={formData.video_url}
+                  onChange={(e) => {
+                    const url = e.target.value;
+                    setFormData({...formData, video_url: url});
+                    // Auto-generate thumbnail if URL is valid and no custom thumbnail is set
+                    if (url && !formData.thumbnail) {
+                      const autoThumbnail = getYouTubeThumbnail(url);
+                      if (autoThumbnail) {
+                        setFormData(prev => ({...prev, thumbnail: autoThumbnail}));
+                      }
+                    }
+                  }}
                   className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                  placeholder="https://www.youtube.com/watch?v=..."
+                  placeholder="https://www.youtube.com/watch?v=... or https://youtu.be/..."
                   required
                 />
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  Paste the full YouTube URL. The thumbnail will be auto-generated from the video.
+                </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Custom Thumbnail (Optional)</label>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="file"
-                    onChange={handleFileChange}
-                    accept="image/*"
-                    className="hidden"
-                    id="thumbnailFile"
-                  />
-                  <label
-                    htmlFor="thumbnailFile"
-                    className="cursor-pointer flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                  >
-                    <FaUpload />
-                    <span>{thumbnailFile ? thumbnailFile.name : 'Choose Thumbnail'}</span>
-                  </label>
-                  {currentVideo?.thumbnail && !thumbnailFile && (
-                    <span className="text-sm text-gray-500">Current thumbnail will be kept</span>
-                  )}
-                </div>
-                <p className="mt-1 text-sm text-gray-500">
-                  If no custom thumbnail is provided, the default YouTube thumbnail will be used.
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Custom Thumbnail URL (Optional)
+                </label>
+                <input
+                  type="url"
+                  value={formData.thumbnail}
+                  onChange={(e) => setFormData({...formData, thumbnail: e.target.value})}
+                  className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  placeholder="Leave empty to use YouTube default thumbnail"
+                />
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  If left empty, the default YouTube thumbnail will be used automatically.
                 </p>
               </div>
-              
-              {uploadProgress > 0 && (
-                <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
-                  <div 
-                    className="bg-red-600 h-2.5 rounded-full transition-all duration-300" 
-                    style={{ width: `${uploadProgress}%` }}
-                  ></div>
-                </div>
-              )}
               
               <div className="flex justify-end gap-4 mt-6">
                 <button
@@ -370,4 +317,4 @@ const YouTubeManagement = () => {
   );
 };
 
-export default YouTubeManagement; 
+export default YouTubeManagement;

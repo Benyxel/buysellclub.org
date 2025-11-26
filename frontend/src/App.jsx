@@ -41,10 +41,12 @@ import Logout from "./components/Logout";
 import NotFound from "./pages/NotFound";
 import LoginPromptModal from "./components/LoginPromptModal";
 import UserView from "./pages/admin/UserView";
+import ScrollToTop from "./components/ScrollToTop";
 
 function App() {
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
+      <ScrollToTop />
       <Routes>
         {/* Auth pages without Navbar and Footer */}
         <Route path="/Login" element={<Login />} />

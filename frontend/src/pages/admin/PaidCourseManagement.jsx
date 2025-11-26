@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { FaEdit, FaTrash, FaPlus, FaVideo, FaEye, FaPlay, FaUpload } from 'react-icons/fa';
 import { toast } from 'react-toastify';
-import { getApiUrl } from '../../config/api';
+import {
+  getAdminTrainingCourses,
+  createTrainingCourse,
+  updateTrainingCourse,
+  deleteTrainingCourse,
+} from '../../api';
 
 const PaidCourseManagement = () => {
   const [courses, setCourses] = useState([]);
@@ -14,7 +19,9 @@ const PaidCourseManagement = () => {
     price: '',
     duration: '',
     category: '',
-    isPremium: false
+    isPremium: false,
+    videoUrl: '',
+    thumbnail: ''
   });
   const [videoFile, setVideoFile] = useState(null);
   const [thumbnailFile, setThumbnailFile] = useState(null);
@@ -22,20 +29,14 @@ const PaidCourseManagement = () => {
 
   const fetchCourses = async () => {
     try {
-      const response = await fetch(getApiUrl('api/admin/training-courses?type=paid'), {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch courses');
-      }
-
-      const data = await response.json();
-      setCourses(data);
+      setLoading(true);
+      const response = await getAdminTrainingCourses();
+      const allCourses = response.data || [];
+      // Filter only premium courses
+      const premiumCourses = allCourses.filter(course => course.course_type === 'premium');
+      setCourses(premiumCourses);
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error fetching courses:', error);
       toast.error('Failed to fetch courses');
     } finally {
       setLoading(false);
@@ -114,38 +115,34 @@ const PaidCourseManagement = () => {
         setUploadProgress(90);
       }
 
-      const url = currentCourse 
-        ? getApiUrl(`api/admin/training-courses/${currentCourse._id}`)
-        : getApiUrl('api/admin/training-courses');
-      
-      const response = await fetch(url, {
-        method: currentCourse ? 'PUT' : 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-        },
-        body: JSON.stringify({
-          ...formData,
-          type: 'paid',
-          videoUrl: videoUrl || formData.videoUrl,
-          thumbnail: thumbnailUrl || formData.thumbnail,
-          price: parseFloat(formData.price),
-          isPremium: Boolean(formData.isPremium)
-        })
-      });
+      const data = {
+        title: formData.title,
+        description: formData.description || '',
+        course_type: 'premium', // Always set to premium for this component
+        video_url: videoUrl || formData.videoUrl || '',
+        thumbnail: thumbnailUrl || formData.thumbnail || '',
+        price: parseFloat(formData.price) || 0,
+        duration: formData.duration || '',
+        order: 0,
+        is_active: true,
+      };
 
-      if (!response.ok) {
-        throw new Error('Failed to save course');
+      if (currentCourse) {
+        await updateTrainingCourse(currentCourse.id, data);
+        toast.success('Course updated successfully');
+      } else {
+        await createTrainingCourse(data);
+        toast.success('Course created successfully');
       }
 
       setUploadProgress(100);
-      toast.success(`Course ${currentCourse ? 'updated' : 'created'} successfully`);
       setShowModal(false);
       fetchCourses();
       resetForm();
     } catch (error) {
-      console.error('Error:', error);
-      toast.error('Failed to save course');
+      console.error('Error saving course:', error);
+      const errorMessage = error.response?.data?.error || error.response?.data?.detail || error.message || 'Failed to save course';
+      toast.error(errorMessage);
     }
   };
 
@@ -155,22 +152,13 @@ const PaidCourseManagement = () => {
     }
     
     try {
-      const response = await fetch(getApiUrl(`api/admin/training-courses/${id}`), {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete course');
-      }
-      
+      await deleteTrainingCourse(id);
       toast.success('Course deleted successfully');
       fetchCourses();
     } catch (error) {
-      console.error('Error:', error);
-      toast.error('Failed to delete course');
+      console.error('Error deleting course:', error);
+      const errorMessage = error.response?.data?.error || error.response?.data?.detail || error.message || 'Failed to delete course';
+      toast.error(errorMessage);
     }
   };
 
@@ -181,7 +169,9 @@ const PaidCourseManagement = () => {
       price: '',
       duration: '',
       category: '',
-      isPremium: false
+      isPremium: false,
+      videoUrl: '',
+      thumbnail: ''
     });
     setVideoFile(null);
     setThumbnailFile(null);
@@ -192,12 +182,14 @@ const PaidCourseManagement = () => {
   const editCourse = (course) => {
     setCurrentCourse(course);
     setFormData({
-      title: course.title,
-      description: course.description,
-      price: course.price,
-      duration: course.duration,
-      category: course.category,
-      isPremium: course.isPremium
+      title: course.title || '',
+      description: course.description || '',
+      price: course.price || '',
+      duration: course.duration || '',
+      category: '', // Not used in new model
+      isPremium: false, // Not used in new model
+      videoUrl: course.video_url || '',
+      thumbnail: course.thumbnail || '',
     });
     setShowModal(true);
   };
@@ -228,7 +220,7 @@ const PaidCourseManagement = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {courses.map(course => (
-              <div key={course._id} className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden transform hover:scale-105 transition-transform duration-200">
+              <div key={course.id} className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden transform hover:scale-105 transition-transform duration-200">
                 <div className="relative h-48">
                   <img
                     src={course.thumbnail}
@@ -241,17 +233,17 @@ const PaidCourseManagement = () => {
                   />
                   <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
                     <button
-                      onClick={() => window.open(course.videoUrl, '_blank')}
+                      onClick={() => course.video_url && window.open(course.video_url, '_blank')}
                       className="p-3 bg-white rounded-full text-primary hover:text-primary/90 transform hover:scale-110 transition-transform"
                     >
                       <FaPlay className="w-6 h-6" />
                     </button>
                   </div>
-                  {course.isPremium && (
-                    <div className="absolute top-2 right-2 bg-yellow-500 text-white px-3 py-1 rounded-full text-sm font-semibold">
+                  <div className="absolute top-2 right-2">
+                    <span className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 px-3 py-1 rounded-full text-sm font-semibold">
                       Premium
-                    </div>
-                  )}
+                    </span>
+                  </div>
                 </div>
                 
                 <div className="p-4">
@@ -267,12 +259,7 @@ const PaidCourseManagement = () => {
                     </span>
                   </div>
                   
-                  <div className="flex justify-between items-center">
-                    <div className="flex gap-2">
-                      <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded text-sm">
-                        {course.category}
-                      </span>
-                    </div>
+                  <div className="flex justify-end items-center">
                     <div className="flex gap-2">
                       <button
                         onClick={() => editCourse(course)}
@@ -282,7 +269,7 @@ const PaidCourseManagement = () => {
                         <FaEdit />
                       </button>
                       <button
-                        onClick={() => handleDelete(course._id)}
+                        onClick={() => handleDelete(course.id)}
                         className="p-2 text-red-500 hover:text-red-600"
                         title="Delete course"
                       >
