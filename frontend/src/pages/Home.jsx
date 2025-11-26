@@ -9,14 +9,15 @@ import bimg1 from "../assets/bimg1.png";
 import TrendingP from "../components/TrendingP";
 
 const BannerData = {
-  rate: "200$",
+  rate: "240$",
+  rateLabel: "OUR CBM SHIPPING RATE",
   title: "Fine Smile",
-  date: "10 jan to jan",
+  date: "",
   image: bimg1,
   title2: "Air Solo Bass",
-  title3: "Winter Sale",
+  title3: "Fofoofo Imports",
   title4:
-    "fofoofo import shipping is on sales at it best fofoofo import shipping is on sales at it best",
+    "Fofoofo handles your Buy4Me sourcing, RMB payments, and weekly sea/air shipping under one dashboard.",
   bgColor: "#f42c37",
 };
 
