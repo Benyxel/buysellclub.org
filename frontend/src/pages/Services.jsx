@@ -12,6 +12,12 @@ import {
   FaGraduationCap,
 } from "react-icons/fa";
 import { Link } from "react-router-dom";
+import heroS1 from "../assets/HeroS1.png";
+import heroS2 from "../assets/heros2.png";
+import rmbImage from "../assets/rmbi.png";
+import storeImage from "../assets/store.png";
+import suppliersImage from "../assets/spr1.jpg";
+import trainingImage from "../assets/Tr1.jpg";
 
 const Services = () => {
   const services = [
@@ -22,7 +28,7 @@ const Services = () => {
       description:
         "Reliable shipping services from China to Ghana. We handle the entire shipping process, ensuring your goods arrive safely and on time.",
       icon: <FaTruck className="w-8 h-8" />,
-      image: "/src/assets/HeroS1.png",
+      image: heroS1,
       link: "/Shipping",
       features: [
         "Door-to-door delivery",
@@ -38,7 +44,7 @@ const Services = () => {
       description:
         "Let us shop for you from China. We'll handle the entire process from product selection to delivery to your doorstep.",
       icon: <FaShoppingCart className="w-8 h-8" />,
-      image: "/src/assets/heros2.png",
+      image: heroS2,
       link: "/Buy4me",
       features: [
         "Product sourcing",
@@ -54,7 +60,7 @@ const Services = () => {
       description:
         "Easy and secure RMB trading services. We make international payments simple and reliable.",
       icon: <FaMoneyBillWave className="w-8 h-8" />,
-      image: "/src/assets/rmbi.png",
+      image: rmbImage,
       link: "/AlipayPayment",
       features: [
         "Competitive exchange rates",
@@ -70,7 +76,7 @@ const Services = () => {
       description:
         "Access high-quality products at wholesale prices. Perfect for businesses and resellers.",
       icon: <FaBox className="w-8 h-8" />,
-      image: "/src/assets/store.png",
+      image: storeImage,
       link: "/Wholesale",
       features: [
         "Bulk discounts",
@@ -86,7 +92,7 @@ const Services = () => {
       description:
         "Connect with our network of verified suppliers in China. Access quality products directly from manufacturers.",
       icon: <FaUsers className="w-8 h-8" />,
-      image: "/src/assets/suppliers.png",
+      image: suppliersImage,
       link: "/Suppliers",
       features: [
         "Verified manufacturers",
@@ -102,7 +108,7 @@ const Services = () => {
       description:
         "Comprehensive training programs to help you succeed in international trade and e-commerce.",
       icon: <FaGraduationCap className="w-8 h-8" />,
-      image: "/src/assets/training.png",
+      image: trainingImage,
       link: "/Training",
       features: [
         "E-commerce basics",
