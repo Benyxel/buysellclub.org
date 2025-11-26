@@ -1,43 +1,85 @@
-import React from 'react'
-import bimg1 from '../assets/bimg1.png'
+import React from "react";
+import { FaCheckCircle, FaArrowRight } from "react-icons/fa";
 
+const defaultHighlights = [
+  {
+    title: "Sea & Air Shipping",
+    description: "Weekly consolidations with live tracking.",
+  },
+  {
+    title: "Buy4Me Concierge",
+    description: "We source, inspect and pay suppliers for you.",
+  },
+  {
+    title: "RMB / Alipay Funding",
+    description: "Instant wallet top-ups at the live rate.",
+  },
+];
 
+const Banner = ({ data }) => {
+  const highlights =
+    Array.isArray(data.highlights) && data.highlights.length > 0 ? data.highlights : defaultHighlights;
+  const rateLabel = data.rateLabel || "Today’s Exchange Rate";
 
-const Banner = ({data}) => {
   return (
-    <div className='min-h-[550px] flex justify-center items-center py-12'>
-      <div className=' container'>
-        <div style={{backgroundColor: data.bgColor}} className='grid grid-cols-1 md:grid-cols-3 gap-6 items-center text-white rounded-2xl overflow-hidden'>
-
-        <div className='p-6 sm:p-8'>
-           <p className='text-sm'>{data.rate}</p>
-           <h1 className='uppercase text-4xl lg:text-7xl font-bold'>{data.title}</h1>
-           <p className='text-sm'>{data.date}</p>
-        </div>
-         
-         <div className='h-full flex items-center relative overflow-hidden'>
-            <img src={data.image} alt='' className='scale-120 w-[250px] sm:w-[400px]  md:w-[340px] mx-auto drop-shadow-2xl object-cover'/>
-            <div
-              className='absolute inset-x-0 bottom-0 h-24 pointer-events-none'
-              style={{background: `linear-gradient(0deg, ${data.bgColor} 0%, rgba(0,0,0,0))`}}
-            ></div>
-         </div>
-          
-           <div className='flex flex-col justify-center gap-4 p-6 '>
-              <p className='font-bold text-xl'>{data.title2}</p>
-              <p className='text-3xl sm:text-5xl tracking-wide leading-5 font-bold' >{data.title3}</p>
-              <p className=' text-sm tracking-wide leading-5'>{data.title4}</p>
-               <div>
-            <button className='bg-white text-primary rounded-full py-2 px-4 shadow-2xl font-semibold'>
-                  Join Now
+    <div className="min-h-[550px] flex justify-center items-center py-12">
+      <div className="container">
+        <div
+          style={{ backgroundColor: data.bgColor }}
+          className="grid grid-cols-1 md:grid-cols-[1.1fr_1fr_1.3fr] gap-6 items-stretch text-white rounded-2xl overflow-hidden shadow-xl"
+        >
+          {/* Rate highlight */}
+          <div className="p-6 sm:p-10 flex flex-col justify-center gap-6">
+            <div className="bg-white/15 backdrop-blur-sm rounded-2xl p-5 w-fit shadow-inner border border-white/20">
+              <p className="uppercase tracking-[0.3em] text-xs text-white/70">{rateLabel}</p>
+              <p className="text-4xl sm:text-5xl font-black tracking-tight">{data.rate}</p>
+              <p className="text-white/70 text-sm">{data.date}</p>
+            </div>
+            <div className="space-y-3">
+              <h1 className="uppercase text-4xl lg:text-6xl font-extrabold leading-tight">{data.title}</h1>
+              <p className="text-white/85 text-base max-w-md">{data.title4}</p>
+            </div>
+            <button className="inline-flex items-center gap-2 bg-white text-primary rounded-full py-3 px-6 font-semibold hover:translate-y-0.5 transition-transform shadow-lg">
+              Book Shipment
+              <FaArrowRight />
             </button>
-           </div>
-           </div>
-          
+          </div>
+
+          {/* Product image */}
+          <div className="h-full flex items-center relative overflow-hidden">
+            <img
+              src={data.image}
+              alt=""
+              className="scale-110 w-[260px] sm:w-[380px] md:w-[320px] mx-auto drop-shadow-2xl object-cover"
+            />
+            <div
+              className="absolute inset-x-0 bottom-0 h-24 pointer-events-none"
+              style={{ background: `linear-gradient(0deg, ${data.bgColor} 0%, rgba(0,0,0,0))` }}
+            ></div>
+          </div>
+
+          {/* Service adverts */}
+          <div className="flex flex-col justify-center gap-5 p-6 sm:p-10 bg-white/10 backdrop-blur-sm">
+            <p className="text-xs uppercase tracking-[0.3em] text-white/70">{data.title2}</p>
+            <h2 className="text-3xl sm:text-5xl font-bold tracking-wide mb-2">{data.title3}</h2>
+            <div className="space-y-4">
+              {highlights.map((item, idx) => (
+                <div key={idx} className="flex items-start gap-3">
+                  <span className="mt-1 text-primary bg-white rounded-full p-1 shadow">
+                    <FaCheckCircle className="text-lg" />
+                  </span>
+                  <div>
+                    <p className="font-semibold">{item.title}</p>
+                    <p className="text-sm text-white/80">{item.description}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default Banner
+export default Banner;
