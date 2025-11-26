@@ -80,37 +80,57 @@ const Login = () => {
       console.error("Error response:", err.response?.data);
       console.error("Error status:", err.response?.status);
 
-      // Handle specific error messages
-      if (err.response?.status === 401) {
-        // Check for detailed error messages from backend
-        let errorMsg = "Invalid username or password";
+      let errorMsg = "Login failed. Please try again.";
+
+      // Handle 400 Bad Request errors
+      if (err.response?.status === 400) {
+        if (err.response?.data?.non_field_errors) {
+          const errors = err.response.data.non_field_errors;
+          errorMsg = Array.isArray(errors) ? errors[0] : errors;
+        } else if (err.response?.data?.detail) {
+          errorMsg = err.response.data.detail;
+        } else if (err.response?.data?.username) {
+          const usernameErrors = err.response.data.username;
+          errorMsg = Array.isArray(usernameErrors) ? usernameErrors[0] : usernameErrors;
+        } else if (err.response?.data?.password) {
+          const passwordErrors = err.response.data.password;
+          errorMsg = Array.isArray(passwordErrors) ? passwordErrors[0] : passwordErrors;
+        } else if (err.response?.data?.message) {
+          errorMsg = err.response.data.message;
+        } else {
+          // Try to extract any error message from the response
+          const errorKeys = Object.keys(err.response?.data || {});
+          if (errorKeys.length > 0) {
+            const firstError = err.response.data[errorKeys[0]];
+            errorMsg = Array.isArray(firstError) ? firstError[0] : String(firstError);
+          }
+        }
+      } 
+      // Handle 401 Unauthorized errors
+      else if (err.response?.status === 401) {
+        errorMsg = "Invalid username or password";
         
         if (err.response?.data?.detail) {
           errorMsg = err.response.data.detail;
         } else if (err.response?.data?.non_field_errors) {
-          // Handle non_field_errors array
           const errors = err.response.data.non_field_errors;
           errorMsg = Array.isArray(errors) ? errors[0] : errors;
         } else if (err.response?.data?.message) {
           errorMsg = err.response.data.message;
         }
-        
-        setErrors((prev) => ({ ...prev, form: errorMsg }));
-        toast.error(errorMsg);
-      } else if (err.response?.data?.detail) {
-        const msg = err.response.data.detail;
-        setErrors((prev) => ({ ...prev, form: msg }));
-        toast.error(msg);
+      }
+      // Handle other errors
+      else if (err.response?.data?.detail) {
+        errorMsg = err.response.data.detail;
       } else if (err.response?.data?.non_field_errors) {
         const errors = err.response.data.non_field_errors;
-        const msg = Array.isArray(errors) ? errors[0] : errors;
-        setErrors((prev) => ({ ...prev, form: msg }));
-        toast.error(msg);
-      } else {
-        const msg = "Login failed. Please try again.";
-        setErrors((prev) => ({ ...prev, form: msg }));
-        toast.error(msg);
+        errorMsg = Array.isArray(errors) ? errors[0] : errors;
+      } else if (err.message) {
+        errorMsg = err.message;
       }
+
+      setErrors((prev) => ({ ...prev, form: errorMsg }));
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }
