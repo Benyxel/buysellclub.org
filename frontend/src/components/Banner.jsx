@@ -1,5 +1,6 @@
 import React from "react";
 import { FaCheckCircle, FaArrowRight } from "react-icons/fa";
+import { Link } from "react-router-dom";
 
 const defaultHighlights = [
   {
@@ -29,7 +30,7 @@ const Banner = ({ data }) => {
           className="grid grid-cols-1 md:grid-cols-[1.1fr_1fr_1.3fr] gap-6 items-stretch text-white rounded-2xl overflow-hidden shadow-xl"
         >
           {/* Rate highlight */}
-          <div className="p-6 sm:p-10 flex flex-col justify-center gap-6">
+          <div className="p-6 sm:p-10 flex flex-col h-full gap-6">
             <div className="bg-white/15 backdrop-blur-sm rounded-2xl p-5 w-fit shadow-inner border border-white/20">
               <p className="uppercase tracking-[0.3em] text-xs text-white/70">{rateLabel}</p>
               <p className="text-4xl sm:text-5xl font-black tracking-tight">{data.rate}</p>
@@ -39,18 +40,27 @@ const Banner = ({ data }) => {
               <h1 className="uppercase text-4xl lg:text-6xl font-extrabold leading-tight">{data.title}</h1>
               <p className="text-white/85 text-base max-w-md">{data.title4}</p>
             </div>
-            <button className="inline-flex items-center gap-2 bg-white text-primary rounded-full py-3 px-6 font-semibold hover:translate-y-0.5 transition-transform shadow-lg">
-              Book Shipment
+            <Link
+              to="/Shipping"
+              className="inline-flex items-center gap-2 bg-white text-primary rounded-full py-3 px-6 font-semibold hover:translate-y-0.5 transition-transform shadow-lg mt-auto"
+            >
+              Start Shipping
               <FaArrowRight />
-            </button>
+            </Link>
           </div>
 
           {/* Product image */}
-          <div className="h-full flex items-center relative overflow-hidden">
+          <div className="h-full flex items-end justify-center pb-6 md:pb-10 relative overflow-hidden">
             <img
               src={data.image}
               alt=""
               className="scale-110 w-[260px] sm:w-[380px] md:w-[320px] mx-auto drop-shadow-2xl object-cover"
+              style={{
+                WebkitMaskImage:
+                  "linear-gradient(0deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.2) 10%, rgba(0,0,0,0.6) 35%, rgba(0,0,0,1) 60%, rgba(0,0,0,1) 100%)",
+                maskImage:
+                  "linear-gradient(0deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.2) 10%, rgba(0,0,0,0.6) 35%, rgba(0,0,0,1) 60%, rgba(0,0,0,1) 100%)",
+              }}
             />
             <div
               className="absolute inset-x-0 bottom-0 h-24 pointer-events-none"

@@ -11,13 +11,12 @@ import TrendingP from "../components/TrendingP";
 const BannerData = {
   rate: "240$",
   rateLabel: "OUR CBM SHIPPING RATE",
-  title: "Fine Smile",
+  title: "FOFOOFO LOGISTIC",
   date: "",
   image: bimg1,
-  title2: "Air Solo Bass",
-  title3: "Fofoofo Imports",
-  title4:
-    "Fofoofo handles your Buy4Me sourcing, RMB payments, and weekly sea/air shipping under one dashboard.",
+  title2: "Looking for a logistic service?",
+  title3: "Fofoofo Logistic",
+ 
   bgColor: "#f42c37",
 };
 
