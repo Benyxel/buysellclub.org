@@ -7,7 +7,7 @@ const Banner = ({data}) => {
   return (
     <div className='min-h-[550px] flex justify-center items-center py-12'>
       <div className=' container'>
-        <div style={{backgroundColor: data.bgColor}} className='grid grid-cols-1 md:grid-cols-3 gap-6 items-center text-white rounded-2xl'>
+        <div style={{backgroundColor: data.bgColor}} className='grid grid-cols-1 md:grid-cols-3 gap-6 items-center text-white rounded-2xl overflow-hidden'>
 
         <div className='p-6 sm:p-8'>
            <p className='text-sm'>{data.rate}</p>
@@ -15,8 +15,12 @@ const Banner = ({data}) => {
            <p className='text-sm'>{data.date}</p>
         </div>
          
-         <div className='h-full flex items-center'>
+         <div className='h-full flex items-center relative overflow-hidden'>
             <img src={data.image} alt='' className='scale-120 w-[250px] sm:w-[400px]  md:w-[340px] mx-auto drop-shadow-2xl object-cover'/>
+            <div
+              className='absolute inset-x-0 bottom-0 h-24 pointer-events-none'
+              style={{background: `linear-gradient(0deg, ${data.bgColor} 0%, rgba(0,0,0,0))`}}
+            ></div>
          </div>
           
            <div className='flex flex-col justify-center gap-4 p-6 '>

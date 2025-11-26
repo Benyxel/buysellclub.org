@@ -14,7 +14,7 @@ const Category = () => {
       <div className='container'>
         <div className=' grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8'>
 
-          <div className=' py-10 pl-5 bg-gradient-to-br from-black/90 to-black/70 text-white rounded-2xl relative h-[320px] flex items-end grid-cols-1 z-0'> 
+          <div className=' py-10 pl-5 bg-gradient-to-br from-black/90 to-black/70 text-white rounded-2xl relative h-[320px] flex items-end grid-cols-1 z-0 overflow-hidden'> 
             <div>
               {/* Buy for me card */}
               <div className='mb-4'>
@@ -34,12 +34,14 @@ const Category = () => {
             </div>
           
             <img  src={image1}
-            className='w-320px absolute bottom-0   '
+            className='w-320px absolute bottom-0'
             />
+            {/* Mobile bottom gradient to blend image */}
+            <div className='absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/90 via-black/70 to-transparent pointer-events-none'></div>
           </div>
 
           {/* shipping card */}
-          <div className=' py-10 pl-5 bg-gradient-to-br from-[#210202] to-[#9e0e2b] text-white rounded-2xl relative h-[320px] flex items-end z-0'> 
+          <div className=' py-10 pl-5 bg-gradient-to-br from-[#210202] to-[#9e0e2b] text-white rounded-2xl relative h-[320px] flex items-end z-0 overflow-hidden'> 
             <div>
               {/* Buy for me card */}
               <div className='mb-4'>
@@ -58,10 +60,11 @@ const Category = () => {
             <img  src={image2}
             className='w-320px absolute bottom-0 mx-10'
             />
+            <div className='absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#210202]/95 via-[#210202]/70 to-transparent pointer-events-none'></div>
           </div>
 
           {/* sourcing card */}
-          <div className='py-10 sm:col-span-2 pl-5 bg-gradient-to-br from-[#f39c45] to-[#ff7e15] text-white rounded-2xl relative h-[320px] flex items-end z-0'> 
+          <div className='py-10 sm:col-span-2 pl-5 bg-gradient-to-br from-[#f39c45] to-[#ff7e15] text-white rounded-2xl relative h-[320px] flex items-end z-0 overflow-hidden'> 
             <div>
               <div className='mb-4'>
                 <p className='mb-[0px] font-bold  text-white'>Need help to order from</p>
@@ -79,6 +82,7 @@ const Category = () => {
             <img  src={image3}
             className='w-[500px] absolute bottom-0 mx-4'
             />
+            <div className='absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#f39c45]/95 via-[#f39c45]/70 to-transparent pointer-events-none'></div>
         </div>
       </div>
     </div>
