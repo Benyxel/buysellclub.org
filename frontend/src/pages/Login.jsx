@@ -77,14 +77,33 @@ const Login = () => {
       navigate("/");
     } catch (err) {
       console.error("Login error:", err);
+      console.error("Error response:", err.response?.data);
+      console.error("Error status:", err.response?.status);
 
       // Handle specific error messages
       if (err.response?.status === 401) {
-        const msg = "Invalid username or password";
-        setErrors((prev) => ({ ...prev, form: msg }));
-        toast.error(msg);
+        // Check for detailed error messages from backend
+        let errorMsg = "Invalid username or password";
+        
+        if (err.response?.data?.detail) {
+          errorMsg = err.response.data.detail;
+        } else if (err.response?.data?.non_field_errors) {
+          // Handle non_field_errors array
+          const errors = err.response.data.non_field_errors;
+          errorMsg = Array.isArray(errors) ? errors[0] : errors;
+        } else if (err.response?.data?.message) {
+          errorMsg = err.response.data.message;
+        }
+        
+        setErrors((prev) => ({ ...prev, form: errorMsg }));
+        toast.error(errorMsg);
       } else if (err.response?.data?.detail) {
         const msg = err.response.data.detail;
+        setErrors((prev) => ({ ...prev, form: msg }));
+        toast.error(msg);
+      } else if (err.response?.data?.non_field_errors) {
+        const errors = err.response.data.non_field_errors;
+        const msg = Array.isArray(errors) ? errors[0] : errors;
         setErrors((prev) => ({ ...prev, form: msg }));
         toast.error(msg);
       } else {

@@ -151,35 +151,58 @@ const Invoice = ({ invoice, request, printable = false }) => {
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              <tr>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                  <div className="font-medium">{request?.title || 'Buy4Me Service'}</div>
-                  <div className="text-gray-500 dark:text-gray-400 mt-1">{request?.description || 'Product procurement services'}</div>
-                  {invoice.shippingMethod && (
-                    <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                      Shipping: {invoice.shippingMethod === 'sea' ? 'Sea' : 'Air'}
-                    </div>
-                  )}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-white font-medium">
-                  {getCurrencySymbol()}{invoice.amount?.toFixed(2) || '0.00'}
-                </td>
-              </tr>
-              
-              {/* Buy4Me Invoice Details */}
-              {invoice.productCostRmb && invoice.rmbToGhsRate && (
+              {/* Buy4Me Invoice Details - Show detailed breakdown */}
+              {((invoice.productCostsRmb && invoice.productCostsRmb.length > 0) || invoice.totalProductCostRmb) && invoice.rmbToGhsRate ? (
                 <>
                   <tr>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      Product Cost (RMB)
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                      <div className="font-medium">{request?.title || 'Buy4Me Service'}</div>
+                      <div className="text-gray-500 dark:text-gray-400 mt-1">{request?.description || 'Product procurement services'}</div>
+                      {invoice.shippingMethod && (
+                        <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                          Shipping: {invoice.shippingMethod === 'sea' ? 'Sea' : 'Air'}
+                        </div>
+                      )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-white">
-                      ¥{invoice.productCostRmb.toFixed(2)}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-white font-medium">
+                      {/* Show total product cost in GHS as the main amount */}
+                      ₵{((invoice.totalProductCostRmb || (invoice.productCostsRmb ? invoice.productCostsRmb.reduce((sum, cost) => sum + (parseFloat(cost) || 0), 0) : 0)) / invoice.rmbToGhsRate).toFixed(2)}
+                    </td>
+                  </tr>
+                  {/* Individual Product Costs */}
+                  {invoice.productCostsRmb && invoice.productCostsRmb.length > 0 && invoice.productCostsRmb.map((cost, index) => {
+                    const qty = invoice.productQuantities && invoice.productQuantities[index] ? invoice.productQuantities[index] : 0;
+                    const costPerUnit = parseFloat(cost || 0);
+                    const totalCost = costPerUnit * qty;
+                    return (
+                      <tr key={index}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          Product {index + 1} Cost (RMB) {qty > 0 ? `× ${qty}` : ''}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-white">
+                          {qty > 0 ? (
+                            <>
+                              ¥{costPerUnit.toFixed(2)} × {qty} = ¥{totalCost.toFixed(2)}
+                            </>
+                          ) : (
+                            <>¥{costPerUnit.toFixed(2)}</>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {/* Total Product Cost */}
+                  <tr>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 font-medium">
+                      Total Product Cost (RMB)
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-white font-medium">
+                      ¥{(invoice.totalProductCostRmb || (invoice.productCostsRmb ? invoice.productCostsRmb.reduce((sum, cost) => sum + (parseFloat(cost) || 0), 0) : 0)).toFixed(2)}
                     </td>
                   </tr>
                   <tr>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      RMB to GHS Rate
+                      GHS to RMB Rate (1 GHS = {invoice.rmbToGhsRate.toFixed(4)} RMB)
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-white">
                       {invoice.rmbToGhsRate.toFixed(4)}
@@ -187,10 +210,10 @@ const Invoice = ({ invoice, request, printable = false }) => {
                   </tr>
                   <tr>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      Product Cost (GHS)
+                      Total Product Cost (GHS) = ¥{(invoice.totalProductCostRmb || (invoice.productCostsRmb ? invoice.productCostsRmb.reduce((sum, cost) => sum + (parseFloat(cost) || 0), 0) : 0)).toFixed(2)} ÷ {invoice.rmbToGhsRate.toFixed(4)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-white">
-                      ₵{(invoice.productCostRmb * invoice.rmbToGhsRate).toFixed(2)}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-white font-medium">
+                      ₵{((invoice.totalProductCostRmb || (invoice.productCostsRmb ? invoice.productCostsRmb.reduce((sum, cost) => sum + (parseFloat(cost) || 0), 0) : 0)) / invoice.rmbToGhsRate).toFixed(2)}
                     </td>
                   </tr>
                   <tr>
@@ -198,14 +221,25 @@ const Invoice = ({ invoice, request, printable = false }) => {
                       Service Fee ({invoice.serviceFeePercent || 5}%)
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-white">
-                      ₵{((invoice.productCostRmb * invoice.rmbToGhsRate) * ((invoice.serviceFeePercent || 5) / 100)).toFixed(2)}
+                      ₵{(((invoice.totalProductCostRmb || (invoice.productCostsRmb ? invoice.productCostsRmb.reduce((sum, cost) => sum + (parseFloat(cost) || 0), 0) : 0)) / invoice.rmbToGhsRate) * ((invoice.serviceFeePercent || 5) / 100)).toFixed(2)}
                     </td>
                   </tr>
                 </>
+              ) : (
+                // Legacy invoice format (for non-buy4me invoices)
+                <tr>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                    <div className="font-medium">{request?.title || 'Service'}</div>
+                    <div className="text-gray-500 dark:text-gray-400 mt-1">{request?.description || 'Service description'}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-white font-medium">
+                    {getCurrencySymbol()}{invoice.amount?.toFixed(2) || '0.00'}
+                  </td>
+                </tr>
               )}
               
               {/* Legacy invoice fields (for other invoice types) */}
-              {!invoice.productCostRmb && invoice.tax > 0 && (
+              {!invoice.productCostsRmb && !invoice.totalProductCostRmb && invoice.tax > 0 && (
                 <tr>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                     Tax
@@ -215,7 +249,7 @@ const Invoice = ({ invoice, request, printable = false }) => {
                   </td>
                 </tr>
               )}
-              {!invoice.productCostRmb && invoice.shipping > 0 && (
+              {!invoice.productCostsRmb && !invoice.totalProductCostRmb && invoice.shipping > 0 && (
                 <tr>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                     Shipping
@@ -225,7 +259,7 @@ const Invoice = ({ invoice, request, printable = false }) => {
                   </td>
                 </tr>
               )}
-              {!invoice.productCostRmb && invoice.serviceFee > 0 && (
+              {!invoice.productCostsRmb && !invoice.totalProductCostRmb && invoice.serviceFee > 0 && (
                 <tr>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                     Service Fee

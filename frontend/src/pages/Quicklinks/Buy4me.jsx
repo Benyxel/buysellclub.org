@@ -63,11 +63,11 @@ const Buy4me = () => {
     description: "",
     images: ["", "", "", "", ""],
     additionalLinks: [
-      { url: "", quantity: 20 },
-      { url: "", quantity: 20 },
-      { url: "", quantity: 20 },
-      { url: "", quantity: 20 },
-      { url: "", quantity: 20 },
+      { url: "", quantity: 0 },
+      { url: "", quantity: 0 },
+      { url: "", quantity: 0 },
+      { url: "", quantity: 0 },
+      { url: "", quantity: 0 },
     ],
   });
 
@@ -557,7 +557,7 @@ const Buy4me = () => {
                           <label className="sr-only">Quantity</label>
                           <input
                             type="number"
-                            min="1"
+                            min="0"
                             value={link.quantity}
                             onChange={(e) =>
                               handleAdditionalLinkChange(
