@@ -8,7 +8,7 @@ on:
       - '.github/workflows/deploy.yml'
 
 permissions:
-  contents: write
+  contents: read
   pages: write
   id-token: write
 
@@ -19,13 +19,6 @@ concurrency:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -39,9 +32,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: frontend
-        run: |
-          # Try npm ci first (faster and more reliable), fallback to npm install if lock file is out of sync
-          npm ci || npm install
+        run: npm ci
 
       - name: Build
         working-directory: frontend
@@ -49,20 +40,6 @@ jobs:
           VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL || 'https://buysellclub-backend-production.up.railway.app' }}
           VITE_BASE_PATH: ${{ secrets.VITE_BASE_PATH || '/buysellclubproject' }}
         run: npm run build
-
-      - name: Verify build output
-        working-directory: frontend
-        run: |
-          if [ ! -d "dist" ]; then
-            echo "Error: dist folder not found!"
-            exit 1
-          fi
-          if [ ! -f "dist/index.html" ]; then
-            echo "Error: dist/index.html not found!"
-            exit 1
-          fi
-          echo "Build output verified successfully"
-          ls -la dist/
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
@@ -75,5 +52,4 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-        timeout-minutes: 5
 
