@@ -40,7 +40,35 @@ export default function Navbar() {
   const [username, setUsername] = useState("");
   const [shippingMark, setShippingMark] = useState("");
   const location = useLocation();
-  const isHomePage = location.pathname === "/";
+  
+  // Pages where search bar should be hidden
+  const hideSearchPages = [
+    "/",                    // Home
+    "/Services",
+    "/About",
+    "/Contact",
+    "/Policies",
+    "/Cart",
+    "/checkout",
+    "/PlaceOrder",
+    "/Orders",
+    "/Profile",
+    "/Favorites",
+    "/Shipping",
+    "/Buy4me",
+    "/AlipayPayment",
+    "/Payment",
+    "/Training",
+    "/tracking",
+    "/Fofoofo-address-generator",
+    "/Login",
+    "/Signup",
+    "/logout",
+    "/debug"
+  ];
+  
+  const shouldHideSearch = hideSearchPages.includes(location.pathname) || 
+                          location.pathname.startsWith("/admin");
 
   // Check login status and fetch user data
   const checkLoginStatus = () => {
@@ -187,7 +215,7 @@ export default function Navbar() {
 
           {/* navbar right */}
           <div className="flex justify-between items-center gap-3 p-3">
-            {!isHomePage && (
+            {!shouldHideSearch && (
               <div className="relative group sm:block">
                 <IoMdSearch
                   onClick={() => setShowSearch(true)}
