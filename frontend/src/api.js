@@ -21,9 +21,13 @@ import axios from "axios";
 // ---------------------------------------------------------------------------
 const resolveBaseUrl = () => {
   const candidates = [
-    typeof import.meta !== "undefined" ? import.meta.env?.VITE_API_BASE_URL : undefined,
+    typeof import.meta !== "undefined"
+      ? import.meta.env?.VITE_API_BASE_URL
+      : undefined,
     typeof process !== "undefined" ? process.env?.VITE_API_BASE_URL : undefined,
-    typeof window !== "undefined" ? window.__ENV__?.VITE_API_BASE_URL : undefined,
+    typeof window !== "undefined"
+      ? window.__ENV__?.VITE_API_BASE_URL
+      : undefined,
   ];
 
   for (const candidate of candidates) {
@@ -115,7 +119,7 @@ const api = axios.create({
   withCredentials: true,
   headers: {
     "Content-Type": "application/json",
-    "Connection": "keep-alive", // Reuse connections for better performance
+    Connection: "keep-alive", // Reuse connections for better performance
   },
   timeout: 15000, // Reduced from 30s to 15s for faster failure detection
   maxRedirects: 5,
@@ -124,7 +128,8 @@ const api = axios.create({
 
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("token") || localStorage.getItem("adminToken");
+    const token =
+      localStorage.getItem("token") || localStorage.getItem("adminToken");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -139,13 +144,13 @@ api.interceptors.request.use(
 
     config.withCredentials = true;
     config.url = normalizePath(config.url);
-    
+
     // Store cache key for response interceptor (for GET requests)
     if ((config.method || "get").toLowerCase() === "get" && !config.skipCache) {
       const paramsStr = config.params ? JSON.stringify(config.params) : "";
       config.__cacheKey = `${config.method}:${config.url}:${paramsStr}`;
     }
-    
+
     return config;
   },
   (error) => Promise.reject(error)
@@ -154,7 +159,11 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => {
     // Cache successful GET responses (only if not already cached)
-    if (response.config?.__cacheKey && response.status === 200 && !response.config.__cached) {
+    if (
+      response.config?.__cacheKey &&
+      response.status === 200 &&
+      !response.config.__cached
+    ) {
       const key = response.config.__cacheKey;
       const cached = requestCache.get(key);
       if (!cached || Date.now() - cached.timestamp >= CACHE_TTL) {
@@ -249,12 +258,14 @@ const Api = {
     list: (params) => http.get("/buysellapi/products/", { params }),
     detail: (slug) => http.get(`/buysellapi/products/${slug}/`),
     create: (payload) => http.post("/buysellapi/products/", payload),
-    update: (slug, payload) => http.put(`/buysellapi/products/${slug}/`, payload),
+    update: (slug, payload) =>
+      http.put(`/buysellapi/products/${slug}/`, payload),
     remove: (slug) => http.delete(`/buysellapi/products/${slug}/`),
     reviews: {
       list: (params) => http.get("/buysellapi/product-reviews/", { params }),
       create: (payload) => http.post("/buysellapi/product-reviews/", payload),
-      update: (id, payload) => http.put(`/buysellapi/product-reviews/${id}/`, payload),
+      update: (id, payload) =>
+        http.put(`/buysellapi/product-reviews/${id}/`, payload),
       remove: (id) => http.delete(`/buysellapi/product-reviews/${id}/`),
     },
   },
@@ -270,17 +281,22 @@ const Api = {
     list: (params) => http.get("/buysellapi/buy4me-requests/", { params }),
     detail: (id) => http.get(`/buysellapi/buy4me-requests/${id}/`),
     create: (payload) => http.post("/buysellapi/buy4me-requests/", payload),
-    update: (id, payload) => http.put(`/buysellapi/buy4me-requests/${id}/`, payload),
+    update: (id, payload) =>
+      http.put(`/buysellapi/buy4me-requests/${id}/`, payload),
     remove: (id) => http.delete(`/buysellapi/buy4me-requests/${id}/`),
     admin: {
-      list: (params) => http.get("/buysellapi/admin/buy4me-requests/", { params }),
+      list: (params) =>
+        http.get("/buysellapi/admin/buy4me-requests/", { params }),
       updateStatus: (id, status) =>
         http.put(`/buysellapi/admin/buy4me-requests/${id}/status/`, { status }),
       updateTracking: (id, payload) =>
         http.put(`/buysellapi/admin/buy4me-requests/${id}/tracking/`, payload),
       invoice: {
         create: (id, payload) =>
-          http.post(`/buysellapi/admin/buy4me-requests/${id}/invoice/`, payload),
+          http.post(
+            `/buysellapi/admin/buy4me-requests/${id}/invoice/`,
+            payload
+          ),
         update: (id, payload) =>
           http.put(`/buysellapi/admin/buy4me-requests/${id}/invoice/`, payload),
       },
@@ -297,24 +313,29 @@ const Api = {
   quickOrder: {
     list: () => http.get("/buysellapi/quick-order-products/"),
     adminList: () => http.get("/buysellapi/admin/quick-order-products/"),
-    adminDetail: (id) => http.get(`/buysellapi/admin/quick-order-products/${id}/`),
-    create: (payload) => http.post("/buysellapi/admin/quick-order-products/", payload),
+    adminDetail: (id) =>
+      http.get(`/buysellapi/admin/quick-order-products/${id}/`),
+    create: (payload) =>
+      http.post("/buysellapi/admin/quick-order-products/", payload),
     update: (id, payload) =>
       http.put(`/buysellapi/admin/quick-order-products/${id}/`, payload),
-    remove: (id) => http.delete(`/buysellapi/admin/quick-order-products/${id}/`),
+    remove: (id) =>
+      http.delete(`/buysellapi/admin/quick-order-products/${id}/`),
   },
   categories: {
     list: (params) => http.get("/buysellapi/categories/", { params }),
     detail: (slug) => http.get(`/buysellapi/categories/${slug}/`),
     create: (payload) => http.post("/buysellapi/categories/", payload),
-    update: (slug, payload) => http.put(`/buysellapi/categories/${slug}/`, payload),
+    update: (slug, payload) =>
+      http.put(`/buysellapi/categories/${slug}/`, payload),
     remove: (slug) => http.delete(`/buysellapi/categories/${slug}/`),
   },
   productTypes: {
     list: (params) => http.get("/buysellapi/product-types/", { params }),
     detail: (slug) => http.get(`/buysellapi/product-types/${slug}/`),
     create: (payload) => http.post("/buysellapi/product-types/", payload),
-    update: (slug, payload) => http.put(`/buysellapi/product-types/${slug}/`, payload),
+    update: (slug, payload) =>
+      http.put(`/buysellapi/product-types/${slug}/`, payload),
     remove: (slug) => http.delete(`/buysellapi/product-types/${slug}/`),
   },
   analytics: {
@@ -323,11 +344,15 @@ const Api = {
   },
   training: {
     courses: (params) => http.get("/buysellapi/training-courses/", { params }),
-    bookings: (params) => http.get("/buysellapi/training-bookings/", { params }),
+    bookings: (params) =>
+      http.get("/buysellapi/training-bookings/", { params }),
     book: (payload) => http.post("/buysellapi/training-bookings/", payload),
-    adminBookings: (params) => http.get("/buysellapi/admin/training-bookings/", { params }),
-    adminCourses: (params) => http.get("/buysellapi/admin/training-courses/", { params }),
-    adminCourseDetail: (id) => http.get(`/buysellapi/admin/training-courses/${id}/`),
+    adminBookings: (params) =>
+      http.get("/buysellapi/admin/training-bookings/", { params }),
+    adminCourses: (params) =>
+      http.get("/buysellapi/admin/training-courses/", { params }),
+    adminCourseDetail: (id) =>
+      http.get(`/buysellapi/admin/training-courses/${id}/`),
     adminCreateCourse: (payload) =>
       http.post("/buysellapi/admin/training-courses/", payload),
     adminUpdateCourse: (id, payload) =>
@@ -411,7 +436,10 @@ export const deleteTrainingCourse = Api.training.adminDeleteCourse;
 
 export const testConnection = async () => {
   try {
-    await http.get("/buysellapi/products/", { params: { limit: 1 }, timeout: 10000 });
+    await http.get("/buysellapi/products/", {
+      params: { limit: 1 },
+      timeout: 10000,
+    });
     return {
       success: true,
       message: "Connection successful",
@@ -420,7 +448,9 @@ export const testConnection = async () => {
   } catch (error) {
     return {
       success: false,
-      message: error.response ? "Backend responded with an error" : "Cannot reach backend",
+      message: error.response
+        ? "Backend responded with an error"
+        : "Cannot reach backend",
       status: error.response?.status,
       baseURL: BASE_URL || "(relative)",
       detail: error.message,
