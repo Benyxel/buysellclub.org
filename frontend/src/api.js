@@ -71,8 +71,11 @@ const api = axios.create({
   withCredentials: true,
   headers: {
     "Content-Type": "application/json",
+    "Connection": "keep-alive", // Reuse connections for better performance
   },
-  timeout: 30000,
+  timeout: 15000, // Reduced from 30s to 15s for faster failure detection
+  maxRedirects: 5,
+  // Browser automatically handles connection pooling and keep-alive
 });
 
 api.interceptors.request.use(
@@ -92,16 +95,41 @@ api.interceptors.request.use(
 
     config.withCredentials = true;
     config.url = normalizePath(config.url);
+    
+    // Store cache key for response interceptor (for GET requests)
+    if ((config.method || "get").toLowerCase() === "get" && !config.skipCache) {
+      config.__cacheKey = getCacheKey(config.method, config.url, config.params);
+    }
+    
     return config;
   },
   (error) => Promise.reject(error)
 );
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Cache successful GET responses (only if not already cached)
+    if (response.config?.__cacheKey && response.status === 200 && !response.config.__cached) {
+      setCachedResponse(response.config.__cacheKey, response.data);
+    }
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config || {};
     const status = error.response?.status;
+    const url = originalRequest.url || "";
+
+    // Suppress console errors for expected 404s on shipping-marks/me endpoint
+    // This is normal when a user doesn't have a shipping mark yet
+    if (
+      status === 404 &&
+      url.includes("/buysellapi/shipping-marks/me/") &&
+      error.response?.data?.message?.includes("No shipping mark")
+    ) {
+      // This is expected - user doesn't have a shipping mark yet
+      // Return the error but don't log it as it's handled by the calling code
+      return Promise.reject(error);
+    }
 
     // Auto refresh tokens on 401 once.
     if (status === 401 && !originalRequest._retry) {

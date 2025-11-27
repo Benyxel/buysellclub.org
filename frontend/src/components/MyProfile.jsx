@@ -176,9 +176,11 @@ const MyProfile = () => {
       // Clear any existing error states
       setError(null);
 
-      // Fetch fresh data
-      await fetchUserProfile();
-      await fetchUserShippingMarks();
+      // Fetch fresh data in parallel for faster loading
+      await Promise.all([
+        fetchUserProfile(),
+        fetchUserShippingMarks(),
+      ]);
 
       toast.success("Profile data refreshed successfully");
     } catch (error) {
@@ -233,9 +235,11 @@ const MyProfile = () => {
           return;
         }
 
-        // Try to fetch profile and shipping mark data
-        await fetchUserProfile();
-        await fetchUserShippingMarks();
+        // Fetch profile and shipping mark data in parallel for faster loading
+        await Promise.all([
+          fetchUserProfile(),
+          fetchUserShippingMarks(),
+        ]);
       } catch (error) {
         console.error("Error in initial data fetch:", error);
         setError("Could not load profile data. Please try refreshing.");
@@ -1362,9 +1366,18 @@ const MyProfile = () => {
         return;
       }
 
-      // First, get the latest user profile
-      console.log("Fetching user profile data...");
-      const profileResponse = await API.get(`/buysellapi/users/me/`);
+      // Fetch user profile and shipping marks in parallel for faster loading
+      console.log("Fetching user data in parallel...");
+      const [profileResponse, marksResponse] = await Promise.all([
+        API.get(`/buysellapi/users/me/`),
+        API.get(`/buysellapi/shipping-marks/`).catch((err) => {
+          // Handle 404 gracefully - user might not have shipping marks yet
+          if (err?.response?.status === 404) {
+            return { data: [] };
+          }
+          throw err;
+        }),
+      ]);
 
       if (!profileResponse.data) {
         console.error("Empty profile data received");
@@ -1376,10 +1389,6 @@ const MyProfile = () => {
       const userData = profileResponse.data;
       setUserInfo(userData);
       setOriginalUserInfo(userData);
-
-      // Then get the shipping marks
-      console.log("Fetching shipping marks...");
-      const marksResponse = await API.get(`/buysellapi/shipping-marks/`);
 
       let marks = [];
       if (marksResponse.data) {
@@ -1456,9 +1465,13 @@ const MyProfile = () => {
     const handleOnline = () => {
       console.log("Device is back online, refreshing data...");
       setError(null);
-      // Refresh data when coming back online
-      fetchUserProfile();
-      fetchUserShippingMarks();
+      // Refresh data in parallel when coming back online
+      Promise.all([
+        fetchUserProfile(),
+        fetchUserShippingMarks(),
+      ]).catch((err) => {
+        console.error("Error refreshing data after coming online:", err);
+      });
       toast.success("You are back online! Data has been refreshed.");
     };
 
