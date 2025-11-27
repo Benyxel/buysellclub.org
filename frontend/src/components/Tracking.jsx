@@ -7,8 +7,7 @@ import {
   FaDownload,
   FaTrash,
 } from "react-icons/fa";
-import axios from "axios";
-import { API_BASE_URL } from "../config/api";
+import API from "../api";
 
 const Tracking = () => {
   const [trackings, setTrackings] = useState([]);
@@ -50,7 +49,7 @@ const Tracking = () => {
 
     try {
       // Fetch real tracking data from backend
-      const response = await axios.get(`${API_BASE_URL}/buysellapi/trackings/`);
+      const response = await API.get("/buysellapi/trackings/");
 
       if (response.data && Array.isArray(response.data)) {
         // Transform backend data to frontend format
