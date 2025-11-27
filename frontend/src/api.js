@@ -63,6 +63,40 @@ const getCookie = (name) => {
   return null;
 };
 
+// Simple request cache for GET requests (5 second TTL)
+const requestCache = new Map();
+const CACHE_TTL = 5000; // 5 seconds
+
+const getCacheKey = (method, url, params) => {
+  const paramsStr = params ? JSON.stringify(params) : "";
+  return `${method}:${url}:${paramsStr}`;
+};
+
+const getCachedResponse = (key) => {
+  const cached = requestCache.get(key);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data;
+  }
+  requestCache.delete(key);
+  return null;
+};
+
+const setCachedResponse = (key, data) => {
+  requestCache.set(key, {
+    data,
+    timestamp: Date.now(),
+  });
+  // Clean up old cache entries periodically
+  if (requestCache.size > 100) {
+    const now = Date.now();
+    for (const [k, v] of requestCache.entries()) {
+      if (now - v.timestamp > CACHE_TTL) {
+        requestCache.delete(k);
+      }
+    }
+  }
+};
+
 // ---------------------------------------------------------------------------
 // Axios client
 // ---------------------------------------------------------------------------
@@ -98,7 +132,8 @@ api.interceptors.request.use(
     
     // Store cache key for response interceptor (for GET requests)
     if ((config.method || "get").toLowerCase() === "get" && !config.skipCache) {
-      config.__cacheKey = getCacheKey(config.method, config.url, config.params);
+      const paramsStr = config.params ? JSON.stringify(config.params) : "";
+      config.__cacheKey = `${config.method}:${config.url}:${paramsStr}`;
     }
     
     return config;
@@ -110,7 +145,23 @@ api.interceptors.response.use(
   (response) => {
     // Cache successful GET responses (only if not already cached)
     if (response.config?.__cacheKey && response.status === 200 && !response.config.__cached) {
-      setCachedResponse(response.config.__cacheKey, response.data);
+      const key = response.config.__cacheKey;
+      const cached = requestCache.get(key);
+      if (!cached || Date.now() - cached.timestamp >= CACHE_TTL) {
+        requestCache.set(key, {
+          data: response.data,
+          timestamp: Date.now(),
+        });
+        // Clean up old cache entries periodically
+        if (requestCache.size > 100) {
+          const now = Date.now();
+          for (const [k, v] of requestCache.entries()) {
+            if (now - v.timestamp > CACHE_TTL) {
+              requestCache.delete(k);
+            }
+          }
+        }
+      }
     }
     return response;
   },
