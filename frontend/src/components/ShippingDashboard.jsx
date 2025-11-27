@@ -457,8 +457,8 @@ const ShippingDashboard = () => {
 
           // Check if tracking exists in backend
           try {
-            const resp = await axios.get(
-              `${API_BASE_URL}/buysellapi/trackings/by-number/${encodeURIComponent(
+            const resp = await API.get(
+              `/buysellapi/trackings/by-number/${encodeURIComponent(
                 tn
               )}/`
             );

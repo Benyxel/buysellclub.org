@@ -9,8 +9,6 @@ import {
   FaCube,
   FaCheckCircle,
 } from "react-icons/fa";
-import axios from "axios";
-import { API_BASE_URL } from "../config/api";
 import API from "../api";
 
 const TrackingSearch = () => {
@@ -61,8 +59,8 @@ const TrackingSearch = () => {
     setError(null);
     setTrackingResult(null);
     try {
-      const response = await axios.get(
-        `${API_BASE_URL}/buysellapi/trackings/by-number/${encodeURIComponent(
+      const response = await API.get(
+        `/buysellapi/trackings/by-number/${encodeURIComponent(
           trackingNumber.trim()
         )}/`
       );

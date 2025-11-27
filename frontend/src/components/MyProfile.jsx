@@ -691,18 +691,13 @@ const MyProfile = () => {
       }
 
       // Make API call to update profile
-      const response = await axios.put(
-        `${API_BASE_URL}/buysellapi/users/me/`,
+      const response = await API.put(
+        `/buysellapi/users/me/`,
         {
           name: userInfo.name,
           email: userInfo.email,
           phone: userInfo.phone,
           address: userInfo.address,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
         }
       );
 
@@ -921,8 +916,8 @@ const MyProfile = () => {
           if (!trackNum) return enriched;
 
           try {
-            const resp = await axios.get(
-              `${API_BASE_URL}/buysellapi/trackings/by-number/${encodeURIComponent(
+            const resp = await API.get(
+              `/buysellapi/trackings/by-number/${encodeURIComponent(
                 trackNum
               )}/`
             );
@@ -1010,14 +1005,9 @@ const MyProfile = () => {
         return;
       }
 
-      const response = await axios.post(
-        `${API_BASE_URL}/api/trackings`,
-        trackingData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+      const response = await API.post(
+        `/buysellapi/trackings/`,
+        trackingData
       );
 
       if (response.data) {
@@ -1121,8 +1111,8 @@ const MyProfile = () => {
           }
 
           // Check if tracking exists in backend
-          const resp = await axios.get(
-            `${API_BASE_URL}/buysellapi/trackings/by-number/${encodeURIComponent(
+          const resp = await API.get(
+            `/buysellapi/trackings/by-number/${encodeURIComponent(
               tn
             )}/`
           );
@@ -1374,14 +1364,7 @@ const MyProfile = () => {
 
       // First, get the latest user profile
       console.log("Fetching user profile data...");
-      const profileResponse = await axios.get(
-        `${API_BASE_URL}/buysellapi/users/me/`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const profileResponse = await API.get(`/buysellapi/users/me/`);
 
       if (!profileResponse.data) {
         console.error("Empty profile data received");
@@ -1396,14 +1379,7 @@ const MyProfile = () => {
 
       // Then get the shipping marks
       console.log("Fetching shipping marks...");
-      const marksResponse = await axios.get(
-        `${API_BASE_URL}/api/shipping-marks`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const marksResponse = await API.get(`/buysellapi/shipping-marks/`);
 
       let marks = [];
       if (marksResponse.data) {
@@ -1772,11 +1748,7 @@ const MyProfile = () => {
           throw new Error("Authentication required");
         }
 
-        const response = await axios.get(`${API_BASE_URL}/api/trackings`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const response = await API.get("/buysellapi/trackings/");
 
         setTrackings(response.data);
         setError(null);
@@ -1796,16 +1768,7 @@ const MyProfile = () => {
           throw new Error("Authentication required");
         }
 
-        const response = await axios.post(
-          `${API_BASE_URL}/api/trackings`,
-          trackingData,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-          }
-        );
+        const response = await API.post("/buysellapi/trackings/", trackingData);
 
         setTrackings([...trackings, response.data]);
         setShowAddForm(false);
@@ -1831,11 +1794,7 @@ const MyProfile = () => {
           throw new Error("Authentication required");
         }
 
-        await axios.delete(`${API_BASE_URL}/api/trackings/${trackingId}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        await API.delete(`/buysellapi/trackings/${trackingId}/`);
 
         setTrackings(
           trackings.filter(
