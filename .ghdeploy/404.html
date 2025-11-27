@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>BuySellClub</title>
+    <script type="text/javascript">
+      // Single Page Apps for GitHub Pages
+      // https://github.com/rafgraph/spa-github-pages
+      // This script redirects 404s to index.html with the correct path
+      (function() {
+        var l = window.location;
+        
+        // Auto-detect base path from current URL
+        // For GitHub Pages: https://username.github.io/repository-name/
+        var pathParts = l.pathname.split('/').filter(Boolean);
+        
+        // Determine path segments to keep based on URL structure
+        // If we're on github.io, keep the repository name (first segment)
+        // If custom domain, keep nothing (root path)
+        var isGitHubIO = l.hostname.endsWith('.github.io');
+        var pathSegmentsToKeep = (isGitHubIO && pathParts.length > 0) ? 1 : 0;
+        
+        // Build base path
+        var basePath = '/';
+        if (pathSegmentsToKeep > 0 && pathParts.length > 0) {
+          basePath = '/' + pathParts[0] + '/';
+        }
+        
+        // Build redirect URL to index.html with query parameter
+        var redirect = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
+          basePath + '?/' +
+          l.pathname.slice(1).split('/').slice(pathSegmentsToKeep).join('/').replace(/&/g, '~and~') +
+          (l.search ? '&' + l.search.slice(1).replace(/&/g, '~and~') : '') +
+          l.hash;
+        
+        l.replace(redirect);
+      })();
+    </script>
+  </head>
+  <body>
+    <p>Redirecting...</p>
+  </body>
+</html>
+
