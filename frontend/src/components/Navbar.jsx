@@ -3,7 +3,7 @@ import { IoMdSearch } from "react-icons/io";
 import { FaShoppingCart } from "react-icons/fa";
 import { IoMdArrowDropdown } from "react-icons/io";
 import DarkMode from "./DarkMode";
-import { Link, NavLink } from "react-router-dom";
+import { Link, NavLink, useLocation } from "react-router-dom";
 import { FaUser } from "react-icons/fa";
 import { IoMdMenu } from "react-icons/io";
 import { IoClose } from "react-icons/io5";
@@ -39,6 +39,8 @@ export default function Navbar() {
   const [_userData, setUserData] = useState(null);
   const [username, setUsername] = useState("");
   const [shippingMark, setShippingMark] = useState("");
+  const location = useLocation();
+  const isHomePage = location.pathname === "/";
 
   // Check login status and fetch user data
   const checkLoginStatus = () => {
@@ -185,12 +187,14 @@ export default function Navbar() {
 
           {/* navbar right */}
           <div className="flex justify-between items-center gap-3 p-3">
-            <div className="relative group sm:block">
-              <IoMdSearch
-                onClick={() => setShowSearch(true)}
-                className="text-3xl group-hover:text-primary cursor-pointer text-gray-600 dark:text-gray-400 absolute top-1/2 -translate-y-1/2 right-3 duration-200"
-              />
-            </div>
+            {!isHomePage && (
+              <div className="relative group sm:block">
+                <IoMdSearch
+                  onClick={() => setShowSearch(true)}
+                  className="text-3xl group-hover:text-primary cursor-pointer text-gray-600 dark:text-gray-400 absolute top-1/2 -translate-y-1/2 right-3 duration-200"
+                />
+              </div>
+            )}
 
             {/* CART */}
             <div className="btn relative p-2">
