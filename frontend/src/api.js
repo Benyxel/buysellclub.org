@@ -72,6 +72,16 @@ const getCacheKey = (method, url, params) => {
   return `${method}:${url}:${paramsStr}`;
 };
 
+// Expose getCacheKey globally in the browser to avoid ReferenceError
+// in production bundles that may reference it without proper imports.
+if (typeof window !== "undefined") {
+  try {
+    window.getCacheKey = getCacheKey;
+  } catch (e) {
+    // ignore if environment prevents attaching to window
+  }
+}
+
 const getCachedResponse = (key) => {
   const cached = requestCache.get(key);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
@@ -332,6 +342,9 @@ const Api = {
 // ---------------------------------------------------------------------------
 export default api;
 export { Api, http };
+
+// Also export the cache key helper for any external usage
+export { getCacheKey };
 
 export const getProducts = Api.products.list;
 export const getProduct = Api.products.detail;
