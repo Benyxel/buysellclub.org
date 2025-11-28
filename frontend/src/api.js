@@ -128,6 +128,16 @@ const api = axios.create({
 
 api.interceptors.request.use(
   (config) => {
+    // Ensure headers object always exists
+    if (!config.headers) {
+      config.headers = {};
+    }
+    
+    // Ensure headers is a plain object (not undefined/null)
+    if (typeof config.headers !== "object" || config.headers === null) {
+      config.headers = {};
+    }
+
     const token =
       localStorage.getItem("token") || localStorage.getItem("adminToken");
     if (token) {
@@ -216,7 +226,10 @@ api.interceptors.response.use(
           const { access } = refreshResp.data || {};
           if (access) {
             localStorage.setItem("token", access);
-            originalRequest.headers = originalRequest.headers || {};
+            // Ensure headers object exists and is a plain object
+            if (!originalRequest.headers || typeof originalRequest.headers !== "object") {
+              originalRequest.headers = {};
+            }
             originalRequest.headers.Authorization = `Bearer ${access}`;
             return api(originalRequest);
           }
