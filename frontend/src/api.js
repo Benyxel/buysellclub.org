@@ -233,15 +233,232 @@ api.interceptors.response.use(
   }
 );
 
+// Persistent localStorage-backed cache helpers for GET requests.
+const PERSISTENT_CACHE_KEY = "api_cache_v1";
+const ADMIN_CACHE_VERSION_KEY = "admin_cache_version";
+const DEFAULT_PERSISTENT_TTL = 2 * 60 * 1000; // 2 minutes
+const ADMIN_CACHE_TTL = Infinity; // Admin data never expires unless invalidated
+
+// Admin cache version - increment this when admin data changes
+let adminCacheVersion = (() => {
+  try {
+    return parseInt(localStorage.getItem(ADMIN_CACHE_VERSION_KEY) || "1", 10);
+  } catch {
+    return 1;
+  }
+})();
+
+// Increment admin cache version (call this when admin data is modified)
+export const invalidateAdminCache = () => {
+  adminCacheVersion += 1;
+  try {
+    localStorage.setItem(ADMIN_CACHE_VERSION_KEY, String(adminCacheVersion));
+    // Clear all admin-related cache entries
+    const store = loadPersistentCache();
+    const keysToDelete = Object.keys(store).filter((key) =>
+      key.includes("/admin/") || key.includes("/buysellapi/admin/")
+    );
+    keysToDelete.forEach((key) => delete store[key]);
+    savePersistentCache(store);
+  } catch (e) {
+    console.warn("Failed to invalidate admin cache:", e);
+  }
+};
+
+const loadPersistentCache = () => {
+  try {
+    const raw = localStorage.getItem(PERSISTENT_CACHE_KEY);
+    if (!raw) return {};
+    return JSON.parse(raw);
+  } catch (e) {
+    return {};
+  }
+};
+
+const savePersistentCache = (obj) => {
+  try {
+    localStorage.setItem(PERSISTENT_CACHE_KEY, JSON.stringify(obj));
+  } catch (e) {
+    // ignore quota errors
+  }
+};
+
+const getPersistent = (key, isAdmin = false) => {
+  const store = loadPersistentCache();
+  const entry = store[key];
+  if (!entry) return null;
+  
+  // Check admin cache version for admin endpoints
+  if (isAdmin && entry.cacheVersion !== adminCacheVersion) {
+    delete store[key];
+    savePersistentCache(store);
+    return null;
+  }
+  
+  // For non-admin or matching version, check TTL
+  const ttl = isAdmin ? ADMIN_CACHE_TTL : entry.ttl || DEFAULT_PERSISTENT_TTL;
+  if (Date.now() - entry.timestamp > ttl) {
+    // stale
+    delete store[key];
+    savePersistentCache(store);
+    return null;
+  }
+  return entry.data;
+};
+
+const setPersistent = (key, data, ttl = DEFAULT_PERSISTENT_TTL, isAdmin = false) => {
+  const store = loadPersistentCache();
+  store[key] = {
+    data,
+    timestamp: Date.now(),
+    ttl: isAdmin ? ADMIN_CACHE_TTL : ttl,
+    cacheVersion: isAdmin ? adminCacheVersion : undefined,
+  };
+  savePersistentCache(store);
+  // keep in-memory small cache in sync too
+  requestCache.set(key, { data, timestamp: Date.now() });
+};
+
+// Minimum loading delay (1 second) to ensure loading states are visible
+const MIN_LOADING_DELAY = 1000;
+const delayPromise = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Check if URL is an admin endpoint
+const isAdminEndpoint = (url) => {
+  return url.includes("/admin/") || url.includes("/buysellapi/admin/");
+};
+
 // Convenience wrapper so every call goes through the same validation.
+// Enhanced GET: in-memory cache (short TTL) + persistent localStorage (longer TTL)
+// Returns cached response immediately when available (stale-while-revalidate) and
+// triggers a background refresh to update caches.
+// Admin endpoints: cache never expires unless invalidated
 const http = {
-  get: (path, config) => api.get(normalizePath(path), config),
-  delete: (path, config) => api.delete(normalizePath(path), config),
+  get: async (path, config = {}) => {
+    const url = normalizePath(path);
+    const method = "get";
+    const params = config.params || null;
+    const skipCache = config.skipCache || false;
+    const persistentTTL = config.persistentTTL || DEFAULT_PERSISTENT_TTL;
+    const isAdmin = isAdminEndpoint(url);
+
+    const key = getCacheKey(method, url, params);
+    const startTime = Date.now();
+
+    if (!skipCache) {
+      // 1) check in-memory cache (very short lived)
+      const mem = getCachedResponse(key);
+      if (mem) {
+        // Ensure minimum 1 second delay for loading state visibility
+        const elapsed = Date.now() - startTime;
+        if (elapsed < MIN_LOADING_DELAY) {
+          await delayPromise(MIN_LOADING_DELAY - elapsed);
+        }
+        // return axios-like response object
+        return { data: mem, status: 200, config: { url } };
+      }
+
+      // 2) check persistent cache (survives refresh)
+      const persisted = getPersistent(key, isAdmin);
+      if (persisted) {
+        // Ensure minimum 1 second delay for loading state visibility
+        const elapsed = Date.now() - startTime;
+        if (elapsed < MIN_LOADING_DELAY) {
+          await delayPromise(MIN_LOADING_DELAY - elapsed);
+        }
+        
+        // For admin endpoints, don't background refresh (data only changes on mutations)
+        // For non-admin, trigger background refresh (don't await)
+        if (!isAdmin) {
+          (async () => {
+            try {
+              const resp = await api.get(url, { params, withCredentials: true });
+              if (resp && resp.status === 200) {
+                setPersistent(key, resp.data, persistentTTL, false);
+              }
+            } catch (e) {
+              // background refresh failure - ignore
+            }
+          })();
+        }
+
+        return { data: persisted, status: 200, config: { url } };
+      }
+    }
+
+    // No valid cache -> perform network request with minimum delay
+    const requestPromise = api.get(url, { params, ...config });
+    const minDelayPromise = new Promise((resolve) =>
+      setTimeout(resolve, MIN_LOADING_DELAY)
+    );
+
+    const [resp] = await Promise.all([requestPromise, minDelayPromise]);
+
+    try {
+      if (resp && resp.status === 200) {
+        // update both caches
+        requestCache.set(key, { data: resp.data, timestamp: Date.now() });
+        setPersistent(key, resp.data, persistentTTL, isAdmin);
+      }
+    } catch (e) {
+      // ignore cache failures
+    }
+    return resp;
+  },
+  delete: async (path, config) => {
+    const url = normalizePath(path);
+    const isAdmin = isAdminEndpoint(url);
+    const [resp] = await Promise.all([
+      api.delete(url, config),
+      delayPromise(MIN_LOADING_DELAY),
+    ]);
+    // Invalidate admin cache on delete
+    if (isAdmin && resp && resp.status >= 200 && resp.status < 300) {
+      invalidateAdminCache();
+    }
+    return resp;
+  },
   head: (path, config) => api.head(normalizePath(path), config),
   options: (path, config) => api.options(normalizePath(path), config),
-  post: (path, data, config) => api.post(normalizePath(path), data, config),
-  put: (path, data, config) => api.put(normalizePath(path), data, config),
-  patch: (path, data, config) => api.patch(normalizePath(path), data, config),
+  post: async (path, data, config) => {
+    const url = normalizePath(path);
+    const isAdmin = isAdminEndpoint(url);
+    const [resp] = await Promise.all([
+      api.post(url, data, config),
+      delayPromise(MIN_LOADING_DELAY),
+    ]);
+    // Invalidate admin cache on create
+    if (isAdmin && resp && resp.status >= 200 && resp.status < 300) {
+      invalidateAdminCache();
+    }
+    return resp;
+  },
+  put: async (path, data, config) => {
+    const url = normalizePath(path);
+    const isAdmin = isAdminEndpoint(url);
+    const [resp] = await Promise.all([
+      api.put(url, data, config),
+      delayPromise(MIN_LOADING_DELAY),
+    ]);
+    // Invalidate admin cache on update
+    if (isAdmin && resp && resp.status >= 200 && resp.status < 300) {
+      invalidateAdminCache();
+    }
+    return resp;
+  },
+  patch: async (path, data, config) => {
+    const url = normalizePath(path);
+    const isAdmin = isAdminEndpoint(url);
+    const [resp] = await Promise.all([
+      api.patch(url, data, config),
+      delayPromise(MIN_LOADING_DELAY),
+    ]);
+    // Invalidate admin cache on patch
+    if (isAdmin && resp && resp.status >= 200 && resp.status < 300) {
+      invalidateAdminCache();
+    }
+    return resp;
+  },
 };
 
 // ---------------------------------------------------------------------------
