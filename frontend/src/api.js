@@ -255,11 +255,22 @@ export const invalidateAdminCache = () => {
     localStorage.setItem(ADMIN_CACHE_VERSION_KEY, String(adminCacheVersion));
     // Clear all admin-related cache entries
     const store = loadPersistentCache();
-    const keysToDelete = Object.keys(store).filter((key) =>
-      key.includes("/admin/") || key.includes("/buysellapi/admin/")
+    const keysToDelete = Object.keys(store).filter(
+      (key) => key.includes("/admin/") || key.includes("/buysellapi/admin/")
     );
     keysToDelete.forEach((key) => delete store[key]);
     savePersistentCache(store);
+    
+    // Also clear component-level admin caches
+    try {
+      localStorage.removeItem("admin_users_cache");
+      localStorage.removeItem("admin_buy4me_cache");
+      localStorage.removeItem("admin_trackings_cache");
+      localStorage.removeItem("admin_orders_cache");
+      localStorage.removeItem("admin_dashboard_cache");
+    } catch (e) {
+      // ignore
+    }
   } catch (e) {
     console.warn("Failed to invalidate admin cache:", e);
   }
@@ -287,14 +298,14 @@ const getPersistent = (key, isAdmin = false) => {
   const store = loadPersistentCache();
   const entry = store[key];
   if (!entry) return null;
-  
+
   // Check admin cache version for admin endpoints
   if (isAdmin && entry.cacheVersion !== adminCacheVersion) {
     delete store[key];
     savePersistentCache(store);
     return null;
   }
-  
+
   // For non-admin or matching version, check TTL
   const ttl = isAdmin ? ADMIN_CACHE_TTL : entry.ttl || DEFAULT_PERSISTENT_TTL;
   if (Date.now() - entry.timestamp > ttl) {
@@ -306,7 +317,12 @@ const getPersistent = (key, isAdmin = false) => {
   return entry.data;
 };
 
-const setPersistent = (key, data, ttl = DEFAULT_PERSISTENT_TTL, isAdmin = false) => {
+const setPersistent = (
+  key,
+  data,
+  ttl = DEFAULT_PERSISTENT_TTL,
+  isAdmin = false
+) => {
   const store = loadPersistentCache();
   store[key] = {
     data,
@@ -324,8 +340,38 @@ const MIN_LOADING_DELAY = 1000;
 const delayPromise = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Check if URL is an admin endpoint
-const isAdminEndpoint = (url) => {
-  return url.includes("/admin/") || url.includes("/buysellapi/admin/");
+// Admin endpoints include:
+// - URLs with /admin/ or /buysellapi/admin/ or /api/admin/
+// - /buysellapi/users/ (when accessed by admin - check adminToken)
+// - /buysellapi/trackings/ (when accessed by admin - check adminToken)
+const isAdminEndpoint = (url, config = {}) => {
+  // Explicitly marked as admin
+  if (config.isAdmin === true) {
+    return true;
+  }
+  
+  // URLs with /admin/ in path
+  if (url.includes("/admin/") || url.includes("/buysellapi/admin/") || url.includes("/api/admin/")) {
+    return true;
+  }
+  
+  // Check if user has adminToken (indicates admin session)
+  const hasAdminToken = typeof localStorage !== "undefined" && localStorage.getItem("adminToken");
+  
+  // Admin-specific endpoints that don't have /admin/ in path
+  // Only treat as admin if adminToken exists (admin is logged in)
+  if (hasAdminToken) {
+    const normalizedUrl = url.split('?')[0]; // Remove query params
+    const adminPatterns = [
+      "/buysellapi/users/", // Admin user management (returns all users for admin)
+      "/buysellapi/trackings/", // Admin tracking management (returns all trackings for admin)
+    ];
+    return adminPatterns.some(pattern => 
+      normalizedUrl === pattern || normalizedUrl.endsWith(pattern)
+    );
+  }
+  
+  return false;
 };
 
 // Convenience wrapper so every call goes through the same validation.
@@ -340,7 +386,7 @@ const http = {
     const params = config.params || null;
     const skipCache = config.skipCache || false;
     const persistentTTL = config.persistentTTL || DEFAULT_PERSISTENT_TTL;
-    const isAdmin = isAdminEndpoint(url);
+    const isAdmin = isAdminEndpoint(url, config);
 
     const key = getCacheKey(method, url, params);
     const startTime = Date.now();
@@ -366,13 +412,16 @@ const http = {
         if (elapsed < MIN_LOADING_DELAY) {
           await delayPromise(MIN_LOADING_DELAY - elapsed);
         }
-        
+
         // For admin endpoints, don't background refresh (data only changes on mutations)
         // For non-admin, trigger background refresh (don't await)
         if (!isAdmin) {
           (async () => {
             try {
-              const resp = await api.get(url, { params, withCredentials: true });
+              const resp = await api.get(url, {
+                params,
+                withCredentials: true,
+              });
               if (resp && resp.status === 200) {
                 setPersistent(key, resp.data, persistentTTL, false);
               }
@@ -405,9 +454,9 @@ const http = {
     }
     return resp;
   },
-  delete: async (path, config) => {
+  delete: async (path, config = {}) => {
     const url = normalizePath(path);
-    const isAdmin = isAdminEndpoint(url);
+    const isAdmin = isAdminEndpoint(url, config);
     const [resp] = await Promise.all([
       api.delete(url, config),
       delayPromise(MIN_LOADING_DELAY),
@@ -420,9 +469,9 @@ const http = {
   },
   head: (path, config) => api.head(normalizePath(path), config),
   options: (path, config) => api.options(normalizePath(path), config),
-  post: async (path, data, config) => {
+  post: async (path, data, config = {}) => {
     const url = normalizePath(path);
-    const isAdmin = isAdminEndpoint(url);
+    const isAdmin = isAdminEndpoint(url, config);
     const [resp] = await Promise.all([
       api.post(url, data, config),
       delayPromise(MIN_LOADING_DELAY),
@@ -433,9 +482,9 @@ const http = {
     }
     return resp;
   },
-  put: async (path, data, config) => {
+  put: async (path, data, config = {}) => {
     const url = normalizePath(path);
-    const isAdmin = isAdminEndpoint(url);
+    const isAdmin = isAdminEndpoint(url, config);
     const [resp] = await Promise.all([
       api.put(url, data, config),
       delayPromise(MIN_LOADING_DELAY),
@@ -446,9 +495,9 @@ const http = {
     }
     return resp;
   },
-  patch: async (path, data, config) => {
+  patch: async (path, data, config = {}) => {
     const url = normalizePath(path);
-    const isAdmin = isAdminEndpoint(url);
+    const isAdmin = isAdminEndpoint(url, config);
     const [resp] = await Promise.all([
       api.patch(url, data, config),
       delayPromise(MIN_LOADING_DELAY),
