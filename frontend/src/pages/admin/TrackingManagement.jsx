@@ -42,8 +42,22 @@ const labelToValue = (label) =>
   statusOptions.find((o) => normalize(o.label) === normalize(label))?.value ||
   "pending";
 
+// Check for cached admin trackings data
+const getCachedTrackings = () => {
+  try {
+    const cached = localStorage.getItem("admin_trackings_cache");
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      return parsed.data || null;
+    }
+  } catch (e) {
+    // ignore
+  }
+  return null;
+};
+
 const TrackingManagement = () => {
-  const [trackings, setTrackings] = useState([]);
+  const [trackings, setTrackings] = useState(() => getCachedTrackings() || []);
   const [filteredTrackings, setFilteredTrackings] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortField, setSortField] = useState("addedDate");
@@ -109,9 +123,16 @@ const TrackingManagement = () => {
   };
 
   const fetchTrackings = async () => {
+    // Check cache first - if data exists and we're not forcing refresh, skip loading
+    const cached = getCachedTrackings();
+    if (cached && cached.length > 0 && trackings.length === 0) {
+      setTrackings(cached);
+      return; // Use cached data, no API call needed
+    }
+    
     try {
       setLoading(true);
-      const response = await API.get("/buysellapi/trackings/");
+      const response = await API.get("/buysellapi/trackings/", { isAdmin: true });
 
       if (response.data && Array.isArray(response.data)) {
         // Transform backend data to frontend format
@@ -130,7 +151,13 @@ const TrackingManagement = () => {
           LastUpdated: t.date_added,
         }));
         setTrackings(transformed);
-        // Also update localStorage as cache
+        // Cache the admin trackings data
+        try {
+          localStorage.setItem("admin_trackings_cache", JSON.stringify({ data: transformed, timestamp: Date.now() }));
+        } catch (e) {
+          // ignore cache errors
+        }
+        // Also update localStorage as cache (legacy)
         localStorage.setItem("userTrackings", JSON.stringify(transformed));
       }
     } catch (error) {

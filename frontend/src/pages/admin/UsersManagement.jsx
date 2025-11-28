@@ -8,13 +8,28 @@ import {
   FaUsers,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
-import API from "../../api";
+import API, { invalidateAdminCache } from "../../api";
 import ConfirmModal from "../../components/shared/ConfirmModal";
 import BulkActions from "../../components/shared/BulkActions";
 
+// Check for cached admin users data
+const getCachedUsers = () => {
+  try {
+    const cached = localStorage.getItem("admin_users_cache");
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      // Check if cache is still valid (admin cache never expires unless invalidated)
+      return parsed.data || null;
+    }
+  } catch (e) {
+    // ignore
+  }
+  return null;
+};
+
 const UsersManagement = () => {
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [users, setUsers] = useState(() => getCachedUsers() || []);
+  const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSuper, setIsSuper] = useState(false);
@@ -46,12 +61,25 @@ const UsersManagement = () => {
   });
 
   const fetchUsers = async () => {
+    // Check cache first - if data exists and we're not forcing refresh, skip loading
+    const cached = getCachedUsers();
+    if (cached && cached.length > 0 && users.length === 0) {
+      setUsers(cached);
+      return; // Use cached data, no API call needed
+    }
+    
     try {
       setLoading(true);
-      // Use shared API wrapper (adds JWT automatically)
-      const resp = await API.get("/buysellapi/users/");
+      // Use shared API wrapper (adds JWT automatically) - will use cache if available
+      const resp = await API.get("/buysellapi/users/", { isAdmin: true });
       const data = Array.isArray(resp.data) ? resp.data : [];
       setUsers(data);
+      // Cache the data
+      try {
+        localStorage.setItem("admin_users_cache", JSON.stringify({ data, timestamp: Date.now() }));
+      } catch (e) {
+        // ignore cache errors
+      }
     } catch (error) {
       console.error("Error fetching users:", error);
       if (error.response?.status === 401) {

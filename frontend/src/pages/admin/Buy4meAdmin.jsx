@@ -13,10 +13,25 @@ import {
   createBuy4meRequestInvoice,
   updateBuy4meRequestInvoiceStatus,
 } from '../../api';
+import { invalidateAdminCache } from '../../api';
+
+// Check for cached admin buy4me requests data
+const getCachedRequests = () => {
+  try {
+    const cached = localStorage.getItem("admin_buy4me_cache");
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      return parsed.data || null;
+    }
+  } catch (e) {
+    // ignore
+  }
+  return null;
+};
 
 const Buy4meAdmin = () => {
-  const [requests, setRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [requests, setRequests] = useState(() => getCachedRequests() || []);
+  const [loading, setLoading] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -39,6 +54,13 @@ const Buy4meAdmin = () => {
   }, []);
 
   const fetchBuy4meRequests = async () => {
+    // Check cache first - if data exists and we're not forcing refresh, skip loading
+    const cached = getCachedRequests();
+    if (cached && cached.length > 0 && requests.length === 0) {
+      setRequests(cached);
+      return; // Use cached data, no API call needed
+    }
+    
     try {
       setLoading(true);
       const response = await getAdminBuy4meRequests();
@@ -65,6 +87,12 @@ const Buy4meAdmin = () => {
       }));
       
       setRequests(transformedRequests);
+      // Cache the data
+      try {
+        localStorage.setItem("admin_buy4me_cache", JSON.stringify({ data: transformedRequests, timestamp: Date.now() }));
+      } catch (e) {
+        // ignore cache errors
+      }
     } catch (error) {
       console.error('Error fetching Buy4me requests:', error);
       const errorMessage = error.response?.data?.error || error.response?.data?.detail || error.message || 'Failed to fetch Buy4me requests';
