@@ -163,8 +163,24 @@ const Buy4meAdmin = () => {
     try {
       await deleteAdminBuy4meRequest(deleteTarget);
 
-      // Update local state
-      setRequests(requests.filter(req => (req.id !== deleteTarget && req._id !== deleteTarget)));
+      // Update local state immediately without refresh
+      setRequests((prevRequests) => 
+        prevRequests.filter(req => (req.id !== deleteTarget && req._id !== deleteTarget))
+      );
+      
+      // Also clear from cache
+      try {
+        const cached = localStorage.getItem("admin_buy4me_cache");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed.data) {
+            parsed.data = parsed.data.filter(req => (req.id !== deleteTarget && req._id !== deleteTarget));
+            localStorage.setItem("admin_buy4me_cache", JSON.stringify(parsed));
+          }
+        }
+      } catch (e) {
+        // ignore cache errors
+      }
       
       if (selectedRequest && (selectedRequest.id === deleteTarget || selectedRequest._id === deleteTarget)) {
         setSelectedRequest(null);
@@ -344,8 +360,28 @@ const Buy4meAdmin = () => {
       const deletePromises = selectedRequests.map((id) => deleteAdminBuy4meRequest(id));
       await Promise.all(deletePromises);
       toast.success(`${selectedRequests.length} request(s) deleted successfully`);
+      
+      // Update UI immediately without refresh
+      const deletedIds = new Set(selectedRequests);
+      setRequests((prevRequests) => 
+        prevRequests.filter((req) => !deletedIds.has(req.id || req._id))
+      );
+      
+      // Also clear from cache
+      try {
+        const cached = localStorage.getItem("admin_buy4me_cache");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed.data) {
+            parsed.data = parsed.data.filter((req) => !deletedIds.has(req.id || req._id));
+            localStorage.setItem("admin_buy4me_cache", JSON.stringify(parsed));
+          }
+        }
+      } catch (e) {
+        // ignore cache errors
+      }
+      
       setSelectedRequests([]);
-      fetchBuy4meRequests();
     } catch (error) {
       console.error('Error bulk deleting requests:', error);
       toast.error('Failed to delete some requests');

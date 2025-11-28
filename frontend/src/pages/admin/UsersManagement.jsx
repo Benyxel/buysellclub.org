@@ -526,7 +526,23 @@ const UsersManagement = () => {
     try {
       await API.delete(`/buysellapi/users/${userIdToDelete}/delete/`);
       toast.success("User deleted successfully");
-      fetchUsers();
+      
+      // Update UI immediately without refresh
+      setUsers((prevUsers) => prevUsers.filter((user) => user.id !== userIdToDelete));
+      
+      // Also clear from cache
+      try {
+        const cached = localStorage.getItem("admin_users_cache");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed.data) {
+            parsed.data = parsed.data.filter((user) => user.id !== userIdToDelete);
+            localStorage.setItem("admin_users_cache", JSON.stringify(parsed));
+          }
+        }
+      } catch (e) {
+        // ignore cache errors
+      }
     } catch (error) {
       console.error("Error deleting user:", error);
       const msg =

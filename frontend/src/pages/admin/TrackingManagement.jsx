@@ -417,8 +417,29 @@ const TrackingManagement = () => {
         `Deleted ${selectedTrackings.length} tracking numbers successfully`
       );
 
-      // Refresh from backend
-      await fetchTrackings();
+      // Update UI immediately without refresh
+      const deletedTrackingNums = new Set(selectedTrackings);
+      setTrackings((prevTrackings) => 
+        prevTrackings.filter((t) => !deletedTrackingNums.has(t.TrackingNum))
+      );
+      setFilteredTrackings((prevFiltered) => 
+        prevFiltered.filter((t) => !deletedTrackingNums.has(t.TrackingNum))
+      );
+      
+      // Also clear from cache
+      try {
+        const cached = localStorage.getItem("admin_trackings_cache");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed.data) {
+            parsed.data = parsed.data.filter((t) => !deletedTrackingNums.has(t.TrackingNum));
+            localStorage.setItem("admin_trackings_cache", JSON.stringify(parsed));
+          }
+        }
+      } catch (e) {
+        // ignore cache errors
+      }
+      
       setSelectedTrackings([]);
     } catch (error) {
       console.error("Error deleting trackings:", error);
