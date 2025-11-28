@@ -63,3 +63,26 @@ try {
     `;
   }
 }
+
+// Register service worker if supported. The service worker file is placed in
+// the Vite `public/` folder so it will be copied to the site root on build.
+if ('serviceWorker' in navigator) {
+  try {
+    const base = (import.meta.env.VITE_BASE_PATH || '/buysellclubproject').replace(/\/$/, '');
+    const swUrl = `${base}/sw.js`;
+    navigator.serviceWorker.register(swUrl).then((reg) => {
+      console.log('[SW] Registered service worker at', swUrl, reg);
+      // Optionally listen for updates
+      reg.addEventListener('updatefound', () => {
+        const newWorker = reg.installing;
+        newWorker?.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed') {
+            console.log('[SW] New service worker installed');
+          }
+        });
+      });
+    }).catch((e) => console.warn('[SW] Registration failed', e));
+  } catch (e) {
+    console.warn('[SW] Registration error', e);
+  }
+}
