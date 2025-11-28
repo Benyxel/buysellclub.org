@@ -5,6 +5,17 @@
     <link rel="icon" type="image/jpeg" href="/buysellclubproject/buysellt.jpg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>BuySellClub</title>
+    <!-- Runtime env injection: provide backend API base for builds served on GitHub Pages -->
+    <script>
+      // Provide a runtime VITE_API_BASE_URL for pages served from GitHub Pages
+      // so the client uses the Railway backend instead of relative paths.
+      // Set both `window.__ENV` (single) and `window.__ENV__` (double underscore)
+      // to be safe — the production bundle reads `window.__ENV__`.
+      window.__ENV = window.__ENV || {};
+      window.__ENV.VITE_API_BASE_URL = window.__ENV.VITE_API_BASE_URL || "https://buysellclub-backend-production.up.railway.app";
+      window.__ENV__ = window.__ENV__ || window.__ENV || {};
+      window.__ENV__.VITE_API_BASE_URL = window.__ENV__.VITE_API_BASE_URL || window.__ENV.VITE_API_BASE_URL || "https://buysellclub-backend-production.up.railway.app";
+    </script>
   </head>
   <body>
     <div id="root"></div>
