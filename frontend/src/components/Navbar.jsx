@@ -1,5 +1,4 @@
 import React, { useContext, useState, useEffect } from "react";
-import { IoMdSearch } from "react-icons/io";
 import { FaShoppingCart } from "react-icons/fa";
 import { IoMdArrowDropdown } from "react-icons/io";
 import DarkMode from "./DarkMode";
@@ -34,7 +33,7 @@ const StaticUserLinks = [
 
 export default function Navbar() {
   const [visible, setVisible] = useState(false);
-  const { setShowSearch, getCartCount } = useContext(ShopContext);
+  const { getCartCount } = useContext(ShopContext);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [_userData, setUserData] = useState(null);
   const [username, setUsername] = useState("");
