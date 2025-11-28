@@ -119,10 +119,8 @@ const api = axios.create({
   withCredentials: true,
   headers: {
     "Content-Type": "application/json",
+    Connection: "keep-alive", // Reuse connections for better performance
   },
-    // Do NOT set the `Connection` header — browsers forbid setting it and
-    // will refuse to apply it. Connection pooling/keep-alive is handled by
-    // the browser automatically.
   timeout: 15000, // Reduced from 30s to 15s for faster failure detection
   maxRedirects: 5,
   // Browser automatically handles connection pooling and keep-alive

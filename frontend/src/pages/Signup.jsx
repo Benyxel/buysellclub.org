@@ -103,7 +103,6 @@ const Signup = () => {
     }
 
     setLoading(true);
-    setErrors({}); // Clear previous errors
 
     try {
       // Helper to get CSRF token from cookie
@@ -122,11 +121,7 @@ const Signup = () => {
         return cookieValue;
       }
       const csrfToken = getCookie("csrftoken");
-      
-      // Show loading toast
-      const loadingToast = toast.info("Creating your account...", { autoClose: false });
-      
-      // Call Django registration endpoint with CSRF token and increased timeout
+      // Call Django registration endpoint with CSRF token
       const response = await API.post("/buysellapi/user/register/", {
         username: form.username,
         full_name: form.full_name,
@@ -140,42 +135,15 @@ const Signup = () => {
           "X-CSRFToken": csrfToken,
           "Content-Type": "application/json",
         },
-        timeout: 30000, // 30 seconds for registration (longer for slow connections)
       });
 
-      // Dismiss loading toast
-      toast.dismiss(loadingToast);
-
-      // Show success message from backend with status
-      const successMessage = response.data?.message || response.data?.status || "Account created successfully! 🎉";
-      toast.success(successMessage, { autoClose: 5000 });
-      
-      console.log("Signup successful:", response.data);
+      // Show success message from backend
+      toast.success(response.data.message || "Account created successfully!");
 
       // Navigate to login page
       navigate("/Login");
     } catch (err) {
       console.error("Signup error:", err);
-
-      // Handle timeout errors specifically
-      if (err.code === "ECONNABORTED" || err.message?.includes("timeout")) {
-        toast.error("Request timed out. Please check your internet connection and try again.", { autoClose: 7000 });
-        setErrors({
-          form: "Connection timeout. Please try again with a stable internet connection.",
-        });
-        setLoading(false);
-        return;
-      }
-
-      // Handle network errors
-      if (!err.response && err.request) {
-        toast.error("Network error. Please check your internet connection and try again.", { autoClose: 7000 });
-        setErrors({
-          form: "Cannot connect to server. Please check your internet connection.",
-        });
-        setLoading(false);
-        return;
-      }
 
       // Handle specific error messages
       if (err.response?.data) {
@@ -232,18 +200,17 @@ const Signup = () => {
           toastMessage = firstError;
         }
 
-        toast.error(toastMessage, { autoClose: 7000 });
+        toast.error(toastMessage);
       } else if (err.request) {
-        // Request made but no response received (already handled above)
-        toast.error("Network error. Please check your internet connection.", { autoClose: 7000 });
+        // Request made but no response received
+        toast.error("Network error. Please check your internet connection.");
         setErrors({
           form: "Cannot connect to server. Please try again later.",
         });
       } else {
         // Something else happened
-        const errorMsg = err.message || "An unexpected error occurred. Please try again.";
-        toast.error(errorMsg, { autoClose: 7000 });
-        setErrors({ form: errorMsg });
+        toast.error("An unexpected error occurred. Please try again.");
+        setErrors({ form: "An unexpected error occurred." });
       }
     } finally {
       setLoading(false);
