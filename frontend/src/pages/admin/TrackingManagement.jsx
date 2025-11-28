@@ -460,8 +460,27 @@ const TrackingManagement = () => {
 
       toast.success("Tracking record deleted successfully");
 
-      // Refresh from backend
-      await fetchTrackings();
+      // Update UI immediately without refresh
+      setTrackings((prevTrackings) => 
+        prevTrackings.filter((t) => t.id !== deleteTarget)
+      );
+      setFilteredTrackings((prevFiltered) => 
+        prevFiltered.filter((t) => t.id !== deleteTarget)
+      );
+      
+      // Also clear from cache
+      try {
+        const cached = localStorage.getItem("admin_trackings_cache");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed.data) {
+            parsed.data = parsed.data.filter((t) => t.id !== deleteTarget);
+            localStorage.setItem("admin_trackings_cache", JSON.stringify(parsed));
+          }
+        }
+      } catch (e) {
+        // ignore cache errors
+      }
     } catch (error) {
       console.error("Error deleting tracking:", error);
       toast.error(
@@ -469,6 +488,8 @@ const TrackingManagement = () => {
       );
     } finally {
       setLoading(false);
+      setShowDeleteModal(false);
+      setDeleteTarget(null);
     }
   };
 

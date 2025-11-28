@@ -598,16 +598,36 @@ const UsersManagement = () => {
       return;
     }
     try {
+      setLoading(true);
       const deletePromises = selectedIds.map((id) =>
         API.delete(`/buysellapi/users/${id}/delete/`)
       );
       await Promise.all(deletePromises);
       toast.success(`${selectedIds.length} user(s) deleted successfully`);
+      
+      // Update UI immediately without refresh
+      setUsers((prevUsers) => prevUsers.filter((user) => !selectedIds.includes(user.id)));
+      
+      // Also clear from cache
+      try {
+        const cached = localStorage.getItem("admin_users_cache");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed.data) {
+            parsed.data = parsed.data.filter((user) => !selectedIds.includes(user.id));
+            localStorage.setItem("admin_users_cache", JSON.stringify(parsed));
+          }
+        }
+      } catch (e) {
+        // ignore cache errors
+      }
+      
       setSelectedUsers([]);
-      fetchUsers();
     } catch (error) {
       console.error("Error bulk deleting users:", error);
       toast.error("Failed to delete some users");
+    } finally {
+      setLoading(false);
     }
   };
 
