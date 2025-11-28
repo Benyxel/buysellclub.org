@@ -37,7 +37,7 @@ const AlipayManagement = () => {
   const fetchPayments = useCallback(async () => {
     try {
       setLoading(true);
-      const { data } = await API.get("/api/admin/alipay-payments", {
+      const { data } = await API.get("/api/admin/alipay-payments/", {
         params: {
           page: currentPage,
           limit: 10,
@@ -101,7 +101,7 @@ const AlipayManagement = () => {
 
     try {
       const { data } = await API.put(
-        `/api/admin/alipay-payments/${selectedPayment._id}/status`,
+        `/api/admin/alipay-payments/${selectedPayment._id || selectedPayment.id}/status/`,
         {
           status: newStatus,
           adminNotes: adminNotes.trim() ? adminNotes : undefined,
@@ -130,12 +130,21 @@ const AlipayManagement = () => {
   const confirmDeletePayment = async () => {
     if (!paymentIdToDelete) return;
     try {
-      await API.delete(`/api/admin/alipay-payments/${paymentIdToDelete}`);
-      setPayments(payments.filter((p) => p._id !== paymentIdToDelete));
+      await API.delete(`/api/admin/alipay-payments/${paymentIdToDelete}/`);
+      
+      // Update UI immediately without refresh
+      setPayments((prevPayments) => 
+        prevPayments.filter((p) => p._id !== paymentIdToDelete && p.id !== paymentIdToDelete)
+      );
+      
       toast.success("Payment deleted successfully");
     } catch (error) {
       console.error("Error deleting payment:", error);
-      toast.error(error.response?.data?.error || "Error deleting payment");
+      const errorMsg = error.response?.data?.error || 
+                      error.response?.data?.detail || 
+                      error.message || 
+                      "Error deleting payment";
+      toast.error(errorMsg);
     } finally {
       setShowDeleteModal(false);
       setPaymentIdToDelete(null);

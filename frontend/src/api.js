@@ -119,7 +119,7 @@ const api = axios.create({
   withCredentials: true,
   headers: {
     "Content-Type": "application/json",
-    Connection: "keep-alive", // Reuse connections for better performance
+    // Note: Browsers automatically handle Connection: keep-alive, we cannot set it manually
   },
   timeout: 15000, // Reduced from 30s to 15s for faster failure detection
   maxRedirects: 5,
