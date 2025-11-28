@@ -335,8 +335,8 @@ const setPersistent = (
   requestCache.set(key, { data, timestamp: Date.now() });
 };
 
-// Minimum loading delay (1 second) to ensure loading states are visible
-const MIN_LOADING_DELAY = 1000;
+// Minimum loading delay (100ms) to ensure loading states are visible but not too slow
+const MIN_LOADING_DELAY = 100;
 const delayPromise = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Check if URL is an admin endpoint
@@ -395,23 +395,14 @@ const http = {
       // 1) check in-memory cache (very short lived)
       const mem = getCachedResponse(key);
       if (mem) {
-        // Ensure minimum 1 second delay for loading state visibility
-        const elapsed = Date.now() - startTime;
-        if (elapsed < MIN_LOADING_DELAY) {
-          await delayPromise(MIN_LOADING_DELAY - elapsed);
-        }
-        // return axios-like response object
+        // Return cached data immediately - no delay needed for cached responses
         return { data: mem, status: 200, config: { url } };
       }
 
       // 2) check persistent cache (survives refresh)
       const persisted = getPersistent(key, isAdmin);
       if (persisted) {
-        // Ensure minimum 1 second delay for loading state visibility
-        const elapsed = Date.now() - startTime;
-        if (elapsed < MIN_LOADING_DELAY) {
-          await delayPromise(MIN_LOADING_DELAY - elapsed);
-        }
+        // Return cached data immediately - no delay needed for cached responses
 
         // For admin endpoints, don't background refresh (data only changes on mutations)
         // For non-admin, trigger background refresh (don't await)
@@ -435,13 +426,8 @@ const http = {
       }
     }
 
-    // No valid cache -> perform network request with minimum delay
-    const requestPromise = api.get(url, { params, ...config });
-    const minDelayPromise = new Promise((resolve) =>
-      setTimeout(resolve, MIN_LOADING_DELAY)
-    );
-
-    const [resp] = await Promise.all([requestPromise, minDelayPromise]);
+    // No valid cache -> perform network request (no artificial delay for better UX)
+    const resp = await api.get(url, { params, ...config });
 
     try {
       if (resp && resp.status === 200) {
@@ -457,10 +443,7 @@ const http = {
   delete: async (path, config = {}) => {
     const url = normalizePath(path);
     const isAdmin = isAdminEndpoint(url, config);
-    const [resp] = await Promise.all([
-      api.delete(url, config),
-      delayPromise(MIN_LOADING_DELAY),
-    ]);
+    const resp = await api.delete(url, config);
     // Invalidate admin cache on delete
     if (isAdmin && resp && resp.status >= 200 && resp.status < 300) {
       invalidateAdminCache();
@@ -472,10 +455,7 @@ const http = {
   post: async (path, data, config = {}) => {
     const url = normalizePath(path);
     const isAdmin = isAdminEndpoint(url, config);
-    const [resp] = await Promise.all([
-      api.post(url, data, config),
-      delayPromise(MIN_LOADING_DELAY),
-    ]);
+    const resp = await api.post(url, data, config);
     // Invalidate admin cache on create
     if (isAdmin && resp && resp.status >= 200 && resp.status < 300) {
       invalidateAdminCache();
@@ -485,10 +465,7 @@ const http = {
   put: async (path, data, config = {}) => {
     const url = normalizePath(path);
     const isAdmin = isAdminEndpoint(url, config);
-    const [resp] = await Promise.all([
-      api.put(url, data, config),
-      delayPromise(MIN_LOADING_DELAY),
-    ]);
+    const resp = await api.put(url, data, config);
     // Invalidate admin cache on update
     if (isAdmin && resp && resp.status >= 200 && resp.status < 300) {
       invalidateAdminCache();
@@ -498,10 +475,7 @@ const http = {
   patch: async (path, data, config = {}) => {
     const url = normalizePath(path);
     const isAdmin = isAdminEndpoint(url, config);
-    const [resp] = await Promise.all([
-      api.patch(url, data, config),
-      delayPromise(MIN_LOADING_DELAY),
-    ]);
+    const resp = await api.patch(url, data, config);
     // Invalidate admin cache on patch
     if (isAdmin && resp && resp.status >= 200 && resp.status < 300) {
       invalidateAdminCache();
