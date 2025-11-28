@@ -220,6 +220,9 @@ const AlipayPayment = () => {
       return;
     }
 
+    const startTime = Date.now();
+    const MIN_SUBMIT_DELAY = 2000; // 2 seconds minimum delay
+
     try {
       setIsLoading(true);
 
@@ -241,8 +244,16 @@ const AlipayPayment = () => {
         platformSource,
       };
 
-      // Submit to API
-      await API.post("/api/alipay-payments", paymentData);
+      // Submit to API and ensure minimum 2-second delay
+      const submitPromise = API.post("/api/alipay-payments", paymentData);
+      const delayPromise = new Promise((resolve) => {
+        const elapsed = Date.now() - startTime;
+        const remainingDelay = Math.max(0, MIN_SUBMIT_DELAY - elapsed);
+        setTimeout(resolve, remainingDelay);
+      });
+
+      // Wait for both API call and minimum delay
+      await Promise.all([submitPromise, delayPromise]);
 
       // Add notification to updates
       const updates = JSON.parse(localStorage.getItem("updates") || "[]");
@@ -258,14 +269,39 @@ const AlipayPayment = () => {
       });
       localStorage.setItem("updates", JSON.stringify(updates));
 
-      toast.success("Payment details submitted successfully!");
+      // Show success messages
+      toast.success("Payment details submitted successfully!", {
+        position: "top-center",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+
+      // Show additional success message
+      toast.info(
+        `Your payment request of ${
+          currency === "CEDI" ? "₵" : "¥"
+        } ${amount} is being processed. You will receive a confirmation email shortly.`,
+        {
+          position: "top-center",
+          autoClose: 4000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        }
+      );
+
+      // Move to success step
       setCurrentStep(3);
 
-      // Navigate to AlipayPayment page after 3 seconds to refresh
+      // Navigate to AlipayPayment page after 4 seconds to refresh
       setTimeout(() => {
         navigate("/AlipayPayment");
         window.location.reload();
-      }, 3000);
+      }, 4000);
     } catch (error) {
       console.error("Error submitting payment:", error);
       const msg =
@@ -273,7 +309,14 @@ const AlipayPayment = () => {
         error.response?.data?.detail ||
         error.message ||
         "An error occurred. Please try again.";
-      toast.error(msg);
+      toast.error(msg, {
+        position: "top-center",
+        autoClose: 4000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
     } finally {
       setIsLoading(false);
     }
@@ -282,18 +325,37 @@ const AlipayPayment = () => {
   // Render success message for step 3
   const renderSuccessMessage = () => (
     <div className="flex flex-col items-center justify-center text-center py-8">
-      <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mb-4">
+      <div className="w-20 h-20 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mb-4 animate-bounce">
         <FaCheckCircle className="w-12 h-12 text-green-500" />
       </div>
       <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-        Payment Submitted Successfully!
+        Payment Submitted Successfully! ✓
       </h3>
-      <p className="text-gray-600 dark:text-gray-400 mb-6">
-        Your payment has been received and is being processed. You will be
-        redirected to your profile page shortly.
+      <p className="text-gray-600 dark:text-gray-400 mb-4 text-lg">
+        Your payment request has been received and is being processed.
       </p>
-      <div className="animate-pulse text-primary">
-        Redirecting to your profile...
+      <div className="bg-green-50 dark:bg-green-900/20 border-2 border-green-200 dark:border-green-800 rounded-xl p-4 mb-6 w-full max-w-md">
+        <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">
+          <strong>Payment Details:</strong>
+        </p>
+        <p className="text-base font-semibold text-gray-900 dark:text-white">
+          Amount: {currency === "CEDI" ? "₵" : "¥"} {amount}
+        </p>
+        {convertedAmount > 0 && (
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+            Converted: {currency === "CEDI" ? "¥" : "₵"} {convertedAmount}
+          </p>
+        )}
+      </div>
+      <p className="text-gray-600 dark:text-gray-400 mb-2">
+        You will receive a confirmation email shortly.
+      </p>
+      <p className="text-gray-500 dark:text-gray-500 text-sm mb-6">
+        You can track your payment status in your profile.
+      </p>
+      <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 animate-pulse">
+        <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-600"></div>
+        <span>Redirecting to payment page...</span>
       </div>
     </div>
   );
