@@ -223,6 +223,9 @@ const AlipayPayment = () => {
     try {
       setIsLoading(true);
 
+      // Show loading toast
+      const loadingToast = toast.info("Submitting payment request...", { autoClose: false });
+
       // First, upload the QR code or convert to base64
       let qrCodeData = qrCodePreview; // Using the base64 data
 
@@ -241,39 +244,93 @@ const AlipayPayment = () => {
         platformSource,
       };
 
-      // Submit to API
-      await API.post("/api/alipay-payments", paymentData);
-
-      // Add notification to updates
-      const updates = JSON.parse(localStorage.getItem("updates") || "[]");
-      updates.unshift({
-        id: Date.now().toString(),
-        type: "payment",
-        title: "New Alipay Payment Submitted",
-        message: `Your payment of ${
-          currency === "CEDI" ? "₵" : "¥"
-        } ${amount} has been submitted for processing.`,
-        date: new Date().toISOString(),
-        read: false,
+      // Submit to API with increased timeout for large image uploads
+      const response = await API.post("/api/alipay-payments", paymentData, {
+        timeout: 45000, // 45 seconds for image uploads
       });
-      localStorage.setItem("updates", JSON.stringify(updates));
 
-      toast.success("Payment details submitted successfully!");
-      setCurrentStep(3);
+      // Dismiss loading toast
+      toast.dismiss(loadingToast);
 
-      // Navigate to AlipayPayment page after 3 seconds to refresh
-      setTimeout(() => {
-        navigate("/AlipayPayment");
-        window.location.reload();
-      }, 3000);
+      // Check response status
+      if (response.status === 201 || response.status === 200) {
+        // Add notification to updates
+        const updates = JSON.parse(localStorage.getItem("updates") || "[]");
+        updates.unshift({
+          id: Date.now().toString(),
+          type: "payment",
+          title: "New Alipay Payment Submitted",
+          message: `Your payment of ${
+            currency === "CEDI" ? "₵" : "¥"
+          } ${amount} has been submitted for processing.`,
+          date: new Date().toISOString(),
+          read: false,
+        });
+        localStorage.setItem("updates", JSON.stringify(updates));
+
+        // Show success message with details
+        const successMsg = response.data?.message || 
+          `Payment of ${currency === "CEDI" ? "₵" : "¥"} ${amount} submitted successfully! Status: ${response.data?.status || "Pending"}`;
+        toast.success(successMsg, { autoClose: 5000 });
+        
+        console.log("Payment submitted successfully:", response.data);
+        
+        setCurrentStep(3);
+
+        // Navigate to AlipayPayment page after 3 seconds to refresh
+        setTimeout(() => {
+          navigate("/AlipayPayment");
+          window.location.reload();
+        }, 3000);
+      } else {
+        throw new Error("Unexpected response status: " + response.status);
+      }
     } catch (error) {
       console.error("Error submitting payment:", error);
-      const msg =
-        error.response?.data?.error ||
-        error.response?.data?.detail ||
-        error.message ||
-        "An error occurred. Please try again.";
-      toast.error(msg);
+      
+      // Handle timeout errors specifically
+      if (error.code === "ECONNABORTED" || error.message?.includes("timeout")) {
+        toast.error("Request timed out. The images may be too large. Please try again with smaller images or check your connection.", { 
+          autoClose: 8000 
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // Handle network errors
+      if (!error.response && error.request) {
+        toast.error("Network error. Please check your internet connection and try again.", { 
+          autoClose: 7000 
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // Handle API errors
+      let errorMsg = "An error occurred. Please try again.";
+      
+      if (error.response?.data) {
+        // Try different error message fields
+        errorMsg = error.response.data.error || 
+                   error.response.data.detail || 
+                   error.response.data.message ||
+                   (typeof error.response.data === "string" ? error.response.data : errorMsg);
+        
+        // Handle validation errors
+        if (error.response.data.accountType) {
+          errorMsg = `Account Type: ${error.response.data.accountType}`;
+        } else if (error.response.data.alipayAccount) {
+          errorMsg = `Alipay Account: ${error.response.data.alipayAccount}`;
+        } else if (error.response.data.qrCodeImage) {
+          errorMsg = `QR Code: ${error.response.data.qrCodeImage}`;
+        } else if (error.response.data.proofOfPayment) {
+          errorMsg = `Proof of Payment: ${error.response.data.proofOfPayment}`;
+        }
+      } else if (error.message) {
+        errorMsg = error.message;
+      }
+      
+      toast.error(errorMsg, { autoClose: 7000 });
     } finally {
       setIsLoading(false);
     }
