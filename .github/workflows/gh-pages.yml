@@ -7,6 +7,8 @@ on:
       - develop
     paths:
       - "frontend/**"
+  # Allow manual runs from the Actions UI for testing
+  workflow_dispatch:
 
 jobs:
   build-and-deploy:
@@ -28,11 +30,11 @@ jobs:
         working-directory: frontend
         run: npm run build
 
-      - name: Deploy to GitHub Pages
+      - name: Deploy to GitHub Pages (SSH deploy key)
         uses: peaceiris/actions-gh-pages@v4
         with:
-          # Use a personal access token stored in `GH_PAGES_PAT` secret
-          personal_token: ${{ secrets.GH_PAGES_PAT }}
+          # Use an SSH deploy key stored as secret `GH_PAGES_KEY` (private key)
+          deploy_key: ${{ secrets.GH_PAGES_KEY }}
           publish_dir: ./frontend/dist
           publish_branch: gh-pages
           user_name: "github-actions[bot]"
