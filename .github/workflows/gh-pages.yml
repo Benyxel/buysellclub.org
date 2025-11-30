@@ -30,11 +30,19 @@ jobs:
         working-directory: frontend
         run: npm run build
 
-      - name: Deploy to GitHub Pages (SSH deploy key)
+      - name: Debug: check deploy secrets presence
+        run: |
+          echo "DEPLOY_SECRET_GH_PAGES_KEY=${{ secrets.GH_PAGES_KEY != '' }}"
+          echo "DEPLOY_SECRET_GH_PAGES_PAT=${{ secrets.GH_PAGES_PAT != '' }}"
+        shell: bash
+
+      - name: Deploy to GitHub Pages (SSH deploy key or PAT)
         uses: peaceiris/actions-gh-pages@v4
         with:
-          # Use an SSH deploy key stored as secret `GH_PAGES_KEY` (private key)
+          # Prefer deploy key if present, fallback to PAT if available
           deploy_key: ${{ secrets.GH_PAGES_KEY }}
+          personal_token: ${{ secrets.GH_PAGES_PAT }}
+          ssh_known_hosts: github.com
           publish_dir: ./frontend/dist
           publish_branch: gh-pages
           user_name: "github-actions[bot]"
