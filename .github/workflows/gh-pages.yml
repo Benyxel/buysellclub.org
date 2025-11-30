@@ -2,8 +2,6 @@ name: Deploy Frontend to GitHub Pages
 
 on:
   push:
-    branches:
-      - my-branch-from-0762150
 
 jobs:
   build-and-deploy:
