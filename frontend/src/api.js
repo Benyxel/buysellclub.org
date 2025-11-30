@@ -613,6 +613,18 @@ const Api = {
     adminDeleteCourse: (id) =>
       http.delete(`/buysellapi/admin/training-courses/${id}/`),
   },
+  gallery: {
+    list: (params) => http.get("/buysellapi/gallery/", { params }),
+    adminList: (params) => http.get("/buysellapi/admin/gallery/", { params, isAdmin: true }),
+    adminDetail: (id) =>
+      http.get(`/buysellapi/admin/gallery/${id}/`, { isAdmin: true }),
+    adminCreate: (payload, config) =>
+      http.post("/buysellapi/admin/gallery/", payload, { ...config, isAdmin: true }),
+    adminUpdate: (id, payload, config) =>
+      http.put(`/buysellapi/admin/gallery/${id}/`, payload, { ...config, isAdmin: true }),
+    adminDelete: (id) =>
+      http.delete(`/buysellapi/admin/gallery/${id}/`, { isAdmin: true }),
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -686,6 +698,13 @@ export const getAdminTrainingCourse = Api.training.adminCourseDetail;
 export const createTrainingCourse = Api.training.adminCreateCourse;
 export const updateTrainingCourse = Api.training.adminUpdateCourse;
 export const deleteTrainingCourse = Api.training.adminDeleteCourse;
+
+export const getGalleryImages = Api.gallery.list;
+export const getAdminGalleryImages = Api.gallery.adminList;
+export const getAdminGalleryImage = Api.gallery.adminDetail;
+export const createGalleryImage = Api.gallery.adminCreate;
+export const updateGalleryImage = Api.gallery.adminUpdate;
+export const deleteGalleryImage = Api.gallery.adminDelete;
 
 export const testConnection = async () => {
   try {

@@ -12,7 +12,7 @@ const HeroData = [
     id: 1,
     src: heroSlide1,
     alt: "Slide 1",
-    subtile: "Logisctic Services",
+    subtile: "Logistic Services",
     title: "fofoofo Imports",
     description: "Ship goods from China to Ghana",
   },

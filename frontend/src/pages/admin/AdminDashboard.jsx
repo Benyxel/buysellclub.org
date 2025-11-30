@@ -33,6 +33,7 @@ import {
   FaExchangeAlt,
   FaYoutube,
   FaDollarSign,
+  FaImages,
 } from "react-icons/fa";
 
 import UsersManagement from "./UsersManagement";
@@ -52,6 +53,7 @@ import YouTubeManagement from "./YouTubeManagement";
 import OrderManagement from "./OrderManagement";
 import CategoriesTypesManagement from "./CategoriesTypesManagement";
 import Analytics from "./Analytics";
+import GalleryManagement from "./GalleryManagement";
 import "react-toastify/dist/ReactToastify.css";
 
 const AdminDashboard = () => {
@@ -117,6 +119,7 @@ const AdminDashboard = () => {
       { icon: <FaShoppingCart />, label: "Orders", section: "orders" },
       { icon: <FaBox />, label: "Products", section: "products" },
       { icon: <FaStore />, label: "Categories", section: "categories" },
+      { icon: <FaImages />, label: "Gallery", section: "gallery" },
       { icon: <FaGraduationCap />, label: "Training", section: "training" },
       { icon: <FaYoutube />, label: "YouTube", section: "youtube" },
       {
@@ -719,6 +722,8 @@ const AdminDashboard = () => {
         return <AdminProducts />;
       case "categories":
         return <CategoriesTypesManagement />;
+      case "gallery":
+        return <GalleryManagement />;
       case "analytics":
         return <Analytics />;
       default:

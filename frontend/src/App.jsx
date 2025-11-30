@@ -43,6 +43,7 @@ import NotFound from "./pages/NotFound";
 import LoginPromptModal from "./components/LoginPromptModal";
 import UserView from "./pages/admin/UserView";
 import ScrollToTop from "./components/ScrollToTop";
+import Gallery from "./pages/Gallery";
 
 function App() {
   return (
@@ -96,6 +97,7 @@ function App() {
                   <Route path="/Contact" element={<Contact />} />
                   <Route path="/Policies" element={<Policies />} />
                   <Route path="/About" element={<About />} />
+                  <Route path="/Gallery" element={<Gallery />} />
                   <Route path="/product/:productId" element={<Product />} />
                   <Route path="/Trending" element={<Trending />} />
                   <Route path="/Wholesale" element={<Wholesale />} />
