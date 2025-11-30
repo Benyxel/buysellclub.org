@@ -132,7 +132,7 @@ api.interceptors.request.use(
     if (!config.headers) {
       config.headers = {};
     }
-    
+
     // Ensure headers is a plain object (not undefined/null)
     if (typeof config.headers !== "object" || config.headers === null) {
       config.headers = {};
@@ -150,6 +150,19 @@ api.interceptors.request.use(
       if (csrfToken) {
         config.headers["X-CSRFToken"] = csrfToken;
       }
+    }
+
+    // If sending FormData, let the browser/axios set the Content-Type header
+    // (it must include the multipart boundary). The axios instance has a
+    // default Content-Type of application/json which would break multipart.
+    try {
+      if (typeof FormData !== "undefined" && config.data instanceof FormData) {
+        if (config.headers && config.headers["Content-Type"]) {
+          delete config.headers["Content-Type"];
+        }
+      }
+    } catch (e) {
+      // Ignore environment where FormData isn't defined
     }
 
     config.withCredentials = true;
@@ -227,7 +240,10 @@ api.interceptors.response.use(
           if (access) {
             localStorage.setItem("token", access);
             // Ensure headers object exists and is a plain object
-            if (!originalRequest.headers || typeof originalRequest.headers !== "object") {
+            if (
+              !originalRequest.headers ||
+              typeof originalRequest.headers !== "object"
+            ) {
               originalRequest.headers = {};
             }
             originalRequest.headers.Authorization = `Bearer ${access}`;
@@ -273,7 +289,7 @@ export const invalidateAdminCache = () => {
     );
     keysToDelete.forEach((key) => delete store[key]);
     savePersistentCache(store);
-    
+
     // Also clear component-level admin caches
     try {
       localStorage.removeItem("admin_users_cache");
@@ -362,28 +378,33 @@ const isAdminEndpoint = (url, config = {}) => {
   if (config.isAdmin === true) {
     return true;
   }
-  
+
   // URLs with /admin/ in path
-  if (url.includes("/admin/") || url.includes("/buysellapi/admin/") || url.includes("/api/admin/")) {
+  if (
+    url.includes("/admin/") ||
+    url.includes("/buysellapi/admin/") ||
+    url.includes("/api/admin/")
+  ) {
     return true;
   }
-  
+
   // Check if user has adminToken (indicates admin session)
-  const hasAdminToken = typeof localStorage !== "undefined" && localStorage.getItem("adminToken");
-  
+  const hasAdminToken =
+    typeof localStorage !== "undefined" && localStorage.getItem("adminToken");
+
   // Admin-specific endpoints that don't have /admin/ in path
   // Only treat as admin if adminToken exists (admin is logged in)
   if (hasAdminToken) {
-    const normalizedUrl = url.split('?')[0]; // Remove query params
+    const normalizedUrl = url.split("?")[0]; // Remove query params
     const adminPatterns = [
       "/buysellapi/users/", // Admin user management (returns all users for admin)
       "/buysellapi/trackings/", // Admin tracking management (returns all trackings for admin)
     ];
-    return adminPatterns.some(pattern => 
-      normalizedUrl === pattern || normalizedUrl.endsWith(pattern)
+    return adminPatterns.some(
+      (pattern) => normalizedUrl === pattern || normalizedUrl.endsWith(pattern)
     );
   }
-  
+
   return false;
 };
 

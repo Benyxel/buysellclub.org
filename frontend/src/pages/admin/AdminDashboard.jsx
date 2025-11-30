@@ -52,6 +52,7 @@ import YouTubeManagement from "./YouTubeManagement";
 import OrderManagement from "./OrderManagement";
 import CategoriesTypesManagement from "./CategoriesTypesManagement";
 import Analytics from "./Analytics";
+import GalleryManagement from "./GalleryManagement";
 import "react-toastify/dist/ReactToastify.css";
 
 const AdminDashboard = () => {
@@ -119,6 +120,7 @@ const AdminDashboard = () => {
       { icon: <FaStore />, label: "Categories", section: "categories" },
       { icon: <FaGraduationCap />, label: "Training", section: "training" },
       { icon: <FaYoutube />, label: "YouTube", section: "youtube" },
+      { icon: <FaVideo />, label: "Gallery", section: "gallery" },
       {
         icon: <FaClipboardList />,
         label: "Quick Orders",
@@ -302,12 +304,11 @@ const AdminDashboard = () => {
       try {
         const resp = await API.get("/buysellapi/dashboard-tabs/");
         const tabs = Array.isArray(resp.data) ? resp.data : [];
-        // Exclude any gallery tab returned by the backend to remove
-        // the Gallery management UI card from the admin dashboard.
-        const slugs = tabs.map((t) => t.slug).filter((s) => s !== "gallery");
+        // Use tabs returned by the backend to determine which sections
+        // the current admin is allowed to see.
+        const slugs = tabs.map((t) => t.slug);
         const meta = {};
         tabs.forEach((t) => {
-          if (t.slug === "gallery") return; // skip gallery metadata
           meta[t.slug] = {
             assigned: Boolean(t.assigned),
             assignedToAll: Boolean(t.assigned_to_all_admins),
@@ -340,32 +341,28 @@ const AdminDashboard = () => {
       }
     };
 
-      if (currentUser) fetchTabs();
+    if (currentUser) fetchTabs();
   }, [currentUser, menuItems]);
 
   // Allow superadmin to sync the default frontend menu into DashboardTab records
-    const syncDefaultTabs = async () => {
+  const syncDefaultTabs = async () => {
     if (!currentUser || !currentUser.is_superuser) return;
     try {
-      // When syncing defaults, exclude any 'gallery' section so it isn't re-created
-      const tabs = menuItems
-        .filter((m) => m.section !== "gallery")
-        .map((m, idx) => ({
-          name: m.label,
-          slug: m.section,
-          description: m.label,
-          order: idx,
-        }));
+      // When syncing defaults, create DashboardTab entries for each menu item.
+      const tabs = menuItems.map((m, idx) => ({
+        name: m.label,
+        slug: m.section,
+        description: m.label,
+        order: idx,
+      }));
       await API.post("/buysellapi/dashboard-tabs/sync-defaults/", { tabs });
       toast.success("Dashboard tabs synced from frontend menu");
       // Refresh allowed tabs
       const resp = await API.get("/buysellapi/dashboard-tabs/");
       const tabsResp = Array.isArray(resp.data) ? resp.data : [];
-      // Filter out gallery tabs from server response as well
-      setAllowedTabs(tabsResp.map((t) => t.slug).filter((s) => s !== "gallery"));
+      setAllowedTabs(tabsResp.map((t) => t.slug));
       const meta = {};
       tabsResp.forEach((t) => {
-        if (t.slug === "gallery") return;
         meta[t.slug] = {
           assigned: Boolean(t.assigned),
           assignedToAll: Boolean(t.assigned_to_all_admins),
@@ -729,6 +726,8 @@ const AdminDashboard = () => {
         return <CategoriesTypesManagement />;
       case "analytics":
         return <Analytics />;
+      case "gallery":
+        return <GalleryManagement />;
       default:
         return (
           <div className="p-6">

@@ -11,6 +11,7 @@ import { ShopContext } from "../context/ShopContext";
 const MenuLinks = [
   { name: "Home", href: "/" },
   { name: "Shop", href: "/Shop" },
+  { name: "Gallery", href: "/Gallery" },
   { name: "Services", href: "/Services" },
   { name: "About", href: "/About" },
   { name: "Contact", href: "/Contact" },

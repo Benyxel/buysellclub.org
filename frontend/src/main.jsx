@@ -13,10 +13,22 @@ import ShopContextProvider from "./context/ShopContext";
 //   to '/buysellclubproject'.
 // - In development we keep the basename empty so the dev server serves the
 //   app at the root (http://localhost:5173/) and routing works as expected.
-const isDev = import.meta.env.DEV === true || import.meta.env.MODE === "development";
-const BASE_PATH = isDev
-  ? (import.meta.env.VITE_BASE_PATH || "")
-  : (import.meta.env.VITE_BASE_PATH || "/buysellclubproject");
+const isDev =
+  import.meta.env.DEV === true || import.meta.env.MODE === "development";
+// Normalize VITE_BASE_PATH: allow full URLs (dev servers sometimes inject origin)
+function normalizeBasePath(raw) {
+  if (!raw) return "";
+  try {
+    // If it's a full URL, extract the pathname
+    const u = new URL(raw);
+    return u.pathname.replace(/\/$/, "");
+  } catch (e) {
+    // Not a full URL, ensure no trailing slash
+    return raw.replace(/\/$/, "");
+  }
+}
+const envBase = normalizeBasePath(import.meta.env.VITE_BASE_PATH || "");
+const BASE_PATH = isDev ? envBase || "" : envBase || "/buysellclubproject";
 
 // Debug: Log base path and environment info
 console.log("[App] Initializing...");

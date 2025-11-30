@@ -15,7 +15,7 @@ import Wholesale from "./pages/Quicklinks/Wholesale";
 import Suppliers from "./pages/Quicklinks/Suppliers";
 import Contact from "./pages/Contact";
 import PlaceOrder from "./pages/PlaceOrder";
-import Training from "./pages/Quicklinks/Training"; 
+import Training from "./pages/Quicklinks/Training";
 import AlipayPayment from "./pages/Quicklinks/AlipayPayment";
 import Payment from "./pages/Quicklinks/Payment";
 import Favorites from "./pages/Favorites";
@@ -30,6 +30,7 @@ import Product from "./components/Product";
 import ShippingDashboard from "./components/ShippingDashboard";
 import FofooAddressGenerator from "./components/FofooAddressGenerator.jsx";
 import AdminDashboard from "./pages/admin/AdminDashboard.jsx";
+import Gallery from "./pages/Gallery";
 import AdminLogin from "./pages/AdminLogin";
 import TrackingPage from "./pages/TrackingPage";
 import ProtectedRoute from "./auth/ProtectedRoute.jsx";
@@ -82,7 +83,7 @@ function App() {
 
         {/* Regular routes with Navbar and Footer */}
         <Route
-          path="*"
+          path="/*"
           element={
             <>
               <Navbar />
@@ -90,22 +91,23 @@ function App() {
               <main className="flex-grow bg-gray-50 dark:bg-gray-900 dark:text-white duration-200">
                 <Routes>
                   {/* Public routes - accessible without login */}
-                  <Route path="/" element={<Home />} />
-                  <Route path="/Shop" element={<Shop />} />
-                  <Route path="/Services" element={<Services />} />
-                  <Route path="/Contact" element={<Contact />} />
-                  <Route path="/Policies" element={<Policies />} />
-                  <Route path="/About" element={<About />} />
-                  <Route path="/product/:productId" element={<Product />} />
-                  <Route path="/Trending" element={<Trending />} />
-                  <Route path="/Wholesale" element={<Wholesale />} />
-                  <Route path="/Suppliers" element={<Suppliers />} />
-                  <Route path="/Training" element={<Training />} />
-                  <Route path="/tracking" element={<TrackingPage />} />
+                  <Route index element={<Home />} />
+                  <Route path="Shop" element={<Shop />} />
+                  <Route path="Services" element={<Services />} />
+                  <Route path="Contact" element={<Contact />} />
+                  <Route path="Policies" element={<Policies />} />
+                  <Route path="About" element={<About />} />
+                  <Route path="product/:productId" element={<Product />} />
+                  <Route path="Trending" element={<Trending />} />
+                  <Route path="Wholesale" element={<Wholesale />} />
+                  <Route path="Suppliers" element={<Suppliers />} />
+                  <Route path="Training" element={<Training />} />
+                  <Route path="Gallery" element={<Gallery />} />
+                  <Route path="tracking" element={<TrackingPage />} />
 
                   {/* Protected routes - require login */}
                   <Route
-                    path="/Cart"
+                    path="Cart"
                     element={
                       <ProtectedRoute>
                         <Cart />
@@ -113,7 +115,7 @@ function App() {
                     }
                   />
                   <Route
-                    path="/Buy4me"
+                    path="Buy4me"
                     element={
                       <ProtectedRoute>
                         <Buy4me />
@@ -121,7 +123,7 @@ function App() {
                     }
                   />
                   <Route
-                    path="/Orders"
+                    path="Orders"
                     element={
                       <ProtectedRoute>
                         <UserOrders />
@@ -129,7 +131,7 @@ function App() {
                     }
                   />
                   <Route
-                    path="/Shipping"
+                    path="Shipping"
                     element={
                       <ProtectedRoute>
                         <ShippingDashboard />
@@ -137,7 +139,7 @@ function App() {
                     }
                   />
                   <Route
-                    path="/checkout"
+                    path="checkout"
                     element={
                       <ProtectedRoute>
                         <Checkout />
@@ -145,7 +147,7 @@ function App() {
                     }
                   />
                   <Route
-                    path="/PlaceOrder"
+                    path="PlaceOrder"
                     element={
                       <ProtectedRoute>
                         <PlaceOrder />
@@ -153,7 +155,7 @@ function App() {
                     }
                   />
                   <Route
-                    path="/AlipayPayment"
+                    path="AlipayPayment"
                     element={
                       <ProtectedRoute>
                         <AlipayPayment />
@@ -161,7 +163,7 @@ function App() {
                     }
                   />
                   <Route
-                    path="/Payment"
+                    path="Payment"
                     element={
                       <ProtectedRoute>
                         <Payment />
@@ -169,7 +171,7 @@ function App() {
                     }
                   />
                   <Route
-                    path="/Favorites"
+                    path="Favorites"
                     element={
                       <ProtectedRoute>
                         <Favorites />
@@ -177,7 +179,7 @@ function App() {
                     }
                   />
                   <Route
-                    path="/Profile"
+                    path="Profile"
                     element={
                       <ProtectedRoute>
                         <MyProfile />
@@ -185,15 +187,15 @@ function App() {
                     }
                   />
                   <Route
-                    path="/Fofoofo-address-generator"
+                    path="Fofoofo-address-generator"
                     element={
                       <ProtectedRoute>
                         <FofooAddressGenerator />
                       </ProtectedRoute>
                     }
                   />
-                  <Route path="/logout" element={<Logout />} />
-                  <Route path="/debug" element={<TokenDebugger />} />
+                  <Route path="logout" element={<Logout />} />
+                  <Route path="debug" element={<TokenDebugger />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </main>

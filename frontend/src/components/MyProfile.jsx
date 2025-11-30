@@ -1939,10 +1939,14 @@ const MyProfile = () => {
             </div>
             <div className="flex-1 text-center sm:text-left">
               <h1 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white mb-2">
-                {userInfo.name || "Loading..."}
+                {isLoading 
+                  ? "Loading..." 
+                  : userInfo.name || currentUser?.username || currentUser?.full_name || "User"}
               </h1>
               <p className="text-gray-600 dark:text-gray-400">
-                {userInfo.email || "Please wait..."}
+                {isLoading 
+                  ? "Please wait..." 
+                  : userInfo.email || currentUser?.email || "No email"}
               </p>
 
               {/* Add refresh button and status indicators */}
