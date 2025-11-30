@@ -13,7 +13,6 @@ const MenuLinks = [
   { name: "Shop", href: "/Shop" },
   { name: "Services", href: "/Services" },
   { name: "About", href: "/About" },
-  { name: "Gallery", href: "/Gallery" },
   { name: "Contact", href: "/Contact" },
 ];
 

@@ -8,10 +8,15 @@ import { BrowserRouter } from "react-router-dom";
 import ShopContextProvider from "./context/ShopContext";
 // Note: Dev API mock removed to use real backend
 
-// Get base path from environment variable (set during build for GitHub Pages)
-// Defaults to '/buysellclubproject' to match vite.config.js
-// Vite replaces import.meta.env.VITE_BASE_PATH at build time
-const BASE_PATH = import.meta.env.VITE_BASE_PATH || "/buysellclubproject";
+// Determine base path for the router.
+// - In production builds (GitHub Pages) we use `VITE_BASE_PATH` or fallback
+//   to '/buysellclubproject'.
+// - In development we keep the basename empty so the dev server serves the
+//   app at the root (http://localhost:5173/) and routing works as expected.
+const isDev = import.meta.env.DEV === true || import.meta.env.MODE === "development";
+const BASE_PATH = isDev
+  ? (import.meta.env.VITE_BASE_PATH || "")
+  : (import.meta.env.VITE_BASE_PATH || "/buysellclubproject");
 
 // Debug: Log base path and environment info
 console.log("[App] Initializing...");
