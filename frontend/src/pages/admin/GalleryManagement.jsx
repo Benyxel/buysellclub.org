@@ -42,7 +42,12 @@ const GalleryManagement = () => {
       }
     } catch (error) {
       console.error("Error loading images:", error);
-      toast.error("Failed to load images");
+      // Only show error for actual failures (4xx/5xx), not for empty data
+      const status = error.response?.status;
+      if (status && status >= 400) {
+        const errorMsg = error.response?.data?.detail || error.response?.data?.error || error.message || "Failed to load images";
+        toast.error(errorMsg, { toastId: "load-images-error" });
+      }
       setImages([]);
       setTotalCount(0);
       setTotalPages(1);

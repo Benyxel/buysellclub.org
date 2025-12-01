@@ -4,6 +4,7 @@ import { IoMdArrowDropdown } from "react-icons/io";
 import { FaFilter, FaTimes } from "react-icons/fa";
 import Title from '../components/Title';
 import ProductItem from '../components/ProductItem';
+import { getCategories, getProductTypes } from '../api';
 
 const Shop = () => {
 
@@ -15,6 +16,9 @@ const Shop = () => {
   const [showFilter, setShowFilter] = useState(false);
   const [sortType, setSortType] = useState('relavent');
   const [showTrending, setShowTrending] = useState(false); // State for trending products
+  const [categories, setCategories] = useState([]); // Categories from API
+  const [productTypes, setProductTypes] = useState([]); // Product types from API
+  const [loadingFilters, setLoadingFilters] = useState(true);
 
   const toggleCategory = (e) => {
     if (category.includes(e.target.value)) {
@@ -95,6 +99,39 @@ const Shop = () => {
     applyFilter();
   };
 
+  // Fetch categories and product types from API
+  useEffect(() => {
+    const loadFilters = async () => {
+      setLoadingFilters(true);
+      try {
+        // Fetch categories
+        const categoriesResp = await getCategories();
+        const categoriesData = Array.isArray(categoriesResp.data) 
+          ? categoriesResp.data 
+          : (categoriesResp.data?.results || []);
+        // Only show active categories
+        setCategories(categoriesData.filter(cat => cat.is_active));
+
+        // Fetch product types
+        const typesResp = await getProductTypes();
+        const typesData = Array.isArray(typesResp.data) 
+          ? typesResp.data 
+          : (typesResp.data?.results || []);
+        // Only show active product types
+        setProductTypes(typesData.filter(type => type.is_active));
+      } catch (err) {
+        console.error("Failed to load categories/types:", err);
+        // Set empty arrays on error
+        setCategories([]);
+        setProductTypes([]);
+      } finally {
+        setLoadingFilters(false);
+      }
+    };
+
+    loadFilters();
+  }, []);
+
   return (
     <div className='container mx-auto px-4 py-8'>
       <div className='flex flex-col lg:flex-row gap-8'>
@@ -119,43 +156,55 @@ const Shop = () => {
           {/* Categories */}
           <div className='mb-6'>
             <h3 className='text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3'>Categories</h3>
-            <div className='space-y-2'>
-              {['Gadget', 'Kitchen', 'Wear'].map((cat) => (
-                <label key={cat} className='flex items-center gap-2 cursor-pointer group'>
-                  <input
-                    type='checkbox'
-                    value={cat}
-                    checked={category.includes(cat)}
-                    onChange={toggleCategory}
-                    className='w-4 h-4 text-primary rounded border-gray-300 focus:ring-primary'
-                  />
-                  <span className='text-sm text-gray-600 dark:text-gray-400 group-hover:text-primary transition-colors'>
-                    {cat}
-                  </span>
-                </label>
-              ))}
-            </div>
+            {loadingFilters ? (
+              <div className='text-sm text-gray-500 dark:text-gray-400'>Loading categories...</div>
+            ) : categories.length === 0 ? (
+              <div className='text-sm text-gray-500 dark:text-gray-400'>No categories available</div>
+            ) : (
+              <div className='space-y-2'>
+                {categories.map((cat) => (
+                  <label key={cat.id || cat.slug} className='flex items-center gap-2 cursor-pointer group'>
+                    <input
+                      type='checkbox'
+                      value={cat.name}
+                      checked={category.includes(cat.name)}
+                      onChange={toggleCategory}
+                      className='w-4 h-4 text-primary rounded border-gray-300 focus:ring-primary'
+                    />
+                    <span className='text-sm text-gray-600 dark:text-gray-400 group-hover:text-primary transition-colors'>
+                      {cat.name}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Types */}
           <div className='mb-6'>
             <h3 className='text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3'>Types</h3>
-            <div className='space-y-2'>
-              {['Mouse', 'Droin', 'Phone', 'Footwear'].map((type) => (
-                <label key={type} className='flex items-center gap-2 cursor-pointer group'>
-                  <input
-                    type='checkbox'
-                    value={type}
-                    checked={subCategory.includes(type)}
-                    onChange={toggleSubCategory}
-                    className='w-4 h-4 text-primary rounded border-gray-300 focus:ring-primary'
-                  />
-                  <span className='text-sm text-gray-600 dark:text-gray-400 group-hover:text-primary transition-colors'>
-                    {type}
-                  </span>
-                </label>
-              ))}
-            </div>
+            {loadingFilters ? (
+              <div className='text-sm text-gray-500 dark:text-gray-400'>Loading types...</div>
+            ) : productTypes.length === 0 ? (
+              <div className='text-sm text-gray-500 dark:text-gray-400'>No product types available</div>
+            ) : (
+              <div className='space-y-2'>
+                {productTypes.map((type) => (
+                  <label key={type.id || type.slug} className='flex items-center gap-2 cursor-pointer group'>
+                    <input
+                      type='checkbox'
+                      value={type.name}
+                      checked={subCategory.includes(type.name)}
+                      onChange={toggleSubCategory}
+                      className='w-4 h-4 text-primary rounded border-gray-300 focus:ring-primary'
+                    />
+                    <span className='text-sm text-gray-600 dark:text-gray-400 group-hover:text-primary transition-colors'>
+                      {type.name}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Trending Toggle */}

@@ -52,8 +52,12 @@ export default function CategoriesTypesManagement() {
       setCategories(items);
     } catch (err) {
       console.error("Failed to load categories", err);
-      const errorMsg = err.response?.data?.detail || err.message || "Failed to load categories";
-      toast.error(errorMsg);
+      // Only show error for actual failures (4xx/5xx), not for empty data
+      const status = err.response?.status;
+      if (status && status >= 400) {
+        const errorMsg = err.response?.data?.detail || err.message || "Failed to load categories";
+        toast.error(errorMsg, { toastId: "load-categories-error" });
+      }
       setCategories([]); // Set empty array on error
     }
   };
@@ -68,8 +72,12 @@ export default function CategoriesTypesManagement() {
       setProductTypes(items);
     } catch (err) {
       console.error("Failed to load product types", err);
-      const errorMsg = err.response?.data?.detail || err.message || "Failed to load product types";
-      toast.error(errorMsg);
+      // Only show error for actual failures (4xx/5xx), not for empty data
+      const status = err.response?.status;
+      if (status && status >= 400) {
+        const errorMsg = err.response?.data?.detail || err.message || "Failed to load product types";
+        toast.error(errorMsg, { toastId: "load-types-error" });
+      }
       setProductTypes([]); // Set empty array on error
     }
   };

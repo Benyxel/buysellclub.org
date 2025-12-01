@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import API from "../../api";
@@ -105,6 +105,10 @@ const AdminDashboard = () => {
   const [currentUser, setCurrentUser] = useState(null);
   const [allowedTabs, setAllowedTabs] = useState(null); // null = not loaded, [] = loaded but none
   const [allowedTabsMeta, setAllowedTabsMeta] = useState({});
+  
+  // Refs to prevent duplicate toasts in StrictMode
+  const welcomeToastShown = useRef(false);
+  const sessionExpiredToastShown = useRef(false);
 
   const menuItems = useMemo(
     () => [
@@ -189,10 +193,14 @@ const AdminDashboard = () => {
       await API.post("/buysellapi/notifications/mark-all-read/");
       // Refresh notifications
       fetchAdminNotifications();
-      toast.success("All notifications marked as read");
+      toast.success("All notifications marked as read", {
+        toastId: "mark-all-read-success"
+      });
     } catch (error) {
       console.error("Error marking all as read:", error);
-      toast.error("Failed to mark notifications as read");
+      toast.error("Failed to mark notifications as read", {
+        toastId: "mark-all-read-error"
+      });
     }
   };
 
@@ -283,16 +291,21 @@ const AdminDashboard = () => {
 
         // Welcome toast once per session after successful login
         const welcomed = sessionStorage.getItem("adminWelcomeShown");
-        if (!welcomed && resp?.data?.username) {
+        if (!welcomed && resp?.data?.username && !welcomeToastShown.current) {
           const roleLabel = resp?.data?.role === "admin" ? "Admin" : "";
+          welcomeToastShown.current = true;
           toast.success(
-            `Welcome ${roleLabel ? roleLabel + " " : ""}${resp.data.username}!`
+            `Welcome ${roleLabel ? roleLabel + " " : ""}${resp.data.username}!`,
+            { toastId: "welcome-toast" }
           );
           sessionStorage.setItem("adminWelcomeShown", "1");
         }
       } catch (err) {
-        if (err.response?.status === 401) {
-          toast.error("Session expired. Please log in again.");
+        if (err.response?.status === 401 && !sessionExpiredToastShown.current) {
+          sessionExpiredToastShown.current = true;
+          toast.error("Session expired. Please log in again.", {
+            toastId: "session-expired-toast"
+          });
           navigate("/admin-login");
         } else {
           console.error("Failed to load current user:", err);

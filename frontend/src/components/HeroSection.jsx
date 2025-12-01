@@ -13,7 +13,7 @@ const HeroData = [
     src: heroSlide1,
     alt: "Slide 1",
     subtile: "Logistic Services",
-    title: "fofoofo Imports",
+    title: "Fofoofo Imports",
     description: "Ship goods from China to Ghana",
   },
   {
@@ -21,7 +21,7 @@ const HeroData = [
     src: heroSlide2,
     alt: "Slide 2",
     subtile: "Buy for me",
-    title: "fofoofo Imports",
+    title: "Fofoofo Imports",
     description: "let's buy for you FROM CHINA",
   },
   {
@@ -29,7 +29,7 @@ const HeroData = [
     src: heroSlide3,
     alt: "Slide 3",
     subtile: "Paying Suppliers",
-    title: "fofoofo Imports",
+    title: "Fofoofo Imports",
     description: "RMB Trading MADE EASY",
   },
   {
@@ -45,12 +45,12 @@ const HeroData = [
 function HeroSection({ title, description, image }) {
   // Preload first hero image for faster initial render
   useEffect(() => {
-    const link = document.createElement('link');
-    link.rel = 'preload';
-    link.as = 'image';
+    const link = document.createElement("link");
+    link.rel = "preload";
+    link.as = "image";
     link.href = heroSlide1;
     document.head.appendChild(link);
-    
+
     return () => {
       document.head.removeChild(link);
     };

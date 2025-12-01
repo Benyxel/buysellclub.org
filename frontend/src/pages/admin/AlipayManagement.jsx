@@ -37,20 +37,47 @@ const AlipayManagement = () => {
   const fetchPayments = useCallback(async () => {
     try {
       setLoading(true);
-      const { data } = await API.get("/api/admin/alipay-payments/", {
+      const { data } = await API.get("/buysellapi/admin/alipay-payments/", {
         params: {
           page: currentPage,
           limit: 10,
           ...(statusFilter ? { status: statusFilter } : {}),
         },
       });
-      setPayments(data.data || []);
-      setTotalPages(data.totalPages || 1);
+      // Handle both paginated and non-paginated responses
+      if (data.results !== undefined) {
+        // Paginated response
+        setPayments(data.results || []);
+        setTotalPages(data.total_pages || Math.ceil((data.count || 0) / 10) || 1);
+      } else if (Array.isArray(data)) {
+        // Direct array response
+        setPayments(data);
+        setTotalPages(1);
+      } else if (data.data) {
+        // Legacy format
+        setPayments(data.data || []);
+        setTotalPages(data.totalPages || 1);
+      } else {
+        // Empty or unknown format - set empty array (valid state)
+        setPayments([]);
+        setTotalPages(1);
+      }
     } catch (error) {
       console.error("Error fetching payments:", error);
-      toast.error(
-        error.response?.data?.error || "Error fetching Alipay payments"
-      );
+      // Only show error for actual failures, not empty data
+      // Empty data (200 OK with empty array) is a valid response
+      const status = error.response?.status;
+      if (status && status >= 400) {
+        // Only show error for 4xx/5xx errors, not for empty data
+        const errorMsg = error.response?.data?.detail || 
+                         error.response?.data?.error || 
+                         error.message || 
+                         "Error fetching Alipay payments";
+        toast.error(errorMsg, { toastId: "fetch-payments-error" });
+      }
+      // Always set empty array on error to prevent UI crashes
+      setPayments([]);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }
@@ -64,11 +91,19 @@ const AlipayManagement = () => {
   const fetchExchangeRate = async () => {
     try {
       const { data } = await API.get("/buysellapi/alipay-exchange-rate/");
-      if (data && (data.ghs_to_cny || data.ghs_to_cny === 0)) {
+      if (data && (data.ghs_to_cny !== undefined && data.ghs_to_cny !== null)) {
         setExchangeRate(data.ghs_to_cny);
       }
+      // If no data or no rate, keep the default value (12.0) - this is fine
     } catch (error) {
-      console.error("Error fetching exchange rate:", error);
+      // Only log network/server errors, don't show toast for missing exchange rate
+      // Missing exchange rate is not critical - we have a default value
+      const status = error.response?.status;
+      if (status && status >= 500) {
+        // Only log server errors, not 404s or empty responses
+        console.error("Error fetching exchange rate:", error);
+      }
+      // Keep default value (12.0) - this is acceptable
     }
   };
 
@@ -100,25 +135,35 @@ const AlipayManagement = () => {
     if (!selectedPayment) return;
 
     try {
+      const paymentId = selectedPayment._id || selectedPayment.id;
       const { data } = await API.put(
-        `/api/admin/alipay-payments/${selectedPayment._id || selectedPayment.id}/status/`,
+        `/buysellapi/admin/alipay-payments/${paymentId}/status/`,
         {
           status: newStatus,
           adminNotes: adminNotes.trim() ? adminNotes : undefined,
           transactionId: transactionId.trim() ? transactionId : undefined,
         }
       );
-      setPayments(payments.map((p) => (p._id === data._id ? data : p)));
-      toast.success(`Payment status updated to ${newStatus}`);
+      setPayments(payments.map((p) => {
+        const pId = p._id || p.id;
+        return pId === paymentId ? data : p;
+      }));
+      toast.success(`Payment status updated to ${newStatus}`, {
+        toastId: "update-status-success"
+      });
       setIsUpdateStatusOpen(false);
       setNewStatus("");
       setAdminNotes("");
       setTransactionId("");
+      // Refresh the list to get updated data
+      fetchPayments();
     } catch (error) {
       console.error("Error updating payment status:", error);
-      toast.error(
-        error.response?.data?.error || "Error updating payment status"
-      );
+      const errorMsg = error.response?.data?.detail ||
+                       error.response?.data?.error ||
+                       error.message ||
+                       "Error updating payment status";
+      toast.error(errorMsg, { toastId: "update-status-error" });
     }
   };
 
@@ -130,21 +175,26 @@ const AlipayManagement = () => {
   const confirmDeletePayment = async () => {
     if (!paymentIdToDelete) return;
     try {
-      await API.delete(`/api/admin/alipay-payments/${paymentIdToDelete}/`);
+      await API.delete(`/buysellapi/admin/alipay-payments/${paymentIdToDelete}/`);
       
       // Update UI immediately without refresh
       setPayments((prevPayments) => 
-        prevPayments.filter((p) => p._id !== paymentIdToDelete && p.id !== paymentIdToDelete)
+        prevPayments.filter((p) => {
+          const pId = p._id || p.id;
+          return pId !== paymentIdToDelete;
+        })
       );
       
-      toast.success("Payment deleted successfully");
+      toast.success("Payment deleted successfully", {
+        toastId: "delete-payment-success"
+      });
     } catch (error) {
       console.error("Error deleting payment:", error);
-      const errorMsg = error.response?.data?.error || 
-                      error.response?.data?.detail || 
+      const errorMsg = error.response?.data?.detail ||
+                      error.response?.data?.error || 
                       error.message || 
                       "Error deleting payment";
-      toast.error(errorMsg);
+      toast.error(errorMsg, { toastId: "delete-payment-error" });
     } finally {
       setShowDeleteModal(false);
       setPaymentIdToDelete(null);
