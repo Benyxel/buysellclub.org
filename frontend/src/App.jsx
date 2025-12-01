@@ -44,6 +44,7 @@ import NotFound from "./pages/NotFound";
 import LoginPromptModal from "./components/LoginPromptModal";
 import UserView from "./pages/admin/UserView";
 import ScrollToTop from "./components/ScrollToTop";
+import AgentDashboard from "./pages/AgentDashboard";
 
 function App() {
   return (
@@ -183,6 +184,14 @@ function App() {
                     element={
                       <ProtectedRoute>
                         <MyProfile />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="agent-dashboard"
+                    element={
+                      <ProtectedRoute>
+                        <AgentDashboard />
                       </ProtectedRoute>
                     }
                   />
