@@ -117,6 +117,7 @@ const AdminDashboard = () => {
         section: "alipay-payments",
       },
       { icon: <FaHandHoldingUsd />, label: "Buy4me", section: "buy4me" },
+      { icon: <FaUserTag />, label: "Agents", section: "agents" },
       { icon: <FaShoppingCart />, label: "Orders", section: "orders" },
       { icon: <FaBox />, label: "Products", section: "products" },
       { icon: <FaStore />, label: "Categories", section: "categories" },
@@ -130,7 +131,6 @@ const AdminDashboard = () => {
       },
       { icon: <FaComments />, label: "Messages", section: "messages" },
       { icon: <FaChartBar />, label: "Analytics", section: "analytics" },
-      { icon: <FaUserTag />, label: "Agents", section: "agents" },
       { icon: <FaUserCog />, label: "Staff", section: "staff" },
       { icon: <FaCog />, label: "Settings", section: "settings" },
     ],
@@ -212,6 +212,8 @@ const AdminDashboard = () => {
         totalAlipayPayments: data.totalAlipayPayments || 0,
         totalBuy4meRequests: data.totalBuy4meRequests || 0,
         totalShippingMarks: data.totalShippingMarks || 0,
+        totalProducts: data.totalProducts || 0,
+        totalAgents: data.totalAgents || 0,
         exchangeRate:
           data.exchangeRate !== undefined && data.exchangeRate !== null
             ? data.exchangeRate
@@ -489,6 +491,38 @@ const AdminDashboard = () => {
                         </h3>
                         <p className="text-3xl font-bold text-pink-600">
                           {dashboardData.totalShippingMarks}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 bg-orange-100 dark:bg-orange-900 rounded-full">
+                        <FaBox className="text-2xl text-orange-600 dark:text-orange-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold mb-2">
+                          Total Products
+                        </h3>
+                        <p className="text-3xl font-bold text-orange-600">
+                          {dashboardData.totalProducts}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 bg-teal-100 dark:bg-teal-900 rounded-full">
+                        <FaUserTag className="text-2xl text-teal-600 dark:text-teal-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold mb-2">
+                          Total Agents
+                        </h3>
+                        <p className="text-3xl font-bold text-teal-600">
+                          {dashboardData.totalAgents}
                         </p>
                       </div>
                     </div>
