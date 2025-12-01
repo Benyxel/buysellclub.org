@@ -38,6 +38,7 @@ import {
   FaSearch,
   FaShip,
   FaBoxOpen,
+  FaUserTag,
 } from "react-icons/fa";
 import { trackingSystem } from "./ShippingDashboard";
 import { Link, useNavigate } from "react-router-dom";
@@ -1938,16 +1939,31 @@ const MyProfile = () => {
               )}
             </div>
             <div className="flex-1 text-center sm:text-left">
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white mb-2">
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white mb-2 flex items-center justify-center sm:justify-start gap-2 flex-wrap">
                 {isLoading 
                   ? "Loading..." 
                   : userInfo.name || currentUser?.username || currentUser?.full_name || "User"}
+                {currentUser?.is_agent && (
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20">
+                    <FaUserTag className="mr-1" />
+                    Agent
+                  </span>
+                )}
               </h1>
               <p className="text-gray-600 dark:text-gray-400">
                 {isLoading 
                   ? "Please wait..." 
                   : userInfo.email || currentUser?.email || "No email"}
               </p>
+              {currentUser?.is_agent && (
+                <Link
+                  to="/agent-dashboard"
+                  className="mt-2 inline-flex items-center px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm"
+                >
+                  <FaUserTag className="mr-2" />
+                  Agent Dashboard
+                </Link>
+              )}
 
               {/* Add refresh button and status indicators */}
               <div className="mt-2 min-h-[32px] flex items-center justify-center sm:justify-start gap-2">

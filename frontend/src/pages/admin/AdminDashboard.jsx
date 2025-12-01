@@ -33,6 +33,7 @@ import {
   FaExchangeAlt,
   FaYoutube,
   FaDollarSign,
+  FaUserTag,
 } from "react-icons/fa";
 
 import UsersManagement from "./UsersManagement";
@@ -53,6 +54,7 @@ import OrderManagement from "./OrderManagement";
 import CategoriesTypesManagement from "./CategoriesTypesManagement";
 import Analytics from "./Analytics";
 import GalleryManagement from "./GalleryManagement";
+import AgentManagement from "./AgentManagement";
 import "react-toastify/dist/ReactToastify.css";
 
 const AdminDashboard = () => {
@@ -128,6 +130,7 @@ const AdminDashboard = () => {
       },
       { icon: <FaComments />, label: "Messages", section: "messages" },
       { icon: <FaChartBar />, label: "Analytics", section: "analytics" },
+      { icon: <FaUserTag />, label: "Agents", section: "agents" },
       { icon: <FaUserCog />, label: "Staff", section: "staff" },
       { icon: <FaCog />, label: "Settings", section: "settings" },
     ],
@@ -728,6 +731,8 @@ const AdminDashboard = () => {
         return <Analytics />;
       case "gallery":
         return <GalleryManagement />;
+      case "agents":
+        return <AgentManagement />;
       default:
         return (
           <div className="p-6">
