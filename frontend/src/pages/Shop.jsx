@@ -161,22 +161,22 @@ const Shop = () => {
             ) : categories.length === 0 ? (
               <div className='text-sm text-gray-500 dark:text-gray-400'>No categories available</div>
             ) : (
-              <div className='space-y-2'>
+            <div className='space-y-2'>
                 {categories.map((cat) => (
                   <label key={cat.id || cat.slug} className='flex items-center gap-2 cursor-pointer group'>
-                    <input
-                      type='checkbox'
+                  <input
+                    type='checkbox'
                       value={cat.name}
                       checked={category.includes(cat.name)}
-                      onChange={toggleCategory}
-                      className='w-4 h-4 text-primary rounded border-gray-300 focus:ring-primary'
-                    />
-                    <span className='text-sm text-gray-600 dark:text-gray-400 group-hover:text-primary transition-colors'>
+                    onChange={toggleCategory}
+                    className='w-4 h-4 text-primary rounded border-gray-300 focus:ring-primary'
+                  />
+                  <span className='text-sm text-gray-600 dark:text-gray-400 group-hover:text-primary transition-colors'>
                       {cat.name}
-                    </span>
-                  </label>
-                ))}
-              </div>
+                  </span>
+                </label>
+              ))}
+            </div>
             )}
           </div>
 
@@ -188,22 +188,22 @@ const Shop = () => {
             ) : productTypes.length === 0 ? (
               <div className='text-sm text-gray-500 dark:text-gray-400'>No product types available</div>
             ) : (
-              <div className='space-y-2'>
+            <div className='space-y-2'>
                 {productTypes.map((type) => (
                   <label key={type.id || type.slug} className='flex items-center gap-2 cursor-pointer group'>
-                    <input
-                      type='checkbox'
+                  <input
+                    type='checkbox'
                       value={type.name}
                       checked={subCategory.includes(type.name)}
-                      onChange={toggleSubCategory}
-                      className='w-4 h-4 text-primary rounded border-gray-300 focus:ring-primary'
-                    />
-                    <span className='text-sm text-gray-600 dark:text-gray-400 group-hover:text-primary transition-colors'>
+                    onChange={toggleSubCategory}
+                    className='w-4 h-4 text-primary rounded border-gray-300 focus:ring-primary'
+                  />
+                  <span className='text-sm text-gray-600 dark:text-gray-400 group-hover:text-primary transition-colors'>
                       {type.name}
-                    </span>
-                  </label>
-                ))}
-              </div>
+                  </span>
+                </label>
+              ))}
+            </div>
             )}
           </div>
 

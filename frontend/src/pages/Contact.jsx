@@ -319,17 +319,46 @@ const Contact = () => {
           <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-6">
             Find Us
           </h2>
-          <div className="aspect-w-16 aspect-h-9">
-            <iframe
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3970.0!2d-0.1874!3d5.6033!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zNcKwMzYnMTEuOSJOIDDCsDExJzE0LjYiVw!5e0!3m2!1sen!2sgh!4v1234567890"
-              width="100%"
-              height="450"
-              style={{ border: 0 }}
-              allowFullScreen=""
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-              className="rounded-lg"
-            ></iframe>
+           <div className="relative">
+             <div className="aspect-w-16 aspect-h-9 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden relative min-h-[450px]">
+               <iframe
+                 src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3970.0!2d-0.2653476!3d5.6357079!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0xfdf98d766f86a03%3A0x16cd336d229eabb1!2sPazzys%20villa!5e0!3m2!1sen!2sgh!4v1700000000000!5m2!1sen!2sgh"
+                 width="100%"
+                 height="450"
+                 style={{ border: 0 }}
+                 allowFullScreen=""
+                 loading="lazy"
+                 referrerPolicy="no-referrer-when-downgrade"
+                 className="rounded-lg w-full h-full absolute inset-0"
+                 title="BuySellClub Location - Pazzys Villa"
+               ></iframe>
+             </div>
+            {/* Fallback if map is blocked */}
+            <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <p className="text-sm text-blue-800 dark:text-blue-200 mb-2">
+                <strong>Note:</strong> If the map above is not visible, it may be blocked by your browser's privacy settings or ad blocker.
+              </p>
+              <div className="flex flex-wrap gap-4 mt-3">
+                <a
+                  href="https://www.google.com/maps/search/?api=1&query=Israel+Yellow,+Okropom+street,+Pazzy's+Villa,+Accra,+Ghana"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm"
+                >
+                  <FaMapMarkerAlt className="w-4 h-4" />
+                  Open in Google Maps
+                </a>
+                <a
+                  href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent("Israel Yellow, Okropom street, Pazzy's Villa, Accra, Ghana")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors text-sm"
+                >
+                  <FaMapMarkerAlt className="w-4 h-4" />
+                  Get Directions
+                </a>
+              </div>
+            </div>
           </div>
         </div>
       </div>
