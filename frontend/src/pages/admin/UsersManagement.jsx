@@ -82,10 +82,15 @@ const UsersManagement = () => {
       }
     } catch (error) {
       console.error("Error fetching users:", error);
-      if (error.response?.status === 401) {
-        toast.error("Unauthorized. Please log in again.");
-      } else {
-        toast.error("Failed to fetch users");
+      // Only show error for actual failures (4xx/5xx), not for empty data
+      const status = error.response?.status;
+      if (status && status >= 400) {
+        if (status === 401) {
+          toast.error("Unauthorized. Please log in again.", { toastId: "fetch-users-401" });
+        } else {
+          const errorMsg = error.response?.data?.detail || error.response?.data?.error || error.message || "Failed to fetch users";
+          toast.error(errorMsg, { toastId: "fetch-users-error" });
+        }
       }
       setUsers([]);
     } finally {

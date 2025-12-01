@@ -95,8 +95,14 @@ const Buy4meAdmin = () => {
       }
     } catch (error) {
       console.error('Error fetching Buy4me requests:', error);
-      const errorMessage = error.response?.data?.error || error.response?.data?.detail || error.message || 'Failed to fetch Buy4me requests';
-      toast.error(errorMessage);
+      // Only show error for actual failures (4xx/5xx), not for empty data
+      const status = error.response?.status;
+      if (status && status >= 400) {
+        const errorMessage = error.response?.data?.error || error.response?.data?.detail || error.message || 'Failed to fetch Buy4me requests';
+        toast.error(errorMessage, { toastId: "fetch-buy4me-error" });
+      }
+      // Set empty array on any error to prevent UI crashes
+      setRequests([]);
     } finally {
       setLoading(false);
     }

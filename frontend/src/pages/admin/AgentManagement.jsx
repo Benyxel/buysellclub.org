@@ -27,7 +27,13 @@ export default function AgentManagement() {
       setAgents(Array.isArray(resp.data) ? resp.data : []);
     } catch (err) {
       console.error("Failed to load agents", err);
-      toast.error("Failed to load agents");
+      // Only show error for actual failures (4xx/5xx), not for empty data
+      const status = err.response?.status;
+      if (status && status >= 400) {
+        const errorMsg = err.response?.data?.detail || err.response?.data?.error || err.message || "Failed to load agents";
+        toast.error(errorMsg, { toastId: "load-agents-error" });
+      }
+      setAgents([]);
     } finally {
       setLoading(false);
     }
@@ -44,6 +50,13 @@ export default function AgentManagement() {
       setUsers(nonAgentUsers);
     } catch (err) {
       console.error("Failed to load users", err);
+      // Only show error for actual failures (4xx/5xx), not for empty data
+      const status = err.response?.status;
+      if (status && status >= 400) {
+        // Don't show toast for user loading errors as it's less critical
+        // Just log it and set empty array
+      }
+      setUsers([]);
     }
   };
 
