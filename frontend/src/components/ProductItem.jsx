@@ -17,61 +17,67 @@ const ProductItem = ({ id, image, name, price, rating, average_rating, review_co
   };
 
   return (
-    <Link className='group relative bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden' to={`/product/${id}`}>
-      <div className='relative overflow-hidden aspect-square'>
+    <Link 
+      className='group relative bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-lg border border-gray-200 dark:border-gray-700 transition-all duration-200 overflow-hidden flex flex-col h-full' 
+      to={`/product/${id}`}
+    >
+      {/* Image Container */}
+      <div className='relative overflow-hidden bg-gray-100 dark:bg-gray-700' style={{ aspectRatio: '4/3' }}>
         <OptimizedImage 
-          className='w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-300' 
+          className='w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-300' 
           src={Array.isArray(image) ? (image[0] || '') : (image || '')} 
           alt={name}
           loading="lazy"
         />
+        {/* Favorite Button */}
         <button
           onClick={handleFavorite}
-          className={`absolute top-4 right-4 p-2 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300 
+          className={`absolute top-2 right-2 p-1.5 rounded-full transition-all duration-200 z-10
             ${isFavorite(id)
-              ? 'bg-red-500 text-white scale-110' 
-              : 'bg-white/80 text-gray-600 hover:bg-white hover:text-red-500'
+              ? 'bg-red-500 text-white opacity-100' 
+              : 'bg-white/90 dark:bg-gray-800/90 text-gray-600 hover:bg-red-500 hover:text-white opacity-0 group-hover:opacity-100'
             }`}
         >
-          <FaHeart className={`w-5 h-5 transition-transform duration-300 ${isFavorite(id) ? 'animate-pulse' : ''}`} />
+          <FaHeart className={`w-3.5 h-3.5 ${isFavorite(id) ? 'fill-current' : ''}`} />
         </button>
       </div>
       
-      <div className='p-4'>
-        <h3 className='text-lg font-semibold text-gray-800 dark:text-white mb-2 line-clamp-2'>{name}</h3>
+      {/* Product Info */}
+      <div className='p-3 flex flex-col flex-grow'>
+        {/* Product Name */}
+        <h3 className='text-sm font-medium text-gray-900 dark:text-white mb-1.5 line-clamp-2 min-h-[2.5rem] leading-tight'>
+          {name}
+        </h3>
         
-        {/* Description preview */}
-        {description && (
-          <p className='text-sm text-gray-600 dark:text-gray-400 mb-2 line-clamp-2'>
-            {description.length > 80 ? `${description.substring(0, 80)}...` : description}
-          </p>
-        )}
-        
-        {/* Rating display */}
+        {/* Rating */}
         {displayRating > 0 && (
-          <div className='flex items-center mb-2'>
+          <div className='flex items-center gap-1 mb-2'>
             <div className='flex items-center'>
               {[...Array(5)].map((_, index) => (
                 <FaStar
                   key={index}
-                  className={`w-4 h-4 ${
+                  className={`w-3 h-3 ${
                     index < Math.round(displayRating)
-                      ? 'text-yellow-400'
+                      ? 'text-yellow-400 fill-current'
                       : 'text-gray-300 dark:text-gray-600'
                   }`}
                 />
               ))}
             </div>
-            <span className='ml-2 text-sm text-gray-600 dark:text-gray-400'>
-              {displayRating.toFixed(1)}
-              {displayReviewCount > 0 && ` (${displayReviewCount})`}
-            </span>
+            {displayReviewCount > 0 && (
+              <span className='text-xs text-gray-500 dark:text-gray-400 ml-0.5'>
+                ({displayReviewCount})
+              </span>
+            )}
           </div>
         )}
 
-        <p className='text-xl font-bold text-primary dark:text-primary-light'>
-          {currency}{typeof price === 'number' ? price.toFixed(2) : price}
-        </p>
+        {/* Price */}
+        <div className='mt-auto pt-2'>
+          <p className='text-lg font-bold text-primary dark:text-primary-light'>
+            {currency}{typeof price === 'number' ? price.toFixed(2) : price}
+          </p>
+        </div>
       </div>
     </Link>
   );
