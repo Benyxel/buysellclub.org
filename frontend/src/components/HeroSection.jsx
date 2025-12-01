@@ -21,7 +21,7 @@ const HeroData = [
     src: heroSlide2,
     alt: "Slide 2",
     subtile: "Buy for me",
-    title: "Fofoofo Imports",
+    title: "BuySellClub",
     description: "let's buy for you FROM CHINA",
   },
   {
@@ -29,7 +29,7 @@ const HeroData = [
     src: heroSlide3,
     alt: "Slide 3",
     subtile: "Paying Suppliers",
-    title: "Fofoofo Imports",
+    title: "BuySellClub",
     description: "RMB Trading MADE EASY",
   },
   {
