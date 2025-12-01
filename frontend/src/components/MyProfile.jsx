@@ -150,6 +150,7 @@ const MyProfile = () => {
     trackingNumber: "",
     userTrackingNumber: "",
   });
+  const [mpHasShippingMark, setMpHasShippingMark] = useState(false);
 
   // Save active tab to localStorage and update URL whenever it changes
   useEffect(() => {
@@ -252,10 +253,17 @@ const MyProfile = () => {
     fetchUserData();
   }, []);
 
+  // Check shipping mark on mount
+  useEffect(() => {
+    checkMpShippingMark();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Set default user tracking number when component mounts or marks change
   useEffect(() => {
     if (mpShowAddForm) {
       setDefaultUserTrackingNumber();
+      checkMpShippingMark();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mpShowAddForm]);
@@ -1045,6 +1053,56 @@ const MyProfile = () => {
     }
   };
 
+  // Check if user has a shipping mark (MyProfile)
+  const checkMpShippingMark = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const isAdmin = !!localStorage.getItem("adminToken");
+      
+      // Admins don't need shipping marks
+      if (isAdmin) {
+        setMpHasShippingMark(true);
+        return true;
+      }
+
+      if (token) {
+        try {
+          const resp = await API.get("/buysellapi/shipping-marks/me/");
+          const d = resp?.data;
+          if (d?.markId) {
+            setMpHasShippingMark(true);
+            return true;
+          }
+        } catch (_) {}
+      }
+      
+      // Check localStorage for shipping marks
+      const saved = JSON.parse(localStorage.getItem("shippingMarks") || "[]");
+      if (Array.isArray(saved) && saved.length > 0 && saved[0].id) {
+        setMpHasShippingMark(true);
+        return true;
+      }
+
+      // Check localStorage for userShippingMark (from FofooAddressGenerator)
+      const userMark = localStorage.getItem("userShippingMark");
+      if (userMark) {
+        try {
+          const parsed = JSON.parse(userMark);
+          if (parsed?.markId) {
+            setMpHasShippingMark(true);
+            return true;
+          }
+        } catch (_) {}
+      }
+
+      setMpHasShippingMark(false);
+      return false;
+    } catch (e) {
+      setMpHasShippingMark(false);
+      return false;
+    }
+  };
+
   // Set default user tracking number (from backend or local marks)
   const setDefaultUserTrackingNumber = async () => {
     try {
@@ -1084,6 +1142,13 @@ const MyProfile = () => {
 
     if (!tn) {
       toast.error("Please enter a tracking number");
+      return;
+    }
+
+    // Check if user has shipping mark before allowing shipment addition
+    const hasMark = await checkMpShippingMark();
+    if (!hasMark) {
+      toast.error("You must generate a shipping mark before adding shipments. Please visit the Address Generator first.");
       return;
     }
 
@@ -2472,8 +2537,17 @@ const MyProfile = () => {
                       Refresh
                     </button>
                     <button
-                      onClick={() => setMpShowAddForm(true)}
-                      className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                      onClick={async () => {
+                        const hasMark = await checkMpShippingMark();
+                        if (!hasMark) {
+                          toast.error("You must generate a shipping mark before adding shipments. Please visit the Address Generator first.");
+                          return;
+                        }
+                        setMpShowAddForm(true);
+                      }}
+                      className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={!mpHasShippingMark}
+                      title={!mpHasShippingMark ? "Generate a shipping mark first" : ""}
                     >
                       <FaTruck className="w-4 h-4" />
                       Add Shipment
@@ -2522,8 +2596,17 @@ const MyProfile = () => {
                         track them here
                       </p>
                       <button
-                        onClick={() => setMpShowAddForm(true)}
-                        className="inline-block mt-4 px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                        onClick={async () => {
+                          const hasMark = await checkMpShippingMark();
+                          if (!hasMark) {
+                            toast.error("You must generate a shipping mark before adding shipments. Please visit the Address Generator first.");
+                            return;
+                          }
+                          setMpShowAddForm(true);
+                        }}
+                        className="inline-block mt-4 px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={!mpHasShippingMark}
+                        title={!mpHasShippingMark ? "Generate a shipping mark first" : ""}
                       >
                         Add Shipment
                       </button>

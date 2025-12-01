@@ -585,7 +585,7 @@ const Api = {
     rate: () => http.get("/buysellapi/alipay-exchange-rate/"),
   },
   quickOrder: {
-    list: () => http.get("/buysellapi/quick-order-products/"),
+    list: (params) => http.get("/buysellapi/quick-order-products/", { params, skipCache: true }),
     adminList: () => http.get("/buysellapi/admin/quick-order-products/"),
     adminDetail: (id) =>
       http.get(`/buysellapi/admin/quick-order-products/${id}/`),
@@ -677,7 +677,28 @@ export const updateBuy4meRequestTracking = Api.buy4me.admin.updateTracking;
 export const createBuy4meRequestInvoice = Api.buy4me.admin.invoice.create;
 export const updateBuy4meRequestInvoiceStatus = Api.buy4me.admin.invoice.update;
 
+// Helper to clear quick order products cache
+const clearQuickOrderProductsCache = () => {
+  try {
+    const store = loadPersistentCache();
+    const keysToDelete = Object.keys(store).filter(
+      (key) => key.includes("quick-order-products")
+    );
+    keysToDelete.forEach((key) => delete store[key]);
+    savePersistentCache(store);
+    // Also clear in-memory cache
+    for (const [key] of requestCache.entries()) {
+      if (key.includes("quick-order-products")) {
+        requestCache.delete(key);
+      }
+    }
+  } catch (e) {
+    console.warn("Failed to clear quick order products cache:", e);
+  }
+};
+
 export const getQuickOrderProducts = Api.quickOrder.list;
+export { clearQuickOrderProductsCache };
 export const getAdminQuickOrderProducts = Api.quickOrder.adminList;
 export const getAdminQuickOrderProduct = Api.quickOrder.adminDetail;
 export const createQuickOrderProduct = Api.quickOrder.create;

@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { Link } from "react-router-dom";
 import Slider from "react-slick";
 import Button from "./shared/Button";
 import OptimizedImage from "./OptimizedImage";
@@ -85,11 +86,13 @@ function HeroSection({ title, description, image }) {
                   {description}
                 </h1>
                 <div>
-                  <Button
-                    text="Shop Now"
-                    bgColor="bg-primary"
-                    textColor="text-white"
-                  />
+                  <Link to="/Shop">
+                    <Button
+                      text="Shop Now"
+                      bgColor="bg-primary"
+                      textColor="text-white"
+                    />
+                  </Link>
                 </div>
               </div>
               <div className="order-1 sm:order-2">
@@ -130,11 +133,13 @@ function HeroSection({ title, description, image }) {
                       {data.description}
                     </h1>
                     <div>
-                      <Button
-                        text="Shop Now"
-                        bgColor="bg-primary"
-                        textColor="text-white"
-                      />
+                      <Link to="/Shop">
+                        <Button
+                          text="Shop Now"
+                          bgColor="bg-primary"
+                          textColor="text-white"
+                        />
+                      </Link>
                     </div>
                   </div>
                   <div className="order-1 sm:order-2">

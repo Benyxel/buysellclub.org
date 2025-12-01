@@ -17,6 +17,7 @@ import {
   createQuickOrderProduct,
   updateQuickOrderProduct,
   deleteQuickOrderProduct,
+  clearQuickOrderProductsCache,
 } from "../../api";
 
 const QuickOrderProducts = () => {
@@ -115,26 +116,22 @@ const QuickOrderProducts = () => {
     }
 
     try {
-      const response = await fetch(
-        getApiUrl(`api/admin/quick-order-products/${id}`),
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
-          },
-        }
-      );
+      // Use the API wrapper which will handle cache invalidation
+      await deleteQuickOrderProduct(id);
 
-      if (!response.ok) {
-        throw new Error("Failed to delete product");
-      }
+      // Clear cache for quick order products to ensure fresh data on public page
+      clearQuickOrderProductsCache();
 
-      toast.success("Product deleted successfully");
+      toast.success("Product deleted successfully", { toastId: "delete-product-success" });
       setConfirmDelete(null);
       fetchProducts();
     } catch (error) {
       console.error("Error deleting product:", error);
-      toast.error("Failed to delete product");
+      const errorMsg = error.response?.data?.detail || 
+                       error.response?.data?.error || 
+                       error.message || 
+                       "Failed to delete product";
+      toast.error(errorMsg, { toastId: "delete-product-error" });
     }
   };
 

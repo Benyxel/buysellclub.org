@@ -2,6 +2,7 @@ import React from 'react'
 import Button from './shared/Button'
 import TrackB from './shared/TrackB'
 import Buy4meB from './shared/Buy4meB'
+import { Link } from 'react-router-dom'
 import image1 from './../assets/wsi.png'
 import image2 from './../assets/tri.png'
 import image3 from './../assets/payi.png'
@@ -37,11 +38,15 @@ const Category2 = () => {
           <div className=' py-10 pl-5 bg-gradient-to-br  from-brandGreen/90 to-brandGreen/100 text-white rounded-2xl relative h-[320px] flex items-end overflow-hidden'> 
             <div>
               {/* Buy for me card */}
-              <div className='mb-4'>
+                <div className='mb-4'>
                 <p className='mb-[0px] font-bold  text-white'>Learn How to import your self</p>
                 <p className='text-2xl font-semibold mb-[30px]'>Training</p>
                 <p className='text-4xl xl:text-5xl font-bold opacity-20 mb-10'>Mini Importation</p>
                
+                <Link to={'/Training'}>
+                  <Buy4meB text={'View Training'} bgColor={'bg-white'} textColor={'text-primary'} />
+                </Link>
+
               </div>
             </div>
             <img  src={image2}
@@ -58,6 +63,10 @@ const Category2 = () => {
                 <p className='text-2xl font-semibold mb-[30px]'>China?</p>
                 <p className='text-4xl xl:text-5xl font-bold opacity-20 mb-10'>Payment</p>
                 
+                <Link to={'/AlipayPayment'}>
+                  <TrackB text={'Alipay Payment'} bgColor={'bg-white'} />
+                </Link>
+
               </div>
             </div>
             <img  src={image3}

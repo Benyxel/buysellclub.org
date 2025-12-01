@@ -12,6 +12,7 @@ import {
   FaCopy,
 } from "react-icons/fa";
 import { Link } from "react-router-dom";
+import { toast } from "react-toastify";
 import CBMCalculator from "./CBMCalculator";
 import TrackingSearch from "./TrackingSearch";
 import axios from "axios";
@@ -367,12 +368,64 @@ const ShippingDashboard = () => {
     trackingNumber: "",
     userTrackingNumber: "",
   });
+  const [hasShippingMark, setHasShippingMark] = useState(false);
+
+  // Check if user has a shipping mark
+  const checkShippingMark = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const isAdmin = !!localStorage.getItem("adminToken");
+      
+      // Admins don't need shipping marks
+      if (isAdmin) {
+        setHasShippingMark(true);
+        return true;
+      }
+
+      if (token) {
+        try {
+          const resp = await API.get("/buysellapi/shipping-marks/me/");
+          const d = resp?.data;
+          if (d?.markId) {
+            setHasShippingMark(true);
+            return true;
+          }
+        } catch (_) {}
+      }
+      
+      // Check localStorage for shipping marks
+      const saved = JSON.parse(localStorage.getItem("shippingMarks") || "[]");
+      if (Array.isArray(saved) && saved.length > 0 && saved[0].id) {
+        setHasShippingMark(true);
+        return true;
+      }
+
+      // Check localStorage for userShippingMark (from FofooAddressGenerator)
+      const userMark = localStorage.getItem("userShippingMark");
+      if (userMark) {
+        try {
+          const parsed = JSON.parse(userMark);
+          if (parsed?.markId) {
+            setHasShippingMark(true);
+            return true;
+          }
+        } catch (_) {}
+      }
+
+      setHasShippingMark(false);
+      return false;
+    } catch (e) {
+      setHasShippingMark(false);
+      return false;
+    }
+  };
 
   // Load initial data
   useEffect(() => {
     setShipments(trackingSystem.getUserShipments("default") || []);
     loadShippingMarks();
     setDefaultUserTrackingNumber();
+    checkShippingMark();
   }, []);
 
   // Determine and set the default user tracking number (from backend mark or local address)
@@ -415,8 +468,16 @@ const ShippingDashboard = () => {
     setShippingMarks(savedMarks);
   };
 
-  const handleAddShipment = (e) => {
+  const handleAddShipment = async (e) => {
     e.preventDefault();
+
+    // Check if user has shipping mark before allowing shipment addition
+    const hasMark = await checkShippingMark();
+    if (!hasMark) {
+      setMessage("Please generate a shipping mark first before adding shipments. Go to the Address Generator to create one.");
+      toast.error("You must generate a shipping mark before adding shipments. Please visit the Address Generator first.");
+      return;
+    }
 
     const result = trackingSystem.userAdd(
       newShipment.trackingNumber.toUpperCase(),
@@ -685,8 +746,17 @@ const ShippingDashboard = () => {
             </div>
             <div className="flex flex-wrap gap-2">
               <button
-                onClick={() => setShowAddForm(true)}
-                className="flex items-center justify-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                onClick={async () => {
+                  const hasMark = await checkShippingMark();
+                  if (!hasMark) {
+                    toast.error("You must generate a shipping mark before adding shipments. Please visit the Address Generator first.");
+                    return;
+                  }
+                  setShowAddForm(true);
+                }}
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!hasShippingMark}
+                title={!hasShippingMark ? "Generate a shipping mark first" : ""}
               >
                 <FaPlus className="w-4 h-4" />
                 Add New Shipment

@@ -13,40 +13,10 @@ import {
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import buyimg from "../../assets/bm2.jpg";
-import product1 from "../../assets/products/pro1.jpg";
-import product2 from "../../assets/products/p2.jpg";
-import product3 from "../../assets/products/p3.jpg";
-import product4 from "../../assets/products/p4.jpg";
-import product5 from "../../assets/products/p5.jpg";
-import product6 from "../../assets/products/p6.jpg";
-import product7 from "../../assets/products/p7.jpg";
-import product8 from "../../assets/products/p8.jpg";
-import product9 from "../../assets/products/p9.jpg";
-import product10 from "../../assets/products/p10.jpg";
 import { useNavigate, useLocation } from "react-router-dom";
-import { createBuy4meRequest, updateBuy4meRequest, getQuickOrderProducts } from "../../api";
+import { createBuy4meRequest, updateBuy4meRequest, getQuickOrderProducts, clearQuickOrderProductsCache } from "../../api";
 
-// We'll use these as placeholders while products are loading or if API fails
-const placeholderProducts = [
-  {
-    id: 1,
-    title: "Gaming Laptop",
-    description:
-      "High-performance gaming laptop with RTX 3080, 32GB RAM, 1TB SSD",
-    images: [product1, product2],
-    link: "https://example.com/gaming-laptop",
-    minQuantity: 20,
-  },
-  {
-    id: 2,
-    title: "Smartphone Bundle",
-    description:
-      "Latest smartphone with accessories including case, screen protector, and wireless charger",
-    images: [product3, product4],
-    link: "https://example.com/smartphone-bundle",
-    minQuantity: 20,
-  },
-];
+// Removed placeholder products - only show products from backend API
 
 const Buy4me = () => {
   const location = useLocation();
@@ -81,6 +51,9 @@ const Buy4me = () => {
     const fetchQuickOrderProducts = async () => {
       try {
         setIsLoading(true);
+        // Clear any cached quick order products to ensure fresh data
+        clearQuickOrderProductsCache();
+        // Use skipCache to ensure fresh data (no cached products)
         const response = await getQuickOrderProducts();
         console.log("Quick order products API response:", response);
         
@@ -97,23 +70,35 @@ const Buy4me = () => {
         
         console.log("Extracted products:", products);
         
-        // Transform products to match expected format
-        const transformedProducts = products.map(product => ({
-          id: product.id,
-          title: product.title,
-          description: product.description || '',
-          images: product.images || [],
-          link: product.product_url || '',
-          minQuantity: product.min_quantity || 20,
-        }));
+        // Filter out inactive products and transform to match expected format
+        const transformedProducts = products
+          .filter(product => product.is_active !== false) // Only show active products
+          .map(product => ({
+            id: product.id,
+            title: product.title,
+            description: product.description || '',
+            images: product.images || [],
+            link: product.product_url || '',
+            minQuantity: product.min_quantity || 20,
+          }));
         
         console.log("Transformed products:", transformedProducts);
         setQuickOrderProducts(transformedProducts);
       } catch (error) {
         console.error("Error fetching quick order products:", error);
         console.error("Error details:", error.response?.data);
-        // Fallback to placeholder products if API fails
-        setQuickOrderProducts(placeholderProducts);
+        // Don't show placeholder products - only show products from backend
+        // Only show error toast for actual failures (4xx/5xx), not for empty data
+        const status = error.response?.status;
+        if (status && status >= 400) {
+          const errorMsg = error.response?.data?.detail || 
+                           error.response?.data?.error || 
+                           error.message || 
+                           "Failed to load quick order products";
+          toast.error(errorMsg, { toastId: "fetch-quick-order-error" });
+        }
+        // Set empty array - no placeholder products
+        setQuickOrderProducts([]);
       } finally {
         setIsLoading(false);
       }
