@@ -225,6 +225,8 @@ function App() {
         draggable
         pauseOnHover
         theme="colored"
+        limit={5}
+        enableMultiContainer={false}
       />
     </div>
   );
