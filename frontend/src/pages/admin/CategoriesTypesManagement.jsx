@@ -45,22 +45,32 @@ export default function CategoriesTypesManagement() {
   const loadCategories = async () => {
     try {
       const resp = await getCategories();
-      const items = Array.isArray(resp.data) ? resp.data : [];
+      // Handle both array and paginated response
+      const items = Array.isArray(resp.data) 
+        ? resp.data 
+        : (resp.data?.results || []);
       setCategories(items);
     } catch (err) {
       console.error("Failed to load categories", err);
-      toast.error("Failed to load categories");
+      const errorMsg = err.response?.data?.detail || err.message || "Failed to load categories";
+      toast.error(errorMsg);
+      setCategories([]); // Set empty array on error
     }
   };
 
   const loadProductTypes = async () => {
     try {
       const resp = await getProductTypes();
-      const items = Array.isArray(resp.data) ? resp.data : [];
+      // Handle both array and paginated response
+      const items = Array.isArray(resp.data) 
+        ? resp.data 
+        : (resp.data?.results || []);
       setProductTypes(items);
     } catch (err) {
       console.error("Failed to load product types", err);
-      toast.error("Failed to load product types");
+      const errorMsg = err.response?.data?.detail || err.message || "Failed to load product types";
+      toast.error(errorMsg);
+      setProductTypes([]); // Set empty array on error
     }
   };
 
@@ -91,11 +101,19 @@ export default function CategoriesTypesManagement() {
     }
 
     try {
+      // Prepare payload - exclude slug as it's auto-generated
+      const payload = {
+        name: categoryForm.name.trim(),
+        description: categoryForm.description || "",
+        is_active: categoryForm.is_active,
+        order: categoryForm.order || 100,
+      };
+
       if (editingCategory) {
-        await updateCategory(editingCategory.slug, categoryForm);
+        await updateCategory(editingCategory.slug, payload);
         toast.success("Category updated successfully!");
       } else {
-        await createCategory(categoryForm);
+        await createCategory(payload);
         toast.success("Category created successfully!");
       }
       resetCategoryForm();
@@ -105,6 +123,7 @@ export default function CategoriesTypesManagement() {
       const errorMsg =
         err.response?.data?.detail ||
         err.response?.data?.name?.[0] ||
+        err.response?.data?.message ||
         "Failed to save category";
       toast.error(errorMsg);
     }
@@ -159,11 +178,19 @@ export default function CategoriesTypesManagement() {
     }
 
     try {
+      // Prepare payload - exclude slug as it's auto-generated
+      const payload = {
+        name: typeForm.name.trim(),
+        description: typeForm.description || "",
+        is_active: typeForm.is_active,
+        order: typeForm.order || 100,
+      };
+
       if (editingType) {
-        await updateProductType(editingType.slug, typeForm);
+        await updateProductType(editingType.slug, payload);
         toast.success("Product type updated successfully!");
       } else {
-        await createProductType(typeForm);
+        await createProductType(payload);
         toast.success("Product type created successfully!");
       }
       resetTypeForm();
@@ -173,6 +200,7 @@ export default function CategoriesTypesManagement() {
       const errorMsg =
         err.response?.data?.detail ||
         err.response?.data?.name?.[0] ||
+        err.response?.data?.message ||
         "Failed to save product type";
       toast.error(errorMsg);
     }
