@@ -601,7 +601,7 @@ const Api = {
     detail: (slug) => http.get(`/buysellapi/categories/${slug}/`),
     create: (payload) => http.post("/buysellapi/categories/", payload),
     update: (slug, payload) =>
-      http.put(`/buysellapi/categories/${slug}/`, payload),
+      http.patch(`/buysellapi/categories/${slug}/`, payload),
     remove: (slug) => http.delete(`/buysellapi/categories/${slug}/`),
   },
   productTypes: {
@@ -609,7 +609,7 @@ const Api = {
     detail: (slug) => http.get(`/buysellapi/product-types/${slug}/`),
     create: (payload) => http.post("/buysellapi/product-types/", payload),
     update: (slug, payload) =>
-      http.put(`/buysellapi/product-types/${slug}/`, payload),
+      http.patch(`/buysellapi/product-types/${slug}/`, payload),
     remove: (slug) => http.delete(`/buysellapi/product-types/${slug}/`),
   },
   analytics: {
