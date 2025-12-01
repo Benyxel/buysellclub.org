@@ -19,6 +19,7 @@ const Signup = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errors, setErrors] = useState({});
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -96,6 +97,14 @@ const Signup = () => {
       if (cleanedContact.length < 10) {
         newErrors.contact = "Please enter a valid contact number";
       }
+    }
+
+    // Terms and conditions validation
+    if (!acceptedTerms) {
+      newErrors.terms = "You must accept the terms and conditions to continue";
+      setErrors(newErrors);
+      toast.error("Please accept the terms and conditions");
+      return;
     }
 
     // If there are validation errors, show them and stop
@@ -659,11 +668,56 @@ const Signup = () => {
               </div>
             </div>
 
+            {/* Terms and Conditions */}
+            <div className="mt-4">
+              <label className="flex items-start gap-2 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={acceptedTerms}
+                  onChange={(e) => {
+                    setAcceptedTerms(e.target.checked);
+                    if (errors.terms) {
+                      setErrors({ ...errors, terms: "" });
+                    }
+                  }}
+                  className={`mt-1 w-4 h-4 text-primary rounded border-gray-300 focus:ring-primary ${
+                    errors.terms ? "border-red-500" : ""
+                  }`}
+                  required
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">
+                  I agree to the{" "}
+                  <Link
+                    to="/terms-and-conditions"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary font-medium hover:underline"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Terms and Conditions
+                  </Link>
+                  {" "}and{" "}
+                  <Link
+                    to="/Policies#compliance"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary font-medium hover:underline"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Privacy & Data Policy
+                  </Link>
+                </span>
+              </label>
+              {errors.terms && (
+                <p className="mt-1 text-xs text-red-600">{errors.terms}</p>
+              )}
+            </div>
+
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !acceptedTerms}
               className={`w-full py-2.5 mt-4 rounded-lg bg-primary text-white font-medium hover:bg-primary/90 transition-colors ${
-                loading ? "opacity-70 cursor-not-allowed" : ""
+                loading || !acceptedTerms ? "opacity-70 cursor-not-allowed" : ""
               }`}
             >
               {loading ? "Creating Account..." : "Sign Up"}

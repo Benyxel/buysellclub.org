@@ -10,6 +10,8 @@ import {
   FaInstagram,
   FaLinkedin,
 } from "react-icons/fa";
+import { toast } from "react-toastify";
+import API from "../api";
 
 const Contact = () => {
   const [formData, setFormData] = useState({
@@ -18,11 +20,67 @@ const Contact = () => {
     subject: "",
     message: "",
   });
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Handle form submission here
-    console.log("Form submitted:", formData);
+    setLoading(true);
+
+    try {
+      const response = await API.post("/buysellapi/contact/", formData);
+      
+      if (response.data.success) {
+        toast.success(response.data.message || "Message sent successfully! We'll get back to you soon.", {
+          toastId: "contact-success"
+        });
+        // Reset form
+        setFormData({
+          name: "",
+          email: "",
+          subject: "",
+          message: "",
+        });
+      }
+    } catch (error) {
+      console.error("Contact form error:", error);
+      
+      // Check if it's a 500 error but message might have been sent
+      if (error.response?.status === 500) {
+        // Check if we got a response with success message (sometimes errors occur after email is sent)
+        if (error.response?.data?.success) {
+          toast.success(error.response.data.message || "Message sent successfully! We'll get back to you soon.", {
+            toastId: "contact-success-partial"
+          });
+          // Reset form
+          setFormData({
+            name: "",
+            email: "",
+            subject: "",
+            message: "",
+          });
+        } else {
+          // Real error - show error message
+          const errorMessage = error.response?.data?.error || 
+                               error.response?.data?.message || 
+                               error.message || 
+                               "Failed to send message. Please try again later or contact us directly.";
+          toast.error(errorMessage, {
+            toastId: "contact-error"
+          });
+        }
+      } else {
+        // Other errors (400, 401, etc.)
+        const errorMessage = error.response?.data?.error || 
+                             error.response?.data?.message || 
+                             error.message || 
+                             "Failed to send message. Please try again later.";
+        toast.error(errorMessage, {
+          toastId: "contact-error"
+        });
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleChange = (e) => {
@@ -64,7 +122,7 @@ const Contact = () => {
                     Phone
                   </h3>
                   <p className="text-gray-600 dark:text-gray-400">
-                    +233 24 123 4567
+                    +233 540266839 / +233 535377248
                   </p>
                 </div>
               </div>
@@ -78,7 +136,7 @@ const Contact = () => {
                     Email
                   </h3>
                   <p className="text-gray-600 dark:text-gray-400">
-                    support@Fofoofo.com
+                    support@fofoofogroup.com
                   </p>
                 </div>
               </div>
@@ -92,7 +150,7 @@ const Contact = () => {
                     Address
                   </h3>
                   <p className="text-gray-600 dark:text-gray-400">
-                    123 Business Street
+                  Israel Yellow, Okropom street(Pazzy's Villa),
                     <br />
                     Accra, Ghana
                   </p>
@@ -110,7 +168,7 @@ const Contact = () => {
                   <p className="text-gray-600 dark:text-gray-400">
                     Monday - Friday: 9:00 AM - 6:00 PM
                     <br />
-                    Saturday: 9:00 AM - 1:00 PM
+                    Saturday: Closed
                     <br />
                     Sunday: Closed
                   </p>
@@ -153,7 +211,7 @@ const Contact = () => {
 
             {/* WhatsApp Button */}
             <a
-              href="https://wa.me/233241234567"
+              href="https://wa.me/233540266839"
               target="_blank"
               rel="noopener noreferrer"
               className="mt-8 flex items-center gap-2 bg-green-500 text-white px-6 py-3 rounded-lg hover:bg-green-600 transition-colors"
@@ -244,9 +302,12 @@ const Contact = () => {
 
             <button
               type="submit"
-              className="w-full bg-primary text-white px-6 py-3 rounded-lg hover:bg-primary/90 transition-colors"
+              disabled={loading}
+              className={`w-full bg-primary text-white px-6 py-3 rounded-lg hover:bg-primary/90 transition-colors ${
+                loading ? "opacity-70 cursor-not-allowed" : ""
+              }`}
             >
-              Send Message
+              {loading ? "Sending..." : "Send Message"}
             </button>
           </form>
         </div>

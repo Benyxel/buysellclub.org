@@ -22,6 +22,7 @@ import Favorites from "./pages/Favorites";
 import MyProfile from "./components/MyProfile";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import TermsAndConditions from "./pages/TermsAndConditions";
 import Navbar from "./components/Navbar";
 import { ToastContainer } from "react-toastify";
 import Footer from "./components/Footer";
@@ -54,6 +55,7 @@ function App() {
         {/* Auth pages without Navbar and Footer */}
         <Route path="/Login" element={<Login />} />
         <Route path="/Signup" element={<Signup />} />
+        <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
         <Route path="/admin-login" element={<AdminLogin />} />
 
         {/* Admin routes without Navbar and Footer */}

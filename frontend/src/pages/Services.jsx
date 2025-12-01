@@ -186,7 +186,7 @@ const Services = () => {
       {/* Why Choose Us Section */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 mb-16">
         <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-8 text-center">
-          Why Choose Fofoofo?
+          Why Choose BuySellClub?
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="text-center">

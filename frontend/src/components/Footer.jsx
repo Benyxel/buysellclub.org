@@ -100,11 +100,11 @@ const Footer = () => {
               </li>
               <li className='flex items-start gap-3 text-gray-600 dark:text-gray-400'>
                 <FaEnvelope className='w-5 h-5 mt-1 text-primary' />
-                <span>support@buysellclub.com</span>
+                <span>support@fofoofogroup.com</span>
               </li>
               <li className='flex items-start gap-3 text-gray-600 dark:text-gray-400'>
                 <FaMapMarkerAlt className='w-5 h-5 mt-1 text-primary' />
-                <span>FOFOOFO GROUP, Tabora Alhaji Station, Nii Okaiman West</span>
+                <span>FOFOOFO GROUP, Israel Yellow, Okropom Street(Pazzy's Villa), Accra </span>
               </li>
             </ul>
           </div>
