@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import { FaEye, FaEyeSlash } from "react-icons/fa";
 import API from "../api";
 
 const AdminLogin = () => {
@@ -13,6 +14,7 @@ const AdminLogin = () => {
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [showSecurityCode] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -180,16 +182,28 @@ const AdminLogin = () => {
                     <input
                       id="password"
                       name="password"
-                      type="password"
+                      type={showPassword ? "text" : "password"}
                       autoComplete="current-password"
                       required
-                      className={`block w-full pl-10 pr-3 py-2 bg-gray-700 border ${
+                      className={`block w-full pl-10 pr-10 py-2 bg-gray-700 border ${
                         errors.password ? "border-red-500" : "border-gray-600"
                       } rounded-lg shadow-sm placeholder-gray-400 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
                       placeholder="Enter admin password"
                       value={formData.password}
                       onChange={handleChange}
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300 focus:outline-none"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? (
+                        <FaEyeSlash className="w-5 h-5" />
+                      ) : (
+                        <FaEye className="w-5 h-5" />
+                      )}
+                    </button>
                   </div>
                   {errors.password && (
                     <p className="mt-1 text-sm text-red-400">

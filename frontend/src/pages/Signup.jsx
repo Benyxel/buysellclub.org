@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "react-toastify";
+import { FaEye, FaEyeSlash } from "react-icons/fa";
 import API from "../api";
 
 const Signup = () => {
@@ -15,6 +16,8 @@ const Signup = () => {
     location: "",
   });
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errors, setErrors] = useState({});
 
   const handleChange = (e) => {
@@ -541,19 +544,33 @@ const Signup = () => {
                 <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
                   Password *
                 </label>
-                <input
-                  type="password"
-                  name="password"
-                  value={form.password}
-                  onChange={handleChange}
-                  className={`w-full px-3 py-2 text-sm rounded-lg border ${
-                    errors.password
-                      ? "border-red-500"
-                      : "border-gray-300 dark:border-gray-600"
-                  } bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent`}
-                  placeholder="Min 6 characters"
-                  required
-                />
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    name="password"
+                    value={form.password}
+                    onChange={handleChange}
+                    className={`w-full px-3 py-2 pr-10 text-sm rounded-lg border ${
+                      errors.password
+                        ? "border-red-500"
+                        : "border-gray-300 dark:border-gray-600"
+                    } bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent`}
+                    placeholder="Min 6 characters"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 focus:outline-none"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? (
+                      <FaEyeSlash className="w-4 h-4" />
+                    ) : (
+                      <FaEye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
                 {errors.password && (
                   <p className="mt-1 text-xs text-red-600">{errors.password}</p>
                 )}
@@ -563,19 +580,33 @@ const Signup = () => {
                 <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
                   Confirm Password *
                 </label>
-                <input
-                  type="password"
-                  name="confirm_password"
-                  value={form.confirm_password}
-                  onChange={handleChange}
-                  className={`w-full px-3 py-2 text-sm rounded-lg border ${
-                    errors.confirm_password
-                      ? "border-red-500"
-                      : "border-gray-300 dark:border-gray-600"
-                  } bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent`}
-                  placeholder="Re-enter password"
-                  required
-                />
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    name="confirm_password"
+                    value={form.confirm_password}
+                    onChange={handleChange}
+                    className={`w-full px-3 py-2 pr-10 text-sm rounded-lg border ${
+                      errors.confirm_password
+                        ? "border-red-500"
+                        : "border-gray-300 dark:border-gray-600"
+                    } bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent`}
+                    placeholder="Re-enter password"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 focus:outline-none"
+                    aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                  >
+                    {showConfirmPassword ? (
+                      <FaEyeSlash className="w-4 h-4" />
+                    ) : (
+                      <FaEye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
                 {errors.confirm_password && (
                   <p className="mt-1 text-xs text-red-600">
                     {errors.confirm_password}
