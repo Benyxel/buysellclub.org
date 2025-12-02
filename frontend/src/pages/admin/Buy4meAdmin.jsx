@@ -13,24 +13,9 @@ import {
   createBuy4meRequestInvoice,
   updateBuy4meRequestInvoiceStatus,
 } from '../../api';
-import { invalidateAdminCache } from '../../api';
-
-// Check for cached admin buy4me requests data
-const getCachedRequests = () => {
-  try {
-    const cached = localStorage.getItem("admin_buy4me_cache");
-    if (cached) {
-      const parsed = JSON.parse(cached);
-      return parsed.data || null;
-    }
-  } catch (e) {
-    // ignore
-  }
-  return null;
-};
 
 const Buy4meAdmin = () => {
-  const [requests, setRequests] = useState(() => getCachedRequests() || []);
+  const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [statusFilter, setStatusFilter] = useState('all');
@@ -54,13 +39,7 @@ const Buy4meAdmin = () => {
   }, []);
 
   const fetchBuy4meRequests = async () => {
-    // Check cache first - if data exists and we're not forcing refresh, skip loading
-    const cached = getCachedRequests();
-    if (cached && cached.length > 0 && requests.length === 0) {
-      setRequests(cached);
-      return; // Use cached data, no API call needed
-    }
-    
+    // Always fetch fresh data from server
     try {
       setLoading(true);
       const response = await getAdminBuy4meRequests();
@@ -87,12 +66,6 @@ const Buy4meAdmin = () => {
       }));
       
       setRequests(transformedRequests);
-      // Cache the data
-      try {
-        localStorage.setItem("admin_buy4me_cache", JSON.stringify({ data: transformedRequests, timestamp: Date.now() }));
-      } catch (e) {
-        // ignore cache errors
-      }
     } catch (error) {
       console.error('Error fetching Buy4me requests:', error);
       // Only show error for actual failures (4xx/5xx), not for empty data
@@ -174,19 +147,8 @@ const Buy4meAdmin = () => {
         prevRequests.filter(req => (req.id !== deleteTarget && req._id !== deleteTarget))
       );
       
-      // Also clear from cache
-      try {
-        const cached = localStorage.getItem("admin_buy4me_cache");
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (parsed.data) {
-            parsed.data = parsed.data.filter(req => (req.id !== deleteTarget && req._id !== deleteTarget));
-            localStorage.setItem("admin_buy4me_cache", JSON.stringify(parsed));
-          }
-        }
-      } catch (e) {
-        // ignore cache errors
-      }
+      // Refresh data from server to ensure consistency
+      fetchBuy4meRequests();
       
       if (selectedRequest && (selectedRequest.id === deleteTarget || selectedRequest._id === deleteTarget)) {
         setSelectedRequest(null);
@@ -373,19 +335,8 @@ const Buy4meAdmin = () => {
         prevRequests.filter((req) => !deletedIds.has(req.id || req._id))
       );
       
-      // Also clear from cache
-      try {
-        const cached = localStorage.getItem("admin_buy4me_cache");
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (parsed.data) {
-            parsed.data = parsed.data.filter((req) => !deletedIds.has(req.id || req._id));
-            localStorage.setItem("admin_buy4me_cache", JSON.stringify(parsed));
-          }
-        }
-      } catch (e) {
-        // ignore cache errors
-      }
+      // Refresh data from server to ensure consistency
+      fetchBuy4meRequests();
       
       setSelectedRequests([]);
     } catch (error) {

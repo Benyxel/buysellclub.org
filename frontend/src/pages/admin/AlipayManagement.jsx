@@ -34,6 +34,7 @@ const AlipayManagement = () => {
   const [paymentIdToDelete, setPaymentIdToDelete] = useState(null);
 
   // Define fetchPayments before useEffect to avoid TDZ errors when referencing in deps
+  // Always fetch fresh data for Alipay payments
   const fetchPayments = useCallback(async () => {
     try {
       setLoading(true);
@@ -154,22 +155,77 @@ const AlipayManagement = () => {
   };
 
   const handleUpdateStatus = async () => {
-    if (!selectedPayment) return;
+    if (!selectedPayment) {
+      toast.error("No payment selected", { toastId: "update-status-no-payment" });
+      return;
+    }
+
+    const paymentId = selectedPayment._id || selectedPayment.id;
+    if (!paymentId) {
+      toast.error("Invalid payment ID", { toastId: "update-status-invalid-id" });
+      return;
+    }
+
+    if (!newStatus) {
+      toast.error("Please select a status", { toastId: "update-status-no-status" });
+      return;
+    }
 
     try {
-      const paymentId = selectedPayment._id || selectedPayment.id;
-      const { data } = await API.put(
+      console.log("Updating payment status:", {
+        paymentId,
+        status: newStatus,
+        adminNotes: adminNotes.trim() || undefined,
+        transactionId: transactionId.trim() || undefined,
+      });
+      
+      const payload = {
+        status: newStatus,
+      };
+      
+      // Only include fields if they have values
+      if (adminNotes.trim()) {
+        payload.adminNotes = adminNotes.trim();
+      }
+      if (transactionId.trim()) {
+        payload.transactionId = transactionId.trim();
+      }
+      
+      console.log("Sending payload:", payload);
+      console.log("Request URL:", `/buysellapi/admin/alipay-payments/${paymentId}/status/`);
+      
+      const response = await API.put(
         `/buysellapi/admin/alipay-payments/${paymentId}/status/`,
-        {
-          status: newStatus,
-          adminNotes: adminNotes.trim() ? adminNotes : undefined,
-          transactionId: transactionId.trim() ? transactionId : undefined,
-        }
+        payload
       );
-      setPayments(payments.map((p) => {
-        const pId = p._id || p.id;
-        return pId === paymentId ? data : p;
-      }));
+      console.log("Status update response:", response);
+      console.log("Response data:", response.data);
+      
+      const updatedPayment = response.data;
+      if (!updatedPayment) {
+        throw new Error("No data returned from server");
+      }
+      
+      // Update the payment in the list immediately with the response data
+      setPayments(prevPayments => {
+        const updated = prevPayments.map((p) => {
+          const pId = p._id || p.id;
+          if (pId === paymentId) {
+            // Merge the updated payment data, ensuring all fields are updated
+            return {
+              ...p,
+              ...updatedPayment,
+              status: updatedPayment.status || newStatus,
+              adminNotes: updatedPayment.adminNotes || adminNotes.trim() || "",
+              transactionId: updatedPayment.transactionId || transactionId.trim() || "",
+            };
+          }
+          return p;
+        });
+        console.log("Updated payments list:", updated);
+        return updated;
+      });
+      
       toast.success(`Payment status updated to ${newStatus}`, {
         toastId: "update-status-success"
       });
@@ -177,12 +233,26 @@ const AlipayManagement = () => {
       setNewStatus("");
       setAdminNotes("");
       setTransactionId("");
-      // Refresh the list to get updated data
-      fetchPayments();
+      
+      // Refresh the list to get updated data from server (skip cache to ensure fresh data)
+      // Use a small delay to ensure backend has processed the update
+      setTimeout(() => {
+        fetchPayments(); // Force fresh data
+      }, 500);
     } catch (error) {
       console.error("Error updating payment status:", error);
+      console.error("Error details:", {
+        message: error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        url: error.config?.url,
+        method: error.config?.method,
+        payload: error.config?.data,
+      });
       const errorMsg = error.response?.data?.detail ||
                        error.response?.data?.error ||
+                       error.response?.data?.message ||
                        error.message ||
                        "Error updating payment status";
       toast.error(errorMsg, { toastId: "update-status-error" });
