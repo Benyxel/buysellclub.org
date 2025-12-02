@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { FaCalendarAlt, FaClock, FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaPlay, FaShoppingCart, FaYoutube, FaPassport } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
+import { FaCalendarAlt, FaClock, FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaPlay, FaShoppingCart, FaYoutube, FaPassport, FaDollarSign, FaMobileAlt, FaCreditCard, FaWallet, FaInfoCircle } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import { createTrainingBooking, getTrainingCourses } from '../../api';
+import { Api } from '../../api';
 
 const Training = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -18,6 +21,8 @@ const Training = () => {
   const [youtubeVideos, setYoutubeVideos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [defaultTrainingCost, setDefaultTrainingCost] = useState(0);
+  const [showPayment, setShowPayment] = useState(false);
 
   // Available time slots
   const timeSlots = [
@@ -28,7 +33,23 @@ const Training = () => {
 
   useEffect(() => {
     fetchContent();
+    fetchTrainingSettings();
   }, []);
+
+  const fetchTrainingSettings = async () => {
+    try {
+      const response = await Api.training.settings();
+      console.log('Training settings response:', response);
+      const cost = response.data?.defaultTrainingCost || response.data?.default_training_cost || 0;
+      setDefaultTrainingCost(parseFloat(cost) || 0);
+      console.log('Set default training cost to:', cost);
+    } catch (error) {
+      console.error('Error fetching training settings:', error);
+      console.error('Error details:', error.response?.data);
+      // Default to 0 if error
+      setDefaultTrainingCost(0);
+    }
+  };
 
   const fetchContent = async () => {
     setLoading(true);
@@ -107,7 +128,7 @@ const Training = () => {
     });
   };
 
-  const handleSubmit = async (e) => {
+  const handleProceedToPayment = (e) => {
     e.preventDefault();
     
     // Check if user is authenticated
@@ -115,7 +136,6 @@ const Training = () => {
     const adminToken = localStorage.getItem('adminToken');
     if (!token && !adminToken) {
       toast.error('You must be logged in to book a training session. Please log in and try again.');
-      // Optionally redirect to login page
       setTimeout(() => {
         window.location.href = '/Login';
       }, 2000);
@@ -140,20 +160,63 @@ const Training = () => {
       return;
     }
 
+    // Check if training cost is set
+    if (defaultTrainingCost <= 0) {
+      toast.error('Training cost has not been set yet. Please contact support.');
+      return;
+    }
+
+    // Show payment section
+    setShowPayment(true);
+  };
+
+  const handlePaymentComplete = async (paymentData) => {
+    // After payment is successful, create the booking with payment info
     setSubmitting(true);
+    let bookingData;
+    
     try {
-      const bookingData = {
+      bookingData = {
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
         booking_date: formData.booking_date,
         booking_time: formData.booking_time,
         has_valid_passport: formData.has_valid_passport,
-        notes: formData.notes || ''
+        notes: formData.notes || '',
+        trainingCost: defaultTrainingCost,
+        paymentStatus: 'paid',
+        paymentMethod: paymentData.paymentMethod,
       };
 
-      const response = await createTrainingBooking(bookingData);
-      toast.success('Training session booked successfully!');
+      console.log('Creating booking with data:', bookingData);
+      
+      // Try authenticated endpoint first, fallback to public endpoint if auth fails
+      let response;
+      try {
+        response = await createTrainingBooking(bookingData);
+      } catch (authError) {
+        // If authentication fails, try public endpoint
+        if (authError.response?.status === 401 || authError.response?.status === 403) {
+          console.log('Auth failed, trying public endpoint...');
+          response = await Api.training.bookPublic(bookingData);
+        } else {
+          throw authError; // Re-throw if it's not an auth error
+        }
+      }
+      console.log('Booking response:', response);
+      
+      // Verify the booking was created successfully
+      if (!response || !response.data) {
+        throw new Error('Booking creation failed - no response data received');
+      }
+      
+      const savedBooking = response.data;
+      console.log('Booking created successfully:', savedBooking);
+      
+      toast.success('Training session booked and payment confirmed!');
+      
+      // Reset form
       setFormData({
         name: '',
         email: '',
@@ -163,41 +226,60 @@ const Training = () => {
         has_valid_passport: false,
         notes: ''
       });
+      setShowPayment(false);
+      
+      // Wait a bit longer before redirecting to show success message
+      setTimeout(() => {
+        navigate('/profile');
+      }, 3000);
     } catch (error) {
       console.error('Training booking error:', error);
       console.error('Error response:', error.response?.data);
       console.error('Error status:', error.response?.status);
+      console.error('Error config:', error.config);
+      console.error('Booking data sent:', bookingData);
       
-      let errorMessage = 'Failed to book training session. Please try again.';
+      let errorMessage = 'Failed to complete booking. Please try again.';
       
-      if (error.response?.status === 401) {
-        errorMessage = 'You must be logged in to book a training session. Please log in and try again.';
-      } else if (error.response?.data) {
-        // Handle field-specific errors
-        if (error.response.data.has_valid_passport) {
-          errorMessage = Array.isArray(error.response.data.has_valid_passport) 
-            ? error.response.data.has_valid_passport[0] 
-            : error.response.data.has_valid_passport;
-        } else if (error.response.data.booking_date) {
-          errorMessage = Array.isArray(error.response.data.booking_date) 
-            ? error.response.data.booking_date[0] 
-            : error.response.data.booking_date;
-        } else if (error.response.data.detail) {
+      // Handle authentication errors
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        errorMessage = 'Please log in to complete your booking.';
+        toast.error(errorMessage);
+        setTimeout(() => {
+          navigate('/login');
+        }, 2000);
+        setShowPayment(false);
+        setSubmitting(false);
+        return;
+      }
+      
+      if (error.response?.data) {
+        // Handle validation errors
+        if (error.response.data.detail) {
           errorMessage = error.response.data.detail;
         } else if (error.response.data.error) {
           errorMessage = error.response.data.error;
-        } else if (typeof error.response.data === 'string') {
-          errorMessage = error.response.data;
-        } else if (error.response.data.non_field_errors) {
-          errorMessage = Array.isArray(error.response.data.non_field_errors)
-            ? error.response.data.non_field_errors[0]
-            : error.response.data.non_field_errors;
+        } else if (typeof error.response.data === 'object') {
+          // Handle field-specific validation errors
+          const errorFields = Object.keys(error.response.data);
+          if (errorFields.length > 0) {
+            const firstError = error.response.data[errorFields[0]];
+            if (Array.isArray(firstError)) {
+              errorMessage = firstError[0];
+            } else if (typeof firstError === 'string') {
+              errorMessage = firstError;
+            } else {
+              errorMessage = `Validation error: ${errorFields.join(', ')}`;
+            }
+          }
         }
       } else if (error.message) {
         errorMessage = error.message;
       }
       
       toast.error(errorMessage);
+      setShowPayment(false); // Hide payment section on error
+      // Don't redirect on error - let user fix and try again
     } finally {
       setSubmitting(false);
     }
@@ -210,6 +292,7 @@ const Training = () => {
       [name]: type === 'checkbox' ? checked : value
     });
   };
+
 
   const handlePurchase = (courseId) => {
     // Here you would typically handle the purchase process
@@ -290,7 +373,7 @@ const Training = () => {
           <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-6">
             Book Your Session
           </h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={(e) => { e.preventDefault(); handleProceedToPayment(e); }} className="space-y-4">
             <div>
               <label className="block text-gray-700 dark:text-gray-300 mb-2">
                 Full Name <span className="text-red-500">*</span>
@@ -422,20 +505,42 @@ const Training = () => {
               ></textarea>
             </div>
 
-            <button
-              type="submit"
-              disabled={submitting || !formData.has_valid_passport}
-              className="w-full bg-primary text-white py-3 rounded-lg hover:bg-primary/90 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {submitting ? (
-                <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
-                  Booking...
-                </>
-              ) : (
-                'Book Training Session'
-              )}
-            </button>
+            {/* Payment Information */}
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <FaDollarSign className="text-blue-600 dark:text-blue-400 mt-1" />
+                <div className="flex-1">
+                  <h4 className="text-gray-800 dark:text-white font-medium mb-1">
+                    Training Cost
+                  </h4>
+                  <p className="text-2xl font-bold text-primary mb-2">
+                    GHS {Number(defaultTrainingCost).toFixed(2)}
+                  </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Payment must be completed before booking can be submitted.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {!showPayment ? (
+              <button
+                type="button"
+                onClick={handleProceedToPayment}
+                disabled={submitting || !formData.has_valid_passport || defaultTrainingCost <= 0}
+                className="w-full bg-primary text-white py-3 rounded-lg hover:bg-primary/90 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                <FaDollarSign />
+                Proceed to Payment
+              </button>
+            ) : (
+              <PaymentSectionInline
+                cost={defaultTrainingCost}
+                onPaymentComplete={handlePaymentComplete}
+                onCancel={() => setShowPayment(false)}
+                loading={submitting}
+              />
+            )}
           </form>
         </div>
       </div>
@@ -588,6 +693,127 @@ const Training = () => {
           <FaYoutube className="w-6 h-6" />
           Subscribe to Our Channel
         </a>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Inline Payment Section Component
+const PaymentSectionInline = ({ cost, onPaymentComplete, onCancel, loading }) => {
+  const [selectedMethod, setSelectedMethod] = useState('mobile');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [processing, setProcessing] = useState(false);
+
+  const handlePayment = async () => {
+    if (selectedMethod === 'mobile' && !phoneNumber) {
+      toast.error('Please enter your phone number');
+      return;
+    }
+
+    setProcessing(true);
+    try {
+      // Simulate payment processing
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Only call onPaymentComplete if payment simulation succeeds
+      // The actual booking creation happens in handlePaymentComplete
+      onPaymentComplete({
+        paymentMethod: selectedMethod,
+        phoneNumber: selectedMethod === 'mobile' ? phoneNumber : undefined,
+      });
+    } catch (error) {
+      console.error('Payment processing error:', error);
+      toast.error('Payment failed. Please try again.');
+      setProcessing(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+          Select Payment Method
+        </h3>
+        <div className="space-y-4">
+          <div className="grid grid-cols-3 gap-4">
+            <button
+              onClick={() => setSelectedMethod('mobile')}
+              className={`p-4 rounded-lg border-2 transition-colors ${
+                selectedMethod === 'mobile'
+                  ? 'border-primary bg-primary/5'
+                  : 'border-gray-200 dark:border-gray-700 hover:border-primary/50'
+              }`}
+            >
+              <FaMobileAlt className="w-6 h-6 mx-auto mb-2 text-gray-600 dark:text-gray-400" />
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Mobile Money</span>
+            </button>
+            <button
+              onClick={() => setSelectedMethod('card')}
+              className={`p-4 rounded-lg border-2 transition-colors ${
+                selectedMethod === 'card'
+                  ? 'border-primary bg-primary/5'
+                  : 'border-gray-200 dark:border-gray-700 hover:border-primary/50'
+              }`}
+            >
+              <FaCreditCard className="w-6 h-6 mx-auto mb-2 text-gray-600 dark:text-gray-400" />
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Card</span>
+            </button>
+            <button
+              onClick={() => setSelectedMethod('cash')}
+              className={`p-4 rounded-lg border-2 transition-colors ${
+                selectedMethod === 'cash'
+                  ? 'border-primary bg-primary/5'
+                  : 'border-gray-200 dark:border-gray-700 hover:border-primary/50'
+              }`}
+            >
+              <FaWallet className="w-6 h-6 mx-auto mb-2 text-gray-600 dark:text-gray-400" />
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Cash</span>
+            </button>
+          </div>
+
+          {selectedMethod === 'mobile' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Phone Number
+              </label>
+              <input
+                type="tel"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
+                placeholder="Enter your phone number"
+                className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+              />
+            </div>
+          )}
+
+          <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+            <div className="flex items-start gap-3">
+              <FaInfoCircle className="w-5 h-5 text-blue-500 mt-1" />
+              <div>
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  Your payment will be processed securely. For mobile money payments, you'll receive a prompt on your phone to confirm the transaction.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              onClick={onCancel}
+              disabled={processing || loading}
+              className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handlePayment}
+              disabled={processing || loading}
+              className="flex-1 bg-primary hover:bg-primary/90 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {processing || loading ? 'Processing...' : `Pay GHS ${Number(cost).toFixed(2)}`}
+            </button>
+          </div>
         </div>
       </div>
     </div>

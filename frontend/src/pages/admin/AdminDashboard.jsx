@@ -34,6 +34,7 @@ import {
   FaYoutube,
   FaDollarSign,
   FaUserTag,
+  FaCalendarAlt,
 } from "react-icons/fa";
 
 import UsersManagement from "./UsersManagement";

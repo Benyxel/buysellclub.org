@@ -5,6 +5,7 @@ import Category2 from "../components/Category2";
 import LastestProducts from "../components/LastestProducts";
 import ServicesC from "../components/ServicesC";
 import Banner from "../components/Banner";
+import SupplierBanner from "../components/SupplierBanner";
 import bimg1 from "../assets/bimg1.png";
 import TrendingP from "../components/TrendingP";
 
@@ -30,6 +31,7 @@ const Home = () => {
       <Banner data={BannerData} />
       <LastestProducts />
       <TrendingP />
+      <SupplierBanner />
     </div>
   );
 };

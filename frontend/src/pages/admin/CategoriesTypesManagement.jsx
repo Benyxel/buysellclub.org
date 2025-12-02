@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   getCategories,
   createCategory,
@@ -27,10 +28,22 @@ const initialTypeForm = {
 };
 
 export default function CategoriesTypesManagement() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  // Initialize activeTab from URL params or default to 'categories'
+  const getInitialTab = () => {
+    const tabFromUrl = searchParams.get('tab');
+    const validTabs = ['categories', 'types'];
+    if (tabFromUrl && validTabs.includes(tabFromUrl)) {
+      return tabFromUrl;
+    }
+    return 'categories';
+  };
+
   const [categories, setCategories] = useState([]);
   const [productTypes, setProductTypes] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState("categories"); // 'categories' or 'types'
+  const [activeTab, setActiveTab] = useState(() => getInitialTab());
   
   // Category state
   const [categoryForm, setCategoryForm] = useState(initialCategoryForm);
@@ -86,6 +99,30 @@ export default function CategoriesTypesManagement() {
     setLoading(true);
     await Promise.all([loadCategories(), loadProductTypes()]);
     setLoading(false);
+  };
+
+  // Sync tab from URL on mount and when URL changes (browser back/forward)
+  useEffect(() => {
+    const tabFromUrl = searchParams.get('tab');
+    const validTabs = ['categories', 'types'];
+    
+    if (tabFromUrl && validTabs.includes(tabFromUrl)) {
+      if (activeTab !== tabFromUrl) {
+        setActiveTab(tabFromUrl);
+      }
+    } else if (!tabFromUrl) {
+      // No tab in URL, set default and update URL
+      setSearchParams({ tab: 'categories' }, { replace: true });
+      if (activeTab !== 'categories') {
+        setActiveTab('categories');
+      }
+    }
+  }, [searchParams.get('tab'), activeTab, setSearchParams]); // React to URL tab parameter changes
+
+  // Update URL when tab changes via user interaction
+  const handleTabChange = (tabKey) => {
+    setActiveTab(tabKey);
+    setSearchParams({ tab: tabKey }, { replace: true });
   };
 
   useEffect(() => {
@@ -261,7 +298,7 @@ export default function CategoriesTypesManagement() {
       <div className="mb-6 border-b border-gray-200 dark:border-gray-700">
         <div className="flex space-x-4">
           <button
-            onClick={() => setActiveTab("categories")}
+            onClick={() => handleTabChange("categories")}
             className={`px-4 py-2 font-medium ${
               activeTab === "categories"
                 ? "text-primary border-b-2 border-primary"
@@ -271,7 +308,7 @@ export default function CategoriesTypesManagement() {
             Categories
           </button>
           <button
-            onClick={() => setActiveTab("types")}
+            onClick={() => handleTabChange("types")}
             className={`px-4 py-2 font-medium ${
               activeTab === "types"
                 ? "text-primary border-b-2 border-primary"

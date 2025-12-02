@@ -42,22 +42,8 @@ const labelToValue = (label) =>
   statusOptions.find((o) => normalize(o.label) === normalize(label))?.value ||
   "pending";
 
-// Check for cached admin trackings data
-const getCachedTrackings = () => {
-  try {
-    const cached = localStorage.getItem("admin_trackings_cache");
-    if (cached) {
-      const parsed = JSON.parse(cached);
-      return parsed.data || null;
-    }
-  } catch (e) {
-    // ignore
-  }
-  return null;
-};
-
 const TrackingManagement = () => {
-  const [trackings, setTrackings] = useState(() => getCachedTrackings() || []);
+  const [trackings, setTrackings] = useState([]);
   const [filteredTrackings, setFilteredTrackings] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortField, setSortField] = useState("addedDate");
@@ -123,16 +109,12 @@ const TrackingManagement = () => {
   };
 
   const fetchTrackings = async () => {
-    // Check cache first - if data exists and we're not forcing refresh, skip loading
-    const cached = getCachedTrackings();
-    if (cached && cached.length > 0 && trackings.length === 0) {
-      setTrackings(cached);
-      return; // Use cached data, no API call needed
-    }
-    
+    // Always fetch fresh data from server
     try {
       setLoading(true);
-      const response = await API.get("/buysellapi/trackings/", { isAdmin: true });
+      const response = await API.get("/buysellapi/trackings/", { 
+        isAdmin: true
+      });
 
       if (response.data && Array.isArray(response.data)) {
         // Transform backend data to frontend format
@@ -151,30 +133,11 @@ const TrackingManagement = () => {
           LastUpdated: t.date_added,
         }));
         setTrackings(transformed);
-        // Cache the admin trackings data
-        try {
-          localStorage.setItem("admin_trackings_cache", JSON.stringify({ data: transformed, timestamp: Date.now() }));
-        } catch (e) {
-          // ignore cache errors
-        }
-        // Also update localStorage as cache (legacy)
-        localStorage.setItem("userTrackings", JSON.stringify(transformed));
       }
     } catch (error) {
       console.error("Error fetching trackings:", error);
-      // Fallback to localStorage if backend fails
-      const stored = localStorage.getItem("userTrackings");
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          setTrackings(Array.isArray(parsed) ? parsed : []);
-          toast.info("Loaded trackings from local cache");
-        } catch {
-          setTrackings([]);
-        }
-      } else {
-        toast.error("Failed to load trackings from server");
-      }
+      toast.error("Failed to load trackings from server");
+      setTrackings([]);
     } finally {
       setLoading(false);
     }
@@ -426,19 +389,8 @@ const TrackingManagement = () => {
         prevFiltered.filter((t) => !deletedTrackingNums.has(t.TrackingNum))
       );
       
-      // Also clear from cache
-      try {
-        const cached = localStorage.getItem("admin_trackings_cache");
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (parsed.data) {
-            parsed.data = parsed.data.filter((t) => !deletedTrackingNums.has(t.TrackingNum));
-            localStorage.setItem("admin_trackings_cache", JSON.stringify(parsed));
-          }
-        }
-      } catch (e) {
-        // ignore cache errors
-      }
+      // Refresh data from server to ensure consistency
+      await fetchTrackings();
       
       setSelectedTrackings([]);
     } catch (error) {
@@ -468,19 +420,8 @@ const TrackingManagement = () => {
         prevFiltered.filter((t) => t.id !== deleteTarget)
       );
       
-      // Also clear from cache
-      try {
-        const cached = localStorage.getItem("admin_trackings_cache");
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (parsed.data) {
-            parsed.data = parsed.data.filter((t) => t.id !== deleteTarget);
-            localStorage.setItem("admin_trackings_cache", JSON.stringify(parsed));
-          }
-        }
-      } catch (e) {
-        // ignore cache errors
-      }
+      // Refresh data from server to ensure consistency
+      await fetchTrackings();
     } catch (error) {
       console.error("Error deleting tracking:", error);
       toast.error(

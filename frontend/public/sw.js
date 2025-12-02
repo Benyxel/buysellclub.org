@@ -1,6 +1,4 @@
-// Service Worker: runtime caching for API and static assets
-const RUNTIME_CACHE = "runtime-cache-v1";
-const API_CACHE = "api-cache-sw-v1";
+// Service Worker: Only cache static assets, NOT API calls
 const ASSET_CACHE = "asset-cache-v1";
 
 self.addEventListener("install", (event) => {
@@ -12,11 +10,18 @@ self.addEventListener("activate", (event) => {
     (async () => {
       // Claim clients immediately so SW starts controlling pages
       await self.clients.claim();
+      // Clear old API caches
+      const cacheNames = await caches.keys();
+      await Promise.all(
+        cacheNames
+          .filter((name) => name.includes("api-cache") || name.includes("runtime-cache"))
+          .map((name) => caches.delete(name))
+      );
     })()
   );
 });
 
-// Simple utility to limit cache size (not perfect LRU)
+// Simple utility to limit cache size
 async function trimCache(cacheName, maxEntries = 100) {
   const cache = await caches.open(cacheName);
   const keys = await cache.keys();
@@ -35,49 +40,14 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(req.url);
 
-  // Stale-while-revalidate for API calls (contains /buysellapi/ or /api/)
+  // DO NOT CACHE API CALLS - Always fetch fresh from network
   if (req.url.includes("/buysellapi/") || req.url.includes("/api/")) {
-    event.respondWith(
-      (async () => {
-        const cache = await caches.open(API_CACHE);
-        const cachedResponse = await cache.match(req);
-
-        const networkFetch = fetch(req)
-          .then(async (networkResponse) => {
-            try {
-              if (networkResponse && networkResponse.status === 200) {
-                await cache.put(req, networkResponse.clone());
-                // Trim cache to reasonable size
-                trimCache(API_CACHE, 200);
-              }
-            } catch (e) {
-              // ignore storage errors
-            }
-            return networkResponse;
-          })
-          .catch(() => null);
-
-        // If we have cached response return it immediately and kick off network refresh
-        if (cachedResponse) {
-          // update in background
-          event.waitUntil(networkFetch);
-          return cachedResponse;
-        }
-
-        // Otherwise wait for network
-        const fres = await networkFetch;
-        if (fres) return fres;
-        // fallback to cache if network fails
-        return (
-          cachedResponse ||
-          new Response(null, { status: 503, statusText: "Service Unavailable" })
-        );
-      })()
-    );
+    // Just pass through to network, no caching
+    event.respondWith(fetch(req));
     return;
   }
 
-  // Cache-first for same-origin static assets (css/js/images)
+  // Cache-first for same-origin static assets (css/js/images) only
   if (
     url.origin === location.origin &&
     (req.destination === "script" ||
@@ -108,7 +78,7 @@ self.addEventListener("fetch", (event) => {
   }
 });
 
-// Listen for skipWaiting message
+// Listen for messages
 self.addEventListener("message", (event) => {
   if (event.data && event.data.type === "SKIP_WAITING") {
     self.skipWaiting();

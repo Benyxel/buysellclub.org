@@ -17,7 +17,6 @@ import {
   createQuickOrderProduct,
   updateQuickOrderProduct,
   deleteQuickOrderProduct,
-  clearQuickOrderProductsCache,
 } from "../../api";
 
 const QuickOrderProducts = () => {
@@ -116,11 +115,8 @@ const QuickOrderProducts = () => {
     }
 
     try {
-      // Use the API wrapper which will handle cache invalidation
+      // Use the API wrapper
       await deleteQuickOrderProduct(id);
-
-      // Clear cache for quick order products to ensure fresh data on public page
-      clearQuickOrderProductsCache();
 
       toast.success("Product deleted successfully", { toastId: "delete-product-success" });
       setConfirmDelete(null);

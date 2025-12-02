@@ -49,7 +49,8 @@ function HeroSection({ title, description, image }) {
     const link = document.createElement("link");
     link.rel = "preload";
     link.as = "image";
-    link.href = heroSlide1;
+    // Preload the first hero image (HeroS1.png)
+    link.href = HeroData[0].src;
     document.head.appendChild(link);
 
     return () => {

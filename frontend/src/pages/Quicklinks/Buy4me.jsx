@@ -14,7 +14,7 @@ import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import buyimg from "../../assets/bm2.jpg";
 import { useNavigate, useLocation } from "react-router-dom";
-import { createBuy4meRequest, updateBuy4meRequest, getQuickOrderProducts, clearQuickOrderProductsCache } from "../../api";
+import { createBuy4meRequest, updateBuy4meRequest, getQuickOrderProducts } from "../../api";
 
 // Removed placeholder products - only show products from backend API
 
@@ -51,9 +51,7 @@ const Buy4me = () => {
     const fetchQuickOrderProducts = async () => {
       try {
         setIsLoading(true);
-        // Clear any cached quick order products to ensure fresh data
-        clearQuickOrderProductsCache();
-        // Use skipCache to ensure fresh data (no cached products)
+        // Always fetch fresh data from server
         const response = await getQuickOrderProducts();
         console.log("Quick order products API response:", response);
         

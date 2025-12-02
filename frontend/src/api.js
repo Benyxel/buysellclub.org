@@ -67,49 +67,6 @@ const getCookie = (name) => {
   return null;
 };
 
-// Simple request cache for GET requests (5 second TTL)
-const requestCache = new Map();
-const CACHE_TTL = 5000; // 5 seconds
-
-const getCacheKey = (method, url, params) => {
-  const paramsStr = params ? JSON.stringify(params) : "";
-  return `${method}:${url}:${paramsStr}`;
-};
-
-// Expose getCacheKey globally in the browser to avoid ReferenceError
-// in production bundles that may reference it without proper imports.
-if (typeof window !== "undefined") {
-  try {
-    window.getCacheKey = getCacheKey;
-  } catch (e) {
-    // ignore if environment prevents attaching to window
-  }
-}
-
-const getCachedResponse = (key) => {
-  const cached = requestCache.get(key);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    return cached.data;
-  }
-  requestCache.delete(key);
-  return null;
-};
-
-const setCachedResponse = (key, data) => {
-  requestCache.set(key, {
-    data,
-    timestamp: Date.now(),
-  });
-  // Clean up old cache entries periodically
-  if (requestCache.size > 100) {
-    const now = Date.now();
-    for (const [k, v] of requestCache.entries()) {
-      if (now - v.timestamp > CACHE_TTL) {
-        requestCache.delete(k);
-      }
-    }
-  }
-};
 
 // ---------------------------------------------------------------------------
 // Axios client
@@ -168,12 +125,6 @@ api.interceptors.request.use(
     config.withCredentials = true;
     config.url = normalizePath(config.url);
 
-    // Store cache key for response interceptor (for GET requests)
-    if ((config.method || "get").toLowerCase() === "get" && !config.skipCache) {
-      const paramsStr = config.params ? JSON.stringify(config.params) : "";
-      config.__cacheKey = `${config.method}:${config.url}:${paramsStr}`;
-    }
-
     return config;
   },
   (error) => Promise.reject(error)
@@ -181,30 +132,6 @@ api.interceptors.request.use(
 
 api.interceptors.response.use(
   (response) => {
-    // Cache successful GET responses (only if not already cached)
-    if (
-      response.config?.__cacheKey &&
-      response.status === 200 &&
-      !response.config.__cached
-    ) {
-      const key = response.config.__cacheKey;
-      const cached = requestCache.get(key);
-      if (!cached || Date.now() - cached.timestamp >= CACHE_TTL) {
-        requestCache.set(key, {
-          data: response.data,
-          timestamp: Date.now(),
-        });
-        // Clean up old cache entries periodically
-        if (requestCache.size > 100) {
-          const now = Date.now();
-          for (const [k, v] of requestCache.entries()) {
-            if (now - v.timestamp > CACHE_TTL) {
-              requestCache.delete(k);
-            }
-          }
-        }
-      }
-    }
     return response;
   },
   async (error) => {
@@ -262,259 +189,32 @@ api.interceptors.response.use(
   }
 );
 
-// Persistent localStorage-backed cache helpers for GET requests.
-const PERSISTENT_CACHE_KEY = "api_cache_v1";
-const ADMIN_CACHE_VERSION_KEY = "admin_cache_version";
-const DEFAULT_PERSISTENT_TTL = 2 * 60 * 1000; // 2 minutes
-const ADMIN_CACHE_TTL = Infinity; // Admin data never expires unless invalidated
-
-// Admin cache version - increment this when admin data changes
-let adminCacheVersion = (() => {
-  try {
-    return parseInt(localStorage.getItem(ADMIN_CACHE_VERSION_KEY) || "1", 10);
-  } catch {
-    return 1;
-  }
-})();
-
-// Increment admin cache version (call this when admin data is modified)
-export const invalidateAdminCache = () => {
-  adminCacheVersion += 1;
-  try {
-    localStorage.setItem(ADMIN_CACHE_VERSION_KEY, String(adminCacheVersion));
-    // Clear all admin-related cache entries
-    const store = loadPersistentCache();
-    const keysToDelete = Object.keys(store).filter(
-      (key) => key.includes("/admin/") || key.includes("/buysellapi/admin/")
-    );
-    keysToDelete.forEach((key) => delete store[key]);
-    savePersistentCache(store);
-
-    // Also clear component-level admin caches
-    try {
-      localStorage.removeItem("admin_users_cache");
-      localStorage.removeItem("admin_buy4me_cache");
-      localStorage.removeItem("admin_trackings_cache");
-      localStorage.removeItem("admin_orders_cache");
-      localStorage.removeItem("admin_dashboard_cache");
-    } catch (e) {
-      // ignore
-    }
-  } catch (e) {
-    console.warn("Failed to invalidate admin cache:", e);
-  }
-};
-
-const loadPersistentCache = () => {
-  try {
-    const raw = localStorage.getItem(PERSISTENT_CACHE_KEY);
-    if (!raw) return {};
-    return JSON.parse(raw);
-  } catch (e) {
-    return {};
-  }
-};
-
-const savePersistentCache = (obj) => {
-  try {
-    localStorage.setItem(PERSISTENT_CACHE_KEY, JSON.stringify(obj));
-  } catch (e) {
-    // ignore quota errors
-  }
-};
-
-const getPersistent = (key, isAdmin = false) => {
-  const store = loadPersistentCache();
-  const entry = store[key];
-  if (!entry) return null;
-
-  // Check admin cache version for admin endpoints
-  if (isAdmin && entry.cacheVersion !== adminCacheVersion) {
-    delete store[key];
-    savePersistentCache(store);
-    return null;
-  }
-
-  // For non-admin or matching version, check TTL
-  const ttl = isAdmin ? ADMIN_CACHE_TTL : entry.ttl || DEFAULT_PERSISTENT_TTL;
-  if (Date.now() - entry.timestamp > ttl) {
-    // stale
-    delete store[key];
-    savePersistentCache(store);
-    return null;
-  }
-  return entry.data;
-};
-
-const setPersistent = (
-  key,
-  data,
-  ttl = DEFAULT_PERSISTENT_TTL,
-  isAdmin = false
-) => {
-  const store = loadPersistentCache();
-  store[key] = {
-    data,
-    timestamp: Date.now(),
-    ttl: isAdmin ? ADMIN_CACHE_TTL : ttl,
-    cacheVersion: isAdmin ? adminCacheVersion : undefined,
-  };
-  savePersistentCache(store);
-  // keep in-memory small cache in sync too
-  requestCache.set(key, { data, timestamp: Date.now() });
-};
-
-// Minimum loading delay (100ms) to ensure loading states are visible but not too slow
-const MIN_LOADING_DELAY = 100;
-const delayPromise = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-// Check if URL is an admin endpoint
-// Admin endpoints include:
-// - URLs with /admin/ or /buysellapi/admin/ or /api/admin/
-// - /buysellapi/users/ (when accessed by admin - check adminToken)
-// - /buysellapi/trackings/ (when accessed by admin - check adminToken)
-const isAdminEndpoint = (url, config = {}) => {
-  // Explicitly marked as admin
-  if (config.isAdmin === true) {
-    return true;
-  }
-
-  // URLs with /admin/ in path
-  if (
-    url.includes("/admin/") ||
-    url.includes("/buysellapi/admin/") ||
-    url.includes("/api/admin/")
-  ) {
-    return true;
-  }
-
-  // Check if user has adminToken (indicates admin session)
-  const hasAdminToken =
-    typeof localStorage !== "undefined" && localStorage.getItem("adminToken");
-
-  // Admin-specific endpoints that don't have /admin/ in path
-  // Only treat as admin if adminToken exists (admin is logged in)
-  if (hasAdminToken) {
-    const normalizedUrl = url.split("?")[0]; // Remove query params
-    const adminPatterns = [
-      "/buysellapi/users/", // Admin user management (returns all users for admin)
-      "/buysellapi/trackings/", // Admin tracking management (returns all trackings for admin)
-    ];
-    return adminPatterns.some(
-      (pattern) => normalizedUrl === pattern || normalizedUrl.endsWith(pattern)
-    );
-  }
-
-  return false;
-};
 
 // Convenience wrapper so every call goes through the same validation.
-// Enhanced GET: in-memory cache (short TTL) + persistent localStorage (longer TTL)
-// Returns cached response immediately when available (stale-while-revalidate) and
-// triggers a background refresh to update caches.
-// Admin endpoints: cache never expires unless invalidated
+// No caching - always fetch fresh data from server
 const http = {
   get: async (path, config = {}) => {
     const url = normalizePath(path);
-    const method = "get";
     const params = config.params || null;
-    const skipCache = config.skipCache || false;
-    const persistentTTL = config.persistentTTL || DEFAULT_PERSISTENT_TTL;
-    const isAdmin = isAdminEndpoint(url, config);
-
-    const key = getCacheKey(method, url, params);
-    const startTime = Date.now();
-
-    if (!skipCache) {
-      // 1) check in-memory cache (very short lived)
-      const mem = getCachedResponse(key);
-      if (mem) {
-        // Return cached data immediately - no delay needed for cached responses
-        return { data: mem, status: 200, config: { url } };
-      }
-
-      // 2) check persistent cache (survives refresh)
-      const persisted = getPersistent(key, isAdmin);
-      if (persisted) {
-        // Return cached data immediately - no delay needed for cached responses
-
-        // For admin endpoints, don't background refresh (data only changes on mutations)
-        // For non-admin, trigger background refresh (don't await)
-        if (!isAdmin) {
-          (async () => {
-            try {
-              const resp = await api.get(url, {
-                params,
-                withCredentials: true,
-              });
-              if (resp && resp.status === 200) {
-                setPersistent(key, resp.data, persistentTTL, false);
-              }
-            } catch (e) {
-              // background refresh failure - ignore
-            }
-          })();
-        }
-
-        return { data: persisted, status: 200, config: { url } };
-      }
-    }
-
-    // No valid cache -> perform network request (no artificial delay for better UX)
-    const resp = await api.get(url, { params, ...config });
-
-    try {
-      if (resp && resp.status === 200) {
-        // update both caches
-        requestCache.set(key, { data: resp.data, timestamp: Date.now() });
-        setPersistent(key, resp.data, persistentTTL, isAdmin);
-      }
-    } catch (e) {
-      // ignore cache failures
-    }
-    return resp;
+    return await api.get(url, { params, ...config });
   },
   delete: async (path, config = {}) => {
     const url = normalizePath(path);
-    const isAdmin = isAdminEndpoint(url, config);
-    const resp = await api.delete(url, config);
-    // Invalidate admin cache on delete
-    if (isAdmin && resp && resp.status >= 200 && resp.status < 300) {
-      invalidateAdminCache();
-    }
-    return resp;
+    return await api.delete(url, config);
   },
   head: (path, config) => api.head(normalizePath(path), config),
   options: (path, config) => api.options(normalizePath(path), config),
   post: async (path, data, config = {}) => {
     const url = normalizePath(path);
-    const isAdmin = isAdminEndpoint(url, config);
-    const resp = await api.post(url, data, config);
-    // Invalidate admin cache on create
-    if (isAdmin && resp && resp.status >= 200 && resp.status < 300) {
-      invalidateAdminCache();
-    }
-    return resp;
+    return await api.post(url, data, config);
   },
   put: async (path, data, config = {}) => {
     const url = normalizePath(path);
-    const isAdmin = isAdminEndpoint(url, config);
-    const resp = await api.put(url, data, config);
-    // Invalidate admin cache on update
-    if (isAdmin && resp && resp.status >= 200 && resp.status < 300) {
-      invalidateAdminCache();
-    }
-    return resp;
+    return await api.put(url, data, config);
   },
   patch: async (path, data, config = {}) => {
     const url = normalizePath(path);
-    const isAdmin = isAdminEndpoint(url, config);
-    const resp = await api.patch(url, data, config);
-    // Invalidate admin cache on patch
-    if (isAdmin && resp && resp.status >= 200 && resp.status < 300) {
-      invalidateAdminCache();
-    }
-    return resp;
+    return await api.patch(url, data, config);
   },
 };
 
@@ -581,11 +281,13 @@ const Api = {
     dashboard: () => http.get("/buysellapi/shipping-dashboard/"),
   },
   alipay: {
-    payments: (params) => http.get("/buysellapi/admin/alipay-payments", { params }),
+    payments: (params) => {
+      return http.get("/buysellapi/admin/alipay-payments", { params });
+    },
     rate: () => http.get("/buysellapi/alipay-exchange-rate/"),
   },
   quickOrder: {
-    list: (params) => http.get("/buysellapi/quick-order-products/", { params, skipCache: true }),
+    list: (params) => http.get("/buysellapi/quick-order-products/", { params }),
     adminList: () => http.get("/buysellapi/admin/quick-order-products/"),
     adminDetail: (id) =>
       http.get(`/buysellapi/admin/quick-order-products/${id}/`),
@@ -621,6 +323,10 @@ const Api = {
     bookings: (params) =>
       http.get("/buysellapi/training-bookings/", { params }),
     book: (payload) => http.post("/buysellapi/training-bookings/", payload),
+    bookPublic: (payload) => http.post("/buysellapi/public/training-bookings/", payload),
+    settings: () => http.get("/buysellapi/training-settings/"),
+    updateSettings: (payload) => http.post("/buysellapi/training-settings/", payload),
+    payment: (id, payload) => http.put(`/buysellapi/training-bookings/${id}/payment/`, payload),
     adminBookings: (params) =>
       http.get("/buysellapi/admin/training-bookings/", { params }),
     adminCourses: (params) =>
@@ -642,8 +348,6 @@ const Api = {
 export default api;
 export { Api, http };
 
-// Also export the cache key helper for any external usage
-export { getCacheKey };
 
 export const getProducts = Api.products.list;
 export const getProduct = Api.products.detail;
@@ -677,28 +381,7 @@ export const updateBuy4meRequestTracking = Api.buy4me.admin.updateTracking;
 export const createBuy4meRequestInvoice = Api.buy4me.admin.invoice.create;
 export const updateBuy4meRequestInvoiceStatus = Api.buy4me.admin.invoice.update;
 
-// Helper to clear quick order products cache
-const clearQuickOrderProductsCache = () => {
-  try {
-    const store = loadPersistentCache();
-    const keysToDelete = Object.keys(store).filter(
-      (key) => key.includes("quick-order-products")
-    );
-    keysToDelete.forEach((key) => delete store[key]);
-    savePersistentCache(store);
-    // Also clear in-memory cache
-    for (const [key] of requestCache.entries()) {
-      if (key.includes("quick-order-products")) {
-        requestCache.delete(key);
-      }
-    }
-  } catch (e) {
-    console.warn("Failed to clear quick order products cache:", e);
-  }
-};
-
 export const getQuickOrderProducts = Api.quickOrder.list;
-export { clearQuickOrderProductsCache };
 export const getAdminQuickOrderProducts = Api.quickOrder.adminList;
 export const getAdminQuickOrderProduct = Api.quickOrder.adminDetail;
 export const createQuickOrderProduct = Api.quickOrder.create;

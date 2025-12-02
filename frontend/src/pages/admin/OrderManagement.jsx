@@ -34,7 +34,7 @@ const OrderManagement = () => {
   const fetchOrders = async () => {
     setLoading(true);
     try {
-      // Use admin endpoint to get all orders
+      // Use admin endpoint to get all orders - always fetch fresh data
       const response = await API.get("/buysellapi/admin/orders/");
       const ordersData = Array.isArray(response.data) ? response.data : (response.data.results || []);
       setOrders(ordersData);
@@ -116,7 +116,7 @@ const OrderManagement = () => {
 
       toast.success('Order status updated successfully');
       closeStatusModal();
-      fetchOrders(); // Refresh orders
+      fetchOrders(); // Refresh orders with fresh data
     } catch (error) {
       console.error('Error updating order status:', error);
       const errorMessage = error.response?.data?.status || error.response?.data?.payment_status || error.response?.data?.error || 'Failed to update order status';
