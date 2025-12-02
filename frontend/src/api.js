@@ -581,7 +581,7 @@ const Api = {
     dashboard: () => http.get("/buysellapi/shipping-dashboard/"),
   },
   alipay: {
-    payments: (params) => http.get("/api/admin/alipay-payments", { params }),
+    payments: (params) => http.get("/buysellapi/admin/alipay-payments", { params }),
     rate: () => http.get("/buysellapi/alipay-exchange-rate/"),
   },
   quickOrder: {

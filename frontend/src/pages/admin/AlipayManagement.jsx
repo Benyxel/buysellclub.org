@@ -12,7 +12,7 @@ import {
   FaExclamationTriangle,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
-import API from "../../api";
+import API, { Api } from "../../api";
 import ConfirmModal from "../../components/shared/ConfirmModal";
 
 const AlipayManagement = () => {
@@ -37,16 +37,23 @@ const AlipayManagement = () => {
   const fetchPayments = useCallback(async () => {
     try {
       setLoading(true);
-      const { data } = await API.get("/buysellapi/admin/alipay-payments/", {
-        params: {
-          page: currentPage,
-          limit: 10,
-          ...(statusFilter ? { status: statusFilter } : {}),
-        },
+      console.log("Fetching Alipay payments with params:", {
+        page: currentPage,
+        limit: 10,
+        ...(statusFilter ? { status: statusFilter } : {}),
       });
+      const response = await Api.alipay.payments({
+        page: currentPage,
+        limit: 10,
+        ...(statusFilter ? { status: statusFilter } : {}),
+      });
+      console.log("Alipay payments response:", response);
+      const { data } = response;
+      console.log("Alipay payments data:", data);
+      
       // Handle both paginated and non-paginated responses
       if (data.results !== undefined) {
-        // Paginated response
+        // Paginated response (Django REST framework style)
         setPayments(data.results || []);
         setTotalPages(data.total_pages || Math.ceil((data.count || 0) / 10) || 1);
       } else if (Array.isArray(data)) {
@@ -54,16 +61,25 @@ const AlipayManagement = () => {
         setPayments(data);
         setTotalPages(1);
       } else if (data.data) {
-        // Legacy format
+        // Backend format: { data: [...], page, limit, total, totalPages }
         setPayments(data.data || []);
         setTotalPages(data.totalPages || 1);
       } else {
         // Empty or unknown format - set empty array (valid state)
+        console.warn("Unexpected response format:", data);
         setPayments([]);
         setTotalPages(1);
       }
     } catch (error) {
       console.error("Error fetching payments:", error);
+      console.error("Error details:", {
+        message: error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        url: error.config?.url,
+        method: error.config?.method,
+      });
       // Only show error for actual failures, not empty data
       // Empty data (200 OK with empty array) is a valid response
       const status = error.response?.status;
@@ -71,9 +87,15 @@ const AlipayManagement = () => {
         // Only show error for 4xx/5xx errors, not for empty data
         const errorMsg = error.response?.data?.detail || 
                          error.response?.data?.error || 
+                         error.response?.data?.message ||
                          error.message || 
                          "Error fetching Alipay payments";
         toast.error(errorMsg, { toastId: "fetch-payments-error" });
+      } else if (!status) {
+        // Network error or no response
+        toast.error("Network error: Unable to fetch Alipay payments. Please check your connection.", { 
+          toastId: "fetch-payments-network-error" 
+        });
       }
       // Always set empty array on error to prevent UI crashes
       setPayments([]);
