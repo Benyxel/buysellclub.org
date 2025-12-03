@@ -51,6 +51,8 @@ import Invoice from "./Invoice";
 import InvoiceModal from "./InvoiceModal";
 import { getPlaceholderImagePath } from "../utils/paths";
 import ConfirmModal from "./shared/ConfirmModal";
+import AvatarSelector, { AVATARS } from "./AvatarSelector";
+import AvatarSVG from "./AvatarSVG";
 
 const MyProfile = () => {
   // Status mapping from backend values to display labels
@@ -69,6 +71,38 @@ const MyProfile = () => {
       pick_up: "Pick up",
     };
     return statusMap[statusValue] || statusValue;
+  };
+
+  // Function to check if avatar exists
+  const hasAvatar = (avatarId) => {
+    if (!avatarId) return false;
+    for (const gender of ['male', 'female']) {
+      const avatar = AVATARS[gender].find(a => a.id === avatarId);
+      if (avatar) return true;
+    }
+    return false;
+  };
+
+  // Function to handle avatar selection
+  const handleAvatarSelect = async (avatarId) => {
+    try {
+      setSelectedAvatar(avatarId);
+      
+      // Update avatar on backend
+      const token = localStorage.getItem("token");
+      if (token) {
+        await API.patch("/buysellapi/users/me/", { avatar: avatarId });
+        toast.success("Avatar updated successfully!");
+        
+        // Refresh user profile
+        await fetchUserProfile();
+      }
+    } catch (error) {
+      console.error("Failed to update avatar:", error);
+      toast.error("Failed to update avatar. Please try again.");
+      // Revert on error
+      setSelectedAvatar(currentUser?.avatar || '');
+    }
   };
 
   const [isEditing, setIsEditing] = useState(false);
@@ -135,6 +169,9 @@ const MyProfile = () => {
   const [notifyOrderUpdates, setNotifyOrderUpdates] = useState(true);
   const [notifyPromotions, setNotifyPromotions] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  // Avatar selector state
+  const [showAvatarSelector, setShowAvatarSelector] = useState(false);
+  const [selectedAvatar, setSelectedAvatar] = useState('');
   // Tracking details modal state
   const [selectedTracking, setSelectedTracking] = useState(null);
   const [showTrackingModal, setShowTrackingModal] = useState(false);
@@ -394,6 +431,8 @@ const MyProfile = () => {
       setUserInfo(normalized);
       setOriginalUserInfo(normalized);
       setCurrentUser(u);
+      // Set avatar from user data
+      setSelectedAvatar(u.avatar || '');
       // Initialize notification preferences from backend (with fallbacks)
       setNotifyEmail(u.notify_email !== undefined ? !!u.notify_email : true);
       setNotifyOrderUpdates(
@@ -703,8 +742,8 @@ const MyProfile = () => {
         return;
       }
 
-      // Make API call to update profile
-      const response = await API.put(
+      // Make API call to update profile (use PATCH — backend supports PATCH on users/me/)
+      const response = await API.patch(
         `/buysellapi/users/me/`,
         {
           name: userInfo.name,
@@ -1994,11 +2033,18 @@ const MyProfile = () => {
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-8">
           <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
             <div className="relative">
-              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                <FaUser className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400" />
+              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden">
+                {selectedAvatar && hasAvatar(selectedAvatar) ? (
+                  <AvatarSVG avatarId={selectedAvatar} size={96} className="w-full h-full" />
+                ) : (
+                  <FaUser className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400" />
+                )}
               </div>
               {isEditing && (
-                <button className="absolute bottom-0 right-0 bg-primary text-white p-2 rounded-full hover:bg-primary/90 transition-colors">
+                <button 
+                  onClick={() => setShowAvatarSelector(true)}
+                  className="absolute bottom-0 right-0 bg-primary text-white p-2 rounded-full hover:bg-primary/90 transition-colors shadow-lg"
+                >
                   <FaEdit className="w-4 h-4" />
                 </button>
               )}
@@ -4047,6 +4093,14 @@ const MyProfile = () => {
         confirmText="Clear All"
         cancelText="Cancel"
         type="danger"
+      />
+
+      {/* Avatar Selector Modal */}
+      <AvatarSelector
+        isOpen={showAvatarSelector}
+        onClose={() => setShowAvatarSelector(false)}
+        currentAvatar={selectedAvatar}
+        onSelect={handleAvatarSelect}
       />
     </div>
   );
