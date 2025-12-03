@@ -76,8 +76,8 @@ const MyProfile = () => {
   // Function to check if avatar exists
   const hasAvatar = (avatarId) => {
     if (!avatarId) return false;
-    for (const gender of ['male', 'female']) {
-      const avatar = AVATARS[gender].find(a => a.id === avatarId);
+    for (const gender of ["male", "female"]) {
+      const avatar = AVATARS[gender].find((a) => a.id === avatarId);
       if (avatar) return true;
     }
     return false;
@@ -87,13 +87,13 @@ const MyProfile = () => {
   const handleAvatarSelect = async (avatarId) => {
     try {
       setSelectedAvatar(avatarId);
-      
+
       // Update avatar on backend
       const token = localStorage.getItem("token");
       if (token) {
         await API.patch("/buysellapi/users/me/", { avatar: avatarId });
         toast.success("Avatar updated successfully!");
-        
+
         // Refresh user profile
         await fetchUserProfile();
       }
@@ -101,7 +101,7 @@ const MyProfile = () => {
       console.error("Failed to update avatar:", error);
       toast.error("Failed to update avatar. Please try again.");
       // Revert on error
-      setSelectedAvatar(currentUser?.avatar || '');
+      setSelectedAvatar(currentUser?.avatar || "");
     }
   };
 
@@ -148,7 +148,8 @@ const MyProfile = () => {
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [selectedInvoiceRequest, setSelectedInvoiceRequest] = useState(null);
   const [userInvoices, setUserInvoices] = useState([]);
-  const [selectedBuy4meTrackingOrder, setSelectedBuy4meTrackingOrder] = useState(null);
+  const [selectedBuy4meTrackingOrder, setSelectedBuy4meTrackingOrder] =
+    useState(null);
   const [showBuy4meTrackingModal, setShowBuy4meTrackingModal] = useState(false);
   const trackableBuy4meOrders = buy4meOrders.filter(
     (order) =>
@@ -171,7 +172,7 @@ const MyProfile = () => {
   const [currentUser, setCurrentUser] = useState(null);
   // Avatar selector state
   const [showAvatarSelector, setShowAvatarSelector] = useState(false);
-  const [selectedAvatar, setSelectedAvatar] = useState('');
+  const [selectedAvatar, setSelectedAvatar] = useState("");
   // Tracking details modal state
   const [selectedTracking, setSelectedTracking] = useState(null);
   const [showTrackingModal, setShowTrackingModal] = useState(false);
@@ -216,10 +217,7 @@ const MyProfile = () => {
       setError(null);
 
       // Fetch fresh data in parallel for faster loading
-      await Promise.all([
-        fetchUserProfile(),
-        fetchUserShippingMarks(),
-      ]);
+      await Promise.all([fetchUserProfile(), fetchUserShippingMarks()]);
 
       toast.success("Profile data refreshed successfully");
     } catch (error) {
@@ -275,10 +273,7 @@ const MyProfile = () => {
         }
 
         // Fetch profile and shipping mark data in parallel for faster loading
-        await Promise.all([
-          fetchUserProfile(),
-          fetchUserShippingMarks(),
-        ]);
+        await Promise.all([fetchUserProfile(), fetchUserShippingMarks()]);
       } catch (error) {
         console.error("Error in initial data fetch:", error);
         setError("Could not load profile data. Please try refreshing.");
@@ -321,7 +316,9 @@ const MyProfile = () => {
     const loadOrders = async () => {
       try {
         const response = await API.get("/buysellapi/orders/");
-        const ordersData = Array.isArray(response.data) ? response.data : (response.data.results || []);
+        const ordersData = Array.isArray(response.data)
+          ? response.data
+          : response.data.results || [];
         setOrders(ordersData);
       } catch (error) {
         console.error("Failed to load orders:", error);
@@ -339,7 +336,9 @@ const MyProfile = () => {
     const loadBuy4meOrders = async () => {
       try {
         const response = await API.get("/buysellapi/buy4me-requests/");
-        const ordersData = Array.isArray(response.data) ? response.data : (response.data.results || []);
+        const ordersData = Array.isArray(response.data)
+          ? response.data
+          : response.data.results || [];
         setBuy4meOrders(ordersData);
       } catch (error) {
         console.error("Failed to load buy4me orders:", error);
@@ -432,7 +431,7 @@ const MyProfile = () => {
       setOriginalUserInfo(normalized);
       setCurrentUser(u);
       // Set avatar from user data
-      setSelectedAvatar(u.avatar || '');
+      setSelectedAvatar(u.avatar || "");
       // Initialize notification preferences from backend (with fallbacks)
       setNotifyEmail(u.notify_email !== undefined ? !!u.notify_email : true);
       setNotifyOrderUpdates(
@@ -743,15 +742,12 @@ const MyProfile = () => {
       }
 
       // Make API call to update profile (use PATCH — backend supports PATCH on users/me/)
-      const response = await API.patch(
-        `/buysellapi/users/me/`,
-        {
-          name: userInfo.name,
-          email: userInfo.email,
-          phone: userInfo.phone,
-          address: userInfo.address,
-        }
-      );
+      const response = await API.patch(`/buysellapi/users/me/`, {
+        name: userInfo.name,
+        email: userInfo.email,
+        phone: userInfo.phone,
+        address: userInfo.address,
+      });
 
       if (response.data) {
         // Update local state with the data returned from server
@@ -969,9 +965,7 @@ const MyProfile = () => {
 
           try {
             const resp = await API.get(
-              `/buysellapi/trackings/by-number/${encodeURIComponent(
-                trackNum
-              )}/`
+              `/buysellapi/trackings/by-number/${encodeURIComponent(trackNum)}/`
             );
             if (resp.data) {
               const d = resp.data;
@@ -1057,10 +1051,7 @@ const MyProfile = () => {
         return;
       }
 
-      const response = await API.post(
-        `/buysellapi/trackings/`,
-        trackingData
-      );
+      const response = await API.post(`/buysellapi/trackings/`, trackingData);
 
       if (response.data) {
         // Add the new tracking to the state at the TOP (beginning of array)
@@ -1097,7 +1088,7 @@ const MyProfile = () => {
     try {
       const token = localStorage.getItem("token");
       const isAdmin = !!localStorage.getItem("adminToken");
-      
+
       // Admins don't need shipping marks
       if (isAdmin) {
         setMpHasShippingMark(true);
@@ -1114,7 +1105,7 @@ const MyProfile = () => {
           }
         } catch (_) {}
       }
-      
+
       // Check localStorage for shipping marks
       const saved = JSON.parse(localStorage.getItem("shippingMarks") || "[]");
       if (Array.isArray(saved) && saved.length > 0 && saved[0].id) {
@@ -1187,7 +1178,9 @@ const MyProfile = () => {
     // Check if user has shipping mark before allowing shipment addition
     const hasMark = await checkMpShippingMark();
     if (!hasMark) {
-      toast.error("You must generate a shipping mark before adding shipments. Please visit the Address Generator first.");
+      toast.error(
+        "You must generate a shipping mark before adding shipments. Please visit the Address Generator first."
+      );
       return;
     }
 
@@ -1221,9 +1214,7 @@ const MyProfile = () => {
 
           // Check if tracking exists in backend
           const resp = await API.get(
-            `/buysellapi/trackings/by-number/${encodeURIComponent(
-              tn
-            )}/`
+            `/buysellapi/trackings/by-number/${encodeURIComponent(tn)}/`
           );
 
           const backendTracking = resp?.data;
@@ -1571,12 +1562,11 @@ const MyProfile = () => {
       console.log("Device is back online, refreshing data...");
       setError(null);
       // Refresh data in parallel when coming back online
-      Promise.all([
-        fetchUserProfile(),
-        fetchUserShippingMarks(),
-      ]).catch((err) => {
-        console.error("Error refreshing data after coming online:", err);
-      });
+      Promise.all([fetchUserProfile(), fetchUserShippingMarks()]).catch(
+        (err) => {
+          console.error("Error refreshing data after coming online:", err);
+        }
+      );
       toast.success("You are back online! Data has been refreshed.");
     };
 
@@ -1991,16 +1981,18 @@ const MyProfile = () => {
 
       // Fetch buy4me requests with invoices
       const buy4meResponse = await API.get("/buysellapi/buy4me-requests/");
-      const buy4meRequests = Array.isArray(buy4meResponse.data) ? buy4meResponse.data : (buy4meResponse.data.results || []);
-      
+      const buy4meRequests = Array.isArray(buy4meResponse.data)
+        ? buy4meResponse.data
+        : buy4meResponse.data.results || [];
+
       // Filter requests that have invoices
       const invoicesWithRequests = buy4meRequests
-        .filter(request => request.invoice && request.invoice_created)
-        .map(request => ({
+        .filter((request) => request.invoice && request.invoice_created)
+        .map((request) => ({
           request: request,
-          invoice: request.invoice
+          invoice: request.invoice,
         }));
-      
+
       setUserInvoices(invoicesWithRequests);
     } catch (error) {
       console.error("Error fetching invoices:", error);
@@ -2035,13 +2027,17 @@ const MyProfile = () => {
             <div className="relative">
               <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden">
                 {selectedAvatar && hasAvatar(selectedAvatar) ? (
-                  <AvatarSVG avatarId={selectedAvatar} size={96} className="w-full h-full" />
+                  <AvatarSVG
+                    avatarId={selectedAvatar}
+                    size={96}
+                    className="w-full h-full"
+                  />
                 ) : (
                   <FaUser className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400" />
                 )}
               </div>
               {isEditing && (
-                <button 
+                <button
                   onClick={() => setShowAvatarSelector(true)}
                   className="absolute bottom-0 right-0 bg-primary text-white p-2 rounded-full hover:bg-primary/90 transition-colors shadow-lg"
                 >
@@ -2051,9 +2047,12 @@ const MyProfile = () => {
             </div>
             <div className="flex-1 text-center sm:text-left">
               <h1 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white mb-2 flex items-center justify-center sm:justify-start gap-2 flex-wrap">
-                {isLoading 
-                  ? "Loading..." 
-                  : userInfo.name || currentUser?.username || currentUser?.full_name || "User"}
+                {isLoading
+                  ? "Loading..."
+                  : userInfo.name ||
+                    currentUser?.username ||
+                    currentUser?.full_name ||
+                    "User"}
                 {currentUser?.is_agent && (
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20">
                     <FaUserTag className="mr-1" />
@@ -2062,8 +2061,8 @@ const MyProfile = () => {
                 )}
               </h1>
               <p className="text-gray-600 dark:text-gray-400">
-                {isLoading 
-                  ? "Please wait..." 
+                {isLoading
+                  ? "Please wait..."
                   : userInfo.email || currentUser?.email || "No email"}
               </p>
               {currentUser?.is_agent && (
@@ -2586,14 +2585,20 @@ const MyProfile = () => {
                       onClick={async () => {
                         const hasMark = await checkMpShippingMark();
                         if (!hasMark) {
-                          toast.error("You must generate a shipping mark before adding shipments. Please visit the Address Generator first.");
+                          toast.error(
+                            "You must generate a shipping mark before adding shipments. Please visit the Address Generator first."
+                          );
                           return;
                         }
                         setMpShowAddForm(true);
                       }}
                       className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       disabled={!mpHasShippingMark}
-                      title={!mpHasShippingMark ? "Generate a shipping mark first" : ""}
+                      title={
+                        !mpHasShippingMark
+                          ? "Generate a shipping mark first"
+                          : ""
+                      }
                     >
                       <FaTruck className="w-4 h-4" />
                       Add Shipment
@@ -2645,14 +2650,20 @@ const MyProfile = () => {
                         onClick={async () => {
                           const hasMark = await checkMpShippingMark();
                           if (!hasMark) {
-                            toast.error("You must generate a shipping mark before adding shipments. Please visit the Address Generator first.");
+                            toast.error(
+                              "You must generate a shipping mark before adding shipments. Please visit the Address Generator first."
+                            );
                             return;
                           }
                           setMpShowAddForm(true);
                         }}
                         className="inline-block mt-4 px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         disabled={!mpHasShippingMark}
-                        title={!mpHasShippingMark ? "Generate a shipping mark first" : ""}
+                        title={
+                          !mpHasShippingMark
+                            ? "Generate a shipping mark first"
+                            : ""
+                        }
                       >
                         Add Shipment
                       </button>
@@ -3086,25 +3097,28 @@ const MyProfile = () => {
                       </div>
                     ) : (
                       <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
-                        {(showAllBuy4meOrders ? buy4meOrders : buy4meOrders.slice(0, 2)).map((order) => {
+                        {(showAllBuy4meOrders
+                          ? buy4meOrders
+                          : buy4meOrders.slice(0, 2)
+                        ).map((order) => {
                           const getStatusColor = (status) => {
                             switch (status?.toLowerCase()) {
-                              case 'pending':
-                                return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
-                              case 'approved':
-                                return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
-                              case 'processing':
-                                return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200';
-                              case 'completed':
-                                return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
-                              case 'cancelled':
-                              case 'rejected':
-                                return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+                              case "pending":
+                                return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200";
+                              case "approved":
+                                return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
+                              case "processing":
+                                return "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200";
+                              case "completed":
+                                return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
+                              case "cancelled":
+                              case "rejected":
+                                return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200";
                               default:
-                                return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
+                                return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200";
                             }
                           };
-                          
+
                           return (
                             <div
                               key={order.id}
@@ -3115,43 +3129,67 @@ const MyProfile = () => {
                                   {order.title}
                                 </h3>
                                 <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
-                                  {order.description || 'No description'}
+                                  {order.description || "No description"}
                                 </p>
                               </div>
                               <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
                                 <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                                  <span>{new Date(order.created_at || order.createdAt || order.date).toLocaleDateString()}</span>
-                                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                                    {order.status ? order.status.charAt(0).toUpperCase() + order.status.slice(1) : 'Pending'}
+                                  <span>
+                                    {new Date(
+                                      order.created_at ||
+                                        order.createdAt ||
+                                        order.date
+                                    ).toLocaleDateString()}
                                   </span>
-                                  {order.invoice && order.invoice.status === "pending" && (
-                                    <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
-                                      Invoice Pending
-                                    </span>
-                                  )}
-                                  {order.invoice && order.invoice.status === "paid" && (
-                                    <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                                      Invoice Paid
-                                    </span>
-                                  )}
+                                  <span
+                                    className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
+                                      order.status
+                                    )}`}
+                                  >
+                                    {order.status
+                                      ? order.status.charAt(0).toUpperCase() +
+                                        order.status.slice(1)
+                                      : "Pending"}
+                                  </span>
+                                  {order.invoice &&
+                                    order.invoice.status === "pending" && (
+                                      <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                                        Invoice Pending
+                                      </span>
+                                    )}
+                                  {order.invoice &&
+                                    order.invoice.status === "paid" && (
+                                      <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                        Invoice Paid
+                                      </span>
+                                    )}
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  {order.status === 'pending' && (
+                                  {order.status === "pending" && (
                                     <button
-                                      onClick={() => navigate("/Buy4me", { state: { order } })}
+                                      onClick={() =>
+                                        navigate("/Buy4me", {
+                                          state: { order },
+                                        })
+                                      }
                                       className="px-3 py-1 text-xs font-medium bg-primary text-white rounded-md hover:bg-primary/90 transition-colors"
                                     >
                                       Edit
                                     </button>
                                   )}
-                                  {order.invoice && order.invoice.status === "pending" && (
-                                    <button
-                                      onClick={() => navigate("/Payment", { state: { order } })}
-                                      className="px-3 py-1 text-xs font-medium bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
-                                    >
-                                      Pay Invoice
-                                    </button>
-                                  )}
+                                  {order.invoice &&
+                                    order.invoice.status === "pending" && (
+                                      <button
+                                        onClick={() =>
+                                          navigate("/Payment", {
+                                            state: { order },
+                                          })
+                                        }
+                                        className="px-3 py-1 text-xs font-medium bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+                                      >
+                                        Pay Invoice
+                                      </button>
+                                    )}
                                 </div>
                               </div>
                             </div>
@@ -3160,10 +3198,14 @@ const MyProfile = () => {
                         {buy4meOrders.length > 2 && (
                           <div className="text-center pt-3 border-t border-gray-200 dark:border-gray-700">
                             <button
-                              onClick={() => setShowAllBuy4meOrders((prev) => !prev)}
+                              onClick={() =>
+                                setShowAllBuy4meOrders((prev) => !prev)
+                              }
                               className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-primary border border-primary rounded-lg hover:bg-primary/10 transition-colors"
                             >
-                              {showAllBuy4meOrders ? 'Show fewer orders' : `View all ${buy4meOrders.length} orders`}
+                              {showAllBuy4meOrders
+                                ? "Show fewer orders"
+                                : `View all ${buy4meOrders.length} orders`}
                             </button>
                           </div>
                         )}
@@ -3182,7 +3224,8 @@ const MyProfile = () => {
                           No Buy4Me shipments to track
                         </p>
                         <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
-                          Your Buy4Me shipments will appear here once they are approved
+                          Your Buy4Me shipments will appear here once they are
+                          approved
                         </p>
                         <Link
                           to="/Buy4me"
@@ -3194,26 +3237,58 @@ const MyProfile = () => {
                     ) : (
                       <div
                         className="space-y-3 max-h-[600px] overflow-y-auto pr-2"
-                        style={{ scrollbarWidth: "thin", scrollbarColor: "#cbd5e0 transparent" }}
+                        style={{
+                          scrollbarWidth: "thin",
+                          scrollbarColor: "#cbd5e0 transparent",
+                        }}
                       >
-                        {(showAllBuy4meTracking ? trackableBuy4meOrders : trackableBuy4meOrders.slice(0, 2)).map((order) => {
+                        {(showAllBuy4meTracking
+                          ? trackableBuy4meOrders
+                          : trackableBuy4meOrders.slice(0, 2)
+                        ).map((order) => {
                           const trackingSteps = [
-                            { key: 'sourcing', label: 'Sourcing', icon: FaSearch },
-                            { key: 'buying', label: 'Buying', icon: FaShoppingCart },
-                            { key: 'sent_to_warehouse', label: 'Sent to Warehouse', icon: FaBox },
-                            { key: 'shipped', label: 'Shipped', icon: FaTruck },
-                            { key: 'at_the_port', label: 'At the Port', icon: FaShip },
-                            { key: 'off_loading', label: 'Off Loading', icon: FaBoxOpen },
-                            { key: 'pickup', label: 'Pickup', icon: FaCheckCircle },
+                            {
+                              key: "sourcing",
+                              label: "Sourcing",
+                              icon: FaSearch,
+                            },
+                            {
+                              key: "buying",
+                              label: "Buying",
+                              icon: FaShoppingCart,
+                            },
+                            {
+                              key: "sent_to_warehouse",
+                              label: "Sent to Warehouse",
+                              icon: FaBox,
+                            },
+                            { key: "shipped", label: "Shipped", icon: FaTruck },
+                            {
+                              key: "at_the_port",
+                              label: "At the Port",
+                              icon: FaShip,
+                            },
+                            {
+                              key: "off_loading",
+                              label: "Off Loading",
+                              icon: FaBoxOpen,
+                            },
+                            {
+                              key: "pickup",
+                              label: "Pickup",
+                              icon: FaCheckCircle,
+                            },
                           ];
-                          
-                          const currentStepIndex = order.tracking_status 
-                            ? trackingSteps.findIndex(step => step.key === order.tracking_status)
+
+                          const currentStepIndex = order.tracking_status
+                            ? trackingSteps.findIndex(
+                                (step) => step.key === order.tracking_status
+                              )
                             : -1;
-                          
+
                           return (
-                            <div 
-                              key={order.id} 
+                            <div
+                              key={order.id}
                               onClick={() => {
                                 setSelectedBuy4meTrackingOrder(order);
                                 setShowBuy4meTrackingModal(true);
@@ -3230,7 +3305,8 @@ const MyProfile = () => {
                                   </p>
                                   {currentStepIndex >= 0 && (
                                     <p className="text-xs text-primary mt-1 font-medium">
-                                      Current: {trackingSteps[currentStepIndex].label}
+                                      Current:{" "}
+                                      {trackingSteps[currentStepIndex].label}
                                     </p>
                                   )}
                                 </div>
@@ -3242,10 +3318,14 @@ const MyProfile = () => {
                         {trackableBuy4meOrders.length > 2 && (
                           <div className="text-center pt-3 border-t border-gray-200 dark:border-gray-700">
                             <button
-                              onClick={() => setShowAllBuy4meTracking((prev) => !prev)}
+                              onClick={() =>
+                                setShowAllBuy4meTracking((prev) => !prev)
+                              }
                               className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-primary border border-primary rounded-lg hover:bg-primary/10 transition-colors"
                             >
-                              {showAllBuy4meTracking ? 'Show fewer shipments' : `View all ${trackableBuy4meOrders.length} shipments`}
+                              {showAllBuy4meTracking
+                                ? "Show fewer shipments"
+                                : `View all ${trackableBuy4meOrders.length} shipments`}
                             </button>
                           </div>
                         )}
@@ -3276,9 +3356,15 @@ const MyProfile = () => {
                     ) : (
                       <div
                         className="space-y-3 max-h-[600px] overflow-y-auto pr-2"
-                        style={{ scrollbarWidth: "thin", scrollbarColor: "#cbd5e0 transparent" }}
+                        style={{
+                          scrollbarWidth: "thin",
+                          scrollbarColor: "#cbd5e0 transparent",
+                        }}
                       >
-                        {(showAllBuy4meInvoices ? sortedBuy4meInvoices : sortedBuy4meInvoices.slice(0, 2)).map((item) => (
+                        {(showAllBuy4meInvoices
+                          ? sortedBuy4meInvoices
+                          : sortedBuy4meInvoices.slice(0, 2)
+                        ).map((item) => (
                           <div
                             key={item.invoice.invoiceNumber}
                             className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-shadow"
@@ -3321,7 +3407,8 @@ const MyProfile = () => {
                                 </p>
                                 <p className="font-semibold text-gray-900 dark:text-white">
                                   {new Date(
-                                    item.invoice.createdAt || item.invoice.created_at
+                                    item.invoice.createdAt ||
+                                      item.invoice.created_at
                                   ).toLocaleDateString()}
                                 </p>
                               </div>
@@ -3365,10 +3452,14 @@ const MyProfile = () => {
                         {sortedBuy4meInvoices.length > 2 && (
                           <div className="text-center pt-3 border-t border-gray-200 dark:border-gray-700">
                             <button
-                              onClick={() => setShowAllBuy4meInvoices((prev) => !prev)}
+                              onClick={() =>
+                                setShowAllBuy4meInvoices((prev) => !prev)
+                              }
                               className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-primary border border-primary rounded-lg hover:bg-primary/10 transition-colors"
                             >
-                              {showAllBuy4meInvoices ? 'Show fewer invoices' : `View all ${sortedBuy4meInvoices.length} invoices`}
+                              {showAllBuy4meInvoices
+                                ? "Show fewer invoices"
+                                : `View all ${sortedBuy4meInvoices.length} invoices`}
                             </button>
                           </div>
                         )}
@@ -3425,29 +3516,29 @@ const MyProfile = () => {
                       if (order.items) {
                         if (Array.isArray(order.items)) {
                           items = order.items;
-                        } else if (typeof order.items === 'string') {
+                        } else if (typeof order.items === "string") {
                           try {
                             items = JSON.parse(order.items);
                           } catch (e) {
-                            console.error('Failed to parse items JSON:', e);
+                            console.error("Failed to parse items JSON:", e);
                           }
-                        } else if (typeof order.items === 'object') {
+                        } else if (typeof order.items === "object") {
                           items = Object.values(order.items);
                         }
                       }
 
                       const getStatusColor = (status) => {
                         switch (status?.toLowerCase()) {
-                          case 'delivered':
-                            return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
-                          case 'processing':
-                            return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
-                          case 'shipped':
-                            return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
-                          case 'cancelled':
-                            return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+                          case "delivered":
+                            return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
+                          case "processing":
+                            return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200";
+                          case "shipped":
+                            return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
+                          case "cancelled":
+                            return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200";
                           default:
-                            return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
+                            return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200";
                         }
                       };
 
@@ -3463,30 +3554,43 @@ const MyProfile = () => {
                               </p>
                               <p className="text-sm text-gray-500 dark:text-gray-400">
                                 Placed on{" "}
-                                {new Date(order.created_at || order.date).toLocaleDateString('en-US', {
-                                  year: 'numeric',
-                                  month: 'long',
-                                  day: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit'
+                                {new Date(
+                                  order.created_at || order.date
+                                ).toLocaleDateString("en-US", {
+                                  year: "numeric",
+                                  month: "long",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
                                 })}
                               </p>
                             </div>
                             <span
-                              className={`px-3 py-1 rounded-full text-sm ${getStatusColor(order.status)}`}
+                              className={`px-3 py-1 rounded-full text-sm ${getStatusColor(
+                                order.status
+                              )}`}
                             >
-                              {order.status || 'Pending'}
+                              {order.status || "Pending"}
                             </span>
                           </div>
-                          
+
                           {items.length > 0 ? (
                             <div className="space-y-3 mb-4">
                               {items.map((item, index) => {
-                                const itemName = item.name || item.product_name || 'Unnamed Product';
-                                const itemImage = item.image || item.image_url || getPlaceholderImagePath();
+                                const itemName =
+                                  item.name ||
+                                  item.product_name ||
+                                  "Unnamed Product";
+                                const itemImage =
+                                  item.image ||
+                                  item.image_url ||
+                                  getPlaceholderImagePath();
                                 const itemQuantity = item.quantity || 0;
-                                const itemPrice = typeof item.price === 'number' ? item.price : parseFloat(item.price || 0);
-                                
+                                const itemPrice =
+                                  typeof item.price === "number"
+                                    ? item.price
+                                    : parseFloat(item.price || 0);
+
                                 return (
                                   <div
                                     key={index}
@@ -3497,7 +3601,8 @@ const MyProfile = () => {
                                       alt={itemName}
                                       className="w-16 h-16 rounded-lg object-cover"
                                       onError={(e) => {
-                                        e.target.src = getPlaceholderImagePath();
+                                        e.target.src =
+                                          getPlaceholderImagePath();
                                       }}
                                     />
                                     <div className="flex-1">
@@ -3505,8 +3610,13 @@ const MyProfile = () => {
                                         {itemName}
                                       </p>
                                       <p className="text-sm text-gray-500 dark:text-gray-400">
-                                        Quantity: {itemQuantity} × ₵{itemPrice.toFixed(2)}
-                                        {item.size && item.size !== 'default' && item.size !== 'null' && item.size !== null && ` • Size: ${item.size}`}
+                                        Quantity: {itemQuantity} × ₵
+                                        {itemPrice.toFixed(2)}
+                                        {item.size &&
+                                          item.size !== "default" &&
+                                          item.size !== "null" &&
+                                          item.size !== null &&
+                                          ` • Size: ${item.size}`}
                                       </p>
                                     </div>
                                   </div>
@@ -3515,28 +3625,36 @@ const MyProfile = () => {
                             </div>
                           ) : (
                             <div className="mb-4 text-center py-4 text-gray-500 dark:text-gray-400">
-                              <p className="text-sm">No items found in this order</p>
+                              <p className="text-sm">
+                                No items found in this order
+                              </p>
                             </div>
                           )}
-                          
+
                           <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
                             <div className="flex justify-between items-center">
                               <div className="flex flex-col gap-1">
                                 <p className="text-sm text-gray-600 dark:text-gray-400">
                                   Total Amount:{" "}
                                   <span className="font-semibold">
-                                    ₵{typeof order.total === 'number' ? order.total.toFixed(2) : parseFloat(order.total || 0).toFixed(2)}
+                                    ₵
+                                    {typeof order.total === "number"
+                                      ? order.total.toFixed(2)
+                                      : parseFloat(order.total || 0).toFixed(2)}
                                   </span>
                                 </p>
                                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                                  Payment: <span className={`font-medium ${
-                                    order.payment_status === 'paid' 
-                                      ? 'text-green-600' 
-                                      : order.payment_status === 'failed'
-                                      ? 'text-red-600'
-                                      : 'text-yellow-600'
-                                  }`}>
-                                    {order.payment_status || 'Pending'}
+                                  Payment:{" "}
+                                  <span
+                                    className={`font-medium ${
+                                      order.payment_status === "paid"
+                                        ? "text-green-600"
+                                        : order.payment_status === "failed"
+                                        ? "text-red-600"
+                                        : "text-yellow-600"
+                                    }`}
+                                  >
+                                    {order.payment_status || "Pending"}
                                   </span>
                                 </p>
                               </div>
@@ -3893,73 +4011,106 @@ const MyProfile = () => {
                   Request #{selectedBuy4meTrackingOrder.id}
                 </p>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                  Created: {new Date(selectedBuy4meTrackingOrder.created_at || selectedBuy4meTrackingOrder.createdAt).toLocaleDateString()}
+                  Created:{" "}
+                  {new Date(
+                    selectedBuy4meTrackingOrder.created_at ||
+                      selectedBuy4meTrackingOrder.createdAt
+                  ).toLocaleDateString()}
                 </p>
               </div>
-              
+
               <div className="relative">
                 {(() => {
                   const trackingSteps = [
-                    { key: 'sourcing', label: 'Sourcing', icon: FaSearch },
-                    { key: 'buying', label: 'Buying', icon: FaShoppingCart },
-                    { key: 'sent_to_warehouse', label: 'Sent to Warehouse', icon: FaBox },
-                    { key: 'shipped', label: 'Shipped', icon: FaTruck },
-                    { key: 'at_the_port', label: 'At the Port', icon: FaShip },
-                    { key: 'off_loading', label: 'Off Loading', icon: FaBoxOpen },
-                    { key: 'pickup', label: 'Pickup', icon: FaCheckCircle },
+                    { key: "sourcing", label: "Sourcing", icon: FaSearch },
+                    { key: "buying", label: "Buying", icon: FaShoppingCart },
+                    {
+                      key: "sent_to_warehouse",
+                      label: "Sent to Warehouse",
+                      icon: FaBox,
+                    },
+                    { key: "shipped", label: "Shipped", icon: FaTruck },
+                    { key: "at_the_port", label: "At the Port", icon: FaShip },
+                    {
+                      key: "off_loading",
+                      label: "Off Loading",
+                      icon: FaBoxOpen,
+                    },
+                    { key: "pickup", label: "Pickup", icon: FaCheckCircle },
                   ];
-                  const currentStepIndex = selectedBuy4meTrackingOrder.tracking_status 
-                    ? trackingSteps.findIndex(step => step.key === selectedBuy4meTrackingOrder.tracking_status)
-                    : -1;
-                  
+                  const currentStepIndex =
+                    selectedBuy4meTrackingOrder.tracking_status
+                      ? trackingSteps.findIndex(
+                          (step) =>
+                            step.key ===
+                            selectedBuy4meTrackingOrder.tracking_status
+                        )
+                      : -1;
+
                   return (
                     <>
                       {/* Progress Line */}
                       <div className="absolute left-4 top-0 bottom-0 w-0.5">
-                        <div 
+                        <div
                           className={`h-full transition-all duration-300 ${
-                            currentStepIndex >= 0 
-                              ? 'bg-primary' 
-                              : 'bg-gray-200 dark:bg-gray-700'
+                            currentStepIndex >= 0
+                              ? "bg-primary"
+                              : "bg-gray-200 dark:bg-gray-700"
                           }`}
                           style={{
-                            height: currentStepIndex >= 0 
-                              ? `${((currentStepIndex + 1) / trackingSteps.length) * 100}%` 
-                              : '0%'
+                            height:
+                              currentStepIndex >= 0
+                                ? `${
+                                    ((currentStepIndex + 1) /
+                                      trackingSteps.length) *
+                                    100
+                                  }%`
+                                : "0%",
                           }}
                         ></div>
                         <div className="absolute top-0 left-0 w-full h-full bg-gray-200 dark:bg-gray-700 opacity-30"></div>
                       </div>
-                      
+
                       {trackingSteps.map((step, index) => {
                         const StepIcon = step.icon;
                         const isCompleted = currentStepIndex > index;
                         const isCurrent = currentStepIndex === index;
-                        
+
                         return (
-                          <div key={step.key} className="relative flex items-start gap-4 pb-6 last:pb-0">
-                            <div className={`relative z-10 flex items-center justify-center w-8 h-8 rounded-full transition-colors ${
-                              isCompleted 
-                                ? 'bg-primary text-white' 
-                                : isCurrent
-                                ? 'bg-primary text-white border-2 border-primary shadow-lg'
-                                : 'bg-gray-200 dark:bg-gray-700 text-gray-400'
-                            }`}>
+                          <div
+                            key={step.key}
+                            className="relative flex items-start gap-4 pb-6 last:pb-0"
+                          >
+                            <div
+                              className={`relative z-10 flex items-center justify-center w-8 h-8 rounded-full transition-colors ${
+                                isCompleted
+                                  ? "bg-primary text-white"
+                                  : isCurrent
+                                  ? "bg-primary text-white border-2 border-primary shadow-lg"
+                                  : "bg-gray-200 dark:bg-gray-700 text-gray-400"
+                              }`}
+                            >
                               <StepIcon className="w-4 h-4" />
                             </div>
                             <div className="flex-1 pt-1">
-                              <p className={`font-medium ${
-                                isCompleted || isCurrent
-                                  ? 'text-gray-900 dark:text-white'
-                                  : 'text-gray-400 dark:text-gray-500'
-                              }`}>
+                              <p
+                                className={`font-medium ${
+                                  isCompleted || isCurrent
+                                    ? "text-gray-900 dark:text-white"
+                                    : "text-gray-400 dark:text-gray-500"
+                                }`}
+                              >
                                 {step.label}
                               </p>
                               {isCurrent && (
-                                <p className="text-sm text-primary mt-1 font-semibold">Current Status</p>
+                                <p className="text-sm text-primary mt-1 font-semibold">
+                                  Current Status
+                                </p>
                               )}
                               {isCompleted && (
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Completed</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                  Completed
+                                </p>
                               )}
                             </div>
                           </div>
