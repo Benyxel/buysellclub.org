@@ -1,0 +1,234 @@
+/* Stylish 3D animated ribbon for the CBM rate card */
+
+.cbm-ribbon-outer {
+  perspective: 900px;
+}
+
+/* Theme variables for ribbon colors (override in dark mode) */
+:root {
+  --cbm-ribbon-from: #ffd454;
+  --cbm-ribbon-to: #ff9f1c;
+  --cbm-ribbon-text: #0b1220;
+}
+
+/* Dark mode overrides (Tailwind uses .dark on root) */
+.dark .cbm-ribbon {
+  --cbm-ribbon-from: #4f46e5;
+  --cbm-ribbon-to: #06b6d4;
+  --cbm-ribbon-text: #ffffff;
+  box-shadow: 0 14px 30px rgba(0,0,0,0.5);
+}
+
+.cbm-ribbon {
+  display: inline-block;
+  background: linear-gradient(135deg, var(--cbm-ribbon-from) 0%, var(--cbm-ribbon-to) 100%);
+  color: var(--cbm-ribbon-text);
+  font-weight: 800;
+  padding: 8px 22px;
+  border-radius: 999px;
+  transform: rotate(6deg) translateZ(40px);
+  transform-origin: center;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.32), inset 0 -6px 12px rgba(255,255,255,0.06);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  backface-visibility: hidden;
+  transform-style: preserve-3d;
+  will-change: transform;
+  animation: cbm-float 4.2s ease-in-out infinite;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* folded paper tails to give a 3D effect */
+.cbm-ribbon::before,
+.cbm-ribbon::after {
+  content: "";
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  background: linear-gradient(180deg, rgba(0,0,0,0.08), rgba(0,0,0,0.0));
+  bottom: -8px;
+  border-radius: 3px;
+  box-shadow: 0 8px 14px rgba(0,0,0,0.18);
+  transform-origin: top center;
+}
+
+.cbm-ribbon::before {
+  left: 8px;
+  transform: rotate(-18deg) translateZ(-6px);
+}
+
+.cbm-ribbon::after {
+  right: 8px;
+  transform: rotate(18deg) translateZ(-6px);
+}
+
+.cbm-ribbon-text {
+  position: relative;
+  z-index: 2;
+  display: inline-block;
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+.cbm-ribbon-shimmer {
+  position: absolute;
+  left: -50%;
+  top: 0;
+  bottom: 0;
+  width: 46%;
+  background: linear-gradient(90deg, rgba(255,255,255,0.0) 0%, rgba(255,255,255,0.28) 50%, rgba(255,255,255,0.0) 100%);
+  transform: skewX(-12deg);
+  filter: blur(6px);
+  opacity: 0.85;
+  animation: cbm-shimmer 2.6s linear infinite;
+  pointer-events: none;
+  border-radius: 999px;
+  mix-blend-mode: overlay;
+}
+
+/* badge position helper: desktop default and responsive overrides */
+.cbm-badge-pos {
+  /* desktop default offset */
+  transform: translate(60px, -120px);
+}
+
+@media (max-width: 1024px) {
+  .cbm-badge-pos {
+    transform: translate(40px, -90px);
+  }
+}
+
+@media (max-width: 640px) {
+  /* mobile tweak: reduce translate so the badge sits over the palm */
+  .cbm-badge-pos {
+    /* move left and slightly higher so the badge aligns with the palm */
+    transform: translate(-36px, -62px) !important;
+    right: 24px !important;
+    bottom: 28px !important;
+  }
+}
+
+@keyframes cbm-float {
+  0% { transform: rotate(6deg) translateY(0) translateZ(40px); }
+  50% { transform: rotate(6deg) translateY(-6px) translateZ(48px); }
+  100% { transform: rotate(6deg) translateY(0) translateZ(40px); }
+}
+
+@keyframes cbm-shimmer {
+  0% { left: -60%; }
+  100% { left: 120%; }
+}
+
+/* micro-bounce for the badge: use transform on an inner wrapper for smoother GPU-accelerated motion */
+@keyframes cbm-badge-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+
+/* animate the inner wrapper so we don't override the badge's existing transform */
+.cbm-badge-inner {
+  display: inline-block;
+  will-change: transform;
+  animation: cbm-badge-bounce 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+/* responsive sizing */
+@media (max-width: 640px) {
+  .cbm-ribbon { padding: 6px 14px; font-size: 13px; transform: rotate(6deg) translateZ(24px); }
+  .cbm-ribbon::before, .cbm-ribbon::after { width: 12px; height: 12px; bottom: -6px; }
+}
+
+/* respect reduced motion prefs */
+@media (prefers-reduced-motion: reduce) {
+  .cbm-ribbon { animation: none; }
+  .cbm-ribbon-shimmer { animation: none; }
+  .cbm-badge-inner { animation: none; }
+}
+
+/* Badge-style shield with banner (inspired by provided image) */
+.cbm-badge {
+  width: 140px;
+  height: 160px;
+  position: relative;
+  display: inline-block;
+  transform: rotate(0deg) translateZ(40px) scale(1);
+  perspective: 900px;
+  border-radius: 12px 12px 28px 28px / 18px 18px 36px 36px;
+  background: linear-gradient(180deg, var(--cbm-ribbon-from), var(--cbm-ribbon-to));
+  /* remove shadow for cleaner look */
+  box-shadow: none;
+  color: var(--cbm-ribbon-text);
+  text-align: center;
+  user-select: none;
+}
+
+.cbm-badge-top {
+  /* larger, distinctive serif style for the small label (ETA) */
+  font-size: 16px;
+  font-weight: 800;
+  font-family: 'Georgia', 'Times New Roman', serif;
+  font-style: italic;
+  text-transform: uppercase;
+  margin-top: 10px;
+  opacity: 0.98;
+  letter-spacing: 0.08em;
+}
+
+.cbm-badge-center {
+  font-size: 44px;
+  font-weight: 900;
+  margin-top: 6px;
+  letter-spacing: -1px;
+}
+
+.cbm-badge-sub {
+  /* larger, matching serif for the unit (DAYS) */
+  font-size: 18px;
+  font-weight: 900;
+  font-family: 'Georgia', 'Times New Roman', serif;
+  text-transform: uppercase;
+  margin-top: 4px;
+  opacity: 0.98;
+  letter-spacing: 0.06em;
+}
+
+.cbm-badge-banner {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 12px;
+  /* remove dark translucent background to match requested look */
+  background: transparent;
+  color: #ffffff;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-weight: 700;
+  box-shadow: none;
+  text-shadow: 0 2px 6px rgba(0,0,0,0.5);
+}
+
+.cbm-badge-banner span { display: inline-block; }
+
+/* remove folded tails - keep a cleaner banner */
+.cbm-badge-banner::before, .cbm-badge-banner::after { display: none; }
+
+/* small shimmer overlay for badge */
+.cbm-badge .cbm-ribbon-shimmer {
+  width: 120%;
+  left: -10%;
+  top: -10%;
+  height: 40%;
+  opacity: 0.25;
+  filter: blur(8px);
+}
+
+@media (max-width: 640px) {
+  .cbm-badge { width: 110px; height: 130px; }
+  .cbm-badge-center { font-size: 34px; }
+  .cbm-badge-banner { padding: 6px 10px; font-size: 12px }
+  /* scale down ETA/DAYS on small screens */
+  .cbm-badge-top { font-size: 13px; margin-top: 8px; }
+  .cbm-badge-sub { font-size: 14px; margin-top: 3px; }
+}

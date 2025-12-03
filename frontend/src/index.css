@@ -143,8 +143,8 @@
     #ff0040
   );
   filter: blur(18px);
-  opacity: 0.55;
-  animation: rotate-halo 8s linear infinite;
+  /* shadow removed per request - hide the pseudo-element entirely */
+  display: none;
   z-index: -1; /* sit behind the card */
   pointer-events: none;
 }

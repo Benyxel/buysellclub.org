@@ -1,6 +1,7 @@
 import React from "react";
 import { FaCheckCircle, FaArrowRight } from "react-icons/fa";
 import { Link } from "react-router-dom";
+import "./Banner.css";
 
 const defaultHighlights = [
   {
@@ -27,22 +28,23 @@ const Banner = ({ data }) => {
       <div className="container">
         <div
           style={{ backgroundColor: data.bgColor }}
-          className="grid grid-cols-1 md:grid-cols-[1.1fr_1fr_1.3fr] gap-6 items-stretch text-white rounded-2xl overflow-hidden shadow-xl"
+          className="grid grid-cols-1 md:grid-cols-[1.1fr_1fr_1.3fr] gap-[2px] items-stretch text-white rounded-2xl overflow-hidden shadow-xl"
         >
           {/* Rate highlight */}
-          <div className="p-6 sm:p-10 flex flex-col h-full gap-6">
-            <div className="bg-white/15 backdrop-blur-sm rounded-2xl p-5 w-fit shadow-inner border border-white/20">
+          <div className="p-6 sm:p-10 flex flex-col h-full gap-6 relative">
+            <div className="bg-white/15 backdrop-blur-sm rounded-2xl p-5 w-fit shadow-inner border border-white/20 relative z-10">
               <p className="uppercase tracking-[0.3em] text-xs text-white/70">{rateLabel}</p>
               <p className="text-4xl sm:text-5xl font-black tracking-tight">{data.rate}</p>
               <p className="text-white/70 text-sm">{data.date}</p>
             </div>
+            {/* badge removed from rate column; positioned over product image instead */}
             <div className="space-y-3">
               <h1 className="uppercase text-4xl lg:text-6xl font-extrabold leading-tight">{data.title}</h1>
               <p className="text-white/85 text-base max-w-md">{data.title4}</p>
             </div>
             <Link
               to="/Shipping"
-              className="inline-flex items-center gap-2 bg-white text-primary rounded-full py-3 px-6 font-semibold hover:translate-y-0.5 transition-transform shadow-lg mt-auto"
+              className="inline-flex items-center gap-2 bg-white text-primary rounded-full py-3 px-6 font-semibold hover:translate-y-0.5 transition-transform shadow-lg mt-auto chrome-border-animation chrome-shadow-animation"
             >
               Start Shipping
               <FaArrowRight />
@@ -62,6 +64,21 @@ const Banner = ({ data }) => {
                   "linear-gradient(0deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.2) 10%, rgba(0,0,0,0.6) 35%, rgba(0,0,0,1) 60%, rgba(0,0,0,1) 100%)",
               }}
             />
+            {/* Badge positioned on the product image (e.g. over the palm) */}
+            <Link
+              to="/Shipping"
+              className="absolute md:bottom-24 md:right-16 bottom-8 right-6 z-40 cbm-ribbon-outer cbm-badge-pos"
+              aria-label="Shipping ETA: 35 to 45 days"
+            >
+              <div className="cbm-badge" role="button">
+                  <div className="cbm-badge-inner">
+                    <div className="cbm-badge-top">ETA</div>
+                    <div className="cbm-badge-center">35-45</div>
+                    <div className="cbm-badge-sub">DAYS</div>
+                    <div className="cbm-ribbon-shimmer" />
+                  </div>
+                </div>
+            </Link>
             <div
               className="absolute inset-x-0 bottom-0 h-24 pointer-events-none"
               style={{ background: `linear-gradient(0deg, ${data.bgColor} 0%, rgba(0,0,0,0))` }}
