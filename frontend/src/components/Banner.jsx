@@ -20,7 +20,9 @@ const defaultHighlights = [
 
 const Banner = ({ data }) => {
   const highlights =
-    Array.isArray(data.highlights) && data.highlights.length > 0 ? data.highlights : defaultHighlights;
+    Array.isArray(data.highlights) && data.highlights.length > 0
+      ? data.highlights
+      : defaultHighlights;
   const rateLabel = data.rateLabel || "Today’s Exchange Rate";
 
   return (
@@ -33,13 +35,19 @@ const Banner = ({ data }) => {
           {/* Rate highlight */}
           <div className="p-6 sm:p-10 flex flex-col h-full gap-6 relative">
             <div className="bg-white/15 backdrop-blur-sm rounded-2xl p-5 w-fit shadow-inner border border-white/20 relative z-10">
-              <p className="uppercase tracking-[0.3em] text-xs text-white/70">{rateLabel}</p>
-              <p className="text-4xl sm:text-5xl font-black tracking-tight">{data.rate}</p>
+              <p className="uppercase tracking-[0.3em] text-xs text-white/70">
+                {rateLabel}
+              </p>
+              <p className="text-4xl sm:text-5xl font-black tracking-tight">
+                {data.rate}
+              </p>
               <p className="text-white/70 text-sm">{data.date}</p>
             </div>
             {/* badge removed from rate column; positioned over product image instead */}
             <div className="space-y-3">
-              <h1 className="uppercase text-4xl lg:text-6xl font-extrabold leading-tight">{data.title}</h1>
+              <h1 className="uppercase text-4xl lg:text-6xl font-extrabold leading-tight">
+                {data.title}
+              </h1>
               <p className="text-white/85 text-base max-w-md">{data.title4}</p>
             </div>
             <Link
@@ -71,24 +79,30 @@ const Banner = ({ data }) => {
               aria-label="Shipping ETA: 35 to 45 days"
             >
               <div className="cbm-badge" role="button">
-                  <div className="cbm-badge-inner">
-                    <div className="cbm-badge-top">ETA</div>
-                    <div className="cbm-badge-center">35-45</div>
-                    <div className="cbm-badge-sub">DAYS</div>
-                    <div className="cbm-ribbon-shimmer" />
-                  </div>
+                <div className="cbm-badge-inner">
+                  <div className="cbm-badge-top">ETA</div>
+                  <div className="cbm-badge-center">35-45</div>
+                  <div className="cbm-badge-sub">DAYS</div>
+                  <div className="cbm-ribbon-shimmer" />
                 </div>
+              </div>
             </Link>
             <div
               className="absolute inset-x-0 bottom-0 h-24 pointer-events-none"
-              style={{ background: `linear-gradient(0deg, ${data.bgColor} 0%, rgba(0,0,0,0))` }}
+              style={{
+                background: `linear-gradient(0deg, ${data.bgColor} 0%, rgba(0,0,0,0))`,
+              }}
             ></div>
           </div>
 
           {/* Service adverts */}
           <div className="flex flex-col justify-center gap-5 p-6 sm:p-10 bg-white/10 backdrop-blur-sm">
-            <p className="text-xs uppercase tracking-[0.3em] text-white/70">{data.title2}</p>
-            <h2 className="text-3xl sm:text-5xl font-bold tracking-wide mb-2">{data.title3}</h2>
+            <p className="text-xs uppercase tracking-[0.3em] text-white/70">
+              {data.title2}
+            </p>
+            <h2 className="text-3xl sm:text-5xl font-bold tracking-wide mb-2">
+              {data.title3}
+            </h2>
             <div className="space-y-4">
               {highlights.map((item, idx) => (
                 <div key={idx} className="flex items-start gap-3">
