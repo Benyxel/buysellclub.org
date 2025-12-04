@@ -101,9 +101,16 @@ const AgentShippingRatesManagement = () => {
       fetchCurrentRate();
     } catch (error) {
       console.error("Error updating agent shipping rates:", error);
-      toast.error(
-        error?.response?.data?.error || "Failed to update agent shipping rates"
-      );
+      const errorMessage = 
+        error?.response?.data?.error || 
+        error?.response?.data?.detail ||
+        error?.response?.data?.message ||
+        (error?.response?.data && typeof error.response.data === 'object' 
+          ? JSON.stringify(error.response.data) 
+          : null) ||
+        error?.message ||
+        "Failed to update agent shipping rates";
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }

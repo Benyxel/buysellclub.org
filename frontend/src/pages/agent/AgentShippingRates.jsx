@@ -19,23 +19,24 @@ const AgentShippingRates = () => {
       // Fetch agent-specific shipping rates (read-only for agents)
       const response = await API.get("/buysellapi/agent/shipping-rates/");
 
-      if (response.data) {
+      if (response?.data) {
         setRates({
-          normal_goods_rate: response.data.normal_goods_rate || 0,
-          special_goods_rate: response.data.special_goods_rate || 0,
-          normal_goods_rate_lt1: response.data.normal_goods_rate_lt1 || 0,
-          special_goods_rate_lt1: response.data.special_goods_rate_lt1 || 0,
-          effective_date: response.data.effective_date || response.data.created_at,
+          normal_goods_rate: parseFloat(response.data.normal_goods_rate) || 0,
+          special_goods_rate: parseFloat(response.data.special_goods_rate) || 0,
+          normal_goods_rate_lt1: parseFloat(response.data.normal_goods_rate_lt1) || 0,
+          special_goods_rate_lt1: parseFloat(response.data.special_goods_rate_lt1) || 0,
+          effective_date: response.data.effective_date || response.data.created_at || null,
         });
+      } else {
+        setRates(null);
       }
     } catch (error) {
       if (error.response?.status !== 404) {
         console.error("Error fetching agent shipping rates:", error);
         toast.error("Failed to load shipping rates");
-      } else {
-        // No rates set yet
-        setRates(null);
       }
+      // No rates set yet or error occurred
+      setRates(null);
     } finally {
       setLoading(false);
     }
@@ -95,7 +96,7 @@ const AgentShippingRates = () => {
                   Normal Goods (≥1 CBM)
                 </h4>
                 <p className="text-2xl font-bold text-blue-600">
-                  ${rates.normal_goods_rate?.toFixed(2) || "0.00"} / CBM
+                  ${(rates.normal_goods_rate || 0).toFixed(2)} / CBM
                 </p>
               </div>
               <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
@@ -103,7 +104,7 @@ const AgentShippingRates = () => {
                   Special Goods (≥1 CBM)
                 </h4>
                 <p className="text-2xl font-bold text-purple-600">
-                  ${rates.special_goods_rate?.toFixed(2) || "0.00"} / CBM
+                  ${(rates.special_goods_rate || 0).toFixed(2)} / CBM
                 </p>
               </div>
               <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
@@ -111,7 +112,7 @@ const AgentShippingRates = () => {
                   Normal Goods (&lt;1 CBM)
                 </h4>
                 <p className="text-2xl font-bold text-green-600">
-                  ${rates.normal_goods_rate_lt1?.toFixed(2) || "0.00"} / CBM
+                  ${(rates.normal_goods_rate_lt1 || 0).toFixed(2)} / CBM
                 </p>
               </div>
               <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
@@ -119,7 +120,7 @@ const AgentShippingRates = () => {
                   Special Goods (&lt;1 CBM)
                 </h4>
                 <p className="text-2xl font-bold text-yellow-600">
-                  ${rates.special_goods_rate_lt1?.toFixed(2) || "0.00"} / CBM
+                  ${(rates.special_goods_rate_lt1 || 0).toFixed(2)} / CBM
                 </p>
               </div>
             </div>
@@ -179,16 +180,16 @@ const AgentShippingRates = () => {
                                   : "-"}
                               </td>
                               <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
-                                ${rate.normal_goods_rate?.toFixed(2) || "0.00"}
+                                ${(parseFloat(rate.normal_goods_rate) || 0).toFixed(2)}
                               </td>
                               <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
-                                ${rate.special_goods_rate?.toFixed(2) || "0.00"}
+                                ${(parseFloat(rate.special_goods_rate) || 0).toFixed(2)}
                               </td>
                               <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
-                                ${rate.normal_goods_rate_lt1?.toFixed(2) || "0.00"}
+                                ${(parseFloat(rate.normal_goods_rate_lt1) || 0).toFixed(2)}
                               </td>
                               <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
-                                ${rate.special_goods_rate_lt1?.toFixed(2) || "0.00"}
+                                ${(parseFloat(rate.special_goods_rate_lt1) || 0).toFixed(2)}
                               </td>
                             </tr>
                           ))}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { FaTruck, FaPlus, FaEdit, FaTrash, FaSearch, FaEye } from "react-icons/fa";
+import { FaTruck, FaPlus, FaTrash, FaSearch, FaEye, FaBoxOpen, FaCalendarAlt, FaCube, FaDollarSign, FaShip } from "react-icons/fa";
 import { toast } from "react-toastify";
 import API from "../../api";
 import ConfirmModal from "../../components/shared/ConfirmModal";
@@ -25,37 +25,15 @@ const AgentShippingTracking = () => {
   const [loading, setLoading] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const [containers, setContainers] = useState([]);
-
-  const [newTracking, setNewTracking] = useState({
-    tracking_number: "",
-    status: "pending",
-    cbm: "",
-    shipping_fee: "",
-    eta: "",
-    container_id: "",
-    shipping_mark: "",
-  });
+  const [trackingNumberInput, setTrackingNumberInput] = useState("");
 
   useEffect(() => {
     fetchTrackings();
-    fetchContainers();
   }, []);
 
   useEffect(() => {
     filterTrackings();
   }, [trackings, searchTerm, filterStatus]);
-
-  const fetchContainers = async () => {
-    try {
-      const response = await API.get("/api/admin/containers", {
-        params: { limit: 1000 },
-      });
-      setContainers(response.data.data || []);
-    } catch (error) {
-      console.error("Error fetching containers:", error);
-    }
-  };
 
   const fetchTrackings = async () => {
     setLoading(true);
@@ -89,40 +67,84 @@ const AgentShippingTracking = () => {
     setFilteredTrackings(filtered);
   };
 
-  const handleSubmit = async (e) => {
+  const handleAddTracking = async (e) => {
     e.preventDefault();
+    const tn = (trackingNumberInput || "").toUpperCase().trim();
+    if (!tn) {
+      toast.error("Please enter a tracking number.");
+      return;
+    }
+
     try {
       setLoading(true);
-      if (editTracking) {
-        await API.put(`/buysellapi/agent/trackings/${editTracking.id}/`, newTracking);
-        toast.success("Tracking updated successfully");
-      } else {
-        await API.post("/buysellapi/agent/trackings/", newTracking);
-        toast.success("Tracking added successfully");
+      
+      // Check if tracking already exists
+      try {
+        await API.get(`/buysellapi/trackings/by-number/${encodeURIComponent(tn)}/`);
+        toast.error(`Tracking number ${tn} already exists in the system.`);
+        setTrackingNumberInput("");
+        return;
+      } catch (err) {
+        if (err?.response?.status && err.response.status !== 404) {
+          // Non-404 error (e.g., 401)
+          if (err.response.status === 401) {
+            toast.error("Please log in to add a new shipment.");
+          } else {
+            toast.error("Could not verify tracking status. Please try again.");
+          }
+          return;
+        }
       }
-      setShowAddForm(false);
-      setEditTracking(null);
-      setNewTracking({
-        tracking_number: "",
+
+      // Get agent's shipping mark (if available)
+      let smark = "N/A";
+      try {
+        const smResp = await API.get("/buysellapi/shipping-marks/me/");
+        const sm = smResp?.data;
+        if (sm && (sm.shippingMark || (sm.markId && sm.name))) {
+          smark = sm.shippingMark || `${sm.markId}:${sm.name}`;
+        }
+      } catch (e) {
+        // If no shipping mark, use N/A
+        console.log("No shipping mark found, using default");
+      }
+
+      // Create tracking with minimal data (like user form)
+      const payload = {
+        tracking_number: tn,
+        shipping_mark: smark,
         status: "pending",
-        cbm: "",
-        shipping_fee: "",
-        eta: "",
-        container_id: "",
-        shipping_mark: "",
-      });
+        cbm: 0,
+      };
+
+      await API.post("/buysellapi/agent/trackings/", payload);
+      toast.success(`Tracking number ${tn} has been added successfully.`);
+      setTrackingNumberInput("");
+      setShowAddForm(false);
       fetchTrackings();
     } catch (error) {
       console.error("Error saving tracking:", error);
-      toast.error(
-        error.response?.data?.detail || 
-        error.response?.data?.error || 
-        "Failed to save tracking"
-      );
+      
+      let errorMessage = "Failed to save tracking";
+      if (error.response?.data) {
+        const errorData = error.response.data;
+        if (errorData.tracking_number) {
+          errorMessage = Array.isArray(errorData.tracking_number) 
+            ? errorData.tracking_number[0] 
+            : errorData.tracking_number;
+        } else if (errorData.detail) {
+          errorMessage = errorData.detail;
+        } else if (errorData.error) {
+          errorMessage = errorData.error;
+        }
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
   };
+
 
   const handleDelete = async () => {
     try {
@@ -151,15 +173,7 @@ const AgentShippingTracking = () => {
           onClick={() => {
             setShowAddForm(true);
             setEditTracking(null);
-            setNewTracking({
-              tracking_number: "",
-              status: "pending",
-              cbm: "",
-              shipping_fee: "",
-              eta: "",
-              container_id: "",
-              shipping_mark: "",
-            });
+            setTrackingNumberInput("");
           }}
           className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
         >
@@ -193,13 +207,16 @@ const AgentShippingTracking = () => {
         </select>
       </div>
 
-      {/* Add/Edit Form */}
-      {showAddForm && (
+      {/* Add Form - Simple tracking number only */}
+      {showAddForm && !editTracking && (
         <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
-            {editTracking ? "Edit Tracking" : "Add New Shipment"}
+            Add New Shipment
           </h3>
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+            Enter a tracking number to add a new shipment. The system will automatically set default values.
+          </p>
+          <form onSubmit={handleAddTracking} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Tracking Number *
@@ -207,104 +224,25 @@ const AgentShippingTracking = () => {
               <input
                 type="text"
                 required
-                value={newTracking.tracking_number}
-                onChange={(e) => setNewTracking({ ...newTracking, tracking_number: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                value={trackingNumberInput}
+                onChange={(e) => setTrackingNumberInput(e.target.value.toUpperCase())}
+                placeholder="Enter tracking number"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Status *
-              </label>
-              <select
-                required
-                value={newTracking.status}
-                onChange={(e) => setNewTracking({ ...newTracking, status: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-              >
-                {statusOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                CBM
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                value={newTracking.cbm}
-                onChange={(e) => setNewTracking({ ...newTracking, cbm: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Shipping Fee
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                value={newTracking.shipping_fee}
-                onChange={(e) => setNewTracking({ ...newTracking, shipping_fee: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                ETA
-              </label>
-              <input
-                type="date"
-                value={newTracking.eta}
-                onChange={(e) => setNewTracking({ ...newTracking, eta: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Container
-              </label>
-              <select
-                value={newTracking.container_id}
-                onChange={(e) => setNewTracking({ ...newTracking, container_id: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-              >
-                <option value="">Select Container</option>
-                {containers.map((container) => (
-                  <option key={container.id} value={container.id}>
-                    {container.container_number}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Shipping Mark
-              </label>
-              <input
-                type="text"
-                value={newTracking.shipping_mark}
-                onChange={(e) => setNewTracking({ ...newTracking, shipping_mark: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-              />
-            </div>
-            <div className="md:col-span-2 flex gap-2">
+            <div className="flex gap-2">
               <button
                 type="submit"
                 disabled={loading}
                 className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
               >
-                {editTracking ? "Update" : "Add"} Tracking
+                {loading ? "Adding..." : "Add Shipment"}
               </button>
               <button
                 type="button"
                 onClick={() => {
                   setShowAddForm(false);
-                  setEditTracking(null);
+                  setTrackingNumberInput("");
                 }}
                 className="px-4 py-2 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500"
               >
@@ -312,6 +250,213 @@ const AgentShippingTracking = () => {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* View/Status Form - Display like user tracking view */}
+      {showAddForm && editTracking && (
+        <div className="mb-6 bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between mb-6 border-b border-gray-200 dark:border-gray-700 pb-4">
+            <div>
+              <h3 className="text-xl font-bold text-gray-800 dark:text-white">
+                Tracking Details
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
+                Tracking Number: {editTracking.tracking_number}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={`px-4 py-2 rounded-full border text-sm font-semibold ${
+                editTracking.status === "pending" ? "bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900 dark:text-yellow-200 dark:border-yellow-700" :
+                editTracking.status === "in_transit" ? "bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900 dark:text-blue-200 dark:border-blue-700" :
+                editTracking.status === "arrived" || editTracking.status === "arrived_ghana" ? "bg-green-100 text-green-800 border-green-300 dark:bg-green-900 dark:text-green-200 dark:border-green-700" :
+                editTracking.status === "vessel" ? "bg-indigo-100 text-indigo-800 border-indigo-300 dark:bg-indigo-900 dark:text-indigo-200 dark:border-indigo-700" :
+                editTracking.status === "clearing" ? "bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-900 dark:text-purple-200 dark:border-purple-700" :
+                "bg-gray-100 text-gray-800 border-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600"
+              }`}>
+                {statusOptions.find((opt) => opt.value === editTracking.status)?.label || editTracking.status}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddForm(false);
+                  setEditTracking(null);
+                }}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-xl"
+                title="Close"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+
+          {/* Tracking Information Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            {/* Shipping Information */}
+            <div className="flex items-start gap-4">
+              <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-full">
+                <FaCalendarAlt className="text-green-500" />
+              </div>
+              <div>
+                <h4 className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                  Shipping Information
+                </h4>
+                <p className="font-medium text-gray-800 dark:text-white">
+                  {editTracking.shipping_mark || "N/A"}
+                </p>
+                <p className="text-gray-700 dark:text-gray-300 text-sm mt-1">
+                  {editTracking.date_added ? `Added: ${new Date(editTracking.date_added).toLocaleString()}` : "Date not available"}
+                </p>
+              </div>
+            </div>
+
+            {/* CBM */}
+            {editTracking.cbm && (
+              <div className="flex items-start gap-4">
+                <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-full">
+                  <FaCube className="text-purple-500" />
+                </div>
+                <div>
+                  <h4 className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                    Volume (CBM)
+                  </h4>
+                  <p className="font-medium text-gray-800 dark:text-white">
+                    {Number(editTracking.cbm).toFixed(2)} m³
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Shipping Fee - Always display */}
+            <div className="flex items-start gap-4">
+              <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-full">
+                <FaDollarSign className="text-green-500" />
+              </div>
+              <div>
+                <h4 className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                  Shipping Fee
+                </h4>
+                <p className="font-medium text-green-600 dark:text-green-400 text-lg">
+                  {editTracking.shipping_fee 
+                    ? `$${parseFloat(editTracking.shipping_fee).toFixed(2)}`
+                    : "N/A"}
+                </p>
+              </div>
+            </div>
+
+            {/* ETA */}
+            {editTracking.eta && (
+              <div className="flex items-start gap-4">
+                <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-full">
+                  <FaCalendarAlt className="text-indigo-500" />
+                </div>
+                <div>
+                  <h4 className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                    Estimated Arrival (ETA)
+                  </h4>
+                  <p className="font-medium text-gray-800 dark:text-white">
+                    {new Date(editTracking.eta).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Container Number - Always display */}
+            {(() => {
+              let containerNumber = "N/A";
+              let containerStatus = null;
+              let containerObj = null;
+              
+              if (editTracking.container) {
+                if (typeof editTracking.container === 'object') {
+                  containerObj = editTracking.container;
+                  containerNumber = containerObj.container_number || containerObj.containerNumber || "N/A";
+                  containerStatus = containerObj.status || null;
+                } else {
+                  containerNumber = editTracking.container_number || "N/A";
+                }
+              } else if (editTracking.container_number) {
+                containerNumber = editTracking.container_number;
+              }
+
+              return (
+                <div className="flex items-start gap-4">
+                  <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-full">
+                    <FaShip className="text-blue-500" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                      Container Number
+                    </h4>
+                    <p className="font-medium text-gray-800 dark:text-white">
+                      {containerNumber}
+                    </p>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Container Status - Display if available */}
+            {(() => {
+              let containerStatus = null;
+              let containerObj = null;
+              
+              if (editTracking.container && typeof editTracking.container === 'object') {
+                containerObj = editTracking.container;
+                containerStatus = containerObj.status || null;
+              }
+
+              if (containerStatus) {
+                return (
+                  <div className="flex items-start gap-4">
+                    <div className="p-3 bg-teal-50 dark:bg-teal-900/20 rounded-full">
+                      <FaBoxOpen className="text-teal-500" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                        Container Status
+                      </h4>
+                      <p className="font-medium text-gray-800 dark:text-white">
+                        {containerStatus.charAt(0).toUpperCase() + containerStatus.slice(1).replace(/_/g, ' ')}
+                      </p>
+                      {containerObj?.port_of_loading && containerObj?.port_of_discharge && (
+                        <p className="text-gray-700 dark:text-gray-300 text-xs mt-1">
+                          {containerObj.port_of_loading} → {containerObj.port_of_discharge}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              }
+              return null;
+            })()}
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <button
+              type="button"
+              onClick={() => {
+                setShowAddForm(false);
+                setEditTracking(null);
+              }}
+              className="px-6 py-2 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors"
+            >
+              Close
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowAddForm(false);
+                setDeleteTarget(editTracking.id);
+                setShowDeleteModal(true);
+                setEditTracking(null);
+              }}
+              className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Delete Tracking
+            </button>
+          </div>
         </div>
       )}
 
@@ -340,60 +485,71 @@ const AgentShippingTracking = () => {
                   CBM
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                  Container
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
                   Actions
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {filteredTrackings.map((tracking) => (
-                <tr key={tracking.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                  <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
-                    {tracking.tracking_number}
-                  </td>
-                  <td className="px-4 py-3 text-sm">
-                    <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
-                      {statusOptions.find((opt) => opt.value === tracking.status)?.label || tracking.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
-                    {tracking.shipping_mark || "-"}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
-                    {tracking.cbm || "-"}
-                  </td>
-                  <td className="px-4 py-3 text-sm">
-                    <div className="flex gap-2">
+              {filteredTrackings.map((tracking) => {
+                // Get container number - handle both object and ID formats
+                let containerNumber = "-";
+                if (tracking.container) {
+                  containerNumber = typeof tracking.container === 'object' 
+                    ? tracking.container.container_number || tracking.container.containerNumber || "-"
+                    : "-";
+                } else if (tracking.container_number) {
+                  containerNumber = tracking.container_number;
+                }
+                
+                return (
+                  <tr key={tracking.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
+                      {tracking.tracking_number}
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                        {statusOptions.find((opt) => opt.value === tracking.status)?.label || tracking.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                      {tracking.shipping_mark || "-"}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                      {tracking.cbm !== null && tracking.cbm !== undefined ? Number(tracking.cbm).toFixed(2) : "-"}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                      {containerNumber}
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      <div className="flex gap-2">
                       <button
                         onClick={() => {
                           setEditTracking(tracking);
-                          setNewTracking({
-                            tracking_number: tracking.tracking_number || "",
-                            status: tracking.status || "pending",
-                            cbm: tracking.cbm || "",
-                            shipping_fee: tracking.shipping_fee || "",
-                            eta: tracking.eta || "",
-                            container_id: tracking.container_id || "",
-                            shipping_mark: tracking.shipping_mark || "",
-                          });
                           setShowAddForm(true);
                         }}
-                        className="text-blue-600 hover:text-blue-800 dark:text-blue-400"
+                        className="p-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
+                        title="View tracking details"
                       >
-                        <FaEdit />
+                        <FaEye />
                       </button>
-                      <button
-                        onClick={() => {
-                          setDeleteTarget(tracking.id);
-                          setShowDeleteModal(true);
-                        }}
-                        className="text-red-600 hover:text-red-800 dark:text-red-400"
-                      >
-                        <FaTrash />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                        <button
+                          onClick={() => {
+                            setDeleteTarget(tracking.id);
+                            setShowDeleteModal(true);
+                          }}
+                          className="p-2 text-red-600 hover:text-red-800 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                          title="Delete tracking"
+                        >
+                          <FaTrash />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
