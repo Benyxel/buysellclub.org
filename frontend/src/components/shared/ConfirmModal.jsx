@@ -10,6 +10,7 @@ const ConfirmModal = ({
   confirmText = "Confirm",
   cancelText = "Cancel",
   type = "danger", // 'danger', 'warning', 'info'
+  disabled = false, // Disable confirm button
 }) => {
   if (!isOpen) return null;
 
@@ -44,9 +45,22 @@ const ConfirmModal = ({
 
   const styles = getTypeStyles();
 
-  const handleConfirm = () => {
-    onConfirm();
-    onClose();
+  const handleConfirm = async () => {
+    if (onConfirm) {
+      // Call onConfirm and wait if it's async
+      const result = onConfirm();
+      // If it returns a promise, wait for it
+      if (result && typeof result.then === 'function') {
+        try {
+          await result;
+        } catch (error) {
+          // Error handling is done in the handler
+          console.error("Error in confirm action:", error);
+        }
+      }
+    }
+    // Don't close automatically - let the handler manage it
+    // The handler should call onClose() when done
   };
 
   return (
@@ -95,7 +109,10 @@ const ConfirmModal = ({
           </button>
           <button
             onClick={handleConfirm}
-            className={`px-5 py-2.5 text-white rounded-lg transition-colors font-medium ${styles.button}`}
+            disabled={disabled}
+            className={`px-5 py-2.5 text-white rounded-lg transition-colors font-medium ${styles.button} ${
+              disabled ? "opacity-50 cursor-not-allowed" : ""
+            }`}
           >
             {confirmText}
           </button>

@@ -39,6 +39,8 @@ import {
   FaShip,
   FaBoxOpen,
   FaUserTag,
+  FaBuilding,
+  FaHandshake,
 } from "react-icons/fa";
 import { trackingSystem } from "./ShippingDashboard";
 import { Link, useNavigate } from "react-router-dom";
@@ -105,6 +107,142 @@ const MyProfile = () => {
     }
   };
 
+  // Function to handle agent request submission
+  const handleSubmitAgentRequest = async () => {
+    // Check if user already has a pending request
+    if (agentRequestStatus === "pending") {
+      toast.warning("You already have a pending agent request. Please wait for admin review.");
+      return;
+    }
+
+    // Check if user is already an agent
+    if (currentUser?.is_agent) {
+      toast.warning("You are already an agent.");
+      return;
+    }
+
+    if (!selectedAgentType) {
+      toast.error("Please select an agent type");
+      return;
+    }
+
+    // Validate corporate agent form
+    if (selectedAgentType === "corporate") {
+      if (!corporateFormData.businessName.trim()) {
+        toast.error("Business Name is required");
+        return;
+      }
+      if (!corporateFormData.location.trim()) {
+        toast.error("Location is required");
+        return;
+      }
+      if (!corporateFormData.phoneNumber.trim()) {
+        toast.error("Phone Number is required");
+        return;
+      }
+      if (!corporateFormData.businessCert) {
+        toast.error("Business Certificate is required");
+        return;
+      }
+      if (!corporateFormData.ghanaCard) {
+        toast.error("Ghana Card is required");
+        return;
+      }
+    }
+
+    try {
+      setSubmittingAgentRequest(true);
+      
+      // Prepare form data
+      const formData = new FormData();
+      formData.append("agent_type", selectedAgentType);
+      if (agentRequestMessage) {
+        formData.append("message", agentRequestMessage);
+      }
+
+      // Add corporate agent specific fields
+      if (selectedAgentType === "corporate") {
+        formData.append("business_name", corporateFormData.businessName);
+        formData.append("location", corporateFormData.location);
+        formData.append("phone_number", corporateFormData.phoneNumber);
+        if (corporateFormData.businessCert) {
+          formData.append("business_cert", corporateFormData.businessCert);
+        }
+        if (corporateFormData.ghanaCard) {
+          formData.append("ghana_card", corporateFormData.ghanaCard);
+        }
+      }
+
+      // Don't set Content-Type header - let axios handle it automatically for FormData
+      // Try the endpoint - if it doesn't exist, we'll show a helpful error
+      const response = await API.post("/buysellapi/agent-requests/", formData);
+
+      toast.success("Agent request submitted successfully! We will review your request.");
+      setShowBecomeAgentModal(false);
+      setSelectedAgentType("");
+      setAgentRequestMessage("");
+      setCorporateFormData({
+        businessName: "",
+        businessCert: null,
+        location: "",
+        ghanaCard: null,
+        phoneNumber: "",
+      });
+      setAgentRequestStatus("pending");
+      
+      // Refresh user profile to get updated status
+      await fetchUserProfile();
+    } catch (error) {
+      console.error("Failed to submit agent request:", error);
+      console.error("Error details:", {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message,
+      });
+      
+      let errorMsg = "Failed to submit agent request. Please try again.";
+      
+      if (error.response) {
+        // Server responded with error
+        if (error.response.status === 404) {
+          errorMsg = "Agent request endpoint not found. Please contact the administrator. The backend endpoint '/buysellapi/agent-requests/' needs to be implemented.";
+        } else {
+          errorMsg = 
+            error.response.data?.detail || 
+            error.response.data?.error ||
+            error.response.data?.message ||
+            `Server error: ${error.response.status}`;
+        }
+      } else if (error.request) {
+        // Request made but no response
+        errorMsg = "No response from server. Please check your connection.";
+      } else {
+        // Something else happened
+        errorMsg = error.message || "An unexpected error occurred";
+      }
+      
+      // Log full error details for debugging
+      console.error("Full error object:", {
+        message: error.message,
+        response: error.response,
+        request: error.request,
+        config: error.config,
+      });
+      
+      toast.error(errorMsg);
+    } finally {
+      setSubmittingAgentRequest(false);
+    }
+  };
+
+  // Handle file input changes
+  const handleFileChange = (field, file) => {
+    setCorporateFormData((prev) => ({
+      ...prev,
+      [field]: file,
+    }));
+  };
+
   const [isEditing, setIsEditing] = useState(false);
   const [userInfo, setUserInfo] = useState({
     name: "",
@@ -151,6 +289,20 @@ const MyProfile = () => {
   const [selectedBuy4meTrackingOrder, setSelectedBuy4meTrackingOrder] =
     useState(null);
   const [showBuy4meTrackingModal, setShowBuy4meTrackingModal] = useState(false);
+  const [showBecomeAgentModal, setShowBecomeAgentModal] = useState(false);
+  const [selectedAgentType, setSelectedAgentType] = useState("");
+  const [agentRequestMessage, setAgentRequestMessage] = useState("");
+  const [submittingAgentRequest, setSubmittingAgentRequest] = useState(false);
+  const [agentRequestStatus, setAgentRequestStatus] = useState(null); // 'pending', 'approved', 'rejected', null
+  
+  // Corporate Agent form fields
+  const [corporateFormData, setCorporateFormData] = useState({
+    businessName: "",
+    businessCert: null,
+    location: "",
+    ghanaCard: null,
+    phoneNumber: "",
+  });
   const trackableBuy4meOrders = buy4meOrders.filter(
     (order) =>
       order.tracking_status ||
@@ -440,6 +592,12 @@ const MyProfile = () => {
       setNotifyPromotions(
         u.notify_promotions !== undefined ? !!u.notify_promotions : false
       );
+      // Check agent request status
+      if (u.agent_request_status) {
+        setAgentRequestStatus(u.agent_request_status);
+      } else {
+        setAgentRequestStatus(null);
+      }
     } catch (error) {
       // Check if the error is due to being offline
       if (!checkOnlineStatus()) {
@@ -2054,10 +2212,41 @@ const MyProfile = () => {
                     currentUser?.username ||
                     "User"}
                 {currentUser?.is_agent && (
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20">
-                    <FaUserTag className="mr-1" />
-                    Agent
-                  </span>
+                  <>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+                      currentUser?.agent_type === "corporate"
+                        ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 border-blue-200"
+                        : currentUser?.agent_type === "local"
+                        ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border-green-200"
+                        : currentUser?.agent_type === "affiliate"
+                        ? "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 border-purple-200"
+                        : "bg-primary/10 text-primary border-primary/20"
+                    }`}>
+                      {currentUser?.agent_type === "corporate" ? (
+                        <FaBuilding className="mr-1" />
+                      ) : currentUser?.agent_type === "local" ? (
+                        <FaMapMarkerAlt className="mr-1" />
+                      ) : currentUser?.agent_type === "affiliate" ? (
+                        <FaHandshake className="mr-1" />
+                      ) : (
+                        <FaUserTag className="mr-1" />
+                      )}
+                      {currentUser?.agent_type === "corporate"
+                        ? "Corporate Agent"
+                        : currentUser?.agent_type === "local"
+                        ? "Local Agent"
+                        : currentUser?.agent_type === "affiliate"
+                        ? "Affiliate Agent"
+                        : "Agent"}
+                    </span>
+                    <Link
+                      to="/agent-dashboard"
+                      className="ml-3 inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all shadow-md hover:shadow-lg text-sm"
+                    >
+                      <FaUserTag className="mr-2" />
+                      Agent Dashboard
+                    </Link>
+                  </>
                 )}
               </h1>
               <p className="text-gray-600 dark:text-gray-400">
@@ -2065,14 +2254,53 @@ const MyProfile = () => {
                   ? "Please wait..."
                   : userInfo.email || currentUser?.email || "No email"}
               </p>
-              {currentUser?.is_agent && (
-                <Link
-                  to="/agent-dashboard"
-                  className="mt-2 inline-flex items-center px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm"
-                >
-                  <FaUserTag className="mr-2" />
-                  Agent Dashboard
-                </Link>
+
+              {/* Become Agent Button - Only show if user is not already an agent and no pending request */}
+              {!isLoading && !currentUser?.is_agent && agentRequestStatus !== "pending" && (
+                <div className="mt-4">
+                  <button
+                    onClick={() => setShowBecomeAgentModal(true)}
+                    className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all shadow-md hover:shadow-lg"
+                  >
+                    <FaUserTag className="mr-2" />
+                    Become Agent
+                  </button>
+                </div>
+              )}
+
+              {/* Agent Request Status */}
+              {agentRequestStatus && !currentUser?.is_agent && (
+                <div className="mt-3">
+                  {agentRequestStatus === "pending" && (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                      <FaRegClock className="mr-1" />
+                      Agent Request Pending
+                    </span>
+                  )}
+                  {agentRequestStatus === "approved" && (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                      <FaCheckCircle className="mr-1" />
+                      Agent Request Approved
+                      {currentUser?.agent_type && (
+                        <span className="ml-2 font-semibold">
+                          ({currentUser?.agent_type === "corporate"
+                            ? "Corporate"
+                            : currentUser?.agent_type === "local"
+                            ? "Local"
+                            : currentUser?.agent_type === "affiliate"
+                            ? "Affiliate"
+                            : ""} Agent)
+                        </span>
+                      )}
+                    </span>
+                  )}
+                  {agentRequestStatus === "rejected" && (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                      <FaExclamationTriangle className="mr-1" />
+                      Agent Request Rejected
+                    </span>
+                  )}
+                </div>
               )}
 
               {/* Add refresh button and status indicators */}
@@ -4253,6 +4481,356 @@ const MyProfile = () => {
         currentAvatar={selectedAvatar}
         onSelect={handleAvatarSelect}
       />
+
+      {/* Become Agent Modal */}
+      {showBecomeAgentModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div
+              className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+              onClick={() => {
+                setShowBecomeAgentModal(false);
+                setSelectedAgentType("");
+                setAgentRequestMessage("");
+                setCorporateFormData({
+                  businessName: "",
+                  businessCert: null,
+                  location: "",
+                  ghanaCard: null,
+                  phoneNumber: "",
+                });
+              }}
+            ></div>
+
+            <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full max-h-[90vh] overflow-y-auto">
+              <div className="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white flex items-center gap-2">
+                    <FaUserTag className="text-blue-600" />
+                    Become an Agent
+                  </h3>
+                  <button
+                  onClick={() => {
+                    setShowBecomeAgentModal(false);
+                    setSelectedAgentType("");
+                    setAgentRequestMessage("");
+                    setCorporateFormData({
+                      businessName: "",
+                      businessCert: null,
+                      location: "",
+                      ghanaCard: null,
+                      phoneNumber: "",
+                    });
+                  }}
+                  className="text-gray-400 hover:text-gray-500"
+                >
+                  <FaTimes />
+                </button>
+                </div>
+
+                <div className="space-y-4">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Select the type of agent you want to become. Our team will review your request and get back to you.
+                  </p>
+
+                  {/* Agent Type Selection */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                      Select Agent Type *
+                    </label>
+                    <div className="space-y-3">
+                      {/* Corporate Agent */}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedAgentType("corporate")}
+                        className={`w-full p-4 border-2 rounded-lg transition-all text-left ${
+                          selectedAgentType === "corporate"
+                            ? "border-blue-600 bg-blue-50 dark:bg-blue-900/20"
+                            : "border-gray-300 dark:border-gray-600 hover:border-gray-400"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-lg ${
+                            selectedAgentType === "corporate"
+                              ? "bg-blue-600 text-white"
+                              : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
+                          }`}>
+                            <FaBuilding className="w-5 h-5" />
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-gray-900 dark:text-white">
+                              Corporate Agent
+                            </h4>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                              For businesses and corporations bringing goods
+                            </p>
+                          </div>
+                          {selectedAgentType === "corporate" && (
+                            <FaCheckCircle className="text-blue-600 w-5 h-5" />
+                          )}
+                        </div>
+                      </button>
+
+                      {/* Local Agent */}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedAgentType("local")}
+                        className={`w-full p-4 border-2 rounded-lg transition-all text-left ${
+                          selectedAgentType === "local"
+                            ? "border-green-600 bg-green-50 dark:bg-green-900/20"
+                            : "border-gray-300 dark:border-gray-600 hover:border-gray-400"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-lg ${
+                            selectedAgentType === "local"
+                              ? "bg-green-600 text-white"
+                              : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
+                          }`}>
+                            <FaMapMarkerAlt className="w-5 h-5" />
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-gray-900 dark:text-white">
+                              Local Agent
+                            </h4>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                              For local agents bringing goods to the platform
+                            </p>
+                          </div>
+                          {selectedAgentType === "local" && (
+                            <FaCheckCircle className="text-green-600 w-5 h-5" />
+                          )}
+                        </div>
+                      </button>
+
+                      {/* Affiliate Agent */}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedAgentType("affiliate")}
+                        className={`w-full p-4 border-2 rounded-lg transition-all text-left ${
+                          selectedAgentType === "affiliate"
+                            ? "border-purple-600 bg-purple-50 dark:bg-purple-900/20"
+                            : "border-gray-300 dark:border-gray-600 hover:border-gray-400"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-lg ${
+                            selectedAgentType === "affiliate"
+                              ? "bg-purple-600 text-white"
+                              : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
+                          }`}>
+                            <FaHandshake className="w-5 h-5" />
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-gray-900 dark:text-white">
+                              Affiliate Agent
+                            </h4>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                              For affiliate partners bringing goods
+                            </p>
+                          </div>
+                          {selectedAgentType === "affiliate" && (
+                            <FaCheckCircle className="text-purple-600 w-5 h-5" />
+                          )}
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Corporate Agent Form - Show only when Corporate is selected */}
+                  {selectedAgentType === "corporate" && (
+                    <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700 space-y-4">
+                      <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-4">
+                        Corporate Agent Information
+                      </h4>
+                      
+                      {/* Business Name */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Business Name *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={corporateFormData.businessName}
+                          onChange={(e) =>
+                            setCorporateFormData({
+                              ...corporateFormData,
+                              businessName: e.target.value,
+                            })
+                          }
+                          placeholder="Enter your business name"
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+
+                      {/* Location */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Location *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={corporateFormData.location}
+                          onChange={(e) =>
+                            setCorporateFormData({
+                              ...corporateFormData,
+                              location: e.target.value,
+                            })
+                          }
+                          placeholder="Enter business location"
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+
+                      {/* Phone Number */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Phone Number *
+                        </label>
+                        <input
+                          type="tel"
+                          required
+                          value={corporateFormData.phoneNumber}
+                          onChange={(e) =>
+                            setCorporateFormData({
+                              ...corporateFormData,
+                              phoneNumber: e.target.value,
+                            })
+                          }
+                          placeholder="Enter phone number"
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+
+                      {/* Business Certificate */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Business Certificate *
+                        </label>
+                        <div className="mt-1">
+                          <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-lg cursor-pointer bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600">
+                            <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                              <FaImage className="w-8 h-8 mb-2 text-gray-400" />
+                              <p className="mb-2 text-sm text-gray-500 dark:text-gray-400">
+                                <span className="font-semibold">Click to upload</span> or drag and drop
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                PDF, PNG, JPG (MAX. 10MB)
+                              </p>
+                              {corporateFormData.businessCert && (
+                                <p className="mt-2 text-sm text-green-600 dark:text-green-400">
+                                  {corporateFormData.businessCert.name}
+                                </p>
+                              )}
+                            </div>
+                            <input
+                              type="file"
+                              accept=".pdf,.png,.jpg,.jpeg"
+                              className="hidden"
+                              onChange={(e) =>
+                                handleFileChange("businessCert", e.target.files[0])
+                              }
+                            />
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Ghana Card */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Ghana Card *
+                        </label>
+                        <div className="mt-1">
+                          <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-lg cursor-pointer bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600">
+                            <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                              <FaImage className="w-8 h-8 mb-2 text-gray-400" />
+                              <p className="mb-2 text-sm text-gray-500 dark:text-gray-400">
+                                <span className="font-semibold">Click to upload</span> or drag and drop
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                PDF, PNG, JPG (MAX. 10MB)
+                              </p>
+                              {corporateFormData.ghanaCard && (
+                                <p className="mt-2 text-sm text-green-600 dark:text-green-400">
+                                  {corporateFormData.ghanaCard.name}
+                                </p>
+                              )}
+                            </div>
+                            <input
+                              type="file"
+                              accept=".pdf,.png,.jpg,.jpeg"
+                              className="hidden"
+                              onChange={(e) =>
+                                handleFileChange("ghanaCard", e.target.files[0])
+                              }
+                            />
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Optional Message - Show for non-corporate agents */}
+                  {selectedAgentType && selectedAgentType !== "corporate" && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Additional Message (Optional)
+                      </label>
+                      <textarea
+                        value={agentRequestMessage}
+                        onChange={(e) => setAgentRequestMessage(e.target.value)}
+                        placeholder="Tell us why you want to become an agent..."
+                        rows="4"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button
+                  type="button"
+                  onClick={handleSubmitAgentRequest}
+                  disabled={
+                    !selectedAgentType ||
+                    submittingAgentRequest ||
+                    (selectedAgentType === "corporate" &&
+                      (!corporateFormData.businessName ||
+                        !corporateFormData.location ||
+                        !corporateFormData.phoneNumber ||
+                        !corporateFormData.businessCert ||
+                        !corporateFormData.ghanaCard))
+                  }
+                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {submittingAgentRequest ? "Submitting..." : "Submit Request"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowBecomeAgentModal(false);
+                    setSelectedAgentType("");
+                    setAgentRequestMessage("");
+                    setCorporateFormData({
+                      businessName: "",
+                      businessCert: null,
+                      location: "",
+                      ghanaCard: null,
+                      phoneNumber: "",
+                    });
+                  }}
+                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

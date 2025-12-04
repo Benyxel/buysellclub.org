@@ -35,6 +35,8 @@ import {
   FaDollarSign,
   FaUserTag,
   FaCalendarAlt,
+  FaBuilding,
+  FaHandshake,
 } from "react-icons/fa";
 
 import UsersManagement from "./UsersManagement";
@@ -55,7 +57,16 @@ import OrderManagement from "./OrderManagement";
 import CategoriesTypesManagement from "./CategoriesTypesManagement";
 import Analytics from "./Analytics";
 import GalleryManagement from "./GalleryManagement";
-import AgentManagement from "./AgentManagement";
+import AgentTrackingManagement from "./AgentTrackingManagement";
+import AgentContainerManagement from "./AgentContainerManagement";
+import AgentInvoicesManagement from "./AgentInvoicesManagement";
+import AgentShippingRatesManagement from "./AgentShippingRatesManagement";
+import AgentAddressManagement from "./AgentAddressManagement";
+import AgentShippingMarksManagement from "./AgentShippingMarksManagement";
+import AgentRequestsManagement from "./AgentRequestsManagement";
+import CorporateAgentManagement from "./CorporateAgentManagement";
+import LocalAgentManagement from "./LocalAgentManagement";
+import AffiliateAgentManagement from "./AffiliateAgentManagement";
 import "react-toastify/dist/ReactToastify.css";
 
 const AdminDashboard = () => {
@@ -73,6 +84,16 @@ const AdminDashboard = () => {
     if (subMenuFromUrl) return subMenuFromUrl;
 
     const savedSubMenu = localStorage.getItem("adminShippingSubMenu");
+    return savedSubMenu || "tracking";
+  };
+
+  // Initialize agent submenu from URL or localStorage
+  const getInitialAgentSubMenu = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const subMenuFromUrl = urlParams.get("agentSubMenu");
+    if (subMenuFromUrl) return subMenuFromUrl;
+
+    const savedSubMenu = localStorage.getItem("adminAgentSubMenu");
     return savedSubMenu || "tracking";
   };
 
@@ -95,6 +116,9 @@ const AdminDashboard = () => {
   const [darkMode, setDarkMode] = useState(false);
   const [shippingSubMenu, setShippingSubMenu] = useState(
     getInitialShippingSubMenu()
+  );
+  const [agentSubMenu, setAgentSubMenu] = useState(
+    getInitialAgentSubMenu()
   );
   const [trainingSubMenu, setTrainingSubMenu] = useState("paidCourses");
   const [notifications, setNotifications] = useState([]);
@@ -122,7 +146,7 @@ const AdminDashboard = () => {
         section: "alipay-payments",
       },
       { icon: <FaHandHoldingUsd />, label: "Buy4me", section: "buy4me" },
-      { icon: <FaUserTag />, label: "Agents", section: "agents" },
+      { icon: <FaUserTag />, label: "Agent Management", section: "agents" },
       { icon: <FaShoppingCart />, label: "Orders", section: "orders" },
       { icon: <FaBox />, label: "Products", section: "products" },
       { icon: <FaStore />, label: "Categories", section: "categories" },
@@ -254,13 +278,25 @@ const AdminDashboard = () => {
       url.searchParams.delete("shippingSubMenu");
     }
 
+    // Also persist agent submenu if we're in agents section
+    if (activeSection === "agents") {
+      url.searchParams.set("agentSubMenu", agentSubMenu);
+    } else {
+      url.searchParams.delete("agentSubMenu");
+    }
+
     window.history.replaceState({}, "", url);
-  }, [activeSection, shippingSubMenu]);
+  }, [activeSection, shippingSubMenu, agentSubMenu]);
 
   // Persist shippingSubMenu to localStorage
   useEffect(() => {
     localStorage.setItem("adminShippingSubMenu", shippingSubMenu);
   }, [shippingSubMenu]);
+
+  // Persist agentSubMenu to localStorage
+  useEffect(() => {
+    localStorage.setItem("adminAgentSubMenu", agentSubMenu);
+  }, [agentSubMenu]);
 
   useEffect(() => {
     // Only fetch dashboard data the first time we visit the dashboard
@@ -751,6 +787,194 @@ const AdminDashboard = () => {
             <Buy4meAdmin />
           </div>
         );
+      case "agents":
+        return (
+          <div className="p-6">
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">
+              Agent Management
+            </h2>
+
+            {/* Agent Tabs */}
+            <div className="border-b border-gray-200 dark:border-gray-700 mb-6">
+              <div className="flex flex-wrap">
+                {/* 1. Tracking Numbers */}
+                <button
+                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
+                    agentSubMenu === "tracking"
+                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                  onClick={() => setAgentSubMenu("tracking")}
+                >
+                  <div className="flex items-center gap-2">
+                    <FaTruck className="w-4 h-4" />
+                    <span>Agent Tracking Numbers</span>
+                  </div>
+                </button>
+
+                {/* 2. Containers */}
+                <button
+                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
+                    agentSubMenu === "containers"
+                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                  onClick={() => setAgentSubMenu("containers")}
+                >
+                  <div className="flex items-center gap-2">
+                    <FaBox className="w-4 h-4" />
+                    <span>Agent Containers</span>
+                  </div>
+                </button>
+
+                {/* 3. Invoices */}
+                <button
+                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
+                    agentSubMenu === "invoices"
+                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                  onClick={() => setAgentSubMenu("invoices")}
+                >
+                  <div className="flex items-center gap-2">
+                    <FaFileInvoice className="w-4 h-4" />
+                    <span>Agent Invoices</span>
+                  </div>
+                </button>
+
+                {/* 4. Shipping Rates */}
+                <button
+                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
+                    agentSubMenu === "rates"
+                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                  onClick={() => setAgentSubMenu("rates")}
+                >
+                  <div className="flex items-center gap-2">
+                    <FaDollarSign className="w-4 h-4" />
+                    <span>Agent Shipping Rates</span>
+                  </div>
+                </button>
+
+                {/* 5. Address Management */}
+                <button
+                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
+                    agentSubMenu === "addresses"
+                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                  onClick={() => setAgentSubMenu("addresses")}
+                >
+                  <div className="flex items-center gap-2">
+                    <FaMapMarkerAlt className="w-4 h-4" />
+                    <span>Agent Address Management</span>
+                  </div>
+                </button>
+
+                {/* 6. Shipping Marks Viewer */}
+                <button
+                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
+                    agentSubMenu === "shipping-marks"
+                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                  onClick={() => setAgentSubMenu("shipping-marks")}
+                >
+                  <div className="flex items-center gap-2">
+                    <FaTag className="w-4 h-4" />
+                    <span>Agent Shipping Marks</span>
+                  </div>
+                </button>
+
+                {/* 7. Agent Requests */}
+                <button
+                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
+                    agentSubMenu === "requests"
+                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                  onClick={() => setAgentSubMenu("requests")}
+                >
+                  <div className="flex items-center gap-2">
+                    <FaHandHoldingUsd className="w-4 h-4" />
+                    <span>Agent Requests</span>
+                  </div>
+                </button>
+
+                {/* 8. Corporate Agents */}
+                <button
+                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
+                    agentSubMenu === "corporate"
+                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                  onClick={() => setAgentSubMenu("corporate")}
+                >
+                  <div className="flex items-center gap-2">
+                    <FaBuilding className="w-4 h-4" />
+                    <span>Corporate Agent</span>
+                  </div>
+                </button>
+
+                {/* 9. Local Agents */}
+                <button
+                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
+                    agentSubMenu === "local"
+                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                  onClick={() => setAgentSubMenu("local")}
+                >
+                  <div className="flex items-center gap-2">
+                    <FaMapMarkerAlt className="w-4 h-4" />
+                    <span>Local Agent</span>
+                  </div>
+                </button>
+
+                {/* 10. Affiliate Agents */}
+                <button
+                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
+                    agentSubMenu === "affiliate"
+                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                  onClick={() => setAgentSubMenu("affiliate")}
+                >
+                  <div className="flex items-center gap-2">
+                    <FaHandshake className="w-4 h-4" />
+                    <span>Affiliate Agent</span>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* Agent Content */}
+            {agentSubMenu === "tracking" ? (
+              <AgentTrackingManagement />
+            ) : agentSubMenu === "containers" ? (
+              <AgentContainerManagement />
+            ) : agentSubMenu === "invoices" ? (
+              <AgentInvoicesManagement />
+            ) : agentSubMenu === "rates" ? (
+              <AgentShippingRatesManagement />
+            ) : agentSubMenu === "addresses" ? (
+              <AgentAddressManagement />
+            ) : agentSubMenu === "shipping-marks" ? (
+              <AgentShippingMarksManagement />
+            ) : agentSubMenu === "requests" ? (
+              <AgentRequestsManagement />
+            ) : agentSubMenu === "corporate" ? (
+              <CorporateAgentManagement />
+            ) : agentSubMenu === "local" ? (
+              <LocalAgentManagement />
+            ) : agentSubMenu === "affiliate" ? (
+              <AffiliateAgentManagement />
+            ) : (
+              <AgentTrackingManagement />
+            )}
+          </div>
+        );
       case "quick-orders":
         return (
           <div className="p-6">
@@ -779,8 +1003,6 @@ const AdminDashboard = () => {
         return <Analytics />;
       case "gallery":
         return <GalleryManagement />;
-      case "agents":
-        return <AgentManagement />;
       default:
         return (
           <div className="p-6">

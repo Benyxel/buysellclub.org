@@ -36,6 +36,8 @@ import AdminLogin from "./pages/AdminLogin";
 import TrackingPage from "./pages/TrackingPage";
 import ProtectedRoute from "./auth/ProtectedRoute.jsx";
 import AdminRoute from "./auth/AdminRoute.jsx";
+import AgentRoute from "./auth/AgentRoute.jsx";
+import AgentDashboard from "./pages/AgentDashboard";
 import TokenDebugger from "./components/TokenDebugger";
 import OrderManagement from "./pages/admin/OrderManagement";
 import UserOrders from "./pages/UserOrders";
@@ -45,7 +47,6 @@ import NotFound from "./pages/NotFound";
 import LoginPromptModal from "./components/LoginPromptModal";
 import UserView from "./pages/admin/UserView";
 import ScrollToTop from "./components/ScrollToTop";
-import AgentDashboard from "./pages/AgentDashboard";
 
 function App() {
   return (
@@ -65,6 +66,15 @@ function App() {
             <AdminRoute>
               <AdminDashboard />
             </AdminRoute>
+          }
+        />
+        {/* Agent Dashboard route without Navbar and Footer */}
+        <Route
+          path="/agent-dashboard"
+          element={
+            <AgentRoute>
+              <AgentDashboard />
+            </AgentRoute>
           }
         />
         <Route
@@ -186,14 +196,6 @@ function App() {
                     element={
                       <ProtectedRoute>
                         <MyProfile />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="agent-dashboard"
-                    element={
-                      <ProtectedRoute>
-                        <AgentDashboard />
                       </ProtectedRoute>
                     }
                   />
