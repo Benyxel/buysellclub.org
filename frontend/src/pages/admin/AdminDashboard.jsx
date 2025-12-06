@@ -60,7 +60,9 @@ import GalleryManagement from "./GalleryManagement";
 import AgentTrackingManagement from "./AgentTrackingManagement";
 import AgentContainerManagement from "./AgentContainerManagement";
 import AgentInvoicesManagement from "./AgentInvoicesManagement";
-import AgentShippingRatesManagement from "./AgentShippingRatesManagement";
+const AgentShippingRatesManagement = React.lazy(() =>
+  import("./AgentShippingRatesManagement.jsx")
+);
 import AgentAddressManagement from "./AgentAddressManagement";
 import AgentShippingMarksManagement from "./AgentShippingMarksManagement";
 import AgentRequestsManagement from "./AgentRequestsManagement";
@@ -957,7 +959,9 @@ const AdminDashboard = () => {
             ) : agentSubMenu === "invoices" ? (
               <AgentInvoicesManagement />
             ) : agentSubMenu === "rates" ? (
-              <AgentShippingRatesManagement />
+              <React.Suspense fallback={<div>Loading...</div>}>
+                <AgentShippingRatesManagement />
+              </React.Suspense>
             ) : agentSubMenu === "addresses" ? (
               <AgentAddressManagement />
             ) : agentSubMenu === "shipping-marks" ? (
