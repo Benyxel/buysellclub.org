@@ -7,7 +7,7 @@ import {
   FaTimes,
   FaUsers,
 } from "react-icons/fa";
-import { toast } from "react-toastify";
+import { toast } from "../../utils/toast";
 import API from "../../api";
 import ConfirmModal from "../../components/shared/ConfirmModal";
 import BulkActions from "../../components/shared/BulkActions";
