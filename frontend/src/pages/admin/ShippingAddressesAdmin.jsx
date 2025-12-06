@@ -11,7 +11,7 @@ import {
   FaTimesCircle,
   FaSave,
 } from "react-icons/fa";
-import { toast } from "react-toastify";
+import { toast } from "../../utils/toast";
 import API from "../../api";
 import ConfirmModal from "../../components/shared/ConfirmModal";
 
@@ -72,6 +72,7 @@ const ShippingAddressesAdmin = () => {
             sortDirection: sortDirection,
             search: searchTerm,
           },
+          timeout: 30000, // 30 seconds for this endpoint
         });
 
         console.log("API Response:", response.data);
@@ -111,7 +112,9 @@ const ShippingAddressesAdmin = () => {
         );
 
         // Fallback to non-paginated endpoint
-        const fallbackResponse = await API.get("/api/admin/shipping-marks");
+        const fallbackResponse = await API.get("/api/admin/shipping-marks", {
+          timeout: 30000, // 30 seconds for this endpoint
+        });
 
         if (Array.isArray(fallbackResponse.data)) {
           // Handle data manually for pagination
@@ -172,12 +175,24 @@ const ShippingAddressesAdmin = () => {
       }
     } catch (error) {
       console.error("Error loading shipping addresses:", error);
+      const errorData = error.response?.data;
+      let errorMessage = errorData?.error || 
+                         errorData?.detail || 
+                         error.message || 
+                         "Unknown error";
+      const statusCode = error.response?.status;
+      
+      // Check if it's a migration error
+      if (errorMessage.includes("migration") || errorMessage.includes("is_display_address")) {
+        errorMessage = "Database migration required. Please contact the administrator to run migrations.";
+      }
+      
       toast.error(
-        `Failed to load shipping addresses: ${
-          error.response?.status || error.message
-        }`
+        `Failed to load shipping addresses: ${statusCode ? `Status ${statusCode} - ` : ""}${errorMessage}`
       );
       setAddresses([]);
+      setTotalItems(0);
+      setTotalPages(1);
     } finally {
       setIsLoading(false);
     }
@@ -619,22 +634,6 @@ const ShippingAddressesAdmin = () => {
 
         {/* Action buttons */}
         <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => {
-              setEditAddress(null);
-              setNewAddress({
-                markId: "",
-                name: "",
-                fullAddress: "",
-                shippingMark: "",
-              });
-              generateNewMarkId();
-              setShowAddForm(true);
-            }}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-          >
-            <FaPlus /> Add Shipping Address
-          </button>
           <button
             onClick={exportToCSV}
             className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"

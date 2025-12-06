@@ -11,7 +11,7 @@ import {
   FaUserTag,
 } from "react-icons/fa";
 import axios from "axios";
-import { toast } from "react-toastify";
+import { toast } from "../../utils/toast";
 import { API_BASE_URL } from "../../config/api";
 
 const AgentShippingMarksManagement = () => {

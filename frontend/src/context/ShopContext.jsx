@@ -1,5 +1,5 @@
 import { createContext, useEffect, useState } from "react";
-import { toast } from "react-toastify";
+import { toast } from "../utils/toast";
 import { getProducts } from "../api";
 
 export const ShopContext = createContext();

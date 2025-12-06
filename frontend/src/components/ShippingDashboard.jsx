@@ -12,7 +12,7 @@ import {
   FaCopy,
 } from "react-icons/fa";
 import { Link } from "react-router-dom";
-import { toast } from "react-toastify";
+import { toast } from "../utils/toast";
 import CBMCalculator from "./CBMCalculator";
 import TrackingSearch from "./TrackingSearch";
 import axios from "axios";

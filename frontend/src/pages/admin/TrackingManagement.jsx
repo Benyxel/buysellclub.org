@@ -12,7 +12,7 @@ import {
   FaEye,
   FaExternalLinkAlt,
 } from "react-icons/fa";
-import { toast } from "react-toastify";
+import { toast } from "../../utils/toast";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import API from "../../api";
@@ -117,8 +117,11 @@ const TrackingManagement = () => {
       });
 
       if (response.data && Array.isArray(response.data)) {
+        // Filter out agent-created trackings (they should only appear in Agent Tracking Management)
+        const nonAgentTrackings = response.data.filter(t => !t.created_by_agent);
+        
         // Transform backend data to frontend format
-        const transformed = response.data.map((t) => ({
+        const transformed = nonAgentTrackings.map((t) => ({
           id: t.id,
           TrackingNum: t.tracking_number,
           ShippingMark: t.shipping_mark || "",

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { FaShoppingBag, FaTruck, FaCheckCircle, FaTimesCircle, FaBox, FaMapMarkerAlt, FaCalendarAlt, FaTrash, FaEye, FaSpinner } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
-import { toast } from 'react-toastify';
+import { toast } from '../utils/toast';
 import { getOrders, getOrder } from '../api';
 import { getPlaceholderImagePath } from '../utils/paths';
 

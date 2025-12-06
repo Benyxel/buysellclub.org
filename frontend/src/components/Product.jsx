@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ShopContext } from '../context/ShopContext';
 import { FaStar } from "react-icons/fa6";
-import { toast } from 'react-toastify';
+import { toast } from '../utils/toast';
 import RelatedProducts from './RelatedProducts';
 import { getProductReviews, createProductReview } from '../api';
 

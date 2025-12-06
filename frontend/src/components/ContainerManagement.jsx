@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { toast } from "react-toastify";
+import { toast } from "../utils/toast";
 import api from "../api";
 import {
   FaPlus,

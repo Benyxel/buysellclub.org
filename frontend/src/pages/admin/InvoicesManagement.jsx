@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import API from "../../api";
-import { toast } from "react-toastify";
+import { toast } from "../../utils/toast";
 
 const statusOptions = [
   { value: "", label: "All" },

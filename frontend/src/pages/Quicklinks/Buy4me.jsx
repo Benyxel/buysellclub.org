@@ -10,7 +10,7 @@ import {
   FaEdit,
   FaTimes,
 } from "react-icons/fa";
-import { toast } from "react-toastify";
+import { toast } from "../../utils/toast";
 import "react-toastify/dist/ReactToastify.css";
 import buyimg from "../../assets/bm2.jpg";
 import { useNavigate, useLocation } from "react-router-dom";

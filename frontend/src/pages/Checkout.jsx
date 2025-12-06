@@ -1,7 +1,7 @@
 import React, { useState, useContext, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShopContext } from '../context/ShopContext';
-import { toast } from 'react-toastify';
+import { toast } from '../utils/toast';
 import { createOrder } from '../api';
 import { getPlaceholderImagePath } from '../utils/paths';
 
