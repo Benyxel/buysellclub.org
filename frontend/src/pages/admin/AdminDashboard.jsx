@@ -119,9 +119,7 @@ const AdminDashboard = () => {
   const [shippingSubMenu, setShippingSubMenu] = useState(
     getInitialShippingSubMenu()
   );
-  const [agentSubMenu, setAgentSubMenu] = useState(
-    getInitialAgentSubMenu()
-  );
+  const [agentSubMenu, setAgentSubMenu] = useState(getInitialAgentSubMenu());
   const [trainingSubMenu, setTrainingSubMenu] = useState("paidCourses");
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -132,7 +130,7 @@ const AdminDashboard = () => {
   const [currentUser, setCurrentUser] = useState(null);
   const [allowedTabs, setAllowedTabs] = useState(null); // null = not loaded, [] = loaded but none
   const [allowedTabsMeta, setAllowedTabsMeta] = useState({});
-  
+
   // Refs to prevent duplicate toasts in StrictMode
   const welcomeToastShown = useRef(false);
   const sessionExpiredToastShown = useRef(false);
@@ -221,12 +219,12 @@ const AdminDashboard = () => {
       // Refresh notifications
       fetchAdminNotifications();
       toast.success("All notifications marked as read", {
-        toastId: "mark-all-read-success"
+        toastId: "mark-all-read-success",
       });
     } catch (error) {
       console.error("Error marking all as read:", error);
       toast.error("Failed to mark notifications as read", {
-        toastId: "mark-all-read-error"
+        toastId: "mark-all-read-error",
       });
     }
   };
@@ -343,7 +341,7 @@ const AdminDashboard = () => {
         if (err.response?.status === 401 && !sessionExpiredToastShown.current) {
           sessionExpiredToastShown.current = true;
           toast.error("Session expired. Please log in again.", {
-            toastId: "session-expired-toast"
+            toastId: "session-expired-toast",
           });
           navigate("/admin-login");
         } else {

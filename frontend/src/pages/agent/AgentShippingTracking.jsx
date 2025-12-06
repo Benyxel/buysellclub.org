@@ -22,15 +22,15 @@ const AgentShippingTracking = () => {
         const smResp = await API.get("/buysellapi/shipping-marks/me/");
         const sm = smResp?.data;
         if (sm && (sm.shippingMark || (sm.markId && sm.name))) {
-            const myMarkFull = sm.shippingMark || `${sm.markId}:${sm.name}`;
-            setShippingMark(myMarkFull);
-            // determine mark id: prefer explicit sm.markId, otherwise parse from shippingMark
-            const myMarkId = sm.markId
-              ? String(sm.markId)
-              : myMarkFull && myMarkFull.includes(":")
-              ? myMarkFull.split(":")[0]
-              : myMarkFull;
-            setShippingMarkId(myMarkId);
+          const myMarkFull = sm.shippingMark || `${sm.markId}:${sm.name}`;
+          setShippingMark(myMarkFull);
+          // determine mark id: prefer explicit sm.markId, otherwise parse from shippingMark
+          const myMarkId = sm.markId
+            ? String(sm.markId)
+            : myMarkFull && myMarkFull.includes(":")
+            ? myMarkFull.split(":")[0]
+            : myMarkFull;
+          setShippingMarkId(myMarkId);
         }
       } catch (e) {
         // ignore if not found; modal will show placeholder and handle error on submit
