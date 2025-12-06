@@ -379,7 +379,7 @@ const AgentShippingTracking = () => {
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                  {trackingsToShow.map((tracking) => (
+                {trackingsToShow.map((tracking) => (
                   <tr key={tracking.id}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                       {tracking.tracking_number}
@@ -417,13 +417,18 @@ const AgentShippingTracking = () => {
         {trackings.length > pageSize && (
           <div className="mt-4 flex items-center justify-between">
             <div className="text-sm text-gray-600 dark:text-gray-400">
-              Showing {startIndex + 1} - {Math.min(endIndex, trackings.length)} of {trackings.length}
+              Showing {startIndex + 1} - {Math.min(endIndex, trackings.length)}{" "}
+              of {trackings.length}
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => goToPage(currentPage - 1)}
                 disabled={currentPage === 1}
-                className={`px-3 py-1 rounded-md border ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                className={`px-3 py-1 rounded-md border ${
+                  currentPage === 1
+                    ? "opacity-50 cursor-not-allowed"
+                    : "hover:bg-gray-100 dark:hover:bg-gray-700"
+                }`}
               >
                 Prev
               </button>
@@ -436,7 +441,11 @@ const AgentShippingTracking = () => {
                     <button
                       key={p}
                       onClick={() => goToPage(p)}
-                      className={`px-2 py-1 rounded-md ${p === currentPage ? 'bg-primary text-white' : 'bg-white dark:bg-gray-800 border'}`}
+                      className={`px-2 py-1 rounded-md ${
+                        p === currentPage
+                          ? "bg-primary text-white"
+                          : "bg-white dark:bg-gray-800 border"
+                      }`}
                     >
                       {p}
                     </button>
@@ -447,7 +456,11 @@ const AgentShippingTracking = () => {
               <button
                 onClick={() => goToPage(currentPage + 1)}
                 disabled={currentPage === totalPages}
-                className={`px-3 py-1 rounded-md border ${currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                className={`px-3 py-1 rounded-md border ${
+                  currentPage === totalPages
+                    ? "opacity-50 cursor-not-allowed"
+                    : "hover:bg-gray-100 dark:hover:bg-gray-700"
+                }`}
               >
                 Next
               </button>
