@@ -7,6 +7,8 @@ const AgentShippingTracking = () => {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [trackings, setTrackings] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [showAddForm, setShowAddForm] = useState(false);
   const [shippingMark, setShippingMark] = useState("");
   const [shippingMarkId, setShippingMarkId] = useState("");
@@ -46,6 +48,7 @@ const AgentShippingTracking = () => {
       const response = await API.get("/buysellapi/agent/trackings/");
       if (response.data && Array.isArray(response.data)) {
         setTrackings(response.data);
+        setCurrentPage(1);
       }
     } catch (error) {
       console.error("Error fetching trackings:", error);
@@ -211,6 +214,17 @@ const AgentShippingTracking = () => {
     return statusMap[status] || status;
   };
 
+  // Pagination helpers
+  const totalPages = Math.max(1, Math.ceil(trackings.length / pageSize));
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const trackingsToShow = trackings.slice(startIndex, endIndex);
+
+  const goToPage = (p) => {
+    const pageNum = Math.max(1, Math.min(totalPages, p));
+    setCurrentPage(pageNum);
+  };
+
   const extractMarkId = (fullMark) => {
     if (!fullMark) return "";
     try {
@@ -365,7 +379,7 @@ const AgentShippingTracking = () => {
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {trackings.map((tracking) => (
+                  {trackingsToShow.map((tracking) => (
                   <tr key={tracking.id}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                       {tracking.tracking_number}
@@ -397,6 +411,47 @@ const AgentShippingTracking = () => {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+        {/* Pagination controls */}
+        {trackings.length > pageSize && (
+          <div className="mt-4 flex items-center justify-between">
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              Showing {startIndex + 1} - {Math.min(endIndex, trackings.length)} of {trackings.length}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => goToPage(currentPage - 1)}
+                disabled={currentPage === 1}
+                className={`px-3 py-1 rounded-md border ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+              >
+                Prev
+              </button>
+
+              {/* simple page numbers */}
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalPages }).map((_, idx) => {
+                  const p = idx + 1;
+                  return (
+                    <button
+                      key={p}
+                      onClick={() => goToPage(p)}
+                      className={`px-2 py-1 rounded-md ${p === currentPage ? 'bg-primary text-white' : 'bg-white dark:bg-gray-800 border'}`}
+                    >
+                      {p}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button
+                onClick={() => goToPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className={`px-3 py-1 rounded-md border ${currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+              >
+                Next
+              </button>
+            </div>
           </div>
         )}
       </div>
