@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FaSearch, FaSortAmountDown, FaSortAmountUp, FaFilter, FaDownload, FaEye, FaCheck, FaTimes } from 'react-icons/fa';
-import { toast } from 'react-toastify';
+import { toast } from '../../utils/toast';
 import API, { getOrders } from '../../api';
 import BulkActions from '../../components/shared/BulkActions';
 import { getApiUrl } from '../../config/api';

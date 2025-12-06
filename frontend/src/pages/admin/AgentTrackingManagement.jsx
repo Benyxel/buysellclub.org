@@ -1,16 +1,20 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   FaSearch,
-  FaPlus,
-  FaEdit,
-  FaTrash,
-  FaEye,
   FaSortAmountDown,
   FaSortAmountUp,
+  FaTrash,
   FaDownload,
+  FaPlus,
+  FaEdit,
+  FaCheckCircle,
+  FaTimesCircle,
+  FaEye,
   FaExternalLinkAlt,
 } from "react-icons/fa";
-import { toast } from "react-toastify";
+import { toast } from "../../utils/toast";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 import API from "../../api";
 import ConfirmModal from "../../components/shared/ConfirmModal";
 
@@ -33,7 +37,6 @@ const normalize = (s) =>
     .toLowerCase()
     .replace(/[_\s]+/g, "")
     .replace(/[()]/g, "");
-
 const labelToValue = (label) =>
   statusOptions.find((o) => normalize(o.label) === normalize(label))?.value ||
   "pending";
@@ -45,227 +48,179 @@ const AgentTrackingManagement = () => {
   const [sortField, setSortField] = useState("addedDate");
   const [sortDirection, setSortDirection] = useState("desc");
   const [filterStatus, setFilterStatus] = useState("all");
-  const [filterContainer, setFilterContainer] = useState("all");
   const [selectedTrackings, setSelectedTrackings] = useState([]);
   const [selectAll, setSelectAll] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editTracking, setEditTracking] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
   const [viewTracking, setViewTracking] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const viewContentRef = useRef(null);
   const [loading, setLoading] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [containers, setContainers] = useState([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [markOptions, setMarkOptions] = useState([]);
+  const [markLoading, setMarkLoading] = useState(false);
+  const [filterContainer, setFilterContainer] = useState("all");
+  const [prefilledMark, setPrefilledMark] = useState("");
   const [activeRates, setActiveRates] = useState(null);
-  const [rateSelections, setRateSelections] = useState({});
+  const [rateSelections, setRateSelections] = useState({}); // { [trackingId]: 'normal' | 'special' }
 
   const [newTracking, setNewTracking] = useState({
-    tracking_number: "",
+    trackingNumber: "",
     status: "pending",
     cbm: "",
-    shipping_fee: "",
+    shippingFee: "",
     eta: "",
-    container_id: "",
-    shipping_mark: "",
+    container: "",
+    shippingMark: "", // optional Mark ID selected by admin
   });
 
   useEffect(() => {
     fetchTrackings();
     fetchContainers();
-    fetchActiveRates();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    filterTrackings();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trackings, searchTerm, filterStatus, filterContainer, sortField, sortDirection]);
+    setCurrentPage(1);
+    let result = [...trackings];
+    if (filterStatus !== "all") {
+      result = result.filter(
+        (item) => labelToValue(item.Status) === filterStatus
+      );
+    }
+    if (filterContainer !== "all") {
+      if (filterContainer === "none") {
+        result = result.filter((item) => !item.Container);
+      } else {
+        result = result.filter(
+          (item) =>
+            item.Container && item.Container.toString() === filterContainer
+        );
+      }
+    }
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      result = result.filter(
+        (item) =>
+          (item.TrackingNum && item.TrackingNum.toLowerCase().includes(term)) ||
+          (item.ShippingMark &&
+            item.ShippingMark.toLowerCase().includes(term)) ||
+          (item.ContainerNumber &&
+            item.ContainerNumber.toLowerCase().includes(term)) ||
+          (item.ETA && item.ETA.toLowerCase().includes(term))
+      );
+    }
+    result.sort((a, b) => {
+      let fieldA, fieldB;
+      switch (sortField) {
+        case "trackingNum":
+          fieldA = a.TrackingNum || "";
+          fieldB = b.TrackingNum || "";
+          break;
+        case "shippingMark":
+          fieldA = a.ShippingMark || "";
+          fieldB = b.ShippingMark || "";
+          break;
+        case "status":
+          fieldA = a.Status || "";
+          fieldB = b.Status || "";
+          break;
+        case "cbm":
+          fieldA = parseFloat(a.CBM) || 0;
+          fieldB = parseFloat(b.CBM) || 0;
+          break;
+        case "addedDate":
+          fieldA = a.AddedDate ? new Date(a.AddedDate).getTime() : 0;
+          fieldB = b.AddedDate ? new Date(b.AddedDate).getTime() : 0;
+          break;
+        default:
+          fieldA = a.AddedDate ? new Date(a.AddedDate).getTime() : 0;
+          fieldB = b.AddedDate ? new Date(b.AddedDate).getTime() : 0;
+      }
+      return sortDirection === "asc"
+        ? fieldA > fieldB
+          ? 1
+          : -1
+        : fieldA < fieldB
+        ? 1
+        : -1;
+    });
+    setFilteredTrackings(result);
+  }, [
+    trackings,
+    searchTerm,
+    sortField,
+    sortDirection,
+    filterStatus,
+    filterContainer,
+  ]);
 
   const fetchContainers = async () => {
     try {
       const response = await API.get("/api/admin/containers", {
         params: { limit: 1000 },
       });
-      setContainers(response.data.data || []);
+      if (response.data && response.data.data) {
+        setContainers(response.data.data);
+      }
     } catch (error) {
       console.error("Error fetching containers:", error);
     }
   };
 
-  const fetchActiveRates = async (forceRefresh = false) => {
-    // If rates are already loaded and not forcing refresh, return cached rates
-    if (activeRates && !forceRefresh) return activeRates;
-    try {
-      // Use agent-specific shipping rates endpoint from Agent Shipping Rates Management
-      const resp = await API.get("/buysellapi/agent/shipping-rates/");
-      if (resp?.data) {
-        // Ensure we have the rate structure expected
-        const rates = {
-          normal_goods_rate: resp.data.normal_goods_rate || 0,
-          special_goods_rate: resp.data.special_goods_rate || 0,
-          normal_goods_rate_lt1: resp.data.normal_goods_rate_lt1 || 0,
-          special_goods_rate_lt1: resp.data.special_goods_rate_lt1 || 0,
-        };
-        setActiveRates(rates);
-        return rates;
-      }
-    } catch (e) {
-      if (e?.response?.status !== 404) {
-        console.error("Error fetching agent shipping rates:", e);
-      }
-    }
-    return null;
-  };
-
   const fetchTrackings = async () => {
-    setLoading(true);
     try {
-      const response = await API.get("/buysellapi/trackings/");
-      const allTrackings = Array.isArray(response.data) ? response.data : [];
-      
-      // Filter for agent-created trackings
-      const agentTrackings = allTrackings.filter(t => {
-        if (t.created_by_agent) {
-          if (typeof t.created_by_agent === 'number') {
-            return true;
-          }
-          if (typeof t.created_by_agent === 'object' && t.created_by_agent.id) {
-            return true;
-          }
-        }
-        return false;
+      setLoading(true);
+      // Fetch agent trackings using agent_trackings=true parameter
+      const response = await API.get("/buysellapi/trackings/", {
+        params: { agent_trackings: true },
       });
-      
-      setTrackings(agentTrackings);
-      
-      if (agentTrackings.length === 0) {
-        toast.info("No agent trackings found. Trackings created by agents will appear here.");
+
+      if (response.data && Array.isArray(response.data)) {
+        // Transform backend data to frontend format (same as TrackingManagement)
+        const transformed = response.data.map((t) => ({
+          id: t.id,
+          TrackingNum: t.tracking_number,
+          ShippingMark: t.shipping_mark || "",
+          Status: formatStatusLabel(t.status),
+          CBM: t.cbm || "",
+          ShippingFee: t.shipping_fee || "",
+          GoodsType: t.goods_type || "",
+          ETA: t.eta || "",
+          Container: t.container || "",
+          ContainerNumber: t.container_number || "",
+          AddedDate: t.date_added,
+          LastUpdated: t.date_added,
+        }));
+        setTrackings(transformed);
       }
     } catch (error) {
       console.error("Error fetching agent trackings:", error);
-      toast.error("Failed to fetch agent trackings. Please check the console for details.");
+      toast.error("Failed to load agent trackings from server");
       setTrackings([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const formatStatusLabel = (statusValue) => {
-    const option = statusOptions.find((o) => o.value === statusValue);
-    return option ? option.label : "Pending";
-  };
-
-  const filterTrackings = () => {
-    setCurrentPage(1);
-    let result = [...trackings];
-    
-    if (filterStatus !== "all") {
-      result = result.filter((t) => t.status === filterStatus);
-    }
-    
-    if (filterContainer !== "all") {
-      if (filterContainer === "none") {
-        result = result.filter((t) => {
-          const containerId = typeof t.container === 'object' ? t.container?.id : t.container;
-          return !containerId;
-        });
-      } else {
-        result = result.filter((t) => {
-          const containerId = typeof t.container === 'object' ? t.container?.id : t.container;
-          return containerId && containerId.toString() === filterContainer;
-        });
+  const fetchActiveRates = async () => {
+    if (activeRates) return activeRates;
+    try {
+      // Use agent shipping rates endpoint
+      const resp = await API.get("/buysellapi/agent/shipping-rates/");
+      if (resp?.data) {
+        setActiveRates(resp.data);
+        return resp.data;
       }
+    } catch (e) {
+      // ignore 404; otherwise log
+      if (e?.response?.status !== 404)
+        console.error("fetchActiveRates error", e);
     }
-    
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      result = result.filter((t) => {
-        const containerNumber = typeof t.container === 'object' 
-          ? t.container?.container_number 
-          : containers.find(c => c.id === t.container)?.container_number || t.container_number;
-        return (
-          (t.tracking_number && t.tracking_number.toLowerCase().includes(term)) ||
-          (t.shipping_mark && t.shipping_mark.toLowerCase().includes(term)) ||
-          (containerNumber && containerNumber.toLowerCase().includes(term)) ||
-          (t.eta && t.eta.toLowerCase().includes(term))
-        );
-      });
-    }
-    
-    // Sort
-    result.sort((a, b) => {
-      let fieldA, fieldB;
-      switch (sortField) {
-        case "trackingNum":
-          fieldA = a.tracking_number || "";
-          fieldB = b.tracking_number || "";
-          break;
-        case "shippingMark":
-          fieldA = a.shipping_mark || "";
-          fieldB = b.shipping_mark || "";
-          break;
-        case "status":
-          fieldA = a.status || "";
-          fieldB = b.status || "";
-          break;
-        case "cbm":
-          fieldA = parseFloat(a.cbm) || 0;
-          fieldB = parseFloat(b.cbm) || 0;
-          break;
-        case "addedDate":
-          fieldA = a.date_added ? new Date(a.date_added).getTime() : 0;
-          fieldB = b.date_added ? new Date(b.date_added).getTime() : 0;
-          break;
-        default:
-          fieldA = a.date_added ? new Date(a.date_added).getTime() : 0;
-          fieldB = b.date_added ? new Date(b.date_added).getTime() : 0;
-      }
-      
-      if (typeof fieldA === 'string') {
-        return sortDirection === "asc"
-          ? fieldA.localeCompare(fieldB)
-          : fieldB.localeCompare(fieldA);
-      }
-      return sortDirection === "asc" ? fieldA - fieldB : fieldB - fieldA;
-    });
-    
-    setFilteredTrackings(result);
-  };
-
-  const handleSort = (field) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
-    } else {
-      setSortField(field);
-      setSortDirection("desc");
-    }
-  };
-
-  const handleSelectAll = () => {
-    if (selectAll) {
-      setSelectedTrackings([]);
-    } else {
-      setSelectedTrackings(pagedItems.map((item) => item.id));
-    }
-    setSelectAll(!selectAll);
-  };
-
-  const handleSelectTracking = (trackingId) => {
-    if (selectedTrackings.includes(trackingId)) {
-      setSelectedTrackings(
-        selectedTrackings.filter((item) => item !== trackingId)
-      );
-    } else {
-      setSelectedTrackings([...selectedTrackings, trackingId]);
-    }
-  };
-
-  const handleDeleteSelected = () => {
-    if (selectedTrackings.length === 0) return;
-    setDeleteTarget("selected");
-    setShowDeleteModal(true);
+    return null;
   };
 
   const calculateFeeUsingRates = (cbmVal, goodsType, rates) => {
@@ -308,41 +263,32 @@ const AgentTrackingManagement = () => {
   };
 
   const handleApplyRate = async (row) => {
-    const goodsType = rateSelections[row.id] || row.goods_type || "normal";
-    // Always fetch fresh rates from Agent Shipping Rates Management
-    const rates = await fetchActiveRates(true);
+    const goodsType = rateSelections[row.id] || row.GoodsType || "normal";
+    const rates = await fetchActiveRates();
     if (!rates) {
-      toast.error("No active agent shipping rates found. Please set rates in Agent Shipping Rates Management first.");
+      toast.error("No active agent shipping rates found. Set rates first.");
       return;
     }
-    
-    // Validate that the required rate exists
-    const rateKey = goodsType === "special" ? "special_goods_rate" : "normal_goods_rate";
-    if (!rates[rateKey] || parseFloat(rates[rateKey]) <= 0) {
-      toast.error(`Agent ${goodsType === "special" ? "Special" : "Normal"} Rate is not set. Please configure it in Agent Shipping Rates Management.`);
-      return;
-    }
-    
-    if (!row.cbm || parseFloat(row.cbm) <= 0) {
+    if (!row.CBM || parseFloat(row.CBM) <= 0) {
       toast.error("CBM is required and must be greater than 0 to calculate.");
       return;
     }
-    
-    const fee = calculateFeeUsingRates(row.cbm, goodsType, rates);
+    const fee = calculateFeeUsingRates(row.CBM, goodsType, rates);
     if (fee === null) {
       toast.error(
-        "Unable to calculate fee with current agent rates. Please check Agent Shipping Rates Management settings."
+        "Unable to calculate fee with current rates. Check settings."
       );
       return;
     }
     try {
       const payload = {
         shipping_fee: parseFloat(fee.toFixed(2)),
-        goods_type: goodsType, // "normal" or "special" - both use agent rates from Agent Shipping Rates Management
+        goods_type: goodsType,
       };
       await API.patch(`/buysellapi/trackings/${row.id}/`, payload);
-      const rateTypeLabel = goodsType === "special" ? "Agent Special Rate" : "Agent Normal Rate";
-      toast.success(`Shipping fee updated using ${rateTypeLabel} from Agent Shipping Rates Management`);
+      toast.success("Shipping fee updated");
+
+      // Refresh from backend to ensure we have all updated fields
       await fetchTrackings();
     } catch (e) {
       console.error("apply rate error", e);
@@ -352,56 +298,163 @@ const AgentTrackingManagement = () => {
     }
   };
 
-  const handleSubmit = async (e) => {
+  // Helper to format status from backend value to display label
+  const formatStatusLabel = (statusValue) => {
+    const option = statusOptions.find((o) => o.value === statusValue);
+    return option ? option.label : "Pending";
+  };
+
+  // Open User View page in new tab by shipping mark
+  const handleShippingMarkClick = (shippingMark) => {
+    if (!shippingMark) return;
+    // Extract mark ID from "markId:name" format or use as-is
+    const markId = shippingMark.split(":")[0];
+    // Open in new tab
+    window.open(`/admin/user/${markId}`, "_blank");
+  };
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDirection("desc");
+    }
+  };
+
+  const handleSelectAll = () => {
+    if (selectAll) {
+      setSelectedTrackings([]);
+    } else {
+      setSelectedTrackings(filteredTrackings.map((item) => item.TrackingNum));
+    }
+    setSelectAll(!selectAll);
+  };
+
+  const handleSelectTracking = (trackingNum) => {
+    if (selectedTrackings.includes(trackingNum)) {
+      setSelectedTrackings(
+        selectedTrackings.filter((item) => item !== trackingNum)
+      );
+    } else {
+      setSelectedTrackings([...selectedTrackings, trackingNum]);
+    }
+  };
+
+
+  const handleAddTracking = async (e) => {
     e.preventDefault();
+    if (!newTracking.trackingNumber || !newTracking.status) {
+      toast.error("Please fill all required fields");
+      return;
+    }
+
+    const trackingNum = (newTracking.trackingNumber || "").toUpperCase();
     setLoading(true);
 
     try {
-      const trackingData = {
-        tracking_number: newTracking.tracking_number,
-        status: newTracking.status,
-        cbm: newTracking.cbm ? parseFloat(newTracking.cbm) : null,
-        shipping_fee: newTracking.shipping_fee ? parseFloat(newTracking.shipping_fee) : null,
-        eta: newTracking.eta || null,
-        container: newTracking.container_id && newTracking.container_id.trim() !== "" 
-          ? parseInt(newTracking.container_id) 
-          : null,
-        shipping_mark: newTracking.shipping_mark || "",
-      };
-
       if (editTracking) {
-        await API.patch(
-          `/buysellapi/trackings/${editTracking.id}/`,
-          trackingData
+        // Update existing tracking in backend
+        const payload = {
+          tracking_number: trackingNum,
+          status: newTracking.status,
+          cbm: newTracking.cbm ? parseFloat(newTracking.cbm) : null,
+          shipping_fee: newTracking.shippingFee
+            ? parseFloat(newTracking.shippingFee)
+            : null,
+          eta: newTracking.eta || null,
+          shipping_mark: editTracking.ShippingMark || "",
+          container: newTracking.container || null,
+        };
+
+        await API.put(`/buysellapi/trackings/${editTracking.id}/`, payload);
+
+        toast.success(
+          `Tracking number ${newTracking.trackingNumber} updated successfully`
         );
-        toast.success("Tracking updated successfully");
+
+        // Refresh from backend
+        await fetchTrackings();
       } else {
-        await API.post("/buysellapi/trackings/", trackingData);
-        toast.success("Tracking added successfully");
+        // Check for duplicate tracking number in backend
+        // Add or update (backend handles existing numbers as updates)
+        const payload = {
+          tracking_number: trackingNum,
+          status: newTracking.status,
+          cbm: newTracking.cbm ? parseFloat(newTracking.cbm) : null,
+          shipping_fee: newTracking.shippingFee
+            ? parseFloat(newTracking.shippingFee)
+            : null,
+          eta: newTracking.eta || null,
+          shipping_mark: newTracking.shippingMark || "",
+          container: newTracking.container || null,
+        };
+
+        await API.post("/buysellapi/trackings/", payload);
+
+        toast.success(
+          `Tracking number ${newTracking.trackingNumber} added successfully`
+        );
+
+        // Refresh from backend
+        await fetchTrackings();
       }
-      setShowAddForm(false);
+
+      setNewTracking({
+        trackingNumber: "",
+        status: "pending",
+        cbm: "",
+        shippingFee: "",
+        eta: "",
+        container: "",
+        shippingMark: "",
+      });
+      setPrefilledMark("");
+      setMarkOptions([]);
       setEditTracking(null);
-      resetForm();
-      fetchTrackings();
+      setShowAddForm(false);
     } catch (error) {
       console.error("Error saving tracking:", error);
       toast.error(
-        error.response?.data?.detail || "Failed to save tracking"
+        error?.response?.data?.message || "Failed to save tracking number"
       );
     } finally {
       setLoading(false);
     }
   };
 
+  const handleEditTracking = (tracking) => {
+    setEditTracking(tracking);
+    setNewTracking({
+      trackingNumber: tracking.TrackingNum,
+      status: labelToValue(tracking.Status),
+      cbm: tracking.CBM || "",
+      shippingFee: tracking.ShippingFee || "",
+      eta: tracking.ETA || "",
+      container: tracking.Container || "",
+    });
+    setShowAddForm(true);
+  };
+
+  const handleViewTracking = async (tracking) => {
+    setViewTracking(tracking);
+    setShowViewModal(true);
+    // Fetch active rates to display in modal
+    await fetchActiveRates();
+  };
+
   const confirmDeleteSelected = async () => {
     setLoading(true);
+
     try {
+      // Find backend IDs for selected tracking numbers
       const trackingsToDelete = trackings.filter((t) =>
-        selectedTrackings.includes(t.id)
+        selectedTrackings.includes(t.TrackingNum)
       );
 
+      // Delete from backend using agent endpoint
       const deletePromises = trackingsToDelete.map((tracking) =>
-        API.delete(`/buysellapi/trackings/${tracking.id}/`)
+        API.delete(`/buysellapi/agent/trackings/${tracking.id}/`)
       );
 
       await Promise.all(deletePromises);
@@ -410,13 +463,19 @@ const AgentTrackingManagement = () => {
         `Deleted ${selectedTrackings.length} tracking numbers successfully`
       );
 
+      // Update UI immediately without refresh
+      const deletedTrackingNums = new Set(selectedTrackings);
       setTrackings((prevTrackings) => 
-        prevTrackings.filter((t) => !selectedTrackings.includes(t.id))
+        prevTrackings.filter((t) => !deletedTrackingNums.has(t.TrackingNum))
+      );
+      setFilteredTrackings((prevFiltered) => 
+        prevFiltered.filter((t) => !deletedTrackingNums.has(t.TrackingNum))
       );
       
+      // Refresh data from server to ensure consistency
       await fetchTrackings();
+      
       setSelectedTrackings([]);
-      setSelectAll(false);
     } catch (error) {
       console.error("Error deleting trackings:", error);
       toast.error(
@@ -424,16 +483,27 @@ const AgentTrackingManagement = () => {
       );
     } finally {
       setLoading(false);
-      setShowDeleteModal(false);
-      setDeleteTarget(null);
     }
+    setSelectAll(false);
   };
 
   const confirmDeleteSingle = async () => {
     setLoading(true);
+
     try {
-      await API.delete(`/buysellapi/trackings/${deleteTarget}/`);
+      await API.delete(`/buysellapi/agent/trackings/${deleteTarget}/`);
+
       toast.success("Tracking record deleted successfully");
+
+      // Update UI immediately without refresh
+      setTrackings((prevTrackings) => 
+        prevTrackings.filter((t) => t.id !== deleteTarget)
+      );
+      setFilteredTrackings((prevFiltered) => 
+        prevFiltered.filter((t) => t.id !== deleteTarget)
+      );
+      
+      // Refresh data from server to ensure consistency
       await fetchTrackings();
     } catch (error) {
       console.error("Error deleting tracking:", error);
@@ -455,6 +525,13 @@ const AgentTrackingManagement = () => {
     }
   };
 
+  const handleDeleteSelected = () => {
+    if (selectedTrackings.length === 0) return;
+    setDeleteTarget("selected");
+    setShowDeleteModal(true);
+  };
+
+  // Pagination helpers
   const totalPages = Math.max(
     1,
     Math.ceil(filteredTrackings.length / pageSize)
@@ -476,27 +553,22 @@ const AgentTrackingManagement = () => {
       "Status",
       "CBM",
       "Shipping Fee",
-      "Container",
       "Added Date",
       "ETA",
     ];
     const csvContent = [
       headers.join(","),
-      ...filteredTrackings.map((item) => {
-        const containerNumber = typeof item.container === 'object' 
-          ? item.container?.container_number 
-          : containers.find(c => c.id === item.container)?.container_number || item.container_number || "";
-        return [
-          item.tracking_number || "",
-          `"${(item.shipping_mark || "").replace(/"/g, '""')}"`,
-          formatStatusLabel(item.status) || "",
-          item.cbm || "",
-          item.shipping_fee || "",
-          containerNumber,
-          item.date_added ? new Date(item.date_added).toLocaleDateString() : "",
-          item.eta || "",
-        ].join(",");
-      }),
+      ...filteredTrackings.map((item) =>
+        [
+          item.TrackingNum || "",
+          `"${(item.ShippingMark || "").replace(/"/g, '""')}"`,
+          item.Status || "",
+          item.CBM || "",
+          item.ShippingFee || "",
+          item.AddedDate ? new Date(item.AddedDate).toLocaleDateString() : "",
+          item.ETA || "",
+        ].join(",")
+      ),
     ].join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -512,80 +584,34 @@ const AgentTrackingManagement = () => {
     document.body.removeChild(link);
   };
 
-  const getStatusColor = (statusValue) => {
-    const val = statusValue?.toLowerCase() || "";
+  const getStatusColor = (statusLabel) => {
+    const val = labelToValue(statusLabel);
     switch (val) {
       case "pending":
-        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200";
+        return "bg-yellow-100 text-yellow-800";
       case "in_transit":
-        return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
+        return "bg-blue-100 text-blue-800";
       case "arrived":
-        return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
+        return "bg-green-100 text-green-800";
       case "arrived_ghana":
-        return "bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200";
+        return "bg-teal-100 text-teal-800";
       case "cancelled":
-        return "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300";
+        return "bg-gray-200 text-gray-700";
       case "rejected":
-        return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200";
+        return "bg-red-100 text-red-800";
       case "not_received":
-        return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200";
+        return "bg-orange-100 text-orange-800";
       case "vessel":
-        return "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200";
+        return "bg-indigo-100 text-indigo-800";
       case "clearing":
-        return "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200";
+        return "bg-purple-100 text-purple-800";
       case "off_loading":
-        return "bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200";
+        return "bg-pink-100 text-pink-800";
       case "pick_up":
-        return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200";
+        return "bg-emerald-100 text-emerald-800";
       default:
-        return "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200";
+        return "bg-gray-100 text-gray-800";
     }
-  };
-
-  const resetForm = () => {
-    setNewTracking({
-      tracking_number: "",
-      status: "pending",
-      cbm: "",
-      shipping_fee: "",
-      eta: "",
-      container_id: "",
-      shipping_mark: "",
-    });
-  };
-
-  const handleEdit = (tracking) => {
-    setEditTracking(tracking);
-    
-    let containerId = "";
-    if (tracking.container) {
-      if (typeof tracking.container === 'number') {
-        containerId = tracking.container.toString();
-      } else if (typeof tracking.container === 'object' && tracking.container.id) {
-        containerId = tracking.container.id.toString();
-      }
-    }
-    
-    setNewTracking({
-      tracking_number: tracking.tracking_number || "",
-      status: tracking.status || "pending",
-      cbm: tracking.cbm || "",
-      shipping_fee: tracking.shipping_fee || "",
-      eta: tracking.eta ? new Date(tracking.eta).toISOString().split('T')[0] : "",
-      container_id: containerId,
-      shipping_mark: tracking.shipping_mark || "",
-    });
-    setShowAddForm(true);
-  };
-
-  const handleView = (tracking) => {
-    setViewTracking(tracking);
-    setShowViewModal(true);
-  };
-
-  const handleShippingMarkClick = (mark) => {
-    // Navigate to user search or open user management with this mark
-    window.open(`/admin?section=users&search=${encodeURIComponent(mark)}`, '_blank');
   };
 
   return (
@@ -597,7 +623,7 @@ const AgentTrackingManagement = () => {
         <p className="text-gray-600 dark:text-gray-400">
           {loading
             ? "Loading..."
-            : "Manage and monitor all tracking numbers created by agents"}
+            : "Manage and monitor all agent tracking numbers in the system"}
         </p>
       </div>
 
@@ -654,8 +680,14 @@ const AgentTrackingManagement = () => {
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => {
-              resetForm();
               setEditTracking(null);
+              setNewTracking({
+                trackingNumber: "",
+                status: "pending",
+                cbm: "",
+                shippingFee: "",
+                eta: "",
+              });
               setShowAddForm(true);
             }}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
@@ -783,137 +815,133 @@ const AgentTrackingManagement = () => {
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {pagedItems.length > 0 ? (
-                pagedItems.map((tracking) => {
-                  const containerNumber = typeof tracking.container === 'object' 
-                    ? tracking.container?.container_number 
-                    : containers.find(c => c.id === tracking.container)?.container_number || tracking.container_number || "";
-                  
-                  return (
-                    <tr
-                      key={tracking.id}
-                      className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                    >
-                      <td className="py-3 px-4">
-                        <input
-                          type="checkbox"
-                          checked={selectedTrackings.includes(tracking.id)}
-                          onChange={() => handleSelectTracking(tracking.id)}
-                          className="rounded"
-                        />
-                      </td>
-                      <td className="py-3 px-4 font-medium text-gray-900 dark:text-white">
-                        {tracking.tracking_number}
-                      </td>
-                      <td className="py-3 px-4">
-                        {tracking.shipping_mark ? (
-                          <button
-                            onClick={() =>
-                              handleShippingMarkClick(tracking.shipping_mark)
-                            }
-                            className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 underline flex items-center gap-1"
-                            title="Search user with this mark ID"
-                          >
-                            {tracking.shipping_mark}
-                            <FaExternalLinkAlt className="text-xs" />
-                          </button>
-                        ) : (
-                          "-"
+                pagedItems.map((tracking, index) => (
+                  <tr
+                    key={tracking.TrackingNum || index}
+                    className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    <td className="py-3 px-4">
+                      <input
+                        type="checkbox"
+                        checked={selectedTrackings.includes(
+                          tracking.TrackingNum
                         )}
-                      </td>
-                      <td className="py-3 px-4">
-                        {tracking.status && (
-                          <span
-                            className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(
-                              tracking.status
-                            )}`}
-                          >
-                            {formatStatusLabel(tracking.status)}
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4 text-gray-900 dark:text-white">
-                        {tracking.cbm || "-"}
-                      </td>
-                      <td className="py-3 px-4 text-gray-900 dark:text-white">
-                        {tracking.shipping_fee
-                          ? `$${parseFloat(tracking.shipping_fee).toFixed(2)}`
-                          : "-"}
-                      </td>
-                      <td className="py-3 px-4">
-                        {containerNumber ? (
-                          <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded">
-                            {containerNumber}
-                          </span>
-                        ) : (
-                          <span className="text-gray-400 text-sm">-</span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4 text-gray-900 dark:text-white">
-                        {tracking.date_added
-                          ? new Date(tracking.date_added).toLocaleDateString()
-                          : "-"}
-                      </td>
-                      <td className="py-3 px-4 text-gray-900 dark:text-white">
-                        {tracking.eta
-                          ? new Date(tracking.eta).toLocaleDateString()
-                          : "-"}
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center space-x-2">
-                          <select
-                            value={
-                              rateSelections[tracking.id] ||
-                              tracking.goods_type ||
-                              ""
-                            }
-                            onChange={(e) =>
-                              setRateSelections((s) => ({
-                                ...s,
-                                [tracking.id]: e.target.value,
-                              }))
-                            }
-                            className="px-2 py-1 border rounded text-sm dark:bg-gray-700 dark:border-gray-600"
-                          >
-                            <option value="">Select Rate</option>
-                            <option value="normal">Agent Normal Rate</option>
-                            <option value="special">Agent Special Rate</option>
-                          </select>
-                          <button
-                            onClick={() => handleApplyRate(tracking)}
-                            className="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 text-sm px-2 py-1 border border-indigo-300 rounded"
-                            title="Calculate and apply shipping fee"
-                          >
-                            Apply Rate
-                          </button>
-                          <button
-                            onClick={() => handleView(tracking)}
-                            className="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300"
-                            title="View details"
-                          >
-                            <FaEye />
-                          </button>
-                          <button
-                            onClick={() => handleEdit(tracking)}
-                            className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-                            title="Edit tracking"
-                          >
-                            <FaEdit />
-                          </button>
-                          <button
-                            onClick={() => {
-                              setDeleteTarget(tracking.id);
-                              setShowDeleteModal(true);
-                            }}
-                            className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
-                            title="Delete tracking"
-                          >
-                            <FaTrash />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
+                        onChange={() =>
+                          handleSelectTracking(tracking.TrackingNum)
+                        }
+                        className="rounded"
+                      />
+                    </td>
+                    <td className="py-3 px-4 font-medium">
+                      {tracking.TrackingNum}
+                    </td>
+                    <td className="py-3 px-4">
+                      {tracking.ShippingMark ? (
+                        <button
+                          onClick={() =>
+                            handleShippingMarkClick(tracking.ShippingMark)
+                          }
+                          className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 underline flex items-center gap-1"
+                          title="Search user with this mark ID"
+                        >
+                          {tracking.ShippingMark}
+                          <FaExternalLinkAlt className="text-xs" />
+                        </button>
+                      ) : (
+                        "-"
+                      )}
+                    </td>
+                    <td className="py-3 px-4">
+                      {tracking.Status && (
+                        <span
+                          className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(
+                            tracking.Status
+                          )}`}
+                        >
+                          {tracking.Status}
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-3 px-4">{tracking.CBM || "-"}</td>
+                    <td className="py-3 px-4">
+                      {tracking.ShippingFee
+                        ? `$${parseFloat(tracking.ShippingFee).toFixed(2)}`
+                        : "-"}
+                    </td>
+                    <td className="py-3 px-4">
+                      {tracking.ContainerNumber ? (
+                        <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded">
+                          {tracking.ContainerNumber}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400 text-sm">-</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-4">
+                      {tracking.AddedDate
+                        ? new Date(tracking.AddedDate).toLocaleDateString()
+                        : "-"}
+                    </td>
+                    <td className="py-3 px-4">
+                      {tracking.ETA
+                        ? new Date(tracking.ETA).toLocaleDateString()
+                        : "-"}
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="flex items-center space-x-2">
+                        <select
+                          value={
+                            rateSelections[tracking.id] ||
+                            tracking.GoodsType ||
+                            ""
+                          }
+                          onChange={(e) =>
+                            setRateSelections((s) => ({
+                              ...s,
+                              [tracking.id]: e.target.value,
+                            }))
+                          }
+                          className="px-2 py-1 border rounded text-sm dark:bg-gray-700 dark:border-gray-600"
+                        >
+                          <option value="">Select Rate</option>
+                          <option value="normal">Agent Normal Rate</option>
+                          <option value="special">Agent Special Rate</option>
+                        </select>
+                        <button
+                          onClick={() => handleApplyRate(tracking)}
+                          className="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 text-sm px-2 py-1 border border-indigo-300 rounded"
+                          title="Calculate and apply shipping fee"
+                        >
+                          Apply Rate
+                        </button>
+                        <button
+                          onClick={() => handleViewTracking(tracking)}
+                          className="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300"
+                          title="View details"
+                        >
+                          <FaEye />
+                        </button>
+                        <button
+                          onClick={() => handleEditTracking(tracking)}
+                          className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                          title="Edit tracking"
+                        >
+                          <FaEdit />
+                        </button>
+                        <button
+                          onClick={() => {
+                            setDeleteTarget(tracking.id);
+                            setShowDeleteModal(true);
+                          }}
+                          className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                          title="Delete tracking"
+                        >
+                          <FaTrash />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
               ) : (
                 <tr>
                   <td
@@ -962,144 +990,317 @@ const AgentTrackingManagement = () => {
           >
             Next
           </button>
+          <select
+            value={pageSize}
+            onChange={(e) => {
+              setPageSize(parseInt(e.target.value, 10));
+              setCurrentPage(1);
+            }}
+            className="ml-2 px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+          >
+            {[10, 20, 50, 100].map((sz) => (
+              <option key={sz} value={sz}>
+                {sz}/page
+              </option>
+            ))}
+          </select>
         </div>
+      </div>
+
+      {/* Summary */}
+      <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
+        Showing {filteredTrackings.length} of {trackings.length} tracking
+        records
+        {selectedTrackings.length > 0 &&
+          ` (${selectedTrackings.length} selected)`}
       </div>
 
       {/* Add/Edit Form Modal */}
       {showAddForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <h3 className="text-xl font-bold mb-4 text-gray-800 dark:text-white">
-              {editTracking ? "Edit Tracking" : "Add Tracking"}
-            </h3>
-            <form onSubmit={handleSubmit}>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Tracking Number *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={newTracking.tracking_number}
-                    onChange={(e) =>
-                      setNewTracking({ ...newTracking, tracking_number: e.target.value.toUpperCase() })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Shipping Mark
-                  </label>
-                  <input
-                    type="text"
-                    value={newTracking.shipping_mark}
-                    onChange={(e) =>
-                      setNewTracking({ ...newTracking, shipping_mark: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Status
-                  </label>
-                  <select
-                    value={newTracking.status}
-                    onChange={(e) =>
-                      setNewTracking({ ...newTracking, status: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    {statusOptions.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-2xl my-8">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                {editTracking ? "Edit Tracking" : "Add New Tracking"}
+              </h3>
+              <button
+                onClick={() => setShowAddForm(false)}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+              >
+                <FaTimesCircle />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddTracking}>
+              {/* Two-column grid layout for compact form */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Left column */}
+                <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      CBM
+                    <label
+                      htmlFor="trackingNumber"
+                      className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                    >
+                      Tracking Number*
                     </label>
                     <input
-                      type="number"
-                      step="0.01"
-                      value={newTracking.cbm}
-                      onChange={(e) =>
-                        setNewTracking({ ...newTracking, cbm: e.target.value })
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      id="trackingNumber"
+                      type="text"
+                      value={newTracking.trackingNumber}
+                      onChange={async (e) => {
+                        const val = e.target.value;
+                        setNewTracking({
+                          ...newTracking,
+                          trackingNumber: val,
+                        });
+                        // Prefill shipping mark if tracking exists (user added first)
+                        const tNum = (val || "").toUpperCase();
+                        if (tNum.length >= 3) {
+                          try {
+                            const resp = await API.get(
+                              `/buysellapi/trackings/by-number/${encodeURIComponent(
+                                tNum
+                              )}/`
+                            );
+                            const mark = resp.data?.shipping_mark || "";
+                            if (mark) {
+                              setNewTracking((prev) => ({
+                                ...prev,
+                                shippingMark: mark,
+                              }));
+                              setPrefilledMark(mark);
+                            }
+                          } catch {
+                            setPrefilledMark("");
+                          }
+                        } else {
+                          setPrefilledMark("");
+                        }
+                      }}
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                      disabled={editTracking !== null}
                     />
                   </div>
+
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label
+                      htmlFor="status"
+                      className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                    >
+                      Status*
+                    </label>
+                    <select
+                      id="status"
+                      value={newTracking.status}
+                      onChange={(e) =>
+                        setNewTracking({
+                          ...newTracking,
+                          status: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                    >
+                      {statusOptions.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="cbm"
+                      className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                    >
+                      CBM (Cubic Meters)
+                    </label>
+                    <input
+                      id="cbm"
+                      type="number"
+                      step="0.001"
+                      min="0"
+                      value={newTracking.cbm}
+                      onChange={(e) =>
+                        setNewTracking({
+                          ...newTracking,
+                          cbm: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="eta"
+                      className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                    >
+                      ETA
+                    </label>
+                    <input
+                      id="eta"
+                      type="date"
+                      value={newTracking.eta}
+                      onChange={(e) =>
+                        setNewTracking({
+                          ...newTracking,
+                          eta: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+
+                {/* Right column */}
+                <div className="space-y-4">
+                  <div>
+                    <label
+                      htmlFor="shippingMark"
+                      className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                    >
+                      Mark ID{" "}
+                      {prefilledMark && (
+                        <span className="text-green-600">✓</span>
+                      )}
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="shippingMark"
+                        type="text"
+                        placeholder="Search mark IDs..."
+                        value={newTracking.shippingMark}
+                        onChange={async (e) => {
+                          const val = e.target.value.toUpperCase();
+                          setNewTracking({
+                            ...newTracking,
+                            shippingMark: val,
+                          });
+                          try {
+                            setMarkLoading(true);
+                            const resp = await API.get(
+                              "/buysellapi/shipping-marks/",
+                              { params: { q: val, page_size: 10 } }
+                            );
+                            const items = Array.isArray(resp.data?.results)
+                              ? resp.data.results
+                              : Array.isArray(resp.data)
+                              ? resp.data
+                              : [];
+                            setMarkOptions(items);
+                          } catch {
+                            setMarkOptions([]);
+                          } finally {
+                            setMarkLoading(false);
+                          }
+                        }}
+                        className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                      {(markLoading ||
+                        (markOptions && markOptions.length > 0)) && (
+                        <div className="absolute z-10 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg max-h-40 overflow-auto">
+                          {markLoading && (
+                            <div className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">
+                              Searching...
+                            </div>
+                          )}
+                          {!markLoading &&
+                            markOptions.map((m) => (
+                              <button
+                                key={m._id || m.id || m.markId}
+                                type="button"
+                                onClick={() => {
+                                  const markId = m.markId || m.mark_id || "";
+                                  setNewTracking({
+                                    ...newTracking,
+                                    shippingMark: markId,
+                                  });
+                                  setMarkOptions([]);
+                                }}
+                                className="w-full text-left px-3 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-700"
+                              >
+                                {(m.markId || m.mark_id) +
+                                  (m.name ? `: ${m.name}` : "")}
+                              </button>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+                    {prefilledMark && (
+                      <p className="mt-1 text-xs text-green-600">
+                        Auto-filled from user
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="shippingFee"
+                      className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                    >
                       Shipping Fee
                     </label>
                     <input
+                      id="shippingFee"
                       type="number"
                       step="0.01"
-                      value={newTracking.shipping_fee}
+                      min="0"
+                      value={newTracking.shippingFee}
                       onChange={(e) =>
-                        setNewTracking({ ...newTracking, shipping_fee: e.target.value })
+                        setNewTracking({
+                          ...newTracking,
+                          shippingFee: e.target.value,
+                        })
                       }
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Container
-                  </label>
-                  <select
-                    value={newTracking.container_id}
-                    onChange={(e) =>
-                      setNewTracking({ ...newTracking, container_id: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">No Container</option>
-                    {containers.map((container) => (
-                      <option key={container.id} value={container.id}>
-                        {container.container_number}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    ETA
-                  </label>
-                  <input
-                    type="date"
-                    value={newTracking.eta}
-                    onChange={(e) =>
-                      setNewTracking({ ...newTracking, eta: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
+
+                  <div>
+                    <label
+                      htmlFor="container"
+                      className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                    >
+                      Container
+                    </label>
+                    <select
+                      id="container"
+                      value={newTracking.container || ""}
+                      onChange={(e) =>
+                        setNewTracking({
+                          ...newTracking,
+                          container: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">None</option>
+                      {containers.map((container) => (
+                        <option key={container.id} value={container.id}>
+                          {container.container_number}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
-              <div className="flex gap-2 mt-6">
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {loading ? "Saving..." : editTracking ? "Update" : "Add"}
-                </button>
+
+              <div className="mt-6 flex justify-end space-x-3">
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowAddForm(false);
-                    setEditTracking(null);
-                    resetForm();
-                  }}
-                  className="flex-1 px-4 py-2 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500"
+                  onClick={() => setShowAddForm(false)}
+                  className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors"
                 >
                   Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                >
+                  <FaCheckCircle /> {editTracking ? "Update" : "Add"} Tracking
                 </button>
               </div>
             </form>
@@ -1107,56 +1308,276 @@ const AgentTrackingManagement = () => {
         </div>
       )}
 
-      {/* View Modal */}
+      {/* View Details Modal */}
       {showViewModal && viewTracking && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-xl font-bold mb-4 text-gray-800 dark:text-white">
-              Tracking Details
-            </h3>
-            <div className="space-y-2">
-              <p><strong>Tracking Number:</strong> {viewTracking.tracking_number}</p>
-              <p><strong>Shipping Mark:</strong> {viewTracking.shipping_mark || "-"}</p>
-              <p><strong>Status:</strong> {formatStatusLabel(viewTracking.status)}</p>
-              <p><strong>CBM:</strong> {viewTracking.cbm || "-"}</p>
-              <p><strong>Shipping Fee:</strong> {viewTracking.shipping_fee ? `$${viewTracking.shipping_fee}` : "-"}</p>
-              <p><strong>Container:</strong> {(() => {
-                if (viewTracking.container) {
-                  if (typeof viewTracking.container === 'object') {
-                    return viewTracking.container.container_number || "-";
-                  }
-                  const container = containers.find(c => c.id === viewTracking.container);
-                  return container?.container_number || "-";
-                }
-                return viewTracking.container_number || "-";
-              })()}</p>
-              <p><strong>ETA:</strong> {viewTracking.eta ? new Date(viewTracking.eta).toLocaleDateString() : "-"}</p>
-              <p><strong>Date Added:</strong> {viewTracking.date_added ? new Date(viewTracking.date_added).toLocaleDateString() : "-"}</p>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4 w-full max-w-2xl my-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                Tracking Details
+              </h3>
+              <button
+                onClick={() => {
+                  setShowViewModal(false);
+                  setViewTracking(null);
+                }}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+              >
+                <FaTimesCircle size={20} />
+              </button>
             </div>
-            <button
-              onClick={() => setShowViewModal(false)}
-              className="mt-4 w-full px-4 py-2 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500"
-            >
-              Close
-            </button>
+
+            <div className="space-y-4" ref={viewContentRef}>
+              {/* Tracking Information Section */}
+              <div className="border-b border-gray-200 dark:border-gray-700 pb-3">
+                <h4 className="text-base font-semibold text-gray-800 dark:text-white mb-3">
+                  Tracking Information
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                      Tracking Number
+                    </label>
+                    <p className="text-base font-semibold text-gray-900 dark:text-white">
+                      {viewTracking.TrackingNum}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                      Shipping Mark
+                    </label>
+                    <p className="text-sm text-gray-900 dark:text-white">
+                      {viewTracking.ShippingMark || "N/A"}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                      Status
+                    </label>
+                    <div className="mt-1">
+                      <span
+                        className={`px-2 py-0.5 inline-flex text-xs font-semibold rounded-full ${getStatusColor(
+                          viewTracking.Status
+                        )}`}
+                      >
+                        {viewTracking.Status}
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                      CBM (Cubic Meters)
+                    </label>
+                    <p className="text-sm text-gray-900 dark:text-white">
+                      {viewTracking.CBM || "N/A"}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                      Shipping Fee
+                    </label>
+                    <p className="text-sm font-semibold text-green-600 dark:text-green-400">
+                      {viewTracking.ShippingFee
+                        ? `$${parseFloat(viewTracking.ShippingFee).toFixed(2)}`
+                        : "N/A"}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                      Goods Type
+                    </label>
+                    <p className="text-sm text-gray-900 dark:text-white">
+                      {viewTracking.GoodsType
+                        ? viewTracking.GoodsType.charAt(0).toUpperCase() +
+                          viewTracking.GoodsType.slice(1)
+                        : "N/A"}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                      ETA (Estimated Arrival)
+                    </label>
+                    <p className="text-sm text-gray-900 dark:text-white">
+                      {viewTracking.ETA
+                        ? new Date(viewTracking.ETA).toLocaleDateString()
+                        : "N/A"}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                      Date Added
+                    </label>
+                    <p className="text-sm text-gray-900 dark:text-white">
+                      {viewTracking.AddedDate
+                        ? new Date(viewTracking.AddedDate).toLocaleString()
+                        : "N/A"}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                      Last Updated
+                    </label>
+                    <p className="text-sm text-gray-900 dark:text-white">
+                      {viewTracking.LastUpdated
+                        ? new Date(viewTracking.LastUpdated).toLocaleString()
+                        : "N/A"}
+                    </p>
+                  </div>
+                </div>
+                {viewTracking.Action && (
+                  <div className="mt-3">
+                    <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                      Action/Notes
+                    </label>
+                    <p className="text-sm text-gray-900 dark:text-white mt-1 p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                      {viewTracking.Action}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Shipping Rate Details Section */}
+              {activeRates && (
+                <div className="border-b border-gray-200 dark:border-gray-700 pb-3">
+                  <h4 className="text-base font-semibold text-gray-800 dark:text-white mb-3">
+                    Active Agent Shipping Rates
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg">
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">
+                        Agent Normal Rate
+                      </p>
+                      <p className="text-lg font-bold text-green-600 dark:text-green-400">
+                        ${parseFloat(activeRates.normal_goods_rate).toFixed(2)}{" "}
+                        <span className="text-sm font-normal">per CBM</span>
+                      </p>
+                      {activeRates.normal_goods_rate_lt1 && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          CBM &lt; 1: $
+                          {parseFloat(
+                            activeRates.normal_goods_rate_lt1
+                          ).toFixed(2)}
+                        </p>
+                      )}
+                    </div>
+                    <div className="bg-orange-50 dark:bg-orange-900/20 p-3 rounded-lg">
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">
+                        Agent Special Rate
+                      </p>
+                      <p className="text-lg font-bold text-orange-600 dark:text-orange-400">
+                        ${parseFloat(activeRates.special_goods_rate).toFixed(2)}{" "}
+                        <span className="text-sm font-normal">per CBM</span>
+                      </p>
+                      {activeRates.special_goods_rate_lt1 && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          CBM &lt; 1: $
+                          {parseFloat(
+                            activeRates.special_goods_rate_lt1
+                          ).toFixed(2)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* User and status history details omitted; available via backend if needed */}
+            </div>
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                onClick={async () => {
+                  if (!viewContentRef.current) return;
+                  try {
+                    const canvas = await html2canvas(viewContentRef.current, {
+                      backgroundColor: "#ffffff",
+                      scale: 2,
+                      useCORS: true,
+                      logging: false,
+                    });
+                    const imgData = canvas.toDataURL("image/png");
+                    const pdf = new jsPDF("p", "mm", "a4");
+                    const pageWidth = pdf.internal.pageSize.getWidth();
+                    const pageHeight = pdf.internal.pageSize.getHeight();
+                    const imgWidth = pageWidth;
+                    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+                    let heightLeft = imgHeight;
+                    let position = 0;
+
+                    pdf.addImage(
+                      imgData,
+                      "PNG",
+                      0,
+                      position,
+                      imgWidth,
+                      imgHeight
+                    );
+                    heightLeft -= pageHeight;
+
+                    while (heightLeft > 0) {
+                      position = heightLeft - imgHeight;
+                      pdf.addPage();
+                      pdf.addImage(
+                        imgData,
+                        "PNG",
+                        0,
+                        position,
+                        imgWidth,
+                        imgHeight
+                      );
+                      heightLeft -= pageHeight;
+                    }
+
+                    const fileName = `agent_tracking_${
+                      viewTracking?.TrackingNum || "details"
+                    }.pdf`;
+                    pdf.save(fileName);
+                    toast.success("Exported PDF");
+                  } catch (err) {
+                    console.error("PDF export failed", err);
+                    toast.error("Failed to export PDF");
+                  }
+                }}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
+              >
+                Export PDF
+              </button>
+              <button
+                onClick={() => {
+                  setShowViewModal(false);
+                  setViewTracking(null);
+                }}
+                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors text-sm"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
 
       {/* Delete Confirmation Modal */}
       <ConfirmModal
-        show={showDeleteModal}
+        isOpen={showDeleteModal}
         onClose={() => {
           setShowDeleteModal(false);
           setDeleteTarget(null);
         }}
         onConfirm={handleConfirmDelete}
-        title="Delete Tracking"
+        title="Delete Tracking Record"
         message={
           deleteTarget === "selected"
-            ? `Are you sure you want to delete ${selectedTrackings.length} selected tracking number(s)? This action cannot be undone.`
-            : "Are you sure you want to delete this tracking number? This action cannot be undone."
+            ? `Are you sure you want to delete ${
+                selectedTrackings.length
+              } tracking record${
+                selectedTrackings.length > 1 ? "s" : ""
+              }? This action cannot be undone.`
+            : "Are you sure you want to delete this tracking record? This action cannot be undone."
         }
+        confirmText="Delete"
+        cancelText="Cancel"
+        type="danger"
       />
     </div>
   );

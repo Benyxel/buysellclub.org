@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { FaFileInvoice, FaPlus, FaEye, FaSearch, FaSpinner } from "react-icons/fa";
-import { toast } from "react-toastify";
+import { toast } from "../../utils/toast";
 import API from "../../api";
 import InvoiceModal from "../../components/InvoiceModal";
 
@@ -394,5 +394,6 @@ const AgentInvoices = () => {
 };
 
 export default AgentInvoices;
+
 
 

@@ -11,7 +11,7 @@ import {
   FaInfoCircle,
 } from "react-icons/fa";
 import { Link, useNavigate } from "react-router-dom";
-import { toast } from "react-toastify";
+import { toast } from "../utils/toast";
 import "react-toastify/dist/ReactToastify.css";
 import API from "../api";
 

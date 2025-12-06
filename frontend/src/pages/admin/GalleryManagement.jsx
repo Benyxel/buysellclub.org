@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import API from "../../api";
-import { toast } from "react-toastify";
+import { toast } from "../../utils/toast";
 import { FaTrash, FaUpload, FaSpinner, FaImage, FaPlus, FaTimes, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 
 const GalleryManagement = () => {

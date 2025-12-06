@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import API from "../../api";
-import { toast } from "react-toastify";
+import { toast } from "../../utils/toast";
 import { FaEye, FaSearch } from "react-icons/fa";
 
 const statusOptions = [

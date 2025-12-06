@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { toast } from "react-toastify";
+import { toast } from "../../utils/toast";
 import API from "../../api";
 import { FaUserPlus, FaUserMinus, FaUserTag, FaSearch, FaHandshake } from "react-icons/fa";
 import ConfirmModal from "../../components/shared/ConfirmModal";

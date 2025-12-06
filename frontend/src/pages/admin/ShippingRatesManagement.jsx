@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { FaSave, FaHistory, FaDollarSign } from "react-icons/fa";
-import { toast } from "react-toastify";
+import { toast } from "../../utils/toast";
 import API from "../../api";
 
 const ShippingRatesManagement = () => {

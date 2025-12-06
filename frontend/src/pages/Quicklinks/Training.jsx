@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaCalendarAlt, FaClock, FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaPlay, FaShoppingCart, FaYoutube, FaPassport, FaDollarSign, FaMobileAlt, FaCreditCard, FaWallet, FaInfoCircle } from 'react-icons/fa';
-import { toast } from 'react-toastify';
+import { toast } from '../../utils/toast';
 import { createTrainingBooking, getTrainingCourses } from '../../api';
 import { Api } from '../../api';
 

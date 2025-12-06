@@ -7,7 +7,7 @@ import {
   getCategories,
   getProductTypes,
 } from "../../api";
-import { toast } from "react-toastify";
+import { toast } from "../../utils/toast";
 import { FaPlus, FaEdit, FaTrash, FaImage, FaTimes, FaCheck } from "react-icons/fa";
 import BulkActions from "../../components/shared/BulkActions";
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { FaVideo, FaPlay, FaSpinner, FaYoutube } from "react-icons/fa";
-import { toast } from "react-toastify";
+import { toast } from "../../utils/toast";
 import API from "../../api";
 
 const AgentVideoContent = () => {
@@ -198,5 +198,6 @@ const AgentVideoContent = () => {
 };
 
 export default AgentVideoContent;
+
 
 

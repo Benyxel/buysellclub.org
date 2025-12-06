@@ -11,7 +11,7 @@ import {
   FaDownload,
   FaExclamationTriangle,
 } from "react-icons/fa";
-import { toast } from "react-toastify";
+import { toast } from "../../utils/toast";
 import API, { Api } from "../../api";
 import ConfirmModal from "../../components/shared/ConfirmModal";
 

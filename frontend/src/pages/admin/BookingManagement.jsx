@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FaCheck, FaTimes, FaClock } from 'react-icons/fa';
-import { toast } from 'react-toastify';
+import { toast } from '../../utils/toast';
 import { getApiUrl } from '../../config/api';
 
 const BookingManagement = () => {

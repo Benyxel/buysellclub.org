@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FaEdit, FaTrash, FaEye, FaCheck, FaTimes, FaFileInvoiceDollar, FaPrint, FaDownload, FaSpinner } from 'react-icons/fa';
-import { toast } from 'react-toastify';
+import { toast } from '../../utils/toast';
 import InvoiceModal from '../../components/InvoiceModal';
 import Invoice from '../../components/Invoice';
 import BulkActions from '../../components/shared/BulkActions';

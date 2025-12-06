@@ -12,7 +12,7 @@ import {
   FaUpload,
 } from "react-icons/fa";
 // import alipayImg from '../../assets/rmbi.png';
-import { toast } from "react-toastify";
+import { toast } from "../../utils/toast";
 import { useNavigate } from "react-router-dom";
 import API from "../../api";
 

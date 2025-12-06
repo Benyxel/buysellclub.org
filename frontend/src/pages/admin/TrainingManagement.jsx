@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { FaEdit, FaTrash, FaPlus, FaVideo, FaEye, FaPlay, FaGraduationCap, FaCalendarAlt, FaClock, FaUser, FaEnvelope, FaPhone, FaCheckCircle, FaTimesCircle, FaDollarSign, FaCreditCard } from 'react-icons/fa';
-import { toast } from 'react-toastify';
+import { toast } from '../../utils/toast';
 import {
   getAdminTrainingBookings,
   getAdminTrainingCourses,
