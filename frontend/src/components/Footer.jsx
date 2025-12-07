@@ -1,6 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { FaFacebook, FaTwitter, FaInstagram, FaLinkedin, FaPhone, FaEnvelope, FaMapMarkerAlt } from 'react-icons/fa';
+import buysellogo from '../assets/buysellogo.png';
+import buysellogod from '../assets/buysellogod.png';
 
 const Footer = () => {
   return (
@@ -9,8 +11,19 @@ const Footer = () => {
         <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8'>
           {/* Company Info */}
           <div className='space-y-4'>
-            <Link to="/" className='text-primary font-bold text-2xl tracking-wider uppercase hover:text-primary/90 transition-colors'>
-              BuySellClub
+            <Link to="/" className='inline-block'>
+              {/* Light mode logo */}
+              <img 
+                src={buysellogod} 
+                alt="BuySellClub Logo" 
+                className="h-12 md:h-14 object-contain dark:hidden"
+              />
+              {/* Dark mode logo */}
+              <img 
+                src={buysellogo} 
+                alt="BuySellClub Logo" 
+                className="h-12 md:h-14 object-contain hidden dark:block"
+              />
             </Link>
             <p className='text-gray-600 dark:text-gray-400 text-sm'>
               Your one-stop destination for quality products and exceptional service. We bring the best products to your doorstep.

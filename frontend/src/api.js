@@ -349,6 +349,10 @@ const Api = {
     adminDeleteCourse: (id) =>
       http.delete(`/buysellapi/admin/training-courses/${id}/`),
   },
+  maintenance: {
+    get: () => http.get("/buysellapi/maintenance-settings/"),
+    update: (payload) => http.post("/buysellapi/maintenance-settings/", payload),
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -426,6 +430,8 @@ export const sendLiveChatMessage = Api.liveChat.send;
 export const markLiveChatMessageRead = Api.liveChat.markRead;
 export const getLiveChatUnreadCount = Api.liveChat.unreadCount;
 export const markAllLiveChatRead = Api.liveChat.markAllRead;
+export const getMaintenanceSettings = Api.maintenance.get;
+export const updateMaintenanceSettings = Api.maintenance.update;
 
 export const testConnection = async () => {
   try {

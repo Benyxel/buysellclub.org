@@ -1,12 +1,13 @@
 import React, { useContext, useState, useEffect } from "react";
 import { FaShoppingCart } from "react-icons/fa";
-import { IoMdArrowDropdown } from "react-icons/io";
+import { IoMdArrowDropdown, IoMdArrowDropup, IoMdMenu } from "react-icons/io";
 import DarkMode from "./DarkMode";
 import { Link, NavLink } from "react-router-dom";
 import { FaUser } from "react-icons/fa";
-import { IoMdMenu } from "react-icons/io";
 import { IoClose } from "react-icons/io5";
 import { ShopContext } from "../context/ShopContext";
+import buysellogo from "../assets/buysellogo.png";
+import buysellogod from "../assets/buysellogod.png";
 
 const MenuLinks = [
   { name: "Home", href: "/" },
@@ -34,6 +35,8 @@ const StaticUserLinks = [
 
 export default function Navbar() {
   const [visible, setVisible] = useState(false);
+  const [quickLinksOpen, setQuickLinksOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
   const { getCartCount } = useContext(ShopContext);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [_userData, setUserData] = useState(null);
@@ -129,10 +132,21 @@ export default function Navbar() {
         <div className="container flex justify-between">
           <div className="flex items-center gap-12">
             <Link
-              className="text-primary font-bold -tracking-widest text-[40px] uppercase sm:text-3xl hover:text-brandGreen"
               to="/"
+              className="flex items-center"
             >
-              BuySellClub
+              {/* Light mode logo */}
+              <img 
+                src={buysellogod} 
+                alt="BuySellClub Logo" 
+                className="h-12 sm:h-14 md:h-16 object-contain dark:hidden"
+              />
+              {/* Dark mode logo */}
+              <img 
+                src={buysellogo} 
+                alt="BuySellClub Logo" 
+                className="h-12 sm:h-14 md:h-16 object-contain hidden dark:block"
+              />
             </Link>
 
             <div className="hidden lg:block">
@@ -268,12 +282,27 @@ export default function Navbar() {
       </div>
 
       {/* Mobile Menu */}
+      {visible && (
+        <div
+          className="fixed inset-0 bg-black/20 z-40 lg:hidden"
+          onClick={() => setVisible(false)}
+        />
+      )}
       <div
         className={`fixed top-0 right-0 bottom-0 bg-white/95 transition-transform transform ${
           visible ? "translate-x-0" : "translate-x-full"
         } w-1/2 sm:w-64 z-50 dark:bg-black/90 lg:hidden`}
+        onClick={(e) => {
+          // Close menu when clicking on empty space (not on menu items)
+          if (e.target === e.currentTarget) {
+            setVisible(false);
+          }
+        }}
       >
-        <div className="flex flex-col text-gray-600 h-full">
+        <div 
+          className="flex flex-col text-gray-600 h-full"
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="flex items-center justify-between p-4 border-b">
             <p className="text-lg font-semibold dark:text-white">Menu</p>
             <IoClose
@@ -324,55 +353,82 @@ export default function Navbar() {
             </ul>
 
             {/* Quick Links Section */}
-            <div className="px-4 py-2">
-              <h3 className="font-semibold text-gray-800 dark:text-white mb-2">
-                Quick Links
-              </h3>
-              <ul className="space-y-2">
-                {Quicklinks.map((data, index) => (
-                  <li key={index}>
-                    <Link
-                      to={data.href}
-                      className="block text-gray-500 hover:text-black dark:hover:text-white duration-200"
-                      onClick={() => setVisible(false)}
-                    >
-                      {data.name}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* User Links Section */}
-            <div className="px-4 py-2">
-              <h3 className="font-semibold text-gray-800 dark:text-white mb-2">
-                Account
-              </h3>
-              <ul className="space-y-2">
-                {UserLinks.map((data, index) => (
-                  <li key={index}>
-                    {data.href ? (
+            <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-700">
+              <button
+                onClick={() => setQuickLinksOpen(!quickLinksOpen)}
+                className="w-full flex items-center justify-between font-semibold text-gray-800 dark:text-white mb-2 py-2 hover:text-primary transition-colors"
+              >
+                <span>Quick Links</span>
+                {quickLinksOpen ? (
+                  <IoMdArrowDropup className="text-xl" />
+                ) : (
+                  <IoMdArrowDropdown className="text-xl" />
+                )}
+              </button>
+              {quickLinksOpen && (
+                <ul className="space-y-2 pl-2">
+                  {Quicklinks.map((data, index) => (
+                    <li key={index}>
                       <Link
                         to={data.href}
-                        className="block text-gray-500 hover:text-black dark:hover:text-white duration-200"
-                        onClick={() => setVisible(false)}
+                        className="block text-gray-500 hover:text-black dark:hover:text-white duration-200 py-1"
+                        onClick={() => {
+                          setVisible(false);
+                          setQuickLinksOpen(false);
+                        }}
                       >
                         {data.name}
                       </Link>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          data.action();
-                          setVisible(false);
-                        }}
-                        className="block text-gray-500 hover:text-black dark:hover:text-white duration-200 text-left w-full"
-                      >
-                        {data.name}
-                      </button>
-                    )}
-                  </li>
-                ))}
-              </ul>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            {/* User Links Section */}
+            <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-700">
+              <button
+                onClick={() => setAccountOpen(!accountOpen)}
+                className="w-full flex items-center justify-between font-semibold text-gray-800 dark:text-white mb-2 py-2 hover:text-primary transition-colors"
+              >
+                <span>Account</span>
+                {accountOpen ? (
+                  <IoMdArrowDropup className="text-xl" />
+                ) : (
+                  <IoMdArrowDropdown className="text-xl" />
+                )}
+              </button>
+              {accountOpen && (
+                <ul className="space-y-2 pl-2">
+                  {UserLinks.map((data, index) => (
+                    <li key={index}>
+                      {data.href ? (
+                        <Link
+                          to={data.href}
+                          className="block text-gray-500 hover:text-black dark:hover:text-white duration-200 py-1"
+                          onClick={() => {
+                            setVisible(false);
+                            setAccountOpen(false);
+                          }}
+                        >
+                          {data.name}
+                        </Link>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            data.action();
+                            setVisible(false);
+                            setAccountOpen(false);
+                          }}
+                          className="block text-gray-500 hover:text-black dark:hover:text-white duration-200 text-left w-full py-1"
+                        >
+                          {data.name}
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </div>
         </div>

@@ -4,9 +4,6 @@ import {
   FaCopy,
   FaCheck,
   FaArrowLeft,
-  FaEdit,
-  FaSave,
-  FaTimes,
   FaTruck,
   FaInfoCircle,
 } from "react-icons/fa";
@@ -20,8 +17,6 @@ const FofoofoAddressGenerator = () => {
   const [copied, setCopied] = useState(false);
   const [hasAddress, setHasAddress] = useState(false);
   const [existingAddress, setExistingAddress] = useState(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [tempName, setTempName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   const navigate = useNavigate();
@@ -158,61 +153,6 @@ const FofoofoAddressGenerator = () => {
 
   // No separate updateShippingTab needed; profile reads from backend
 
-  const handleEditName = () => {
-    if (!existingAddress) return;
-    setTempName(existingAddress.name);
-    setIsEditing(true);
-  };
-
-  const handleSaveName = async () => {
-    if (!tempName.trim()) {
-      toast.error("Please enter a valid name");
-      return;
-    }
-    const token =
-      localStorage.getItem("token") || localStorage.getItem("adminToken");
-    if (!token) {
-      toast.error("Please log in to update your shipping mark.");
-      setTimeout(() => {
-        window.location.href = "/Login";
-      }, 300);
-      return;
-    }
-    try {
-      setIsLoading(true);
-      const resp = await API.put("/buysellapi/shipping-marks/me/", {
-        name: tempName.trim(),
-        updateUserProfile: false,
-      });
-      const data = resp?.data;
-      if (data && data.markId) {
-        setExistingAddress(data);
-        setIsEditing(false);
-        localStorage.setItem("userShippingMark", JSON.stringify(data));
-        toast.success("Shipping mark name updated!");
-      }
-    } catch (err) {
-      if (err?.response?.status === 401 || err?.response?.status === 403) {
-        toast.error("Please log in to update your shipping mark.");
-        setTimeout(() => {
-          window.location.href = "/Login";
-        }, 300);
-      } else {
-        console.error("Failed to update shipping mark name:", err);
-        toast.error(
-          err?.response?.data?.message || "Failed to update shipping mark"
-        );
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleCancelEdit = () => {
-    setIsEditing(false);
-    setTempName("");
-  };
-
   const copyToClipboard = async (text) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -264,9 +204,12 @@ const FofoofoAddressGenerator = () => {
             {!hasAddress ? (
               <div className="mb-8">
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Generate Shipping Address
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Enter Your Name
                   </label>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                    Your shipping mark will be generated as "mardid" + your username
+                  </p>
                   <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                     <input
                       type="text"
@@ -296,9 +239,7 @@ const FofoofoAddressGenerator = () => {
                         Important Information
                       </p>
                       <p className="text-blue-800 dark:text-blue-200 text-sm">
-                        You can only create one shipping mark per user. After
-                        generating your address, you will only be able to edit
-                        your name, not create additional shipping marks.
+                        You can only create one shipping mark per user. Your shipping mark will be generated as "mardid" + your username. Once generated, the shipping mark cannot be edited.
                       </p>
                     </div>
                   </div>
@@ -321,44 +262,11 @@ const FofoofoAddressGenerator = () => {
                   </div>
                 </div>
 
-                <div className="flex justify-between items-center mb-4">
+                <div className="mb-4">
                   <h2 className="text-lg font-semibold text-gray-800 dark:text-white flex items-center gap-2">
                     <FaMapMarkerAlt className="text-primary" />
                     Your Shipping Address
                   </h2>
-                  <div className="flex gap-2">
-                    {!isEditing ? (
-                      <button
-                        onClick={handleEditName}
-                        className="flex items-center gap-2 px-4 py-2 text-primary hover:text-primary/90 transition-colors"
-                        disabled={isLoading}
-                      >
-                        <FaEdit className="w-4 h-4" />
-                        Edit Name
-                      </button>
-                    ) : (
-                      <div className="flex gap-2">
-                        <button
-                          onClick={handleSaveName}
-                          className={`flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors ${
-                            isLoading ? "opacity-70 cursor-not-allowed" : ""
-                          }`}
-                          disabled={isLoading}
-                        >
-                          <FaSave className="w-4 h-4" />
-                          Save
-                        </button>
-                        <button
-                          onClick={handleCancelEdit}
-                          className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-                          disabled={isLoading}
-                        >
-                          <FaTimes className="w-4 h-4" />
-                          Cancel
-                        </button>
-                      </div>
-                    )}
-                  </div>
                 </div>
 
                 <div className="space-y-6">

@@ -61,6 +61,7 @@ import AgentTrackingManagement from "./AgentTrackingManagement";
 import AgentContainerManagement from "./AgentContainerManagement";
 import AgentInvoicesManagement from "./AgentInvoicesManagement";
 import LiveChatAdminPanel from "./LiveChatAdminPanel";
+import MaintenanceManagement from "./MaintenanceManagement";
 const AgentShippingRatesManagement = React.lazy(() =>
   import("./AgentShippingRatesManagement.jsx")
 );
@@ -1075,6 +1076,8 @@ const AdminDashboard = () => {
         );
       case "gallery":
         return <GalleryManagement />;
+      case "settings":
+        return <MaintenanceManagement />;
       default:
         return (
           <div className="p-6">

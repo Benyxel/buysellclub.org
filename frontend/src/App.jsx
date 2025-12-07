@@ -1,5 +1,7 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Routes, Route } from "react-router-dom";
+import { getMaintenanceSettings } from "./api";
+import MaintenancePage from "./components/MaintenancePage";
 import Home from "./pages/Home";
 import Shop from "./pages/Shop";
 import Services from "./pages/Services";
@@ -49,6 +51,50 @@ import UserView from "./pages/admin/UserView";
 import ScrollToTop from "./components/ScrollToTop";
 
 function App() {
+  const [maintenance, setMaintenance] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const isAdminRoute = window.location.pathname.startsWith("/admin-dashboard") || 
+                       window.location.pathname.startsWith("/admin/");
+
+  useEffect(() => {
+    const checkMaintenance = async () => {
+      try {
+        const response = await getMaintenanceSettings();
+        setMaintenance(response.data);
+      } catch (error) {
+        console.error("Failed to check maintenance status:", error);
+        // If API fails, assume no maintenance
+        setMaintenance({ is_enabled: false });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkMaintenance();
+    // Check maintenance status every 30 seconds
+    const interval = setInterval(checkMaintenance, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Show maintenance page if enabled and not on admin routes
+  if (!loading && maintenance?.is_enabled && !isAdminRoute) {
+    return (
+      <MaintenancePage
+        title={maintenance.title}
+        message={maintenance.message}
+        estimatedTime={maintenance.estimated_time}
+      />
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       <ScrollToTop />
