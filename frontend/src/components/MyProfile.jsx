@@ -359,25 +359,66 @@ const MyProfile = () => {
     }
   }, [activeTab]);
 
-  // Add a manual refresh function that users can call
-  const refreshUserData = async () => {
+  // Function to refresh all user data (comprehensive)
+  const refreshUserData = async (showToast = false) => {
     try {
-      toast.info("Refreshing profile data...");
-      setIsLoading(true);
+      if (showToast) {
+        toast.info("Refreshing profile data...");
+        setIsLoading(true);
+        setError(null);
+      }
 
-      // Clear any existing error states
-      setError(null);
+      // Load user shipments from backend only (clear any old state first)
+      setUserShipments([]);
+      fetchUserTrackings();
 
-      // Fetch fresh data in parallel for faster loading
+      // Load orders from API
+      try {
+        const response = await API.get("/buysellapi/orders/");
+        const ordersData = Array.isArray(response.data)
+          ? response.data
+          : response.data.results || [];
+        setOrders(ordersData);
+      } catch (error) {
+        console.error("Failed to load orders:", error);
+        // Fallback to localStorage if API fails
+        const savedOrders = JSON.parse(localStorage.getItem("orders") || "[]");
+        setOrders(savedOrders);
+      }
+
+      // Load notifications from backend
+      fetchUserNotifications();
+
+      // Load Buy4Me orders from API
+      try {
+        const response = await API.get("/buysellapi/buy4me-requests/");
+        const ordersData = Array.isArray(response.data)
+          ? response.data
+          : response.data.results || [];
+        setBuy4meOrders(ordersData);
+      } catch (error) {
+        console.error("Failed to load buy4me orders:", error);
+        // Fallback to localStorage if API fails
+        const orders = JSON.parse(localStorage.getItem("buy4meOrders") || "[]");
+        setBuy4meOrders(orders);
+      }
+
+      // Refresh profile and shipping marks in parallel for faster loading
       await Promise.all([fetchUserProfile(), fetchUserShippingMarks()]);
 
-      toast.success("Profile data refreshed successfully");
+      if (showToast) {
+        toast.success("Profile data refreshed successfully");
+      }
     } catch (error) {
       console.error("Error refreshing user data:", error);
-      toast.error("Failed to refresh profile data");
-      setError("Failed to refresh profile. Please try again.");
+      if (showToast) {
+        toast.error("Failed to refresh profile data");
+        setError("Failed to refresh profile. Please try again.");
+      }
     } finally {
-      setIsLoading(false);
+      if (showToast) {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -452,7 +493,8 @@ const MyProfile = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mpShowAddForm]);
 
-  // Keep the existing useEffect for other data
+
+  // Keep the existing useEffect for initial data load
   useEffect(() => {
     // Load user shipments from backend only (clear any old state first)
     setUserShipments([]);
@@ -464,42 +506,8 @@ const MyProfile = () => {
     );
     setFavorites(savedFavorites);
 
-    // Load orders from API
-    const loadOrders = async () => {
-      try {
-        const response = await API.get("/buysellapi/orders/");
-        const ordersData = Array.isArray(response.data)
-          ? response.data
-          : response.data.results || [];
-        setOrders(ordersData);
-      } catch (error) {
-        console.error("Failed to load orders:", error);
-        // Fallback to localStorage if API fails
-        const savedOrders = JSON.parse(localStorage.getItem("orders") || "[]");
-        setOrders(savedOrders);
-      }
-    };
-    loadOrders();
-
-    // Load notifications from backend
-    fetchUserNotifications();
-
-    // Load Buy4Me orders from API
-    const loadBuy4meOrders = async () => {
-      try {
-        const response = await API.get("/buysellapi/buy4me-requests/");
-        const ordersData = Array.isArray(response.data)
-          ? response.data
-          : response.data.results || [];
-        setBuy4meOrders(ordersData);
-      } catch (error) {
-        console.error("Failed to load buy4me orders:", error);
-        // Fallback to localStorage if API fails
-        const orders = JSON.parse(localStorage.getItem("buy4meOrders") || "[]");
-        setBuy4meOrders(orders);
-      }
-    };
-    loadBuy4meOrders();
+    // Initial data load
+    refreshUserData();
 
     // Add event listener for storage changes
     const handleStorageChange = (e) => {
@@ -520,6 +528,38 @@ const MyProfile = () => {
 
     window.addEventListener("storage", handleStorageChange);
     return () => window.removeEventListener("storage", handleStorageChange);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Auto-refresh user data every 30 seconds
+  useEffect(() => {
+    // Refresh when tab becomes visible
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refreshUserData();
+      }
+    };
+    
+    // Refresh when window regains focus
+    const handleFocus = () => {
+      refreshUserData();
+    };
+    
+    // Periodic refresh (every 15 seconds)
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        refreshUserData();
+      }
+    }, 15000); // 15 seconds
+    
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
+    
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

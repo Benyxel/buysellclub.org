@@ -112,10 +112,10 @@ const Orders = () => {
     fetchOrders();
     hasFetchedRef.current = true;
     
-    // Refresh orders every 30 seconds
+    // Refresh orders every 15 seconds
     const interval = setInterval(() => {
       fetchOrders();
-    }, 30000);
+    }, 15000);
     return () => clearInterval(interval);
   }, [location.pathname, fetchOrders]);
 

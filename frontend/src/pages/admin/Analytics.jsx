@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "../../utils/toast";
-import { getAdminAnalytics } from "../../api";
+import { getAdminAnalytics, getAdminAnalyticsTrends } from "../../api";
 import {
   FaShip,
   FaDollarSign,
@@ -13,12 +13,27 @@ import {
   FaCalendarWeek,
   FaCalendarAlt,
 } from "react-icons/fa";
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  BarChart,
+  Bar,
+} from "recharts";
 
-const Analytics = () => {
+const Analytics = ({ activeTab = "overview" }) => {
   const [loading, setLoading] = useState(true);
   const [analytics, setAnalytics] = useState(null);
   const [error, setError] = useState(null);
   const [selectedPeriod, setSelectedPeriod] = useState("all"); // all, daily, monthly, yearly
+  const [trends, setTrends] = useState(null);
+  const [trendsLoading, setTrendsLoading] = useState(true);
+  const [trendsError, setTrendsError] = useState(null);
 
   useEffect(() => {
     fetchAnalytics();
@@ -50,6 +65,27 @@ const Analytics = () => {
       setLoading(false);
     }
   };
+
+  const fetchTrends = async () => {
+    setTrendsLoading(true);
+    setTrendsError(null);
+    try {
+      const response = await getAdminAnalyticsTrends();
+      setTrends(response.data);
+    } catch (err) {
+      console.error("Error fetching analytics trends:", err);
+      setTrendsError(
+        err.response?.data?.detail || "Failed to load analytics trends"
+      );
+      toast.error("Failed to load performance highlights");
+    } finally {
+      setTrendsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTrends();
+  }, []);
 
   const formatCurrency = (amount, currency = "USD") => {
     return new Intl.NumberFormat("en-US", {
@@ -86,482 +122,631 @@ const Analytics = () => {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
-          Analytics Dashboard
-        </h2>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setSelectedPeriod("all")}
-            className={`px-4 py-2 rounded-lg ${
-              selectedPeriod === "all"
-                ? "bg-blue-600 text-white"
-                : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
-            }`}
-          >
-            All Time
-          </button>
-          <button
-            onClick={() => setSelectedPeriod("daily")}
-            className={`px-4 py-2 rounded-lg ${
-              selectedPeriod === "daily"
-                ? "bg-blue-600 text-white"
-                : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
-            }`}
-          >
-            Last 30 Days
-          </button>
-          <button
-            onClick={() => setSelectedPeriod("monthly")}
-            className={`px-4 py-2 rounded-lg ${
-              selectedPeriod === "monthly"
-                ? "bg-blue-600 text-white"
-                : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
-            }`}
-          >
-            Last Year
-          </button>
-        </div>
-      </div>
-
-      {/* Shipping Management Analytics */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <FaShip className="text-2xl text-blue-600" />
-          <h3 className="text-xl font-semibold text-gray-800 dark:text-white">
-            Shipping Management
-          </h3>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Total to Collect
-            </p>
-            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-              {formatCurrency(analytics.shipping?.total_to_collect || 0)}
-            </p>
-          </div>
-          <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
-            <p className="text-sm text-gray-600 dark:text-gray-400">Collected</p>
-            <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-              {formatCurrency(analytics.shipping?.collected || 0)}
-            </p>
-          </div>
-          <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-4">
-            <p className="text-sm text-gray-600 dark:text-gray-400">Remaining</p>
-            <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-              {formatCurrency(analytics.shipping?.remaining || 0)}
-            </p>
-          </div>
-        </div>
-
-        {/* Containers Breakdown */}
-        {analytics.shipping?.containers && analytics.shipping.containers.length > 0 && (
-          <div className="mt-6">
-            <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-3">
-              By Container
-            </h4>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead className="bg-gray-50 dark:bg-gray-700">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                      Container
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                      Total Amount
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                      Collected
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                      Remaining
-                    </th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                      Invoices
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                  {analytics.shipping.containers.map((container) => (
-                    <tr key={container.container_id}>
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
-                        {container.container_number}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
-                        {formatCurrency(container.total_amount)}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-right text-green-600 dark:text-green-400">
-                        {formatCurrency(container.collected)}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-right text-orange-600 dark:text-orange-400">
-                        {formatCurrency(container.remaining)}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-center text-gray-600 dark:text-gray-400">
-                        {container.paid_count}/{container.invoice_count} Paid
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+      {activeTab === "overview" && (
+        <>
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
+              Analytics Dashboard
+            </h2>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setSelectedPeriod("all")}
+                className={`px-4 py-2 rounded-lg ${
+                  selectedPeriod === "all"
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                }`}
+              >
+                All Time
+              </button>
+              <button
+                onClick={() => setSelectedPeriod("daily")}
+                className={`px-4 py-2 rounded-lg ${
+                  selectedPeriod === "daily"
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                }`}
+              >
+                Last 30 Days
+              </button>
+              <button
+                onClick={() => setSelectedPeriod("monthly")}
+                className={`px-4 py-2 rounded-lg ${
+                  selectedPeriod === "monthly"
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                }`}
+              >
+                Last Year
+              </button>
             </div>
           </div>
-        )}
-      </div>
 
-      {/* Alipay Management Analytics */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <FaDollarSign className="text-2xl text-green-600" />
-          <h3 className="text-xl font-semibold text-gray-800 dark:text-white">
-            Alipay Payments
-          </h3>
-        </div>
+          {trendsLoading ? (
+            <div className="flex items-center justify-center h-40">
+              <FaSpinner className="animate-spin text-3xl text-blue-600" />
+            </div>
+          ) : trendsError ? (
+            <div className="p-4 rounded-md bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800">
+              <p className="text-sm text-red-700 dark:text-red-200">
+                {trendsError}
+              </p>
+            </div>
+          ) : (
+            trends && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
+                    <p className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
+                      Orders (30d)
+                    </p>
+                    <p className="text-2xl font-bold text-gray-800 dark:text-white">
+                      {trends.overview.total_orders.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
+                    <p className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
+                      Revenue (USD)
+                    </p>
+                    <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                      {formatCurrency(trends.overview.total_revenue)}
+                    </p>
+                  </div>
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
+                    <p className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
+                      Shipping Collected
+                    </p>
+                    <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                      {formatCurrency(trends.overview.shipping_collected)}
+                    </p>
+                  </div>
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
+                    <p className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
+                      Buy4me Invoices
+                    </p>
+                    <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                      {trends.overview.buy4me_requests}
+                    </p>
+                  </div>
+                </div>
 
-        {/* Summary */}
-        {analytics.alipay?.summary && (
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-              <p className="text-sm text-gray-600 dark:text-gray-400">Total</p>
-              <p className="text-xl font-bold text-gray-900 dark:text-white">
-                {analytics.alipay.summary.total_payments}
+                <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 shadow-sm">
+                  <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-3">
+                    Daily Performance (Orders vs Revenue)
+                  </h4>
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={trends.daily_performance}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis
+                          dataKey="date"
+                          tickFormatter={(val) =>
+                            new Date(val).toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                            })
+                          }
+                        />
+                        <YAxis />
+                        <Tooltip
+                          formatter={(value) => formatCurrency(value)}
+                          labelFormatter={(label) =>
+                            new Date(label).toLocaleDateString()
+                          }
+                        />
+                        <Legend />
+                        <Line
+                          type="monotone"
+                          dataKey="revenue"
+                          name="Order Revenue"
+                          stroke="#2563eb"
+                          strokeWidth={3}
+                          dot={false}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="shipping_collected"
+                          name="Shipping Collected"
+                          stroke="#059669"
+                          strokeWidth={3}
+                          dot={false}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 shadow-sm">
+                  <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-3">
+                    Order Status Breakdown
+                  </h4>
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={Object.entries(trends.status_breakdown || {}).map(
+                          ([status, count]) => ({ status, count })
+                        )}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="status" />
+                        <YAxis />
+                        <Tooltip />
+                        <Bar
+                          dataKey="count"
+                          name="Orders"
+                          fill="#f97316"
+                          radius={[6, 6, 0, 0]}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </div>
+            )
+          )}
+        </>
+      )}
+
+      {/* Shipping Management Analytics */}
+      {activeTab === "shipping" && (
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <FaShip className="text-2xl text-blue-600" />
+            <h3 className="text-xl font-semibold text-gray-800 dark:text-white">
+              Shipping Management
+            </h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Total to Collect
+              </p>
+              <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                {formatCurrency(analytics.shipping?.total_to_collect || 0)}
               </p>
             </div>
             <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Completed
+                Collected
               </p>
-              <p className="text-xl font-bold text-green-600 dark:text-green-400">
-                {analytics.alipay.summary.completed}
-              </p>
-            </div>
-            <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-4">
-              <p className="text-sm text-gray-600 dark:text-gray-400">Pending</p>
-              <p className="text-xl font-bold text-yellow-600 dark:text-yellow-400">
-                {analytics.alipay.summary.pending}
+              <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                {formatCurrency(analytics.shipping?.collected || 0)}
               </p>
             </div>
-            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+            <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-4">
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Processing
+                Remaining
               </p>
-              <p className="text-xl font-bold text-blue-600 dark:text-blue-400">
-                {analytics.alipay.summary.processing}
-              </p>
-            </div>
-            <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Total Revenue
-              </p>
-              <p className="text-xl font-bold text-purple-600 dark:text-purple-400">
-                {formatCurrency(analytics.alipay.summary.total_revenue, "GHS")}
+              <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+                {formatCurrency(analytics.shipping?.remaining || 0)}
               </p>
             </div>
           </div>
-        )}
 
-        {/* Daily/Monthly/Yearly Breakdown */}
-        <div className="space-y-4">
-          {selectedPeriod === "daily" && analytics.alipay?.daily && (
-            <div>
-              <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-3 flex items-center gap-2">
-                <FaCalendarDay /> Daily Payments (Last 30 Days)
-              </h4>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                  <thead className="bg-gray-50 dark:bg-gray-700">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                        Date
-                      </th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                        Count
-                      </th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                        Amount (GHS)
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                    {analytics.alipay.daily.map((item, idx) => (
-                      <tr key={idx}>
-                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
-                          {new Date(item.date).toLocaleDateString()}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-right text-gray-600 dark:text-gray-400">
-                          {item.count}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
-                          {formatCurrency(item.total_amount, "GHS")}
-                        </td>
+          {/* Containers Breakdown */}
+          {analytics.shipping?.containers &&
+            analytics.shipping.containers.length > 0 && (
+              <div className="mt-6">
+                <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-3">
+                  By Container
+                </h4>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead className="bg-gray-50 dark:bg-gray-700">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                          Container
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                          Total Amount
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                          Collected
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                          Remaining
+                        </th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                          Invoices
+                        </th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                      {analytics.shipping.containers.map((container) => (
+                        <tr key={container.container_id}>
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
+                            {container.container_number}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
+                            {formatCurrency(container.total_amount)}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-right text-green-600 dark:text-green-400">
+                            {formatCurrency(container.collected)}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-right text-orange-600 dark:text-orange-400">
+                            {formatCurrency(container.remaining)}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-center text-gray-600 dark:text-gray-400">
+                            {container.paid_count}/{container.invoice_count}{" "}
+                            Paid
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
-          )}
-
-          {selectedPeriod === "monthly" && analytics.alipay?.monthly && (
-            <div>
-              <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-3 flex items-center gap-2">
-                <FaCalendarWeek /> Monthly Payments (Last 12 Months)
-              </h4>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                  <thead className="bg-gray-50 dark:bg-gray-700">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                        Month
-                      </th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                        Count
-                      </th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                        Amount (GHS)
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                    {analytics.alipay.monthly.map((item, idx) => (
-                      <tr key={idx}>
-                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
-                          {new Date(item.month).toLocaleDateString("en-US", {
-                            year: "numeric",
-                            month: "long",
-                          })}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-right text-gray-600 dark:text-gray-400">
-                          {item.count}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
-                          {formatCurrency(item.total_amount, "GHS")}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {selectedPeriod === "all" && analytics.alipay?.yearly && (
-            <div>
-              <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-3 flex items-center gap-2">
-                <FaCalendarAlt /> Yearly Payments
-              </h4>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                  <thead className="bg-gray-50 dark:bg-gray-700">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                        Year
-                      </th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                        Count
-                      </th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                        Amount (GHS)
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                    {analytics.alipay.yearly.map((item, idx) => (
-                      <tr key={idx}>
-                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
-                          {new Date(item.year).getFullYear()}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-right text-gray-600 dark:text-gray-400">
-                          {item.count}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
-                          {formatCurrency(item.total_amount, "GHS")}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
+            )}
         </div>
-      </div>
+      )}
+
+      {/* Alipay Management Analytics */}
+      {activeTab === "alipay" && (
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <FaDollarSign className="text-2xl text-green-600" />
+            <h3 className="text-xl font-semibold text-gray-800 dark:text-white">
+              Alipay Payments
+            </h3>
+          </div>
+
+          {/* Summary */}
+          {analytics.alipay?.summary && (
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Total
+                </p>
+                <p className="text-xl font-bold text-gray-900 dark:text-white">
+                  {analytics.alipay.summary.total_payments}
+                </p>
+              </div>
+              <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Completed
+                </p>
+                <p className="text-xl font-bold text-green-600 dark:text-green-400">
+                  {analytics.alipay.summary.completed}
+                </p>
+              </div>
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Pending
+                </p>
+                <p className="text-xl font-bold text-yellow-600 dark:text-yellow-400">
+                  {analytics.alipay.summary.pending}
+                </p>
+              </div>
+              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Processing
+                </p>
+                <p className="text-xl font-bold text-blue-600 dark:text-blue-400">
+                  {analytics.alipay.summary.processing}
+                </p>
+              </div>
+              <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Total Revenue
+                </p>
+                <p className="text-xl font-bold text-purple-600 dark:text-purple-400">
+                  {formatCurrency(
+                    analytics.alipay.summary.total_revenue,
+                    "GHS"
+                  )}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Daily/Monthly/Yearly Breakdown */}
+          <div className="space-y-4">
+            {selectedPeriod === "daily" && analytics.alipay?.daily && (
+              <div>
+                <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-3 flex items-center gap-2">
+                  <FaCalendarDay /> Daily Payments (Last 30 Days)
+                </h4>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead className="bg-gray-50 dark:bg-gray-700">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                          Date
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                          Count
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                          Amount (GHS)
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                      {analytics.alipay.daily.map((item, idx) => (
+                        <tr key={idx}>
+                          <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                            {new Date(item.date).toLocaleDateString()}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-right text-gray-600 dark:text-gray-400">
+                            {item.count}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
+                            {formatCurrency(item.total_amount, "GHS")}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {selectedPeriod === "monthly" && analytics.alipay?.monthly && (
+              <div>
+                <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-3 flex items-center gap-2">
+                  <FaCalendarWeek /> Monthly Payments (Last 12 Months)
+                </h4>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead className="bg-gray-50 dark:bg-gray-700">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                          Month
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                          Count
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                          Amount (GHS)
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                      {analytics.alipay.monthly.map((item, idx) => (
+                        <tr key={idx}>
+                          <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                            {new Date(item.month).toLocaleDateString("en-US", {
+                              year: "numeric",
+                              month: "long",
+                            })}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-right text-gray-600 dark:text-gray-400">
+                            {item.count}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
+                            {formatCurrency(item.total_amount, "GHS")}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {selectedPeriod === "all" && analytics.alipay?.yearly && (
+              <div>
+                <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-3 flex items-center gap-2">
+                  <FaCalendarAlt /> Yearly Payments
+                </h4>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead className="bg-gray-50 dark:bg-gray-700">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                          Year
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                          Count
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                          Amount (GHS)
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                      {analytics.alipay.yearly.map((item, idx) => (
+                        <tr key={idx}>
+                          <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                            {new Date(item.year).getFullYear()}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-right text-gray-600 dark:text-gray-400">
+                            {item.count}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
+                            {formatCurrency(item.total_amount, "GHS")}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Buy4me Analytics */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <FaHandHoldingUsd className="text-2xl text-purple-600" />
-          <h3 className="text-xl font-semibold text-gray-800 dark:text-white">
-            Buy4me Analytics
-          </h3>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-              Total Requests
-            </p>
-            <p className="text-3xl font-bold text-gray-900 dark:text-white">
-              {analytics.buy4me?.total_requests || 0}
-            </p>
-            {analytics.buy4me?.status_breakdown && (
-              <div className="mt-4 space-y-2">
-                {Object.entries(analytics.buy4me.status_breakdown).map(
-                  ([status, count]) => (
-                    <div
-                      key={status}
-                      className="flex justify-between text-sm"
-                    >
-                      <span className="text-gray-600 dark:text-gray-400 capitalize">
-                        {status}:
-                      </span>
-                      <span className="font-medium text-gray-900 dark:text-white">
-                        {count}
-                      </span>
-                    </div>
-                  )
-                )}
-              </div>
-            )}
+      {activeTab === "buy4me" && (
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <FaHandHoldingUsd className="text-2xl text-purple-600" />
+            <h3 className="text-xl font-semibold text-gray-800 dark:text-white">
+              Buy4me Analytics
+            </h3>
           </div>
-          <div>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-              Invoice Summary
-            </p>
-            {analytics.buy4me?.invoices && (
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">
-                    Total Invoiced:
-                  </span>
-                  <span className="font-medium text-gray-900 dark:text-white">
-                    {analytics.buy4me.invoices.total_invoiced}
-                  </span>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                Total Requests
+              </p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-white">
+                {analytics.buy4me?.total_requests || 0}
+              </p>
+              {analytics.buy4me?.status_breakdown && (
+                <div className="mt-4 space-y-2">
+                  {Object.entries(analytics.buy4me.status_breakdown).map(
+                    ([status, count]) => (
+                      <div
+                        key={status}
+                        className="flex justify-between text-sm"
+                      >
+                        <span className="text-gray-600 dark:text-gray-400 capitalize">
+                          {status}:
+                        </span>
+                        <span className="font-medium text-gray-900 dark:text-white">
+                          {count}
+                        </span>
+                      </div>
+                    )
+                  )}
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">
-                    Total Amount:
-                  </span>
-                  <span className="font-medium text-gray-900 dark:text-white">
-                    {formatCurrency(analytics.buy4me.invoices.total_amount)}
-                  </span>
+              )}
+            </div>
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                Invoice Summary
+              </p>
+              {analytics.buy4me?.invoices && (
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">
+                      Total Invoiced:
+                    </span>
+                    <span className="font-medium text-gray-900 dark:text-white">
+                      {analytics.buy4me.invoices.total_invoiced}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">
+                      Total Amount:
+                    </span>
+                    <span className="font-medium text-gray-900 dark:text-white">
+                      {formatCurrency(analytics.buy4me.invoices.total_amount)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">
+                      Paid:
+                    </span>
+                    <span className="font-medium text-green-600 dark:text-green-400">
+                      {formatCurrency(analytics.buy4me.invoices.paid_amount)} (
+                      {analytics.buy4me.invoices.paid_count})
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">
+                      Pending:
+                    </span>
+                    <span className="font-medium text-orange-600 dark:text-orange-400">
+                      {formatCurrency(analytics.buy4me.invoices.pending_amount)}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">
-                    Paid:
-                  </span>
-                  <span className="font-medium text-green-600 dark:text-green-400">
-                    {formatCurrency(analytics.buy4me.invoices.paid_amount)} (
-                    {analytics.buy4me.invoices.paid_count})
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">
-                    Pending:
-                  </span>
-                  <span className="font-medium text-orange-600 dark:text-orange-400">
-                    {formatCurrency(analytics.buy4me.invoices.pending_amount)}
-                  </span>
-                </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Orders Analytics */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <FaShoppingCart className="text-2xl text-indigo-600" />
-          <h3 className="text-xl font-semibold text-gray-800 dark:text-white">
-            Shop Orders Analytics
-          </h3>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-              Total Orders
-            </p>
-            <p className="text-3xl font-bold text-gray-900 dark:text-white">
-              {analytics.orders?.total_orders || 0}
-            </p>
-            {analytics.orders?.status_breakdown && (
-              <div className="mt-4 space-y-2">
-                <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                  Status Breakdown:
-                </p>
-                {Object.entries(analytics.orders.status_breakdown).map(
-                  ([status, count]) => (
-                    <div
-                      key={status}
-                      className="flex justify-between text-sm"
-                    >
-                      <span className="text-gray-600 dark:text-gray-400 capitalize">
-                        {status}:
-                      </span>
-                      <span className="font-medium text-gray-900 dark:text-white">
-                        {count}
-                      </span>
-                    </div>
-                  )
-                )}
-              </div>
-            )}
+      {activeTab === "orders" && (
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <FaShoppingCart className="text-2xl text-indigo-600" />
+            <h3 className="text-xl font-semibold text-gray-800 dark:text-white">
+              Shop Orders Analytics
+            </h3>
           </div>
-          <div>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-              Revenue
-            </p>
-            {analytics.orders?.revenue && (
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">
-                    Total Revenue:
-                  </span>
-                  <span className="text-2xl font-bold text-green-600 dark:text-green-400">
-                    {formatCurrency(analytics.orders.revenue.total, "GHS")}
-                  </span>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                Total Orders
+              </p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-white">
+                {analytics.orders?.total_orders || 0}
+              </p>
+              {analytics.orders?.status_breakdown && (
+                <div className="mt-4 space-y-2">
+                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                    Status Breakdown:
+                  </p>
+                  {Object.entries(analytics.orders.status_breakdown).map(
+                    ([status, count]) => (
+                      <div
+                        key={status}
+                        className="flex justify-between text-sm"
+                      >
+                        <span className="text-gray-600 dark:text-gray-400 capitalize">
+                          {status}:
+                        </span>
+                        <span className="font-medium text-gray-900 dark:text-white">
+                          {count}
+                        </span>
+                      </div>
+                    )
+                  )}
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">
-                    Paid Orders:
-                  </span>
-                  <span className="font-medium text-gray-900 dark:text-white">
-                    {analytics.orders.revenue.paid_orders}
-                  </span>
+              )}
+            </div>
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                Revenue
+              </p>
+              {analytics.orders?.revenue && (
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">
+                      Total Revenue:
+                    </span>
+                    <span className="text-2xl font-bold text-green-600 dark:text-green-400">
+                      {formatCurrency(analytics.orders.revenue.total, "GHS")}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600 dark:text-gray-400">
+                      Paid Orders:
+                    </span>
+                    <span className="font-medium text-gray-900 dark:text-white">
+                      {analytics.orders.revenue.paid_orders}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600 dark:text-gray-400">
+                      Average Order Value:
+                    </span>
+                    <span className="font-medium text-gray-900 dark:text-white">
+                      {formatCurrency(
+                        analytics.orders.revenue.average_order_value,
+                        "GHS"
+                      )}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">
-                    Average Order Value:
-                  </span>
-                  <span className="font-medium text-gray-900 dark:text-white">
-                    {formatCurrency(
-                      analytics.orders.revenue.average_order_value,
-                      "GHS"
-                    )}
-                  </span>
-                </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Training Analytics (Placeholder) */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <FaGraduationCap className="text-2xl text-yellow-600" />
-          <h3 className="text-xl font-semibold text-gray-800 dark:text-white">
-            Training Analytics
-          </h3>
+      {activeTab === "training" && (
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <FaGraduationCap className="text-2xl text-yellow-600" />
+            <h3 className="text-xl font-semibold text-gray-800 dark:text-white">
+              Training Analytics
+            </h3>
+          </div>
+          <p className="text-gray-600 dark:text-gray-400">
+            {analytics.training?.message ||
+              "Training analytics will be available soon"}
+          </p>
         </div>
-        <p className="text-gray-600 dark:text-gray-400">
-          {analytics.training?.message ||
-            "Training analytics will be available soon"}
-        </p>
-      </div>
+      )}
     </div>
   );
 };
 
 export default Analytics;
-

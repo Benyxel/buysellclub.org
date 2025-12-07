@@ -84,7 +84,7 @@ const Cart = () => {
       if (document.visibilityState === "visible") {
         reloadCart();
       }
-    }, 30000); // Refresh every 30 seconds
+    }, 15000); // Refresh every 15 seconds
 
     return () => clearInterval(interval);
   }, [reloadCart]);

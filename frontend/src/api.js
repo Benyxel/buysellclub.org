@@ -317,6 +317,15 @@ const Api = {
   analytics: {
     admin: (params) => http.get("/buysellapi/admin/analytics/", { params }),
     dashboardSummary: () => http.get("/buysellapi/admin/dashboard-summary/"),
+    trends: () => http.get("/buysellapi/admin/analytics/trends/"),
+  },
+  liveChat: {
+    messages: (params) => http.get("/buysellapi/live-chat/messages/", { params }),
+    send: (payload) => http.post("/buysellapi/live-chat/messages/", payload),
+    markRead: (messageId) =>
+      http.patch(`/buysellapi/live-chat/messages/${messageId}/mark-read/`),
+    unreadCount: () => http.get("/buysellapi/live-chat/messages/unread-count/"),
+    markAllRead: () => http.post("/buysellapi/live-chat/messages/mark-all-read/"),
   },
   training: {
     courses: (params) => http.get("/buysellapi/training-courses/", { params }),
@@ -401,6 +410,7 @@ export const updateProductType = Api.productTypes.update;
 export const deleteProductType = Api.productTypes.remove;
 
 export const getAdminAnalytics = Api.analytics.admin;
+export const getAdminAnalyticsTrends = Api.analytics.trends;
 export const registerUser = Api.auth.register;
 export const getTrainingCourses = Api.training.courses;
 export const getTrainingBookings = Api.training.bookings;
@@ -411,6 +421,11 @@ export const getAdminTrainingCourse = Api.training.adminCourseDetail;
 export const createTrainingCourse = Api.training.adminCreateCourse;
 export const updateTrainingCourse = Api.training.adminUpdateCourse;
 export const deleteTrainingCourse = Api.training.adminDeleteCourse;
+export const getLiveChatMessages = Api.liveChat.messages;
+export const sendLiveChatMessage = Api.liveChat.send;
+export const markLiveChatMessageRead = Api.liveChat.markRead;
+export const getLiveChatUnreadCount = Api.liveChat.unreadCount;
+export const markAllLiveChatRead = Api.liveChat.markAllRead;
 
 export const testConnection = async () => {
   try {

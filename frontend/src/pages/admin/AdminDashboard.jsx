@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "../../utils/toast";
-import API from "../../api";
+import API, { getLiveChatUnreadCount, markAllLiveChatRead } from "../../api";
 
 import {
   FaHome,
@@ -60,6 +60,7 @@ import GalleryManagement from "./GalleryManagement";
 import AgentTrackingManagement from "./AgentTrackingManagement";
 import AgentContainerManagement from "./AgentContainerManagement";
 import AgentInvoicesManagement from "./AgentInvoicesManagement";
+import LiveChatAdminPanel from "./LiveChatAdminPanel";
 const AgentShippingRatesManagement = React.lazy(() =>
   import("./AgentShippingRatesManagement.jsx")
 );
@@ -121,8 +122,11 @@ const AdminDashboard = () => {
   );
   const [agentSubMenu, setAgentSubMenu] = useState(getInitialAgentSubMenu());
   const [trainingSubMenu, setTrainingSubMenu] = useState("paidCourses");
+  const [analyticsTab, setAnalyticsTab] = useState("overview");
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [chatUnreadCount, setChatUnreadCount] = useState(0);
+  const [chatRefreshSignal, setChatRefreshSignal] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
   const [dashboardData, setDashboardData] = useState(null);
   const [dashboardLoading, setDashboardLoading] = useState(false);
@@ -229,6 +233,15 @@ const AdminDashboard = () => {
     }
   };
 
+  const fetchLiveChatUnreadCount = async () => {
+    try {
+      const resp = await getLiveChatUnreadCount();
+      setChatUnreadCount(resp.data?.unread_count || 0);
+    } catch (error) {
+      console.error("Failed to load chat unread count:", error);
+    }
+  };
+
   const fetchDashboardData = async () => {
     setDashboardLoading(true);
     setDashboardError(null);
@@ -311,13 +324,29 @@ const AdminDashboard = () => {
   // Fetch admin notifications on mount and every 30 seconds
   useEffect(() => {
     fetchAdminNotifications();
+    fetchLiveChatUnreadCount();
 
     const interval = setInterval(() => {
       fetchAdminNotifications();
-    }, 30000); // Poll every 30 seconds
+      fetchLiveChatUnreadCount();
+    }, 15000); // 15 seconds for faster updates
 
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (activeSection !== "messages") return;
+    const markAll = async () => {
+      try {
+        await markAllLiveChatRead();
+        setChatRefreshSignal((prev) => prev + 1);
+        fetchLiveChatUnreadCount();
+      } catch (error) {
+        console.error("Failed to mark chat messages read:", error);
+      }
+    };
+    markAll();
+  }, [activeSection]);
 
   // Fetch current admin profile (name/email/role)
   useEffect(() => {
@@ -654,7 +683,7 @@ const AdminDashboard = () => {
       case "youtube":
         return (
           <div className="p-6">
-            <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">
               YouTube Management
             </h2>
             <YouTubeManagement />
@@ -1002,7 +1031,48 @@ const AdminDashboard = () => {
       case "categories":
         return <CategoriesTypesManagement />;
       case "analytics":
-        return <Analytics />;
+        return (
+          <div className="p-6">
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">
+              Analytics
+            </h2>
+            <div className="border-b border-gray-200 dark:border-gray-700 mb-6">
+              <div className="flex flex-wrap">
+                {[
+                  { key: "overview", label: "Overview" },
+                  { key: "shipping", label: "Shipping" },
+                  { key: "alipay", label: "Alipay" },
+                  { key: "buy4me", label: "Buy4me" },
+                  { key: "orders", label: "Orders" },
+                  { key: "training", label: "Training" },
+                ].map((tab) => (
+                  <button
+                    key={tab.key}
+                    onClick={() => setAnalyticsTab(tab.key)}
+                    className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
+                      analyticsTab === tab.key
+                        ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
+                        : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span>{tab.label}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <Analytics activeTab={analyticsTab} />
+          </div>
+        );
+      case "messages":
+        return (
+          <LiveChatAdminPanel
+            refreshSignal={chatRefreshSignal}
+            onUnreadCountChange={setChatUnreadCount}
+          />
+        );
       case "gallery":
         return <GalleryManagement />;
       default:
@@ -1073,33 +1143,42 @@ const AdminDashboard = () => {
                           : allowedTabs.includes(item.section)
                       );
 
-                return itemsToRender.map((item, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setActiveSection(item.section)}
-                    className={`w-full flex items-center space-x-3 p-3 rounded-lg transition-colors ${
-                      activeSection === item.section
-                        ? "bg-blue-50 dark:bg-blue-900 text-blue-600 dark:text-blue-400"
-                        : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                    }`}
-                  >
-                    <span className="text-xl">{item.icon}</span>
-                    {isSidebarOpen && (
-                      <span className="flex items-center space-x-2">
-                        <span>{item.label}</span>
-                        {allowedTabsMeta[item.section]?.assignedToAll && (
-                          <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">
-                            All
-                          </span>
-                        )}
-                        {allowedTabsMeta[item.section]?.assigned &&
-                          !allowedTabsMeta[item.section]?.assignedToAll && (
-                            <span className="ml-2 w-2 h-2 rounded-full bg-green-500 inline-block" />
+                return itemsToRender.map((item, index) => {
+                  const showChatBadge =
+                    item.section === "messages" && chatUnreadCount > 0;
+                  return (
+                    <button
+                      key={index}
+                      onClick={() => setActiveSection(item.section)}
+                      className={`w-full flex items-center space-x-3 p-3 rounded-lg transition-colors ${
+                        activeSection === item.section
+                          ? "bg-blue-50 dark:bg-blue-900 text-blue-600 dark:text-blue-400"
+                          : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      }`}
+                    >
+                      <span className="text-xl">{item.icon}</span>
+                      {isSidebarOpen && (
+                        <span className="flex items-center space-x-2">
+                          <span>{item.label}</span>
+                          {showChatBadge && (
+                            <span className="ml-2 text-xs font-semibold text-white bg-red-500 rounded-full px-2 py-0.5">
+                              {chatUnreadCount}
+                            </span>
                           )}
-                      </span>
-                    )}
-                  </button>
-                ));
+                          {allowedTabsMeta[item.section]?.assignedToAll && (
+                            <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">
+                              All
+                            </span>
+                          )}
+                          {allowedTabsMeta[item.section]?.assigned &&
+                            !allowedTabsMeta[item.section]?.assignedToAll && (
+                              <span className="ml-2 w-2 h-2 rounded-full bg-green-500 inline-block" />
+                            )}
+                        </span>
+                      )}
+                    </button>
+                  );
+                });
               })()}
             </div>
 

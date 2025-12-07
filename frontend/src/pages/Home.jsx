@@ -8,6 +8,7 @@ import Banner from "../components/Banner";
 import SupplierBanner from "../components/SupplierBanner";
 import bimg1 from "../assets/bimg1.png";
 import TrendingP from "../components/TrendingP";
+import LiveChatWidget from "../components/LiveChatWidget";
 
 const BannerData = {
   rate: "240$",
@@ -32,6 +33,7 @@ const Home = () => {
       <LastestProducts />
       <TrendingP />
       <SupplierBanner />
+      <LiveChatWidget />
     </div>
   );
 };

@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "../utils/toast";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
+import { FcGoogle } from "react-icons/fc";
 import API from "../api";
 
 const Signup = () => {
@@ -20,6 +21,16 @@ const Signup = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const googleClientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID || "").trim();
+  const [googleReady, setGoogleReady] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleError, setGoogleError] = useState("");
+  const [showGoogleContactModal, setShowGoogleContactModal] = useState(false);
+  const [googleContact, setGoogleContact] = useState("");
+  const [googleContactError, setGoogleContactError] = useState("");
+  const [googleContactLoading, setGoogleContactLoading] = useState(false);
+  const [googleSignupUsername, setGoogleSignupUsername] = useState("");
+  const googleTokenClientRef = useRef(null);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -226,6 +237,160 @@ const Signup = () => {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleCredential = useCallback(
+    async (tokenResponse) => {
+      if (!tokenResponse?.credential) {
+        setGoogleError("Unable to read Google credentials. Please try again.");
+        setGoogleLoading(false);
+        return;
+      }
+
+      try {
+        const response = await API.post("/buysellapi/auth/google-login/", {
+          credential: tokenResponse.credential,
+        });
+        const {
+          access,
+          refresh,
+          username: returnedUsername,
+          needs_contact_update,
+        } = response.data || {};
+
+        if (!access || !refresh) {
+          throw new Error("Authentication tokens were not returned.");
+        }
+
+        const persistedUsername = returnedUsername || "";
+        localStorage.setItem("token", access);
+        localStorage.setItem("refreshToken", refresh);
+        localStorage.setItem("userData", JSON.stringify({ username: persistedUsername }));
+        localStorage.setItem("loginPrompt", JSON.stringify({ username: persistedUsername }));
+        window.dispatchEvent(new Event("authChange"));
+        setGoogleSignupUsername(persistedUsername);
+        setGoogleError("");
+
+        if (needs_contact_update) {
+          setGoogleContact("");
+          setShowGoogleContactModal(true);
+        } else {
+          toast.success("Signed in with Google!");
+          navigate("/");
+        }
+      } catch (err) {
+        console.error("Google login error:", err);
+        const message =
+          err.response?.data?.detail ||
+          err.response?.data?.form ||
+          err.response?.data?.message ||
+          "Google signup failed. Please try again.";
+        setGoogleError(message);
+        toast.error(message);
+      } finally {
+        setGoogleLoading(false);
+      }
+    },
+    [navigate]
+  );
+
+  useEffect(() => {
+    if (!googleClientId) return undefined;
+
+    setGoogleReady(false);
+    const scriptId = "google-oauth-script";
+    const initClient = () => {
+      if (!window.google?.accounts?.oauth2) {
+        setGoogleError(
+          "Google Identity SDK failed to initialize. Refresh the page to try again."
+        );
+        return;
+      }
+
+      googleTokenClientRef.current = window.google.accounts.oauth2.initTokenClient({
+        client_id: googleClientId,
+        scope: "openid email profile",
+        response_type: "id_token",
+        callback: handleGoogleCredential,
+      });
+      setGoogleReady(true);
+      setGoogleError("");
+    };
+
+    const existingScript = document.getElementById(scriptId);
+    if (existingScript) {
+      if (window.google?.accounts?.oauth2) {
+        initClient();
+      } else {
+        existingScript.addEventListener("load", initClient);
+        return () => existingScript.removeEventListener("load", initClient);
+      }
+      return undefined;
+    }
+
+    const script = document.createElement("script");
+    script.id = scriptId;
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.onload = initClient;
+    script.onerror = () => {
+      setGoogleError("Failed to load Google login. Please try again shortly.");
+    };
+    document.head.appendChild(script);
+
+    return () => {
+      document.head.removeChild(script);
+    };
+  }, [googleClientId, handleGoogleCredential]);
+
+  const handleGoogleSignup = () => {
+    setGoogleError("");
+
+    if (!acceptedTerms) {
+      setGoogleError("Please accept the terms and conditions before continuing.");
+      return;
+    }
+    if (!googleClientId) {
+      setGoogleError("Google signup is not configured yet.");
+      return;
+    }
+
+    if (!googleTokenClientRef.current) {
+      setGoogleError("Google login is still loading. Please wait a moment.");
+      return;
+    }
+
+    setGoogleLoading(true);
+    googleTokenClientRef.current.requestAccessToken({ prompt: "select_account" });
+  };
+
+  const handleGoogleContactSave = async () => {
+    const trimmedContact = googleContact.trim();
+    if (!trimmedContact) {
+      setGoogleContactError("Contact number is required");
+      return;
+    }
+
+    setGoogleContactError("");
+    setGoogleContactLoading(true);
+
+    try {
+      await API.patch("/buysellapi/users/me/", { contact: trimmedContact });
+      toast.success("Contact saved! Redirecting to your dashboard.");
+      setShowGoogleContactModal(false);
+      setGoogleContact("");
+      navigate("/");
+    } catch (err) {
+      const message =
+        err.response?.data?.contact ||
+        err.response?.data?.detail ||
+        "Failed to save contact. Please try again.";
+      setGoogleContactError(message);
+      toast.error(message);
+    } finally {
+      setGoogleContactLoading(false);
     }
   };
 
@@ -724,6 +889,35 @@ const Signup = () => {
             </button>
           </form>
 
+          <div className="mt-6 rounded-2xl border border-gray-200/80 dark:border-gray-700 bg-white/80 dark:bg-gray-900/70 p-4 shadow-sm flex flex-col items-center gap-3">
+            <button
+              type="button"
+              onClick={handleGoogleSignup}
+              disabled={googleLoading || !googleReady || !acceptedTerms}
+              className={`w-full py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2 ${
+                googleLoading || !googleReady || !acceptedTerms
+                  ? "bg-gray-200 text-gray-600 cursor-not-allowed"
+                  : "bg-red-500 text-white hover:bg-red-600"
+              }`}
+            >
+              <FcGoogle className="w-5 h-5" />
+              {googleLoading ? "Waiting for Google…" : "Continue with Google"}
+            </button>
+            {googleError && (
+              <p className="text-xs text-red-600">{googleError}</p>
+            )}
+            {!googleClientId && (
+              <p className="text-xs text-gray-500">
+                Google signup is disabled until a Google Client ID is configured.
+              </p>
+            )}
+            {googleClientId && !googleReady && (
+              <p className="text-xs text-gray-500">
+                Loading Google login… please wait a moment.
+              </p>
+            )}
+          </div>
+
           <div className="mt-4 text-center text-sm text-gray-600 dark:text-gray-300">
             Already have an account?{" "}
             <Link
@@ -735,6 +929,44 @@ const Signup = () => {
           </div>
         </div>
       </div>
+      {showGoogleContactModal && (
+        <div className="fixed inset-0 z-[1200] flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+          <div className="relative z-10 w-full max-w-sm rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-6 shadow-2xl">
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">
+              Almost done, {googleSignupUsername || "friend"}!
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+              Please add a contact number so we can keep you updated about shipments.
+            </p>
+            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1">
+              Contact Number
+            </label>
+            <input
+              type="text"
+              value={googleContact}
+              onChange={(e) => setGoogleContact(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+              placeholder="+233 123456789"
+            />
+            {googleContactError && (
+              <p className="mt-2 text-xs text-red-600">{googleContactError}</p>
+            )}
+            <button
+              type="button"
+              onClick={handleGoogleContactSave}
+              disabled={googleContactLoading}
+              className={`mt-4 w-full py-2.5 rounded-lg text-sm font-semibold transition ${
+                googleContactLoading
+                  ? "bg-gray-200 text-gray-600 cursor-not-allowed"
+                  : "bg-primary text-white hover:bg-primary/90"
+              }`}
+            >
+              {googleContactLoading ? "Saving contact…" : "Save contact"}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

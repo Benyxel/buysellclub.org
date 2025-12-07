@@ -202,66 +202,87 @@ const ShopContextProvider = (props) => {
   const [products, setProducts] = useState([]);
 
   // Fetch products from backend API (admins will add products there)
-  useEffect(() => {
-    let mounted = true;
-    const fetchProducts = async () => {
-      try {
-        const resp = await getProducts();
-        console.log("Products API response:", resp);
-        
-        // Handle paginated response or direct array
-        let items = [];
-        if (resp.data) {
-          if (resp.data.results && Array.isArray(resp.data.results)) {
-            items = resp.data.results;
-          } else if (Array.isArray(resp.data)) {
-            items = resp.data;
-          }
-        }
-
-        console.log("Extracted items:", items);
-
-        // Map backend product shape to the shape used by the UI
-        const mapped = items.map((p) => {
-          const images = Array.isArray(p.images) ? p.images : p.image ? [p.image] : [];
-          return {
-            _id: p._id || p.id,
-            name: p.name,
-            slug: p.slug,
-            description: p.description || "",
-            price: typeof p.price === "string" ? parseFloat(p.price) : Number(p.price) || 0,
-            images: images,
-            image: images.length > 0 ? images[0] : null,
-            category: p.category || "",
-            type: p.product_type || p.type || "",
-            trending: p.trending || false,
-            inventory: p.inventory || 0,
-            average_rating: p.average_rating || 0,
-            review_count: p.review_count || 0,
-          };
-        });
-
-        console.log("Mapped products:", mapped);
-
-        if (mounted) {
-          setProducts(mapped);
-          if (mapped.length === 0) {
-            console.warn("No products found. Make sure products are created and marked as active.");
-          }
-        }
-      } catch (err) {
-        console.error("Failed to fetch products:", err);
-        console.error("Error details:", err.response?.data || err.message);
-        // Set empty array on error to prevent undefined issues
-        if (mounted) {
-          setProducts([]);
+  const fetchProducts = async () => {
+    try {
+      const resp = await getProducts();
+      console.log("Products API response:", resp);
+      
+      // Handle paginated response or direct array
+      let items = [];
+      if (resp.data) {
+        if (resp.data.results && Array.isArray(resp.data.results)) {
+          items = resp.data.results;
+        } else if (Array.isArray(resp.data)) {
+          items = resp.data;
         }
       }
-    };
 
+      console.log("Extracted items:", items);
+
+      // Map backend product shape to the shape used by the UI
+      const mapped = items.map((p) => {
+        const images = Array.isArray(p.images) ? p.images : p.image ? [p.image] : [];
+        return {
+          _id: p._id || p.id,
+          name: p.name,
+          slug: p.slug,
+          description: p.description || "",
+          price: typeof p.price === "string" ? parseFloat(p.price) : Number(p.price) || 0,
+          images: images,
+          image: images.length > 0 ? images[0] : null,
+          category: p.category || "",
+          type: p.product_type || p.type || "",
+          trending: p.trending || false,
+          inventory: p.inventory || 0,
+          average_rating: p.average_rating || 0,
+          review_count: p.review_count || 0,
+        };
+      });
+
+      console.log("Mapped products:", mapped);
+
+      setProducts(mapped);
+      if (mapped.length === 0) {
+        console.warn("No products found. Make sure products are created and marked as active.");
+      }
+    } catch (err) {
+      console.error("Failed to fetch products:", err);
+      console.error("Error details:", err.response?.data || err.message);
+      // Set empty array on error to prevent undefined issues
+      setProducts([]);
+    }
+  };
+
+  // Auto-refresh products every 60 seconds
+  useEffect(() => {
     fetchProducts();
+    
+    // Refresh when tab becomes visible
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        fetchProducts();
+      }
+    };
+    
+    // Refresh when window regains focus
+    const handleFocus = () => {
+      fetchProducts();
+    };
+    
+    // Periodic refresh (every 30 seconds)
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        fetchProducts();
+      }
+    }, 30000); // 30 seconds
+    
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
+    
     return () => {
-      mounted = false;
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
     };
   }, []);
 

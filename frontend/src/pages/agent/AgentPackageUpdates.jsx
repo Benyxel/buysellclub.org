@@ -11,8 +11,8 @@ const AgentPackageUpdates = () => {
 
   useEffect(() => {
     fetchUpdates();
-    // Set up polling for updates every 30 seconds
-    const interval = setInterval(fetchUpdates, 30000);
+    // Set up polling for updates every 15 seconds
+    const interval = setInterval(fetchUpdates, 15000);
     return () => clearInterval(interval);
   }, []);
 

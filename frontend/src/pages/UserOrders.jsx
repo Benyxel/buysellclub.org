@@ -95,10 +95,10 @@ const UserOrders = () => {
     // Always fetch orders when component mounts or location changes
     fetchOrders();
     
-    // Refresh orders every 30 seconds
+    // Refresh orders every 15 seconds
     const interval = setInterval(() => {
       fetchOrders();
-    }, 30000);
+    }, 15000);
     return () => clearInterval(interval);
   }, [location.pathname, fetchOrders]);
 
