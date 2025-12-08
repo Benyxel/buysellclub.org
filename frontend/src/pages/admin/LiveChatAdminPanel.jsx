@@ -3,10 +3,12 @@ import {
   getLiveChatMessages,
   sendLiveChatMessage,
   markLiveChatMessageRead,
+  endLiveChatSession,
 } from "../../api";
 import { toast } from "../../utils/toast";
 import { LiveChatWebSocket } from "../../utils/websocket";
-import { FaUser, FaUserShield, FaCheck, FaCheckDouble, FaCircle } from "react-icons/fa";
+import { FaUser, FaUserShield, FaCheck, FaCheckDouble, FaCircle, FaSignOutAlt } from "react-icons/fa";
+import ConfirmModal from "../../components/shared/ConfirmModal";
 
 const LiveChatAdminPanel = ({ refreshSignal = 0, onUnreadCountChange }) => {
   const [messages, setMessages] = useState([]);
@@ -16,6 +18,7 @@ const LiveChatAdminPanel = ({ refreshSignal = 0, onUnreadCountChange }) => {
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [isTyping, setIsTyping] = useState(false);
+  const [showEndSessionModal, setShowEndSessionModal] = useState(false);
   const wsRef = useRef(null);
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
@@ -303,6 +306,29 @@ const LiveChatAdminPanel = ({ refreshSignal = 0, onUnreadCountChange }) => {
     }
   };
 
+  const handleEndSessionClick = () => {
+    if (!selectedUserId) {
+      toast.error("Select a user before ending session.");
+      return;
+    }
+    setShowEndSessionModal(true);
+  };
+
+  const confirmEndSession = async () => {
+    try {
+      await endLiveChatSession({ user_id: selectedUserId });
+      setRefreshTrigger((prev) => prev + 1);
+      setSelectedUserId(null);
+      setShowEndSessionModal(false);
+      toast.success("Chat session ended. All messages have been deleted.");
+    } catch (error) {
+      console.error("End chat session failed:", error);
+      const errorMessage = error.response?.data?.detail || error.response?.data?.message || error.message || "Failed to end session.";
+      toast.error(errorMessage);
+      setShowEndSessionModal(false);
+    }
+  };
+
   return (
     <div className="p-6">
       <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">
@@ -432,12 +458,24 @@ const LiveChatAdminPanel = ({ refreshSignal = 0, onUnreadCountChange }) => {
                 </p>
               </div>
             </div>
-            <button
-              onClick={handleMarkRead}
-              className="text-xs text-green-600 dark:text-green-400 hover:underline"
-            >
-              Mark as read
-            </button>
+            <div className="flex items-center gap-3">
+              {selectedUserId && (
+                <button
+                  onClick={handleEndSessionClick}
+                  className="text-xs text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-1"
+                  title="End chat session"
+                >
+                  <FaSignOutAlt />
+                  End Session
+                </button>
+              )}
+              <button
+                onClick={handleMarkRead}
+                className="text-xs text-green-600 dark:text-green-400 hover:underline"
+              >
+                Mark as read
+              </button>
+            </div>
           </div>
           <div 
             ref={messagesContainerRef}
@@ -608,6 +646,14 @@ const LiveChatAdminPanel = ({ refreshSignal = 0, onUnreadCountChange }) => {
               rows={3}
               value={reply}
               onChange={(e) => handleTyping(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  if (!sending && reply.trim()) {
+                    handleReply();
+                  }
+                }
+              }}
               placeholder="Write a reply"
               className="w-full resize-none rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
             />
@@ -623,6 +669,16 @@ const LiveChatAdminPanel = ({ refreshSignal = 0, onUnreadCountChange }) => {
           </div>
         </div>
       </div>
+      <ConfirmModal
+        isOpen={showEndSessionModal}
+        onClose={() => setShowEndSessionModal(false)}
+        onConfirm={confirmEndSession}
+        title="End Chat Session"
+        message={`Are you sure you want to end the chat session with ${selectedMessages[0]?.user_name || 'this user'}? All messages will be deleted and cannot be recovered.`}
+        confirmText="End Session"
+        cancelText="Cancel"
+        type="danger"
+      />
     </div>
   );
 };

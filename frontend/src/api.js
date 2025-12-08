@@ -326,6 +326,7 @@ const Api = {
       http.patch(`/buysellapi/live-chat/messages/${messageId}/mark-read/`),
     unreadCount: () => http.get("/buysellapi/live-chat/messages/unread-count/"),
     markAllRead: () => http.post("/buysellapi/live-chat/messages/mark-all-read/"),
+    endSession: (payload) => http.post("/buysellapi/live-chat/session/end/", payload),
   },
   training: {
     courses: (params) => http.get("/buysellapi/training-courses/", { params }),
@@ -430,6 +431,7 @@ export const sendLiveChatMessage = Api.liveChat.send;
 export const markLiveChatMessageRead = Api.liveChat.markRead;
 export const getLiveChatUnreadCount = Api.liveChat.unreadCount;
 export const markAllLiveChatRead = Api.liveChat.markAllRead;
+export const endLiveChatSession = Api.liveChat.endSession;
 export const getMaintenanceSettings = Api.maintenance.get;
 export const updateMaintenanceSettings = Api.maintenance.update;
 
