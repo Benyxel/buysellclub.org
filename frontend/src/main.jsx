@@ -28,7 +28,7 @@ function normalizeBasePath(raw) {
   }
 }
 const envBase = normalizeBasePath(import.meta.env.VITE_BASE_PATH || "");
-const BASE_PATH = isDev ? envBase || "" : envBase || "/buysellclubproject";
+const BASE_PATH = isDev ? envBase || "" : envBase || "/";
 
 // Debug: Log base path and environment info
 console.log("[App] Initializing...");
@@ -92,10 +92,8 @@ try {
 // the Vite `public/` folder so it will be copied to the site root on build.
 if ("serviceWorker" in navigator) {
   try {
-    const base = (
-      import.meta.env.VITE_BASE_PATH || "/buysellclubproject"
-    ).replace(/\/$/, "");
-    const swUrl = `${base}/sw.js`;
+    const base = normalizeBasePath(import.meta.env.VITE_BASE_PATH || "");
+    const swUrl = base ? `${base}/sw.js` : "/sw.js";
     navigator.serviceWorker
       .register(swUrl)
       .then((reg) => {
