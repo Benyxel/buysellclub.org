@@ -8,6 +8,24 @@ import { BrowserRouter } from "react-router-dom";
 import ShopContextProvider from "./context/ShopContext";
 // Note: Dev API mock removed to use real backend
 
+// Initialize theme immediately to prevent flash of light mode
+(function initializeTheme() {
+  const savedTheme = localStorage.getItem("theme");
+  const theme = savedTheme || "dark"; // Default to dark mode
+  const element = document.documentElement;
+  
+  if (theme === "dark") {
+    element.classList.add("dark");
+  } else {
+    element.classList.remove("dark");
+  }
+  
+  // Ensure localStorage has the theme set
+  if (!savedTheme) {
+    localStorage.setItem("theme", "dark");
+  }
+})();
+
 // Determine base path for the router.
 // - In production builds (GitHub Pages) we use `VITE_BASE_PATH` or fallback
 //   to '/buysellclubproject'.

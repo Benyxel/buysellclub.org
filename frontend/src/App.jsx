@@ -51,25 +51,36 @@ import UserView from "./pages/admin/UserView";
 import ScrollToTop from "./components/ScrollToTop";
 
 function App() {
-  const [maintenance, setMaintenance] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // Optimistic default: assume no maintenance, show content immediately
+  const [maintenance, setMaintenance] = useState({ is_enabled: false });
   const isAdminRoute = window.location.pathname.startsWith("/admin-dashboard") || 
                        window.location.pathname.startsWith("/admin/");
 
   useEffect(() => {
     const checkMaintenance = async () => {
       try {
-        const response = await getMaintenanceSettings();
+        // Add timeout to prevent hanging (3 seconds)
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error("Timeout")), 3000)
+        );
+        
+        const response = await Promise.race([
+          getMaintenanceSettings(),
+          timeoutPromise
+        ]);
+        
         setMaintenance(response.data);
       } catch (error) {
-        console.error("Failed to check maintenance status:", error);
-        // If API fails, assume no maintenance
+        // Silently fail - assume no maintenance if API fails or times out
+        if (error.message !== "Timeout") {
+          console.error("Failed to check maintenance status:", error);
+        }
+        // Keep optimistic default: no maintenance
         setMaintenance({ is_enabled: false });
-      } finally {
-        setLoading(false);
       }
     };
 
+    // Check maintenance in background (non-blocking)
     checkMaintenance();
     // Check maintenance status every 30 seconds
     const interval = setInterval(checkMaintenance, 30000);
@@ -77,21 +88,13 @@ function App() {
   }, []);
 
   // Show maintenance page if enabled and not on admin routes
-  if (!loading && maintenance?.is_enabled && !isAdminRoute) {
+  if (maintenance?.is_enabled && !isAdminRoute) {
     return (
       <MaintenancePage
         title={maintenance.title}
         message={maintenance.message}
         estimatedTime={maintenance.estimated_time}
       />
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
     );
   }
 
