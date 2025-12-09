@@ -2,13 +2,18 @@
 deployment:
   tasks:
     - /bin/echo "Starting deployment..."
-    - /bin/echo "Navigating to frontend directory..."
-    - cd frontend
-    - /bin/echo "Installing dependencies..."
-    - npm install
-    - /bin/echo "Building project..."
-    - npm run build
+    - /bin/echo "Current directory: $(pwd)"
+    - /bin/echo "Loading environment..."
+    - source ~/.bashrc 2>/dev/null || true
+    - source ~/.bash_profile 2>/dev/null || true
+    - /bin/echo "Checking Node.js and npm..."
+    - which node || /bin/echo "Warning: Node.js not found in PATH"
+    - which npm || /bin/echo "Warning: npm not found in PATH"
+    - /bin/echo "Navigating to frontend directory and building..."
+    - cd frontend && npm install && npm run build
+    - /bin/echo "Checking if dist directory exists..."
+    - test -d frontend/dist || { /bin/echo "Error: dist directory not found"; exit 1; }
     - /bin/echo "Copying built files to public_html..."
-    - /bin/cp -R dist/* ~/public_html/
+    - /bin/cp -R frontend/dist/* ~/public_html/
     - /bin/echo "Deployment complete!"
 
