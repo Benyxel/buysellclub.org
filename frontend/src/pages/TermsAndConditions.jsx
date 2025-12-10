@@ -629,7 +629,7 @@ const TermsAndConditions = () => {
                   href="mailto:" 
                   className="text-primary hover:underline"
                 >
-                  support@fofoofogroup.com
+                  buysellclub.org@gmail.com
                 </a>
               </div>
             </div>

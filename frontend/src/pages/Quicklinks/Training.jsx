@@ -344,7 +344,8 @@ const Training = () => {
               </div>
               <div>
                 <h3 className="font-semibold text-gray-800 dark:text-white">Location</h3>
-                <p className="text-gray-600 dark:text-gray-400">123 Training Center, City, Country</p>
+                <p className="text-gray-600 dark:text-gray-400">Israel Yellow, Okropom street(Pazzy's Villa),
+                Accra, Ghana</p>
               </div>
             </div>
             <div className="flex items-start gap-4">
@@ -362,7 +363,7 @@ const Training = () => {
               </div>
               <div>
                 <h3 className="font-semibold text-gray-800 dark:text-white">Contact</h3>
-                <p className="text-gray-600 dark:text-gray-400">training@example.com</p>
+                <p className="text-gray-600 dark:text-gray-400">buysellclub.org@gmail.com</p>
               </div>
             </div>
           </div>

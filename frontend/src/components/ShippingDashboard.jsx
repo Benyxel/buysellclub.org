@@ -216,7 +216,7 @@ class UserAdd extends AdminUpdate {
           2. Once added, you can add it to your account
           3. Then you can track it here
           
-          Need help? Contact support at support@fofoofogroup.com
+          Need help? Contact support at buysellclub.org@gmail.com
         `,
         needsUserAdd: false,
       };
@@ -306,7 +306,7 @@ class UserAdd extends AdminUpdate {
       📞 Need Help?
       -------------
       If you have any questions about your shipment, please contact our support team at:
-      Email: support@fofoofogroup.com
+      Email: buysellclub.org@gmail.com
       Phone: 233-540266839
       
       Thank you for choosing our shipping service!
