@@ -1,7 +1,7 @@
 # cPanel Deployment Checklist
 
 ## Backend URL
-**Backend API**: `http://api.buysellclub.org/`
+**Backend API**: `https://apibuysellclub.org.buysellclub.org/` (Use HTTPS to avoid Mixed Content errors)
 
 ---
 
@@ -14,7 +14,7 @@
 Create a `.env.production` file in the `frontend/` directory:
 
 ```env
-VITE_API_BASE_URL=http://api.buysellclub.org
+VITE_API_BASE_URL=https://apibuysellclub.org.buysellclub.org
 VITE_BASE_PATH=/
 ```
 
@@ -30,7 +30,7 @@ If you've already built the frontend and can't rebuild, add this script to your 
 ```html
 <script>
   window.__ENV__ = window.__ENV__ || {};
-  window.__ENV__.VITE_API_BASE_URL = "http://api.buysellclub.org";
+  window.__ENV__.VITE_API_BASE_URL = "https://apibuysellclub.org.buysellclub.org";
 </script>
 ```
 
@@ -93,8 +93,8 @@ Ensure your backend has these environment variables set:
 
 ```env
 FRONTEND_URL=http://your-frontend-domain.com  # Your frontend domain
-BACKEND_URL=http://api.buysellclub.org
-ALLOWED_HOSTS=api.buysellclub.org,*.buysellclub.org
+BACKEND_URL=https://apibuysellclub.org.buysellclub.org
+ALLOWED_HOSTS=apibuysellclub.org.buysellclub.org,*.buysellclub.org
 DEBUG=False  # Set to False in production!
 ```
 
@@ -102,12 +102,12 @@ DEBUG=False  # Set to False in production!
 
 ## 📋 Quick Checklist
 
-- [ ] Created `.env.production` file with `VITE_API_BASE_URL=http://api.buysellclub.org`
+- [ ] Created `.env.production` file with `VITE_API_BASE_URL=https://apibuysellclub.org.buysellclub.org`
 - [ ] Built frontend with `npm run build`
 - [ ] Uploaded `dist/` folder contents to cPanel
 - [ ] Configured backend CORS to allow your frontend domain
 - [ ] Set backend `FRONTEND_URL` environment variable
-- [ ] Set backend `ALLOWED_HOSTS` to include `api.buysellclub.org`
+- [ ] Set backend `ALLOWED_HOSTS` to include `apibuysellclub.org.buysellclub.org`
 - [ ] Set backend `DEBUG=False` for production
 - [ ] Tested API connection from frontend
 
@@ -119,14 +119,14 @@ DEBUG=False  # Set to False in production!
 2. **Open Developer Tools** (F12) → **Console** tab
 3. **Check for CORS errors** - you should NOT see any
 4. **Try logging in** or making an API request
-5. **Check Network tab** - verify requests are going to `http://api.buysellclub.org/buysellapi/...`
+5. **Check Network tab** - verify requests are going to `https://apibuysellclub.org.buysellclub.org/buysellapi/...`
 
 ---
 
 ## 🔧 Troubleshooting
 
 ### CORS Errors
-- **Error**: `Access to fetch at 'http://api.buysellclub.org/...' from origin '...' has been blocked by CORS policy`
+- **Error**: `Access to fetch at 'https://apibuysellclub.org.buysellclub.org/...' from origin '...' has been blocked by CORS policy`
 - **Solution**: Add your frontend domain to `CORS_ALLOWED_ORIGINS` in backend `settings.py`
 
 ### API Not Found (404)
@@ -149,6 +149,6 @@ DEBUG=False  # Set to False in production!
 ## 📝 Notes
 
 - **Base Path**: If your site is in a subdirectory (e.g., `/buysellclubproject/`), set `VITE_BASE_PATH=/buysellclubproject` in `.env.production`
-- **SSL**: If your backend has SSL, use `https://api.buysellclub.org` instead of `http://`
-- **Trailing Slash**: Don't include trailing slash in `VITE_API_BASE_URL` (e.g., use `http://api.buysellclub.org` not `http://api.buysellclub.org/`)
+- **SSL**: ⚠️ **REQUIRED** - Your frontend is on HTTPS, so backend MUST use HTTPS to avoid Mixed Content errors. Use `https://apibuysellclub.org.buysellclub.org`
+- **Trailing Slash**: Don't include trailing slash in `VITE_API_BASE_URL` (e.g., use `http://apibuysellclub.org.buysellclub.org` not `http://apibuysellclub.org.buysellclub.org/`)
 

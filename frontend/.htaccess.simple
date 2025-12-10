@@ -1,0 +1,8 @@
+# Simple .htaccess for React SPA (Alternative if main one doesn't work)
+# Try this if the main .htaccess file doesn't work
+
+Options -MultiViews
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^ index.html [QSA,L]
+
