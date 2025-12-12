@@ -17,7 +17,7 @@ import axios from "axios";
  */
 
 // ---------------------------------------------------------------------------
-// Base URL resolution
+// Base URL resolution (lazy - re-checks on each call for runtime injection)
 // ---------------------------------------------------------------------------
 const resolveBaseUrl = () => {
   const candidates = [
@@ -40,7 +40,8 @@ const resolveBaseUrl = () => {
   return "";
 };
 
-const BASE_URL = resolveBaseUrl();
+// Resolve base URL lazily - check on each request to support runtime injection
+const getBaseUrl = () => resolveBaseUrl();
 
 // ---------------------------------------------------------------------------
 // Utilities
@@ -72,7 +73,7 @@ const getCookie = (name) => {
 // Axios client
 // ---------------------------------------------------------------------------
 const api = axios.create({
-  baseURL: BASE_URL || undefined,
+  // Don't set baseURL here - we'll set it dynamically in the interceptor
   withCredentials: true,
   headers: {
     "Content-Type": "application/json",
@@ -85,6 +86,21 @@ const api = axios.create({
 
 api.interceptors.request.use(
   (config) => {
+    // Resolve base URL dynamically on each request (supports runtime injection)
+    const baseUrl = getBaseUrl();
+    if (baseUrl) {
+      config.baseURL = baseUrl;
+    } else {
+      // Clear baseURL if empty to use relative paths
+      config.baseURL = undefined;
+      // Debug: Log warning if base URL is missing in production
+      if (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
+        console.warn("[API Warning] No API base URL configured. Requests will go to:", window.location.origin);
+        console.warn("[API Debug] window.__ENV__:", window.__ENV__);
+        console.warn("[API Debug] import.meta.env:", typeof import.meta !== "undefined" ? import.meta.env : "N/A");
+      }
+    }
+
     // Ensure headers object always exists
     if (!config.headers) {
       config.headers = {};
