@@ -10,7 +10,7 @@ import supplierImage from "../assets/ch.jpg";
 
 const SupplierBanner = () => {
   return (
-    <section className="relative bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 dark:from-black dark:via-gray-900 dark:to-black py-16 md:py-20 overflow-hidden">
+    <section className="relative bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 dark:from-black dark:via-gray-900 dark:to-black py-16 md:py-20 overflow-hidden px-4 md:px-6">
       {/* Background Pattern */}
       <div className="absolute inset-0 opacity-10">
         <div
@@ -22,17 +22,17 @@ const SupplierBanner = () => {
       </div>
 
       <div className="container mx-auto px-4 relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 items-center">
           {/* Left Side - Content */}
           <div className="text-white space-y-6">
             <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full">
-              <FaHandshake className="text-green-500" />
+              <FaHandshake className="text-pink-500" />
               <span className="text-sm font-medium">Connect with China</span>
             </div>
 
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold leading-tight">
               Direct Access to{" "}
-              <span className="text-green-500">Verified Suppliers</span> in
+              <span className="text-pink-500">Verified Suppliers</span> in
               China
             </h2>
 
@@ -45,7 +45,7 @@ const SupplierBanner = () => {
             {/* Features */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
               <div className="flex items-start gap-3">
-                <FaCheckCircle className="text-green-500 text-xl mt-1 flex-shrink-0" />
+                <FaCheckCircle className="text-pink-500 text-xl mt-1 flex-shrink-0" />
                 <div>
                   <h4 className="font-semibold text-white mb-1">
                     Verified Suppliers
@@ -56,7 +56,7 @@ const SupplierBanner = () => {
                 </div>
               </div>
               <div className="flex items-start gap-3">
-                <FaCheckCircle className="text-green-500 text-xl mt-1 flex-shrink-0" />
+                <FaCheckCircle className="text-pink-500 text-xl mt-1 flex-shrink-0" />
                 <div>
                   <h4 className="font-semibold text-white mb-1">
                     Direct Communication
@@ -67,7 +67,7 @@ const SupplierBanner = () => {
                 </div>
               </div>
               <div className="flex items-start gap-3">
-                <FaCheckCircle className="text-green-500 text-xl mt-1 flex-shrink-0" />
+                <FaCheckCircle className="text-pink-500 text-xl mt-1 flex-shrink-0" />
                 <div>
                   <h4 className="font-semibold text-white mb-1">
                     Competitive Pricing
@@ -78,7 +78,7 @@ const SupplierBanner = () => {
                 </div>
               </div>
               <div className="flex items-start gap-3">
-                <FaCheckCircle className="text-green-500 text-xl mt-1 flex-shrink-0" />
+                <FaCheckCircle className="text-pink-500 text-xl mt-1 flex-shrink-0" />
                 <div>
                   <h4 className="font-semibold text-white mb-1">
                     Quality Assurance
@@ -94,7 +94,7 @@ const SupplierBanner = () => {
             <div className="pt-4">
               <Link
                 to="/Suppliers"
-                className="inline-flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white font-semibold px-8 py-4 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
+                className="inline-flex items-center gap-2 bg-pink-500 hover:bg-pink-600 text-white font-semibold px-8 py-4 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
               >
                 Explore Supplier Network
                 <FaArrowRight />
@@ -104,7 +104,7 @@ const SupplierBanner = () => {
 
           {/* Right Side - Image */}
           <div className="relative">
-            <div className="relative rounded-2xl overflow-hidden shadow-2xl transform hover:scale-105 transition-transform duration-300">
+            <div className="relative rounded-2xl overflow-hidden shadow-2xl transform hover:scale-105 transition-transform duration-300 max-w-md mx-auto lg:max-w-lg">
               {/* Image container */}
               <div className="aspect-[4/3] relative">
                 <img
@@ -119,7 +119,7 @@ const SupplierBanner = () => {
             </div>
 
             {/* Decorative elements */}
-            <div className="absolute -top-4 -right-4 w-24 h-24 bg-green-500/20 rounded-full blur-2xl"></div>
+            <div className="absolute -top-4 -right-4 w-24 h-24 bg-pink-500/20 rounded-full blur-2xl"></div>
             <div className="absolute -bottom-4 -left-4 w-32 h-32 bg-gray-600/20 rounded-full blur-3xl"></div>
           </div>
         </div>

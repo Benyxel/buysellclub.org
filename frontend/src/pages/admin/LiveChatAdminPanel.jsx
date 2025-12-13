@@ -3,10 +3,12 @@ import {
   getLiveChatMessages,
   sendLiveChatMessage,
   markLiveChatMessageRead,
+  endLiveChatSession,
 } from "../../api";
 import { toast } from "../../utils/toast";
 import { LiveChatWebSocket } from "../../utils/websocket";
-import { FaUser, FaUserShield, FaCheck, FaCheckDouble, FaCircle } from "react-icons/fa";
+import { FaUser, FaUserShield, FaCheck, FaCheckDouble, FaCircle, FaTimes } from "react-icons/fa";
+import ConfirmModal from "../../components/shared/ConfirmModal";
 
 const LiveChatAdminPanel = ({ refreshSignal = 0, onUnreadCountChange }) => {
   const [messages, setMessages] = useState([]);
@@ -16,6 +18,8 @@ const LiveChatAdminPanel = ({ refreshSignal = 0, onUnreadCountChange }) => {
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [isTyping, setIsTyping] = useState(false);
+  const [showEndSessionModal, setShowEndSessionModal] = useState(false);
+  const [endingSession, setEndingSession] = useState(false);
   const wsRef = useRef(null);
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
@@ -288,6 +292,16 @@ const LiveChatAdminPanel = ({ refreshSignal = 0, onUnreadCountChange }) => {
     }
   };
 
+  const handleKeyDown = (e) => {
+    // Send message on Enter (without Shift), allow Shift+Enter for new line
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      if (!sending && reply.trim() && selectedUserId) {
+        handleReply();
+      }
+    }
+  };
+
   const handleMarkRead = async () => {
     const unreadIds = selectedMessages
       .filter((msg) => !msg.is_admin && !msg.is_read)
@@ -300,6 +314,34 @@ const LiveChatAdminPanel = ({ refreshSignal = 0, onUnreadCountChange }) => {
     } catch (error) {
       console.error("Failed to mark chat read:", error);
       toast.error("Could not mark messages as read.");
+    }
+  };
+
+  const handleEndSession = async () => {
+    if (!selectedUserId) {
+      toast.error("No user selected.");
+      return;
+    }
+
+    setEndingSession(true);
+    try {
+      const response = await endLiveChatSession(selectedUserId);
+      toast.success(response.data?.message || "Session ended and messages deleted.");
+      
+      // Clear the selected user and refresh messages
+      setSelectedUserId(null);
+      setReply("");
+      setRefreshTrigger((prev) => prev + 1);
+      await fetchMessages(true);
+      
+      // Close modal
+      setShowEndSessionModal(false);
+    } catch (error) {
+      console.error("Failed to end session:", error);
+      const errorMessage = error.response?.data?.detail || error.response?.data?.message || error.message || "Unable to end session.";
+      toast.error(errorMessage);
+    } finally {
+      setEndingSession(false);
     }
   };
 
@@ -395,7 +437,7 @@ const LiveChatAdminPanel = ({ refreshSignal = 0, onUnreadCountChange }) => {
                                 : lastMessage.message}
                             </span>
                             {lastMessage.is_admin && (
-                              <span className="text-[8px] text-green-500 flex-shrink-0">
+                              <span className="text-[8px] text-pink-500 flex-shrink-0">
                                 <FaUserShield />
                               </span>
                             )}
@@ -417,12 +459,12 @@ const LiveChatAdminPanel = ({ refreshSignal = 0, onUnreadCountChange }) => {
                   <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">
                     Conversation
                   </p>
-                  <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900/30">
+                  <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-pink-100 dark:bg-pink-900/30">
                     <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-pink-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-pink-500"></span>
                     </span>
-                    <span className="text-[10px] font-semibold text-green-600 dark:text-green-400">LIVE</span>
+                    <span className="text-[10px] font-semibold text-pink-600 dark:text-pink-400">LIVE</span>
                   </span>
                 </div>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -432,12 +474,24 @@ const LiveChatAdminPanel = ({ refreshSignal = 0, onUnreadCountChange }) => {
                 </p>
               </div>
             </div>
-            <button
-              onClick={handleMarkRead}
-              className="text-xs text-green-600 dark:text-green-400 hover:underline"
-            >
-              Mark as read
-            </button>
+            <div className="flex items-center gap-3">
+              {selectedUserId && (
+                <button
+                  onClick={() => setShowEndSessionModal(true)}
+                  className="text-xs text-red-600 dark:text-red-400 hover:underline flex items-center gap-1"
+                  title="End session and delete all messages"
+                >
+                  <FaTimes className="text-xs" />
+                  End Session
+                </button>
+              )}
+              <button
+                onClick={handleMarkRead}
+                className="text-xs text-pink-600 dark:text-pink-400 hover:underline"
+              >
+                Mark as read
+              </button>
+            </div>
           </div>
           <div 
             ref={messagesContainerRef}
@@ -524,7 +578,7 @@ const LiveChatAdminPanel = ({ refreshSignal = 0, onUnreadCountChange }) => {
                               }`}
                             >
                               {isAdmin && showAvatar && (
-                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center text-white text-xs font-semibold shadow-md flex-shrink-0">
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-500 to-pink-600 flex items-center justify-center text-white text-xs font-semibold shadow-md flex-shrink-0">
                                   <FaUserShield className="text-sm" />
                                 </div>
                               )}
@@ -544,8 +598,8 @@ const LiveChatAdminPanel = ({ refreshSignal = 0, onUnreadCountChange }) => {
                                 <div
                                   className={`relative rounded-2xl px-4 py-2.5 shadow-sm transition-all duration-200 ${
                                     isAdmin
-                                      ? "bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/30 dark:to-green-800/30 text-green-900 dark:text-green-100 rounded-tl-sm"
-                                      : `bg-gradient-to-br from-green-500 to-green-600 text-white rounded-tr-sm ${
+                                      ? "bg-gradient-to-br from-pink-50 to-pink-100 dark:from-pink-900/30 dark:to-pink-800/30 text-pink-900 dark:text-pink-100 rounded-tl-sm"
+                                      : `bg-gradient-to-br from-pink-500 to-pink-600 text-white rounded-tr-sm ${
                                           isUnread ? "ring-2 ring-red-200 dark:ring-red-800" : ""
                                         }`
                                   }`}
@@ -556,7 +610,7 @@ const LiveChatAdminPanel = ({ refreshSignal = 0, onUnreadCountChange }) => {
                                   <div
                                     className={`flex items-center gap-1.5 mt-1.5 ${
                                       isAdmin
-                                        ? "text-green-600 dark:text-green-300"
+                                        ? "text-pink-600 dark:text-pink-300"
                                         : "text-white/80"
                                     }`}
                                   >
@@ -566,7 +620,7 @@ const LiveChatAdminPanel = ({ refreshSignal = 0, onUnreadCountChange }) => {
                                     {isAdmin && (
                                       <span className="text-[10px]">
                                         {message.is_read ? (
-                                          <FaCheckDouble className="text-green-500" />
+                                          <FaCheckDouble className="text-pink-500" />
                                         ) : (
                                           <FaCheck className="text-gray-400" />
                                         )}
@@ -576,7 +630,7 @@ const LiveChatAdminPanel = ({ refreshSignal = 0, onUnreadCountChange }) => {
                                 </div>
                               </div>
                               {!isAdmin && showAvatar && (
-                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center text-white text-xs font-semibold shadow-md flex-shrink-0">
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-500 to-pink-600 flex items-center justify-center text-white text-xs font-semibold shadow-md flex-shrink-0">
                                   <FaUser className="text-sm" />
                                 </div>
                               )}
@@ -592,11 +646,11 @@ const LiveChatAdminPanel = ({ refreshSignal = 0, onUnreadCountChange }) => {
             {isTyping && selectedUserId && (
               <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 py-2 px-2 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
                 <div className="flex gap-1">
-                  <span className="w-2 h-2 bg-green-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></span>
-                  <span className="w-2 h-2 bg-green-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></span>
-                  <span className="w-2 h-2 bg-green-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></span>
+                  <span className="w-2 h-2 bg-pink-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></span>
+                  <span className="w-2 h-2 bg-pink-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></span>
+                  <span className="w-2 h-2 bg-pink-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></span>
                 </div>
-                <span className="text-xs font-medium text-green-600 dark:text-green-400">
+                <span className="text-xs font-medium text-pink-600 dark:text-pink-400">
                   {selectedMessages[0]?.user_name || "User"} is typing...
                 </span>
               </div>
@@ -608,14 +662,15 @@ const LiveChatAdminPanel = ({ refreshSignal = 0, onUnreadCountChange }) => {
               rows={3}
               value={reply}
               onChange={(e) => handleTyping(e.target.value)}
+              onKeyDown={handleKeyDown}
               placeholder="Write a reply"
-              className="w-full resize-none rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full resize-none rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500"
             />
             <div className="mt-2 flex justify-end">
               <button
                 onClick={handleReply}
                 disabled={sending}
-                className="rounded-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 px-5 py-2 text-sm font-semibold text-white disabled:opacity-60 transition-colors"
+                className="rounded-full bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 px-5 py-2 text-sm font-semibold text-white disabled:opacity-60 transition-colors"
               >
                 {sending ? "Sending…" : "Send reply"}
               </button>
@@ -623,6 +678,19 @@ const LiveChatAdminPanel = ({ refreshSignal = 0, onUnreadCountChange }) => {
           </div>
         </div>
       </div>
+      
+      {/* End Session Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showEndSessionModal}
+        onClose={() => setShowEndSessionModal(false)}
+        onConfirm={handleEndSession}
+        title="End Chat Session"
+        message={`Are you sure you want to end this chat session? This will delete all messages between you and ${selectedMessages[0]?.user_name || "the user"}. This action cannot be undone.`}
+        confirmText={endingSession ? "Ending..." : "End Session"}
+        cancelText="Cancel"
+        type="danger"
+        disabled={endingSession}
+      />
     </div>
   );
 };

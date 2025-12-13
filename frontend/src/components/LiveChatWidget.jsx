@@ -242,6 +242,16 @@ const LiveChatWidget = () => {
     }
   };
 
+  const handleKeyDown = (e) => {
+    // Send message on Enter (without Shift), allow Shift+Enter for new line
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      if (!sending && draft.trim() && token) {
+        handleSend();
+      }
+    }
+  };
+
   const formatTime = (dateString) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -350,7 +360,7 @@ const LiveChatWidget = () => {
                     }`}
                   >
                     {isAdmin && showAvatar && (
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center text-white text-xs font-semibold shadow-md flex-shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-500 to-pink-600 flex items-center justify-center text-white text-xs font-semibold shadow-md flex-shrink-0">
                         <FaUserShield className="text-sm" />
                       </div>
                     )}
@@ -367,8 +377,8 @@ const LiveChatWidget = () => {
                       <div
                         className={`relative rounded-2xl px-4 py-2.5 shadow-sm transition-all duration-200 ${
                           isAdmin
-                            ? "bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/30 dark:to-green-800/30 text-green-900 dark:text-green-100 rounded-tl-sm"
-                            : "bg-gradient-to-br from-green-500 to-green-600 text-white rounded-tr-sm"
+                            ? "bg-gradient-to-br from-pink-50 to-pink-100 dark:from-pink-900/30 dark:to-pink-800/30 text-pink-900 dark:text-pink-100 rounded-tl-sm"
+                            : "bg-gradient-to-br from-pink-500 to-pink-600 text-white rounded-tr-sm"
                         }`}
                       >
                         <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
@@ -377,7 +387,7 @@ const LiveChatWidget = () => {
                         <div
                           className={`flex items-center gap-1.5 mt-1.5 ${
                             isAdmin
-                              ? "text-green-600 dark:text-green-300"
+                              ? "text-pink-600 dark:text-pink-300"
                               : "text-white/80"
                           }`}
                         >
@@ -387,7 +397,7 @@ const LiveChatWidget = () => {
                           {!isAdmin && (
                             <span className="text-[10px]">
                               {message.is_read ? (
-                                <FaCheckDouble className="text-green-200" />
+                                <FaCheckDouble className="text-pink-200" />
                               ) : (
                                 <FaCheck />
                               )}
@@ -397,7 +407,7 @@ const LiveChatWidget = () => {
                       </div>
                     </div>
                     {!isAdmin && showAvatar && (
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center text-white text-xs font-semibold shadow-md flex-shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-500 to-pink-600 flex items-center justify-center text-white text-xs font-semibold shadow-md flex-shrink-0">
                         <FaUser className="text-sm" />
                       </div>
                     )}
@@ -420,12 +430,12 @@ const LiveChatWidget = () => {
               <p className="text-sm font-semibold text-gray-800 dark:text-white">
                 Live Support
               </p>
-              <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900/30">
+              <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-pink-100 dark:bg-pink-900/30">
                 <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-pink-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-pink-500"></span>
                 </span>
-                <span className="text-[10px] font-semibold text-green-600 dark:text-green-400">LIVE</span>
+                <span className="text-[10px] font-semibold text-pink-600 dark:text-pink-400">LIVE</span>
               </span>
             </div>
             <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -451,11 +461,11 @@ const LiveChatWidget = () => {
             {isTyping && (
               <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 py-2 px-2 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
                 <div className="flex gap-1">
-                  <span className="w-2 h-2 bg-green-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></span>
-                  <span className="w-2 h-2 bg-green-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></span>
-                  <span className="w-2 h-2 bg-green-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></span>
+                  <span className="w-2 h-2 bg-pink-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></span>
+                  <span className="w-2 h-2 bg-pink-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></span>
+                  <span className="w-2 h-2 bg-pink-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></span>
                 </div>
-                <span className="text-xs font-medium text-green-600 dark:text-green-400">Admin is typing...</span>
+                <span className="text-xs font-medium text-pink-600 dark:text-pink-400">Admin is typing...</span>
               </div>
             )}
             <div ref={messagesEndRef} />
@@ -475,15 +485,16 @@ const LiveChatWidget = () => {
         <textarea
           value={draft}
           onChange={(e) => handleTyping(e.target.value)}
+          onKeyDown={handleKeyDown}
           rows={2}
           placeholder={token ? "Enter your question..." : "Login to chat"}
-          className="w-full resize-none rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+          className="w-full resize-none rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500"
           disabled={!token || sending}
         />
         <button
           onClick={handleSend}
           disabled={!token || sending}
-          className="mt-2 w-full rounded-xl bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60 transition-colors"
+          className="mt-2 w-full rounded-xl bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60 transition-colors"
         >
           {sending ? "Sending…" : "Send message"}
         </button>
@@ -496,7 +507,7 @@ const LiveChatWidget = () => {
       {open && chatContainer}
       <button
         onClick={() => setOpen(!open)}
-        className="fixed bottom-4 left-4 md:bottom-6 md:left-auto md:right-6 z-[1100] flex items-center gap-2 rounded-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 px-4 py-2.5 md:px-5 md:py-3 text-sm font-semibold text-white shadow-xl transition-all"
+        className="fixed bottom-4 left-4 md:bottom-6 md:left-auto md:right-6 z-[1100] flex items-center gap-2 rounded-full bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 px-4 py-2.5 md:px-5 md:py-3 text-sm font-semibold text-white shadow-xl transition-all"
         aria-label="Open chat"
       >
         <FaRegCommentDots className="text-base md:text-lg" />

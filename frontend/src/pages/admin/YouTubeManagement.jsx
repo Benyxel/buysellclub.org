@@ -166,10 +166,10 @@ const YouTubeManagement = () => {
             <p>No YouTube videos found</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             {videos.map(video => (
               <div key={video.id} className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border border-gray-200 dark:border-gray-700">
-                <div className="relative h-48">
+                <div className="relative h-32">
                   {video.thumbnail ? (
                     <img
                       src={video.thumbnail}
@@ -181,7 +181,7 @@ const YouTubeManagement = () => {
                     />
                   ) : (
                     <div className="w-full h-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                      <FaYoutube className="text-4xl text-gray-400" />
+                      <FaYoutube className="text-2xl text-gray-400" />
                     </div>
                   )}
                   <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
@@ -189,13 +189,13 @@ const YouTubeManagement = () => {
                       href={video.video_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="p-2 bg-white rounded-full text-red-600 hover:text-red-700"
+                      className="p-1.5 bg-white rounded-full text-red-600 hover:text-red-700"
                     >
-                      <FaYoutube size={24} />
+                      <FaYoutube size={18} />
                     </a>
                   </div>
-                  <div className="absolute top-2 right-2">
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${
+                  <div className="absolute top-1.5 right-1.5">
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
                       video.is_active 
                         ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                         : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
@@ -205,31 +205,31 @@ const YouTubeManagement = () => {
                   </div>
                 </div>
                 
-                <div className="p-4">
-                  <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">{video.title}</h3>
-                  <p className="text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">{video.description}</p>
+                <div className="p-3">
+                  <h3 className="text-sm font-semibold text-gray-800 dark:text-white mb-1 line-clamp-1">{video.title}</h3>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-2 line-clamp-2">{video.description}</p>
                   
                   {video.duration && (
-                    <div className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">
                       Duration: {video.duration}
                     </div>
                   )}
                   
                   <div className="flex justify-end">
-                    <div className="flex gap-2">
+                    <div className="flex gap-1.5">
                       <button
                         onClick={() => editVideo(video)}
-                        className="p-2 text-yellow-500 hover:text-yellow-600"
+                        className="p-1.5 text-yellow-500 hover:text-yellow-600"
                         title="Edit video"
                       >
-                        <FaEdit />
+                        <FaEdit size={14} />
                       </button>
                       <button
                         onClick={() => handleDelete(video.id)}
-                        className="p-2 text-red-500 hover:text-red-600"
+                        className="p-1.5 text-red-500 hover:text-red-600"
                         title="Delete video"
                       >
-                        <FaTrash />
+                        <FaTrash size={14} />
                       </button>
                     </div>
                   </div>
