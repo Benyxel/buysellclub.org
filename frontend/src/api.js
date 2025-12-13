@@ -258,6 +258,7 @@ const Api = {
     update: (id, payload) =>
       http.put(`/buysellapi/buy4me-requests/${id}/`, payload),
     remove: (id) => http.delete(`/buysellapi/buy4me-requests/${id}/`),
+    payment: (id) => http.post(`/buysellapi/buy4me-requests/${id}/payment/`),
     admin: {
       list: (params) =>
         http.get("/buysellapi/admin/buy4me-requests/", { params }),
@@ -288,6 +289,7 @@ const Api = {
   },
   quickOrder: {
     list: (params) => http.get("/buysellapi/quick-order-products/", { params }),
+    payment: (id, amount) => http.post(`/buysellapi/quick-order-products/${id}/payment/`, { amount }),
     adminList: () => http.get("/buysellapi/admin/quick-order-products/"),
     adminDetail: (id) =>
       http.get(`/buysellapi/admin/quick-order-products/${id}/`),
@@ -337,6 +339,7 @@ const Api = {
     settings: () => http.get("/buysellapi/training-settings/"),
     updateSettings: (payload) => http.post("/buysellapi/training-settings/", payload),
     payment: (id, payload) => http.put(`/buysellapi/training-bookings/${id}/payment/`, payload),
+    paymentGateway: (id) => http.post(`/buysellapi/training-bookings/${id}/payment/`),
     adminBookings: (params) =>
       http.get("/buysellapi/admin/training-bookings/", { params }),
     adminCourses: (params) =>
@@ -349,6 +352,9 @@ const Api = {
       http.put(`/buysellapi/admin/training-courses/${id}/`, payload),
     adminDeleteCourse: (id) =>
       http.delete(`/buysellapi/admin/training-courses/${id}/`),
+    // Course payment endpoints
+    checkCourseAccess: (courseId) => http.get(`/buysellapi/training-courses/${courseId}/access/`),
+    initiateCoursePayment: (courseId) => http.post(`/buysellapi/training-courses/${courseId}/payment/`),
   },
   maintenance: {
     get: () => http.get("/buysellapi/maintenance-settings/"),
@@ -386,6 +392,7 @@ export const getBuy4meRequest = Api.buy4me.detail;
 export const createBuy4meRequest = Api.buy4me.create;
 export const updateBuy4meRequest = Api.buy4me.update;
 export const deleteBuy4meRequest = Api.buy4me.remove;
+export const initiateBuy4mePayment = Api.buy4me.payment;
 export const getAdminBuy4meRequests = Api.buy4me.admin.list;
 export const getAdminBuy4meRequest = Api.buy4me.detail;
 export const updateAdminBuy4meRequest = Api.buy4me.update;
@@ -396,6 +403,7 @@ export const createBuy4meRequestInvoice = Api.buy4me.admin.invoice.create;
 export const updateBuy4meRequestInvoiceStatus = Api.buy4me.admin.invoice.update;
 
 export const getQuickOrderProducts = Api.quickOrder.list;
+export const initiateQuickOrderPayment = Api.quickOrder.payment;
 export const getAdminQuickOrderProducts = Api.quickOrder.adminList;
 export const getAdminQuickOrderProduct = Api.quickOrder.adminDetail;
 export const createQuickOrderProduct = Api.quickOrder.create;
@@ -426,6 +434,9 @@ export const getAdminTrainingCourse = Api.training.adminCourseDetail;
 export const createTrainingCourse = Api.training.adminCreateCourse;
 export const updateTrainingCourse = Api.training.adminUpdateCourse;
 export const deleteTrainingCourse = Api.training.adminDeleteCourse;
+export const checkCourseAccess = Api.training.checkCourseAccess;
+export const initiateCoursePayment = Api.training.initiateCoursePayment;
+export const initiateTrainingPayment = Api.training.paymentGateway;
 export const getLiveChatMessages = Api.liveChat.messages;
 export const sendLiveChatMessage = Api.liveChat.send;
 export const markLiveChatMessageRead = Api.liveChat.markRead;

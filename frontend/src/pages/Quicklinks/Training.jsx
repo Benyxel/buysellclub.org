@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaCalendarAlt, FaClock, FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaPlay, FaShoppingCart, FaYoutube, FaPassport, FaDollarSign, FaMobileAlt, FaCreditCard, FaWallet, FaInfoCircle } from 'react-icons/fa';
+import { FaCalendarAlt, FaClock, FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaPlay, FaShoppingCart, FaYoutube, FaPassport, FaDollarSign, FaMobileAlt, FaCreditCard, FaWallet, FaInfoCircle, FaLock, FaSpinner } from 'react-icons/fa';
 import { toast } from '../../utils/toast';
-import { createTrainingBooking, getTrainingCourses } from '../../api';
+import { createTrainingBooking, getTrainingCourses, checkCourseAccess, initiateCoursePayment } from '../../api';
 import { Api } from '../../api';
 
 const Training = () => {
@@ -23,6 +23,8 @@ const Training = () => {
   const [submitting, setSubmitting] = useState(false);
   const [defaultTrainingCost, setDefaultTrainingCost] = useState(0);
   const [showPayment, setShowPayment] = useState(false);
+  const [courseAccess, setCourseAccess] = useState({}); // Track which courses user has access to
+  const [checkingAccess, setCheckingAccess] = useState({}); // Track which courses are being checked
 
   // Available time slots
   const timeSlots = [
@@ -294,14 +296,62 @@ const Training = () => {
   };
 
 
-  const handlePurchase = (courseId) => {
-    // Here you would typically handle the purchase process
-    toast.success('Course added to cart!');
+  const checkAccess = async (courseId) => {
+    // Check if user is logged in
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast.error('Please log in to access premium courses');
+      navigate('/Login');
+      return false;
+    }
+
+    try {
+      setCheckingAccess(prev => ({ ...prev, [courseId]: true }));
+      const response = await checkCourseAccess(courseId);
+      const hasAccess = response.data.has_access;
+      
+      setCourseAccess(prev => ({ ...prev, [courseId]: hasAccess }));
+      return hasAccess;
+    } catch (error) {
+      console.error('Error checking course access:', error);
+      // If error, assume no access
+      setCourseAccess(prev => ({ ...prev, [courseId]: false }));
+      return false;
+    } finally {
+      setCheckingAccess(prev => ({ ...prev, [courseId]: false }));
+    }
   };
 
-  const handleVideoClick = (url, type, youtubeVideoId = null) => {
+  const handlePurchase = async (courseId, coursePrice) => {
+    // Check if user is logged in
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast.error('Please log in to purchase courses');
+      navigate('/Login');
+      return;
+    }
+
+    try {
+      // Initiate payment
+      const response = await initiateCoursePayment(courseId);
+      
+      if (response.data.payment_url) {
+        // Redirect to payment gateway
+        toast.success('Redirecting to payment gateway...');
+        window.location.href = response.data.payment_url;
+      } else {
+        toast.error('Payment gateway not configured. Please contact support.');
+      }
+    } catch (error) {
+      console.error('Error initiating payment:', error);
+      const errorMsg = error.response?.data?.error || error.message || 'Failed to initiate payment';
+      toast.error(errorMsg);
+    }
+  };
+
+  const handleVideoClick = async (courseId, url, type, youtubeVideoId = null, coursePrice = 0) => {
     if (type === 'youtube') {
-      // If we have a YouTube video ID, construct the embed URL
+      // YouTube videos are always accessible
       if (youtubeVideoId) {
         window.open(`https://www.youtube.com/watch?v=${youtubeVideoId}`, '_blank');
       } else if (url) {
@@ -310,11 +360,32 @@ const Training = () => {
         toast.error('Video URL not available');
       }
     } else {
-      // Handle paid course video preview differently
-      if (url && url !== '#') {
-        window.open(url, '_blank');
+      // Premium courses require payment
+      // Check if course is free
+      if (coursePrice === 0 || !coursePrice) {
+        // Free course, allow access
+        if (url && url !== '#') {
+          window.open(url, '_blank');
+        } else {
+          toast.error('Video URL not available');
+        }
+        return;
+      }
+
+      // Check if user has access
+      const hasAccess = await checkAccess(courseId);
+      
+      if (hasAccess) {
+        // User has paid, allow access
+        if (url && url !== '#') {
+          window.open(url, '_blank');
+        } else {
+          toast.error('Video URL not available');
+        }
       } else {
-        toast.info('Video preview is available after purchase');
+        // User hasn't paid, prompt for payment
+        toast.info('Please purchase this course to access the video');
+        // Optionally show a purchase button or modal
       }
     }
   };
@@ -582,13 +653,23 @@ const Training = () => {
                   </div>
                 )}
                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                  <button
-                        onClick={() => handleVideoClick(course.videoUrl, 'paid')}
-                    className="p-2 bg-white rounded-full text-primary hover:text-primary/90"
-                    title="Preview course"
-                  >
-                    <FaPlay className="w-8 h-8" />
-                  </button>
+                  {courseAccess[course._id] ? (
+                    <button
+                      onClick={() => handleVideoClick(course._id, course.videoUrl, 'paid', null, course.price)}
+                      className="p-2 bg-white rounded-full text-primary hover:text-primary/90"
+                      title="Watch course"
+                    >
+                      <FaPlay className="w-8 h-8" />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleVideoClick(course._id, course.videoUrl, 'paid', null, course.price)}
+                      className="p-2 bg-white rounded-full text-gray-600 hover:text-gray-700"
+                      title="Purchase to unlock"
+                    >
+                      <FaLock className="w-8 h-8" />
+                    </button>
+                  )}
                 </div>
               </div>
               <div className="p-4">
@@ -606,13 +687,33 @@ const Training = () => {
                     {course.duration}
                   </span>
                 </div>
-                <button
-                  onClick={() => handlePurchase(course._id)}
-                  className="w-full mt-4 bg-primary text-white py-2 rounded-lg hover:bg-primary/90 transition-colors duration-200 flex items-center justify-center gap-2"
-                >
-                  <FaShoppingCart />
-                  Purchase Course
-                </button>
+                {courseAccess[course._id] ? (
+                  <button
+                    onClick={() => handleVideoClick(course._id, course.videoUrl, 'paid', null, course.price)}
+                    className="w-full mt-4 bg-green-500 text-white py-2 rounded-lg hover:bg-green-600 transition-colors duration-200 flex items-center justify-center gap-2"
+                  >
+                    <FaPlay />
+                    Watch Course
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handlePurchase(course._id, course.price)}
+                    className="w-full mt-4 bg-primary text-white py-2 rounded-lg hover:bg-primary/90 transition-colors duration-200 flex items-center justify-center gap-2"
+                    disabled={checkingAccess[course._id]}
+                  >
+                    {checkingAccess[course._id] ? (
+                      <>
+                        <FaSpinner className="animate-spin" />
+                        Checking...
+                      </>
+                    ) : (
+                      <>
+                        <FaShoppingCart />
+                        Purchase Course
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
             </div>
           ))}

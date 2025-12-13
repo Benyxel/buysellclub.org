@@ -167,6 +167,14 @@ const Checkout = () => {
       console.log('Order created successfully:', response.data);
       const data = response.data;
       
+      // Check if payment gateway URL is provided
+      if (data.payment_url && data.requires_payment) {
+        // Redirect to payment gateway
+        toast.success('Redirecting to payment gateway...');
+        window.location.href = data.payment_url;
+        return;
+      }
+      
       // Clear cart
       clearCart();
       
