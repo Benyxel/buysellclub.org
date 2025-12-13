@@ -2,7 +2,7 @@ import React from 'react'
 import { BsToggle2On, BsToggle2Off } from "react-icons/bs";
 
 const DarkMode = () => {
-  const [theme, setTheme] = React.useState(localStorage.getItem("theme")? localStorage.getItem("theme") : "light");
+  const [theme, setTheme] = React.useState(localStorage.getItem("theme")? localStorage.getItem("theme") : "dark");
 
   const element = document.documentElement;
  
@@ -10,13 +10,13 @@ const DarkMode = () => {
     localStorage.setItem("theme", theme);
     if (theme === "dark"){
         element.classList.add("dark");
-        element.classList.add("dark");
+        element.classList.remove("light");
     } 
     else {
-        element.classList.remove("light")
         element.classList.remove("dark");
+        element.classList.add("light");
     } 
-  })
+  }, [theme])
 
   const toggleTheme = () => {
     setTheme(theme === "dark" ? "light" : "dark");
