@@ -39,54 +39,9 @@ const MaintenanceManagement = () => {
           ? "Maintenance mode enabled. Public users will see the maintenance page."
           : "Maintenance mode disabled. Site is now accessible to all users."
       );
-      // Refresh settings after save
-      fetchSettings();
     } catch (error) {
       console.error("Failed to update maintenance settings:", error);
-      console.error("Error details:", {
-        message: error.message,
-        response: error.response,
-        status: error.response?.status,
-        data: error.response?.data,
-        headers: error.response?.headers,
-        request: error.request,
-      });
-      
-      // Handle network errors or compressed response issues
-      if (!error.response) {
-        if (error.message?.includes("br") || error.message === "br") {
-          toast.error("Network error: Response compression issue. Please try again.");
-        } else if (error.request) {
-          toast.error("Network error: Unable to reach server. Please check your connection.");
-        } else {
-          toast.error("An unexpected error occurred. Please try again.");
-        }
-        return;
-      }
-      
-      const errorMessage = 
-        error.response?.data?.error || 
-        error.response?.data?.detail || 
-        error.response?.data?.message ||
-        error.message ||
-        "Failed to update maintenance settings";
-      
-      // Show more specific error messages
-      if (error.response?.status === 401) {
-        toast.error("Authentication required. Please log in again.");
-      } else if (error.response?.status === 403) {
-        toast.error("Admin access required. You don't have permission to update maintenance settings.");
-      } else if (error.response?.status === 404) {
-        toast.error("Maintenance settings endpoint not found. Please check backend configuration.");
-      } else if (error.response?.status === 500) {
-        toast.error("Server error. Please try again later or contact support.");
-      } else {
-        // Filter out cryptic error messages like "br"
-        const displayMessage = errorMessage.length <= 3 && /^[a-z]+$/i.test(errorMessage)
-          ? "An error occurred while updating settings. Please try again."
-          : errorMessage;
-        toast.error(`Failed to update maintenance settings: ${displayMessage}`);
-      }
+      toast.error("Failed to update maintenance settings");
     } finally {
       setSaving(false);
     }

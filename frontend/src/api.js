@@ -17,7 +17,7 @@ import axios from "axios";
  */
 
 // ---------------------------------------------------------------------------
-// Base URL resolution (lazy - re-checks on each call for runtime injection)
+// Base URL resolution
 // ---------------------------------------------------------------------------
 const resolveBaseUrl = () => {
   const candidates = [
@@ -40,8 +40,7 @@ const resolveBaseUrl = () => {
   return "";
 };
 
-// Resolve base URL lazily - check on each request to support runtime injection
-const getBaseUrl = () => resolveBaseUrl();
+const BASE_URL = resolveBaseUrl();
 
 // ---------------------------------------------------------------------------
 // Utilities
@@ -73,7 +72,7 @@ const getCookie = (name) => {
 // Axios client
 // ---------------------------------------------------------------------------
 const api = axios.create({
-  // Don't set baseURL here - we'll set it dynamically in the interceptor
+  baseURL: BASE_URL || undefined,
   withCredentials: true,
   headers: {
     "Content-Type": "application/json",
@@ -86,21 +85,6 @@ const api = axios.create({
 
 api.interceptors.request.use(
   (config) => {
-    // Resolve base URL dynamically on each request (supports runtime injection)
-    const baseUrl = getBaseUrl();
-    if (baseUrl) {
-      config.baseURL = baseUrl;
-    } else {
-      // Clear baseURL if empty to use relative paths
-      config.baseURL = undefined;
-      // Debug: Log warning if base URL is missing in production
-      if (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
-        console.warn("[API Warning] No API base URL configured. Requests will go to:", window.location.origin);
-        console.warn("[API Debug] window.__ENV__:", window.__ENV__);
-        console.warn("[API Debug] import.meta.env:", typeof import.meta !== "undefined" ? import.meta.env : "N/A");
-      }
-    }
-
     // Ensure headers object always exists
     if (!config.headers) {
       config.headers = {};
@@ -342,7 +326,6 @@ const Api = {
       http.patch(`/buysellapi/live-chat/messages/${messageId}/mark-read/`),
     unreadCount: () => http.get("/buysellapi/live-chat/messages/unread-count/"),
     markAllRead: () => http.post("/buysellapi/live-chat/messages/mark-all-read/"),
-    endSession: (payload) => http.post("/buysellapi/live-chat/session/end/", payload),
   },
   training: {
     courses: (params) => http.get("/buysellapi/training-courses/", { params }),
@@ -447,7 +430,6 @@ export const sendLiveChatMessage = Api.liveChat.send;
 export const markLiveChatMessageRead = Api.liveChat.markRead;
 export const getLiveChatUnreadCount = Api.liveChat.unreadCount;
 export const markAllLiveChatRead = Api.liveChat.markAllRead;
-export const endLiveChatSession = Api.liveChat.endSession;
 export const getMaintenanceSettings = Api.maintenance.get;
 export const updateMaintenanceSettings = Api.maintenance.update;
 

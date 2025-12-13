@@ -136,7 +136,7 @@ const Contact = () => {
                     Email
                   </h3>
                   <p className="text-gray-600 dark:text-gray-400">
-                    buysellclub.org@gmail.com
+                    support@fofoofogroup.com
                   </p>
                 </div>
               </div>

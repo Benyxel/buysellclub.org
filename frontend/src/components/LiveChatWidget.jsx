@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { FaRegCommentDots, FaTimes, FaUser, FaUserShield, FaCheck, FaCheckDouble, FaSignOutAlt } from "react-icons/fa";
+import { FaRegCommentDots, FaTimes, FaUser, FaUserShield, FaCheck, FaCheckDouble } from "react-icons/fa";
 import { toast } from "../utils/toast";
-import { getLiveChatMessages, sendLiveChatMessage, endLiveChatSession } from "../api";
+import { getLiveChatMessages, sendLiveChatMessage } from "../api";
 import { LiveChatWebSocket } from "../utils/websocket";
-import ConfirmModal from "./shared/ConfirmModal";
 
 const LiveChatWidget = () => {
   const [open, setOpen] = useState(false);
@@ -12,7 +11,6 @@ const LiveChatWidget = () => {
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
-  const [showEndSessionModal, setShowEndSessionModal] = useState(false);
   const wsRef = useRef(null);
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
@@ -244,31 +242,6 @@ const LiveChatWidget = () => {
     }
   };
 
-  const handleEndSessionClick = () => {
-    if (!token) {
-      toast.error("Please log in to end a chat session.");
-      return;
-    }
-    setShowEndSessionModal(true);
-  };
-
-  const confirmEndSession = async () => {
-    try {
-      await endLiveChatSession({});
-      setMessages([]);
-      setDraft("");
-      setShowEndSessionModal(false);
-      toast.success("Chat session ended. All messages have been deleted.");
-      // Optionally close the chat widget
-      // setOpen(false);
-    } catch (error) {
-      console.error("End chat session failed:", error);
-      const errorMessage = error.response?.data?.detail || error.response?.data?.message || error.message || "Failed to end session.";
-      toast.error(errorMessage);
-      setShowEndSessionModal(false);
-    }
-  };
-
   const formatTime = (dateString) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -460,26 +433,13 @@ const LiveChatWidget = () => {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {token && messages.length > 0 && (
-            <button
-              onClick={handleEndSessionClick}
-              className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 text-xs px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-              aria-label="End chat session"
-              title="End chat session"
-            >
-              <FaSignOutAlt className="inline mr-1" />
-              End Session
-            </button>
-          )}
-          <button
-            onClick={() => setOpen(false)}
-            className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
-            aria-label="Close chat"
-          >
-            <FaTimes />
-          </button>
-        </div>
+        <button
+          onClick={() => setOpen(false)}
+          className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+          aria-label="Close chat"
+        >
+          <FaTimes />
+        </button>
       </div>
       <div 
         ref={messagesContainerRef}
@@ -515,14 +475,6 @@ const LiveChatWidget = () => {
         <textarea
           value={draft}
           onChange={(e) => handleTyping(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              if (!sending && draft.trim()) {
-                handleSend();
-              }
-            }
-          }}
           rows={2}
           placeholder={token ? "Enter your question..." : "Login to chat"}
           className="w-full resize-none rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -550,16 +502,6 @@ const LiveChatWidget = () => {
         <FaRegCommentDots className="text-base md:text-lg" />
         <span className="hidden sm:inline">Chat with us</span>
       </button>
-      <ConfirmModal
-        isOpen={showEndSessionModal}
-        onClose={() => setShowEndSessionModal(false)}
-        onConfirm={confirmEndSession}
-        title="End Chat Session"
-        message="Are you sure you want to end this chat session? All messages will be deleted and cannot be recovered."
-        confirmText="End Session"
-        cancelText="Cancel"
-        type="danger"
-      />
     </>
   );
 };

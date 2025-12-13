@@ -21,10 +21,10 @@ const SupplierBanner = () => {
         ></div>
       </div>
 
-      <div className="container mx-auto px-8 md:px-12 lg:px-16 xl:px-20 relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12 items-center">
+      <div className="container mx-auto px-4 relative z-10">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
           {/* Left Side - Content */}
-          <div className="text-white space-y-6 lg:col-span-2">
+          <div className="text-white space-y-6">
             <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full">
               <FaHandshake className="text-green-500" />
               <span className="text-sm font-medium">Connect with China</span>
@@ -102,10 +102,10 @@ const SupplierBanner = () => {
             </div>
           </div>
 
-          {/* Right Side - Image (Smaller) */}
-          <div className="relative lg:col-span-1 flex justify-center lg:justify-end">
-            <div className="relative rounded-2xl overflow-hidden shadow-2xl transform hover:scale-105 transition-transform duration-300 max-w-sm w-full">
-              {/* Image container - smaller size */}
+          {/* Right Side - Image */}
+          <div className="relative">
+            <div className="relative rounded-2xl overflow-hidden shadow-2xl transform hover:scale-105 transition-transform duration-300">
+              {/* Image container */}
               <div className="aspect-[4/3] relative">
                 <img
                   src={supplierImage}
