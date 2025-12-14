@@ -132,7 +132,7 @@ const AgentShippingRatesManagement = () => {
           </h3>
           <button
             onClick={fetchRateHistory}
-            className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2 text-sm"
+            className="px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors flex items-center gap-2 text-sm"
           >
             <FaHistory /> View History
           </button>
@@ -287,7 +287,7 @@ const AgentShippingRatesManagement = () => {
             <button
               type="submit"
               disabled={loading}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 font-medium disabled:opacity-50"
+              className="px-6 py-3 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors flex items-center gap-2 font-medium disabled:opacity-50"
             >
               <FaSave /> {loading ? "Saving..." : "Save Rates"}
             </button>

@@ -57,7 +57,7 @@ const AgentShippingRates = () => {
     return (
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
         <div className="text-center py-8">
-          <FaSpinner className="animate-spin text-4xl text-blue-600 mx-auto" />
+          <FaSpinner className="animate-spin text-4xl text-pink-600 mx-auto" />
         </div>
       </div>
     );
@@ -67,12 +67,12 @@ const AgentShippingRates = () => {
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
-          <FaDollarSign className="text-green-600" />
+          <FaDollarSign className="text-pink-600" />
           Agent Shipping Rates
         </h2>
         <button
           onClick={fetchRateHistory}
-          className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+          className="flex items-center gap-2 px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700"
         >
           <FaHistory /> View History
         </button>

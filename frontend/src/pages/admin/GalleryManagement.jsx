@@ -148,7 +148,7 @@ const GalleryManagement = () => {
         </div>
         <button
           onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md hover:shadow-lg font-medium"
+          className="flex items-center gap-2 px-5 py-2.5 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors shadow-md hover:shadow-lg font-medium"
         >
           <FaPlus />
           Add New Image
@@ -222,7 +222,7 @@ const GalleryManagement = () => {
                 <button
                   onClick={handleSave}
                   disabled={!file || uploading}
-                  className="flex-1 px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium shadow-md hover:shadow-lg transition-all"
+                  className="flex-1 px-6 py-2.5 bg-pink-600 text-white rounded-lg hover:bg-pink-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium shadow-md hover:shadow-lg transition-all"
                 >
                   {uploading ? (
                     <>
@@ -306,7 +306,7 @@ const GalleryManagement = () => {
                 <button
                   onClick={handleDeleteConfirm}
                   disabled={deleting}
-                  className="flex-1 px-6 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-red-400 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium shadow-md hover:shadow-lg transition-all"
+                  className="flex-1 px-6 py-2.5 bg-pink-600 text-white rounded-lg hover:bg-pink-700 disabled:bg-pink-400 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium shadow-md hover:shadow-lg transition-all"
                 >
                   {deleting ? (
                     <>
@@ -363,7 +363,7 @@ const GalleryManagement = () => {
                   <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-opacity duration-200 flex items-center justify-center">
                     <button
                       onClick={() => handleDeleteClick(img)}
-                      className="opacity-0 group-hover:opacity-100 p-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition-opacity duration-200 shadow-lg"
+                      className="opacity-0 group-hover:opacity-100 p-2 bg-pink-600 text-white rounded-full hover:bg-pink-700 transition-opacity duration-200 shadow-lg"
                       title="Delete image"
                     >
                       <FaTrash className="text-xs" />

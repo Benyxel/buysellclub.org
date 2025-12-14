@@ -1,9 +1,14 @@
-import React from 'react';
-import { FaCheckCircle, FaTimesCircle, FaHourglassHalf, FaDownload, FaPrint, FaEnvelope } from 'react-icons/fa';
+import React, { useState } from 'react';
+import { FaCheckCircle, FaTimesCircle, FaHourglassHalf, FaDownload, FaPrint, FaEnvelope, FaSpinner } from 'react-icons/fa';
 import { format } from 'date-fns';
 import LogoPlaceholder from '../assets/buyselll.jpg';
+import API from '../api';
+import { toast } from '../utils/toast';
+import ConfirmModal from './shared/ConfirmModal';
 
-const Invoice = ({ invoice, request, printable = false }) => {
+const Invoice = ({ invoice, request, printable = false, invoiceId, customerEmail, onEmailSent }) => {
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
   if (!invoice) return null;
   
   const logoSrc = LogoPlaceholder || 'https://via.placeholder.com/150x50?text=Company+Logo';
@@ -51,8 +56,38 @@ const Invoice = ({ invoice, request, printable = false }) => {
   };
 
   const handleEmailInvoice = () => {
-    // This would connect to your email service
-    alert('Email functionality would be implemented here');
+    if (!customerEmail) {
+      toast.error("Customer email is required to send invoice");
+      return;
+    }
+
+    if (!invoiceId) {
+      toast.error("Invoice ID is required to send email");
+      return;
+    }
+
+    setShowEmailModal(true);
+  };
+
+  const confirmSendEmail = async () => {
+    try {
+      setSendingEmail(true);
+      const response = await API.post(`/buysellapi/agent/invoices/${invoiceId}/`, {});
+      toast.success(`Invoice sent successfully to ${customerEmail}`);
+      setShowEmailModal(false);
+      if (onEmailSent) {
+        onEmailSent();
+      }
+    } catch (error) {
+      console.error("Error sending invoice email:", error);
+      toast.error(
+        error.response?.data?.error ||
+          error.response?.data?.detail ||
+          "Failed to send invoice email"
+      );
+    } finally {
+      setSendingEmail(false);
+    }
   };
 
   const calculateTotal = () => {
@@ -88,18 +123,22 @@ const Invoice = ({ invoice, request, printable = false }) => {
       {/* Invoice Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 pb-4 border-b dark:border-gray-700">
         <div className="flex items-center mb-4 sm:mb-0">
-          <img 
-            src={logoSrc} 
-            alt="BuySellClub Logo" 
-            className="h-12 mr-3 object-contain"
-            onError={(e) => {
-              e.target.onerror = null;
-              e.target.src = 'https://via.placeholder.com/150x50?text=Company+Logo';
-            }}
-          />
+          {!invoice.isAgentInvoice && (
+            <img 
+              src={logoSrc} 
+              alt="BuySellClub Logo" 
+              className="h-12 mr-3 object-contain"
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.src = 'https://via.placeholder.com/150x50?text=Company+Logo';
+              }}
+            />
+          )}
           <div>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">INVOICE</h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Buy &amp; Sell Club</p>
+            {!invoice.isAgentInvoice && (
+              <p className="text-sm text-gray-500 dark:text-gray-400">Buy &amp; Sell Club</p>
+            )}
           </div>
         </div>
         <div>
@@ -284,11 +323,12 @@ const Invoice = ({ invoice, request, printable = false }) => {
         </div>
       </div>
 
-      {/* Payment Information */}
-      <div className="mb-8 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Payment Information</h3>
-        
-        {invoice.isPaid ? (
+      {/* Payment Information - Only show for non-agent invoices */}
+      {!invoice.isAgentInvoice && (
+        <div className="mb-8 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Payment Information</h3>
+          
+          {invoice.isPaid ? (
           <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md dark:bg-green-900 dark:border-green-700">
             <p className="text-green-700 dark:text-green-300 font-medium flex items-center">
               <FaCheckCircle className="mr-2" /> Payment Received on {formattedDate(invoice.paymentDate)}
@@ -328,8 +368,9 @@ const Invoice = ({ invoice, request, printable = false }) => {
               </div>
             </div>
           </>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
       {/* Terms and Notes */}
       <div className="mb-6 text-sm text-gray-600 dark:text-gray-400">
@@ -357,10 +398,20 @@ const Invoice = ({ invoice, request, printable = false }) => {
           </button>
           <button
             onClick={handleEmailInvoice}
-            className="px-4 py-2 bg-green-100 text-green-700 rounded-md hover:bg-green-200 dark:bg-green-900 dark:text-green-200 dark:hover:bg-green-800 flex items-center"
+            disabled={sendingEmail || !customerEmail || !invoiceId}
+            className="px-4 py-2 bg-green-100 text-green-700 rounded-md hover:bg-green-200 dark:bg-green-900 dark:text-green-200 dark:hover:bg-green-800 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <FaEnvelope className="mr-2" />
-            Email
+            {sendingEmail ? (
+              <>
+                <FaSpinner className="mr-2 animate-spin" />
+                Sending...
+              </>
+            ) : (
+              <>
+                <FaEnvelope className="mr-2" />
+                Email
+              </>
+            )}
           </button>
         </div>
       )}
@@ -372,6 +423,19 @@ const Invoice = ({ invoice, request, printable = false }) => {
           <p>{invoice.notes}</p>
         </div>
       )}
+
+      {/* Email Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showEmailModal}
+        onClose={() => setShowEmailModal(false)}
+        onConfirm={confirmSendEmail}
+        title="Send Invoice via Email"
+        message={`Send invoice ${invoice.invoiceNumber} to ${customerEmail}?`}
+        confirmText="Send"
+        cancelText="Cancel"
+        type="info"
+        disabled={sendingEmail}
+      />
     </div>
   );
 };

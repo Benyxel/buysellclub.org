@@ -788,13 +788,13 @@ export default function AdminProducts() {
                       <div className="flex gap-2">
                         <button
                           onClick={() => onEdit(p)}
-                          className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors flex items-center gap-1"
+                          className="px-3 py-1 bg-pink-600 text-white rounded hover:bg-pink-700 transition-colors flex items-center gap-1"
                         >
                           <FaEdit /> Edit
                         </button>
                         <button
                           onClick={() => onDelete(p.slug)}
-                          className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors flex items-center gap-1"
+                          className="px-3 py-1 bg-pink-600 text-white rounded hover:bg-pink-700 transition-colors flex items-center gap-1"
                         >
                           <FaTrash /> Delete
                         </button>

@@ -256,7 +256,7 @@ const AgentShippingTracking = () => {
         <div className="flex gap-2">
           <button
             onClick={() => setShowAddForm(true)}
-            className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors flex items-center gap-2"
+            className="px-4 py-2 bg-pink-600 text-white rounded-md hover:bg-pink-700 transition-colors flex items-center gap-2"
             title="Open Add Shipment form"
           >
             Add Shipping

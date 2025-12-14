@@ -374,7 +374,7 @@ const AlipayManagement = () => {
           <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
             <button
               onClick={() => setIsRateModalOpen(true)}
-              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition"
+              className="inline-flex items-center px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-opacity-50 transition"
             >
               <FaExchangeAlt className="mr-2" />
               Set Exchange Rate
@@ -755,7 +755,7 @@ const AlipayManagement = () => {
                       setIsModalOpen(false);
                       openStatusUpdate(selectedPayment);
                     }}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                    className="px-4 py-2 bg-pink-600 text-white rounded-md hover:bg-pink-700"
                   >
                     Update Status
                   </button>
@@ -835,7 +835,7 @@ const AlipayManagement = () => {
                   </button>
                   <button
                     onClick={handleUpdateStatus}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                    className="px-4 py-2 bg-pink-600 text-white rounded-md hover:bg-pink-700"
                   >
                     Update Status
                   </button>
@@ -908,7 +908,7 @@ const AlipayManagement = () => {
                   </button>
                   <button
                     onClick={handleUpdateRate}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                    className="px-4 py-2 bg-pink-600 text-white rounded-md hover:bg-pink-700"
                   >
                     Update Rate
                   </button>

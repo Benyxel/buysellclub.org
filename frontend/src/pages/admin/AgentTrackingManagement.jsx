@@ -690,13 +690,13 @@ const AgentTrackingManagement = () => {
               });
               setShowAddForm(true);
             }}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+            className="px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors flex items-center gap-2"
           >
             <FaPlus /> Add Tracking
           </button>
           <button
             onClick={exportToCSV}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+            className="px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors flex items-center gap-2"
           >
             <FaDownload /> Export CSV
           </button>
@@ -1298,7 +1298,7 @@ const AgentTrackingManagement = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                  className="px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors flex items-center gap-2"
                 >
                   <FaCheckCircle /> {editTracking ? "Update" : "Add"} Tracking
                 </button>
@@ -1539,7 +1539,7 @@ const AgentTrackingManagement = () => {
                     toast.error("Failed to export PDF");
                   }
                 }}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
+                className="px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors text-sm"
               >
                 Export PDF
               </button>

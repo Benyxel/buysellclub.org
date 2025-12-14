@@ -358,7 +358,7 @@ const AgentAddressManagement = () => {
                 });
                 setShowAddForm(true);
               }}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+              className="px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 flex items-center gap-2"
             >
               <FaEdit /> Edit Address
             </button>
@@ -412,7 +412,7 @@ const AgentAddressManagement = () => {
                   setShowAddForm(true);
                   setIsEditing(false);
                 }}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                className="px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 flex items-center gap-2"
               >
                 <FaPlus /> Set Address
               </button>
@@ -443,7 +443,7 @@ const AgentAddressManagement = () => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                className="flex-1 px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 disabled:opacity-50"
               >
                 {isLoading ? (isEditing ? "Updating..." : "Adding...") : (isEditing ? "Update Address" : "Add Address")}
               </button>

@@ -89,7 +89,7 @@ const AgentUserManagement = () => {
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
-          <FaUsers className="text-blue-600" />
+          <FaUsers className="text-pink-600" />
           My Users
         </h2>
         <button
@@ -98,7 +98,7 @@ const AgentUserManagement = () => {
             setEditUser(null);
             setNewUser({ name: "", email: "" });
           }}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          className="flex items-center gap-2 px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700"
         >
           <FaPlus /> Add User
         </button>
@@ -153,7 +153,7 @@ const AgentUserManagement = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                className="px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 disabled:opacity-50"
               >
                 {editUser ? "Update" : "Add"} User
               </button>
@@ -221,7 +221,7 @@ const AgentUserManagement = () => {
                           setNewUser({ name: user.name, email: user.email });
                           setShowAddForm(true);
                         }}
-                        className="text-blue-600 hover:text-blue-800 dark:text-blue-400"
+                        className="text-pink-600 hover:text-pink-800 dark:text-pink-400"
                       >
                         <FaEdit />
                       </button>

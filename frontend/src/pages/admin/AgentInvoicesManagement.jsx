@@ -23,8 +23,11 @@ const AgentInvoicesManagement = () => {
   const fetchInvoices = async () => {
     setLoading(true);
     try {
-      // Fetch all invoices - admins can see all
-      const resp = await API.get("/buysellapi/invoices/", {
+      // Use a dedicated endpoint to fetch agent invoices only
+      // Note: This endpoint should be created to list all agent invoices for admin view
+      // For now, we'll fetch from agent endpoint which requires agent auth
+      // Admin should use a different endpoint - we'll create one if needed
+      const resp = await API.get("/buysellapi/admin/agent/invoices/", {
         params: {
           page: 1,
           page_size: 1000, // Get all for filtering
@@ -35,9 +38,6 @@ const AgentInvoicesManagement = () => {
         : Array.isArray(resp.data) 
         ? resp.data 
         : [];
-      
-      // Filter for agent-created invoices
-      list = list.filter(inv => inv.created_by_agent);
       
       // Filter by search and status
       if (search) {
@@ -55,8 +55,40 @@ const AgentInvoicesManagement = () => {
       setInvoices(list);
     } catch (err) {
       console.error("Failed to load agent invoices", err);
-      toast.error("Failed to load agent invoices");
-      setInvoices([]);
+      // Fallback: try to get from regular endpoint and filter (if endpoint doesn't exist yet)
+      try {
+        const resp = await API.get("/buysellapi/invoices/", {
+          params: {
+            page: 1,
+            page_size: 1000,
+          },
+        });
+        let list = Array.isArray(resp.data?.results) 
+          ? resp.data.results 
+          : Array.isArray(resp.data) 
+          ? resp.data 
+          : [];
+        
+        // Filter for agent-created invoices (fallback)
+        list = list.filter(inv => inv.created_by_agent);
+        
+        if (search) {
+          list = list.filter(
+            (inv) =>
+              inv.invoice_number?.toLowerCase().includes(search.toLowerCase()) ||
+              inv.customer_name?.toLowerCase().includes(search.toLowerCase()) ||
+              inv.customer_email?.toLowerCase().includes(search.toLowerCase())
+          );
+        }
+        if (status) {
+          list = list.filter((inv) => inv.status === status);
+        }
+        
+        setInvoices(list);
+      } catch (fallbackErr) {
+        toast.error("Failed to load agent invoices");
+        setInvoices([]);
+      }
     } finally {
       setLoading(false);
     }

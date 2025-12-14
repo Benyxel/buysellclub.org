@@ -382,7 +382,7 @@ const PaidCourseManagement = () => {
               resetForm();
               setShowModal(true);
             }}
-            className="bg-primary text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-primary/90 transition-colors"
+            className="bg-pink-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-pink-700 transition-colors"
           >
             <FaPlus /> Add New Course
           </button>
@@ -723,7 +723,7 @@ const PaidCourseManagement = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                  className="px-6 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
                   disabled={isSubmitting || (uploadProgress > 0 && uploadProgress < 100)}
                 >
                   {isSubmitting ? (

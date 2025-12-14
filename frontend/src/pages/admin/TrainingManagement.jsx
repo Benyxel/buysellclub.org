@@ -445,7 +445,7 @@ const TrainingManagement = ({ showCoursesTab = true }) => {
                 fetchTrainingSettings();
                 setShowSettingsModal(true);
               }}
-              className="bg-green-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-2 hover:bg-green-700 transition-colors text-sm"
+              className="bg-pink-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-2 hover:bg-pink-700 transition-colors text-sm"
             >
               <FaDollarSign />
               Default Cost
@@ -595,7 +595,7 @@ const TrainingManagement = ({ showCoursesTab = true }) => {
                 resetForm();
                 setShowModal(true);
               }}
-              className="bg-primary text-white px-3 py-1.5 rounded-lg flex items-center gap-2 hover:bg-primary/90 transition-colors text-sm"
+              className="bg-pink-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-2 hover:bg-pink-700 transition-colors text-sm"
             >
               <FaPlus /> Add Course
             </button>
@@ -872,7 +872,7 @@ const TrainingManagement = ({ showCoursesTab = true }) => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
+                  className="px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700"
                 >
                   {currentCourse ? 'Update' : 'Create'} Course
                 </button>
@@ -954,7 +954,7 @@ const TrainingManagement = ({ showCoursesTab = true }) => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
+                  className="px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700"
                 >
                   Update
                 </button>
@@ -1013,7 +1013,7 @@ const TrainingManagement = ({ showCoursesTab = true }) => {
                 </button>
                 <button
                   onClick={handleUpdateSettings}
-                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
+                  className="px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700"
                 >
                   Update Settings
                 </button>

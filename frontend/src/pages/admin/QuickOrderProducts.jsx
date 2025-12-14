@@ -263,7 +263,7 @@ const QuickOrderProducts = () => {
         </h1>
         <button
           onClick={handleAddNew}
-          className="px-4 py-2 bg-primary text-white rounded-lg flex items-center gap-2"
+          className="px-4 py-2 bg-pink-600 text-white rounded-lg flex items-center gap-2 hover:bg-pink-700"
         >
           <FaPlus /> Add New Product
         </button>
@@ -418,7 +418,7 @@ const QuickOrderProducts = () => {
                                   imageFiles: newImageFiles,
                                 });
                               }}
-                              className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                              className="absolute top-1 right-1 p-1 bg-pink-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                             >
                               <FaTimes className="w-3 h-3" />
                             </button>
@@ -458,7 +458,7 @@ const QuickOrderProducts = () => {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="px-4 py-2 bg-primary text-white rounded-lg flex items-center gap-2"
+                className="px-4 py-2 bg-pink-600 text-white rounded-lg flex items-center gap-2 hover:bg-pink-700"
               >
                 {isSubmitting ? (
                   "Saving..."

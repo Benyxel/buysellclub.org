@@ -586,7 +586,7 @@ const ShippingAddressesAdmin = () => {
               <button
                 onClick={handleSaveDefaultAddress}
                 disabled={isLoading}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+                className="px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors flex items-center gap-2"
               >
                 <FaSave /> Save Changes
               </button>
@@ -608,7 +608,7 @@ const ShippingAddressesAdmin = () => {
             </div>
             <button
               onClick={() => setIsEditingDefault(true)}
-              className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2 w-auto"
+              className="mt-2 px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors inline-flex items-center gap-2 w-auto"
             >
               <FaEdit /> Edit Default Address
             </button>
@@ -636,7 +636,7 @@ const ShippingAddressesAdmin = () => {
         <div className="flex flex-wrap gap-2">
           <button
             onClick={exportToCSV}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+            className="px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors flex items-center gap-2"
           >
             <FaDownload /> Export CSV
           </button>
@@ -645,7 +645,7 @@ const ShippingAddressesAdmin = () => {
             disabled={selectedAddresses.length === 0}
             className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
               selectedAddresses.length > 0
-                ? "bg-red-600 text-white hover:bg-red-700"
+                ? "bg-pink-600 text-white hover:bg-pink-700"
                 : "bg-gray-300 text-gray-500 cursor-not-allowed"
             } transition-colors`}
           >
@@ -834,7 +834,7 @@ const ShippingAddressesAdmin = () => {
                       onClick={() => handlePageChange(number + 1)}
                       className={`w-8 h-8 flex items-center justify-center rounded-md ${
                         currentPage === number + 1
-                          ? "bg-blue-600 text-white"
+                          ? "bg-pink-600 text-white"
                           : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                       }`}
                     >
@@ -1013,7 +1013,7 @@ const ShippingAddressesAdmin = () => {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                  className="px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors flex items-center gap-2"
                 >
                   <FaCheckCircle /> {editAddress ? "Update" : "Add"} Address
                 </button>

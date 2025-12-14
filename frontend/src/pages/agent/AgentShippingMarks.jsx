@@ -280,7 +280,7 @@ const AgentShippingMarks = () => {
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
-          <FaMapMarkerAlt className="text-purple-600" />
+          <FaMapMarkerAlt className="text-pink-600" />
           Shipping Marks & Addresses
         </h2>
         <button
@@ -308,7 +308,7 @@ const AgentShippingMarks = () => {
           className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
             currentUser?.agent_type === "corporate" && addresses.length > 0
               ? "bg-gray-400 text-gray-200 cursor-not-allowed"
-              : "bg-purple-600 text-white hover:bg-purple-700"
+              : "bg-pink-600 text-white hover:bg-pink-700"
           }`}
           title={
             currentUser?.agent_type === "corporate" && addresses.length > 0
@@ -553,7 +553,7 @@ const AgentShippingMarks = () => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+                className="px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 disabled:opacity-50"
               >
                 {editAddress ? "Update" : "Add"} Address
               </button>
@@ -644,7 +644,7 @@ const AgentShippingMarks = () => {
                               onClick={() =>
                                 handleCopy(fullAddressText, addressId)
                               }
-                              className="text-blue-600 hover:text-blue-800 dark:text-blue-400"
+                              className="text-pink-600 hover:text-pink-800 dark:text-pink-400"
                               title="Copy address"
                             >
                               {copiedId === addressId ? (
@@ -676,7 +676,7 @@ const AgentShippingMarks = () => {
                                 });
                                 setShowAddForm(true);
                               }}
-                              className="text-green-600 hover:text-green-800 dark:text-green-400"
+                              className="text-pink-600 hover:text-pink-800 dark:text-pink-400"
                               title="Edit business name"
                             >
                               <FaEdit />

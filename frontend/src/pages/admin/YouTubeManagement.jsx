@@ -150,7 +150,7 @@ const YouTubeManagement = () => {
               resetForm();
               setShowModal(true);
             }}
-            className="bg-red-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-red-700 transition-colors"
+            className="bg-pink-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-pink-700 transition-colors"
           >
             <FaPlus /> Add New Video
           </button>
@@ -304,7 +304,7 @@ const YouTubeManagement = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                  className="px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700"
                 >
                   {currentVideo ? 'Update' : 'Add'} Video
                 </button>
