@@ -1,5 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { FaFileInvoice, FaPlus, FaEye, FaSearch, FaSpinner, FaEdit, FaTrash, FaEnvelope } from "react-icons/fa";
+import {
+  FaFileInvoice,
+  FaPlus,
+  FaEye,
+  FaSearch,
+  FaSpinner,
+  FaEdit,
+  FaTrash,
+  FaEnvelope,
+} from "react-icons/fa";
 import { toast } from "../../utils/toast";
 import API from "../../api";
 import InvoiceModal from "../../components/InvoiceModal";
@@ -44,7 +53,7 @@ const AgentInvoices = () => {
     const totalGHS = rate ? totalUSD * rate : 0;
     return { totalUSD, totalGHS };
   };
-  
+
   // Calculate totals for edit form
   const calculateEditTotals = () => {
     if (!editingInvoice) return { totalUSD: 0, totalGHS: 0 };
@@ -56,8 +65,10 @@ const AgentInvoices = () => {
     const totalGHS = rate ? totalUSD * rate : 0;
     return { totalUSD, totalGHS };
   };
-  
-  const { totalUSD, totalGHS } = showEditForm ? calculateEditTotals() : calculateTotals();
+
+  const { totalUSD, totalGHS } = showEditForm
+    ? calculateEditTotals()
+    : calculateTotals();
 
   const fetchAgentUsers = async () => {
     try {
@@ -92,7 +103,7 @@ const AgentInvoices = () => {
       const invoiceData = {
         customer_name: newInvoice.customer_name,
         customer_email: newInvoice.customer_email,
-        items: newInvoice.items.map(item => ({
+        items: newInvoice.items.map((item) => ({
           description: item.description,
           quantity: item.quantity || 1,
           unit_price: item.unit_price || 0,
@@ -101,7 +112,9 @@ const AgentInvoices = () => {
         })),
         total_amount: total,
         total_amount_ghs: totalGHSValue,
-        exchange_rate: newInvoice.exchange_rate ? parseFloat(newInvoice.exchange_rate) : null,
+        exchange_rate: newInvoice.exchange_rate
+          ? parseFloat(newInvoice.exchange_rate)
+          : null,
         status: newInvoice.status,
       };
 
@@ -111,7 +124,9 @@ const AgentInvoices = () => {
       setNewInvoice({
         customer_name: "",
         customer_email: "",
-        items: [{ description: "", quantity: 1, unit_price: 0, cbm: 0, ctn: 0 }],
+        items: [
+          { description: "", quantity: 1, unit_price: 0, cbm: 0, ctn: 0 },
+        ],
         status: "draft",
         exchange_rate: "",
       });
@@ -120,22 +135,26 @@ const AgentInvoices = () => {
       console.error("Error creating invoice:", error);
       console.error("Error response:", error.response);
       console.error("Error data:", error.response?.data);
-      
+
       // Show detailed error message
       let errorMessage = "Failed to create invoice";
       if (error.response?.data) {
-        if (typeof error.response.data === 'object') {
+        if (typeof error.response.data === "object") {
           // Handle validation errors
           const errors = Object.entries(error.response.data)
             .map(([key, value]) => {
               if (Array.isArray(value)) {
-                return `${key}: ${value.join(', ')}`;
+                return `${key}: ${value.join(", ")}`;
               }
               return `${key}: ${value}`;
             })
-            .join('; ');
-          errorMessage = errors || error.response.data.detail || error.response.data.error || errorMessage;
-        } else if (typeof error.response.data === 'string') {
+            .join("; ");
+          errorMessage =
+            errors ||
+            error.response.data.detail ||
+            error.response.data.error ||
+            errorMessage;
+        } else if (typeof error.response.data === "string") {
           errorMessage = error.response.data;
         } else if (error.response.data.detail) {
           errorMessage = error.response.data.detail;
@@ -143,7 +162,7 @@ const AgentInvoices = () => {
           errorMessage = error.response.data.error;
         }
       }
-      
+
       toast.error(errorMessage);
     } finally {
       setLoading(false);
@@ -152,9 +171,11 @@ const AgentInvoices = () => {
 
   const handleViewInvoice = async (invoice) => {
     try {
-      const response = await API.get(`/buysellapi/agent/invoices/${invoice.id}/`);
+      const response = await API.get(
+        `/buysellapi/agent/invoices/${invoice.id}/`
+      );
       const invoiceData = response.data;
-      
+
       // Transform snake_case to camelCase for Invoice component
       const transformedInvoice = {
         invoiceNumber: invoiceData.invoice_number,
@@ -162,16 +183,20 @@ const AgentInvoices = () => {
         dueDate: invoiceData.due_date || invoiceData.created_at,
         status: invoiceData.status,
         amount: parseFloat(invoiceData.total_amount) || 0,
-        totalGhs: invoiceData.total_amount_ghs ? parseFloat(invoiceData.total_amount_ghs) : null,
+        totalGhs: invoiceData.total_amount_ghs
+          ? parseFloat(invoiceData.total_amount_ghs)
+          : null,
         tax: parseFloat(invoiceData.tax_amount) || 0,
         shipping: 0,
         serviceFee: 0,
         customerName: invoiceData.customer_name,
         customerEmail: invoiceData.customer_email,
-        exchangeRate: invoiceData.exchange_rate ? parseFloat(invoiceData.exchange_rate) : null,
+        exchangeRate: invoiceData.exchange_rate
+          ? parseFloat(invoiceData.exchange_rate)
+          : null,
         isAgentInvoice: true, // Flag to identify agent invoices
       };
-      
+
       // Create request object for Invoice component
       const requestData = {
         userName: invoiceData.customer_name,
@@ -179,9 +204,9 @@ const AgentInvoices = () => {
         title: `Invoice ${invoiceData.invoice_number}`,
         description: `Invoice for ${invoiceData.customer_name}`,
       };
-      
-      setSelectedInvoice({ 
-        invoice: transformedInvoice, 
+
+      setSelectedInvoice({
+        invoice: transformedInvoice,
         request: requestData,
         invoiceId: invoiceData.id,
         customerEmail: invoiceData.customer_email,
@@ -196,26 +221,30 @@ const AgentInvoices = () => {
   const handleEditInvoice = (invoice) => {
     // Load invoice details and populate edit form
     API.get(`/buysellapi/agent/invoices/${invoice.id}/`)
-      .then(response => {
+      .then((response) => {
         const invoiceData = response.data;
         setEditingInvoice({
           id: invoiceData.id,
           customer_name: invoiceData.customer_name || "",
           customer_email: invoiceData.customer_email || "",
-          items: invoiceData.items?.map(item => ({
+          items: invoiceData.items?.map((item) => ({
             description: item.tracking_number || item.description || "",
             quantity: 1,
             unit_price: parseFloat(item.total_amount) || 0,
             cbm: parseFloat(item.cbm) || 0,
             ctn: 0,
-          })) || [{ description: "", quantity: 1, unit_price: 0, cbm: 0, ctn: 0 }],
+          })) || [
+            { description: "", quantity: 1, unit_price: 0, cbm: 0, ctn: 0 },
+          ],
           status: invoiceData.status || "draft",
-          exchange_rate: invoiceData.exchange_rate ? invoiceData.exchange_rate.toString() : "",
+          exchange_rate: invoiceData.exchange_rate
+            ? invoiceData.exchange_rate.toString()
+            : "",
         });
         setShowEditForm(true);
         setShowCreateForm(false);
       })
-      .catch(error => {
+      .catch((error) => {
         console.error("Error fetching invoice for edit:", error);
         toast.error("Failed to load invoice for editing");
       });
@@ -235,11 +264,16 @@ const AgentInvoices = () => {
         customer_email: editingInvoice.customer_email,
         total_amount: total,
         total_amount_ghs: totalGHSValue,
-        exchange_rate: editingInvoice.exchange_rate ? parseFloat(editingInvoice.exchange_rate) : null,
+        exchange_rate: editingInvoice.exchange_rate
+          ? parseFloat(editingInvoice.exchange_rate)
+          : null,
         status: editingInvoice.status,
       };
 
-      await API.patch(`/buysellapi/agent/invoices/${editingInvoice.id}/`, invoiceData);
+      await API.patch(
+        `/buysellapi/agent/invoices/${editingInvoice.id}/`,
+        invoiceData
+      );
       toast.success("Invoice updated successfully");
       setShowEditForm(false);
       setEditingInvoice(null);
@@ -298,8 +332,13 @@ const AgentInvoices = () => {
 
     try {
       setLoading(true);
-      const response = await API.post(`/buysellapi/agent/invoices/${emailInvoice.id}/`, {});
-      toast.success(`Invoice sent successfully to ${emailInvoice.customer_email}`);
+      const response = await API.post(
+        `/buysellapi/agent/invoices/${emailInvoice.id}/`,
+        {}
+      );
+      toast.success(
+        `Invoice sent successfully to ${emailInvoice.customer_email}`
+      );
       setShowEmailModal(false);
       setEmailInvoice(null);
     } catch (error) {
@@ -316,11 +355,14 @@ const AgentInvoices = () => {
 
   const filteredInvoices = invoices.filter((invoice) => {
     const matchesSearch =
-      invoice.invoice_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      invoice.invoice_number
+        ?.toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
       invoice.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       invoice.customer_email?.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesStatus = statusFilter === "all" || invoice.status === statusFilter;
+    const matchesStatus =
+      statusFilter === "all" || invoice.status === statusFilter;
 
     return matchesSearch && matchesStatus;
   });
@@ -338,7 +380,9 @@ const AgentInvoices = () => {
             setNewInvoice({
               customer_name: "",
               customer_email: "",
-              items: [{ description: "", quantity: 1, unit_price: 0, cbm: 0, ctn: 0 }],
+              items: [
+                { description: "", quantity: 1, unit_price: 0, cbm: 0, ctn: 0 },
+              ],
               status: "draft",
               exchange_rate: "",
             });
@@ -366,7 +410,10 @@ const AgentInvoices = () => {
                   required
                   value={editingInvoice.customer_name}
                   onChange={(e) =>
-                    setEditingInvoice({ ...editingInvoice, customer_name: e.target.value })
+                    setEditingInvoice({
+                      ...editingInvoice,
+                      customer_name: e.target.value,
+                    })
                   }
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                 />
@@ -380,7 +427,10 @@ const AgentInvoices = () => {
                   required
                   value={editingInvoice.customer_email}
                   onChange={(e) =>
-                    setEditingInvoice({ ...editingInvoice, customer_email: e.target.value })
+                    setEditingInvoice({
+                      ...editingInvoice,
+                      customer_email: e.target.value,
+                    })
                   }
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                 />
@@ -394,7 +444,10 @@ const AgentInvoices = () => {
                 required
                 value={editingInvoice.status}
                 onChange={(e) =>
-                  setEditingInvoice({ ...editingInvoice, status: e.target.value })
+                  setEditingInvoice({
+                    ...editingInvoice,
+                    status: e.target.value,
+                  })
                 }
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
               >
@@ -479,7 +532,8 @@ const AgentInvoices = () => {
                       value={item.unit_price}
                       onChange={(e) => {
                         const items = [...editingInvoice.items];
-                        items[index].unit_price = parseFloat(e.target.value) || 0;
+                        items[index].unit_price =
+                          parseFloat(e.target.value) || 0;
                         setEditingInvoice({ ...editingInvoice, items });
                       }}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
@@ -490,7 +544,9 @@ const AgentInvoices = () => {
                       <button
                         type="button"
                         onClick={() => {
-                          const items = editingInvoice.items.filter((_, i) => i !== index);
+                          const items = editingInvoice.items.filter(
+                            (_, i) => i !== index
+                          );
                           setEditingInvoice({ ...editingInvoice, items });
                         }}
                         className="w-full px-2 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 mt-6"
@@ -506,7 +562,16 @@ const AgentInvoices = () => {
                 onClick={() => {
                   setEditingInvoice({
                     ...editingInvoice,
-                    items: [...editingInvoice.items, { description: "", quantity: 1, unit_price: 0, cbm: 0, ctn: 0 }],
+                    items: [
+                      ...editingInvoice.items,
+                      {
+                        description: "",
+                        quantity: 1,
+                        unit_price: 0,
+                        cbm: 0,
+                        ctn: 0,
+                      },
+                    ],
                   });
                 }}
                 className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400"
@@ -514,7 +579,7 @@ const AgentInvoices = () => {
                 + Add Item
               </button>
             </div>
-            
+
             {/* Exchange Rate and Totals */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
               <div>
@@ -611,7 +676,10 @@ const AgentInvoices = () => {
                   required
                   value={newInvoice.customer_name}
                   onChange={(e) =>
-                    setNewInvoice({ ...newInvoice, customer_name: e.target.value })
+                    setNewInvoice({
+                      ...newInvoice,
+                      customer_name: e.target.value,
+                    })
                   }
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                 />
@@ -625,7 +693,10 @@ const AgentInvoices = () => {
                   required
                   value={newInvoice.customer_email}
                   onChange={(e) =>
-                    setNewInvoice({ ...newInvoice, customer_email: e.target.value })
+                    setNewInvoice({
+                      ...newInvoice,
+                      customer_email: e.target.value,
+                    })
                   }
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                 />
@@ -705,7 +776,8 @@ const AgentInvoices = () => {
                       value={item.unit_price}
                       onChange={(e) => {
                         const items = [...newInvoice.items];
-                        items[index].unit_price = parseFloat(e.target.value) || 0;
+                        items[index].unit_price =
+                          parseFloat(e.target.value) || 0;
                         setNewInvoice({ ...newInvoice, items });
                       }}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
@@ -716,7 +788,9 @@ const AgentInvoices = () => {
                       <button
                         type="button"
                         onClick={() => {
-                          const items = newInvoice.items.filter((_, i) => i !== index);
+                          const items = newInvoice.items.filter(
+                            (_, i) => i !== index
+                          );
                           setNewInvoice({ ...newInvoice, items });
                         }}
                         className="w-full px-2 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 mt-6"
@@ -732,7 +806,16 @@ const AgentInvoices = () => {
                 onClick={() => {
                   setNewInvoice({
                     ...newInvoice,
-                    items: [...newInvoice.items, { description: "", quantity: 1, unit_price: 0, cbm: 0, ctn: 0 }],
+                    items: [
+                      ...newInvoice.items,
+                      {
+                        description: "",
+                        quantity: 1,
+                        unit_price: 0,
+                        cbm: 0,
+                        ctn: 0,
+                      },
+                    ],
                   });
                 }}
                 className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400"
@@ -740,7 +823,7 @@ const AgentInvoices = () => {
                 + Add Item
               </button>
             </div>
-            
+
             {/* Exchange Rate and Totals */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
               <div>
@@ -849,9 +932,7 @@ const AgentInvoices = () => {
           <FaSpinner className="animate-spin text-4xl text-pink-600 mx-auto" />
         </div>
       ) : filteredInvoices.length === 0 ? (
-        <div className="text-center py-8 text-gray-500">
-          No invoices found
-        </div>
+        <div className="text-center py-8 text-gray-500">No invoices found</div>
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -879,14 +960,19 @@ const AgentInvoices = () => {
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {filteredInvoices.map((invoice) => (
-                <tr key={invoice.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                <tr
+                  key={invoice.id}
+                  className="hover:bg-gray-50 dark:hover:bg-gray-700"
+                >
                   <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
                     {invoice.invoice_number}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
                     <div>
                       <div>{invoice.customer_name}</div>
-                      <div className="text-xs text-gray-500">{invoice.customer_email}</div>
+                      <div className="text-xs text-gray-500">
+                        {invoice.customer_email}
+                      </div>
                     </div>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
@@ -1002,6 +1088,3 @@ const AgentInvoices = () => {
 };
 
 export default AgentInvoices;
-
-
-
