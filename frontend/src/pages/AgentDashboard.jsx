@@ -18,6 +18,7 @@ import {
   FaBuilding,
   FaHandshake,
   FaSpinner,
+  FaTicketAlt,
 } from "react-icons/fa";
 
 // Import agent-specific components
@@ -28,6 +29,7 @@ import AgentInvoices from "./agent/AgentInvoices";
 import AgentPackageUpdates from "./agent/AgentPackageUpdates";
 import AgentShippingRates from "./agent/AgentShippingRates";
 import AgentVideoContent from "./agent/AgentVideoContent";
+import AgentTickets from "./agent/AgentTickets";
 
 const AgentDashboard = () => {
   const navigate = useNavigate();
@@ -127,6 +129,7 @@ const AgentDashboard = () => {
     { icon: <FaBell />, label: "Package Updates", section: "updates" },
     { icon: <FaDollarSign />, label: "Shipping Rates", section: "rates" },
     { icon: <FaVideo />, label: "Video Tutorials", section: "videos" },
+    { icon: <FaTicketAlt />, label: "Ticket to Admin", section: "tickets" },
   ];
 
   if (loading) {
@@ -267,6 +270,7 @@ const AgentDashboard = () => {
           {activeSection === "updates" && <AgentPackageUpdates />}
           {activeSection === "rates" && <AgentShippingRates />}
           {activeSection === "videos" && <AgentVideoContent />}
+          {activeSection === "tickets" && <AgentTickets />}
         </main>
       </div>
     </div>

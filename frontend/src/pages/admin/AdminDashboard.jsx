@@ -37,6 +37,7 @@ import {
   FaCalendarAlt,
   FaBuilding,
   FaHandshake,
+  FaTicketAlt,
 } from "react-icons/fa";
 
 import UsersManagement from "./UsersManagement";
@@ -61,6 +62,7 @@ import AgentTrackingManagement from "./AgentTrackingManagement";
 import AgentContainerManagement from "./AgentContainerManagement";
 import AgentInvoicesManagement from "./AgentInvoicesManagement";
 import LiveChatAdminPanel from "./LiveChatAdminPanel";
+import AdminAgentTickets from "./AdminAgentTickets";
 import MaintenanceManagement from "./MaintenanceManagement";
 const AgentShippingRatesManagement = React.lazy(() =>
   import("./AgentShippingRatesManagement.jsx")
@@ -122,6 +124,7 @@ const AdminDashboard = () => {
     getInitialShippingSubMenu()
   );
   const [agentSubMenu, setAgentSubMenu] = useState(getInitialAgentSubMenu());
+  const [messageSubMenu, setMessageSubMenu] = useState("live-chat");
   const [trainingSubMenu, setTrainingSubMenu] = useState("paidCourses");
   const [analyticsTab, setAnalyticsTab] = useState("overview");
   const [notifications, setNotifications] = useState([]);
@@ -1069,10 +1072,61 @@ const AdminDashboard = () => {
         );
       case "messages":
         return (
-          <LiveChatAdminPanel
-            refreshSignal={chatRefreshSignal}
-            onUnreadCountChange={setChatUnreadCount}
-          />
+          <div className="p-6">
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">
+              Messages
+            </h2>
+
+            {/* Message Tabs */}
+            <div className="border-b border-gray-200 dark:border-gray-700 mb-6">
+              <div className="flex flex-wrap">
+                {/* 1. Live Chat */}
+                <button
+                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
+                    messageSubMenu === "live-chat"
+                      ? "bg-white dark:bg-gray-800 text-pink-600 dark:text-pink-400 border-b-2 border-pink-600"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                  onClick={() => setMessageSubMenu("live-chat")}
+                >
+                  <div className="flex items-center gap-2">
+                    <FaComments className="w-4 h-4" />
+                    <span>Live Chat</span>
+                  </div>
+                </button>
+
+                {/* 2. Agent Tickets */}
+                <button
+                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
+                    messageSubMenu === "agent-tickets"
+                      ? "bg-white dark:bg-gray-800 text-pink-600 dark:text-pink-400 border-b-2 border-pink-600"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                  onClick={() => setMessageSubMenu("agent-tickets")}
+                >
+                  <div className="flex items-center gap-2">
+                    <FaTicketAlt className="w-4 h-4" />
+                    <span>Agent Tickets</span>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* Message Content */}
+            {messageSubMenu === "live-chat" ? (
+              <LiveChatAdminPanel
+                refreshSignal={chatRefreshSignal}
+                onUnreadCountChange={setChatUnreadCount}
+              />
+            ) : messageSubMenu === "agent-tickets" ? (
+              <AdminAgentTickets />
+            ) : (
+              <LiveChatAdminPanel
+                refreshSignal={chatRefreshSignal}
+                onUnreadCountChange={setChatUnreadCount}
+              />
+            )}
+          </div>
         );
       case "gallery":
         return <GalleryManagement />;
