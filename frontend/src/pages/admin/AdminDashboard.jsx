@@ -60,7 +60,6 @@ import Analytics from "./Analytics";
 import GalleryManagement from "./GalleryManagement";
 import AgentTrackingManagement from "./AgentTrackingManagement";
 import AgentContainerManagement from "./AgentContainerManagement";
-import AgentInvoicesManagement from "./AgentInvoicesManagement";
 import LiveChatAdminPanel from "./LiveChatAdminPanel";
 import AdminAgentTickets from "./AdminAgentTickets";
 import MaintenanceManagement from "./MaintenanceManagement";
@@ -856,26 +855,11 @@ const AdminDashboard = () => {
                 >
                   <div className="flex items-center gap-2">
                     <FaBox className="w-4 h-4" />
-                    <span>Agent Containers</span>
+                    <span>Containers</span>
                   </div>
                 </button>
 
-                {/* 3. Invoices */}
-                <button
-                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
-                    agentSubMenu === "invoices"
-                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
-                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  }`}
-                  onClick={() => setAgentSubMenu("invoices")}
-                >
-                  <div className="flex items-center gap-2">
-                    <FaFileInvoice className="w-4 h-4" />
-                    <span>Agent Invoices</span>
-                  </div>
-                </button>
-
-                {/* 4. Shipping Rates */}
+                {/* 3. Shipping Rates */}
                 <button
                   className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
                     agentSubMenu === "rates"
@@ -987,8 +971,6 @@ const AdminDashboard = () => {
               <AgentTrackingManagement />
             ) : agentSubMenu === "containers" ? (
               <AgentContainerManagement />
-            ) : agentSubMenu === "invoices" ? (
-              <AgentInvoicesManagement />
             ) : agentSubMenu === "rates" ? (
               <React.Suspense fallback={<div>Loading...</div>}>
                 <AgentShippingRatesManagement />
