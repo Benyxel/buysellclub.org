@@ -10,9 +10,8 @@ import {
   FaInfoCircle,
   FaUserTag,
 } from "react-icons/fa";
-import axios from "axios";
+import API from "../../api";
 import { toast } from "../../utils/toast";
-import { API_BASE_URL } from "../../config/api";
 
 const AgentShippingMarksManagement = () => {
   const [shippingMarks, setShippingMarks] = useState([]);
@@ -38,30 +37,16 @@ const AgentShippingMarksManagement = () => {
       setIsLoading(true);
       setError(null);
 
-      const token =
-        localStorage.getItem("adminToken") || localStorage.getItem("token");
-
-      if (!token) {
-        throw new Error("Authentication token not found. Please log in.");
-      }
-
-      // Fetch agent shipping marks from agent-specific endpoint
-      const response = await axios.get(
-        `${API_BASE_URL}/api/admin/agent/shipping-marks-list`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          params: {
-            page: currentPage,
-            limit: itemsPerPage,
-            search: searchTerm,
-            sortField: sortConfig.key,
-            sortDirection: sortConfig.direction,
-          },
-        }
-      );
+      // Fetch agent shipping marks from agent-specific endpoint using API helper
+      const response = await API.get("/api/admin/agent/shipping-marks-list", {
+        params: {
+          page: currentPage,
+          limit: itemsPerPage,
+          search: searchTerm,
+          sortField: sortConfig.key,
+          sortDirection: sortConfig.direction,
+        },
+      });
 
       console.log("Agent Shipping Marks API Response:", response.data);
 
@@ -116,19 +101,13 @@ const AgentShippingMarksManagement = () => {
       
       // Fallback: try to get from regular endpoint and filter
       try {
-        const fallbackResponse = await axios.get(
-          `${API_BASE_URL}/api/admin/shipping-marks-list`,
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("adminToken") || localStorage.getItem("token")}`,
-            },
-            params: {
-              page: currentPage,
-              limit: itemsPerPage,
-              search: searchTerm,
-            },
-          }
-        );
+        const fallbackResponse = await API.get("/api/admin/shipping-marks-list", {
+          params: {
+            page: currentPage,
+            limit: itemsPerPage,
+            search: searchTerm,
+          },
+        });
         let fallbackMarks = [];
         if (fallbackResponse.data.results) {
           fallbackMarks = fallbackResponse.data.results;

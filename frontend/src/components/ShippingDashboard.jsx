@@ -2,14 +2,9 @@ import React, { useState, useEffect } from "react";
 import {
   FaTruck,
   FaPlus,
-  FaSearch,
-  FaBox,
   FaMapMarkerAlt,
   FaCalculator,
   FaTimes,
-  FaEdit,
-  FaCheck,
-  FaCopy,
 } from "react-icons/fa";
 import { Link } from "react-router-dom";
 import { toast } from "../utils/toast";
@@ -358,11 +353,6 @@ const ShippingDashboard = () => {
   const [shipments, setShipments] = useState([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [message, setMessage] = useState("");
-  const [activeTab, setActiveTab] = useState("tracking"); // 'tracking' or 'addresses'
-  const [shippingMarks, setShippingMarks] = useState([]);
-  const [editingAddressId, setEditingAddressId] = useState(null);
-  const [tempName, setTempName] = useState("");
-  const [copiedId, setCopiedId] = useState(null);
 
   const [newShipment, setNewShipment] = useState({
     trackingNumber: "",
@@ -423,7 +413,6 @@ const ShippingDashboard = () => {
   // Load initial data
   useEffect(() => {
     setShipments(trackingSystem.getUserShipments("default") || []);
-    loadShippingMarks();
     setDefaultUserTrackingNumber();
     checkShippingMark();
   }, []);
@@ -445,28 +434,11 @@ const ShippingDashboard = () => {
           }
         } catch (_) {}
       }
-      // Fallback to local saved marks
-      const saved = JSON.parse(localStorage.getItem("shippingMarks") || "[]");
-      if (Array.isArray(saved) && saved.length > 0) {
-        setNewShipment((prev) => ({
-          ...prev,
-          userTrackingNumber: saved[0].id || "",
-        }));
-      }
     } catch (e) {
       // ignore
     }
   };
 
-  // Load shipping marks from localStorage
-  const loadShippingMarks = () => {
-    const savedMarks = JSON.parse(
-      localStorage.getItem("shippingMarks") || "[]"
-    );
-    // Sort by most recent first
-    savedMarks.sort((a, b) => new Date(b.date) - new Date(a.date));
-    setShippingMarks(savedMarks);
-  };
 
   const handleAddShipment = async (e) => {
     e.preventDefault();
@@ -604,83 +576,6 @@ const ShippingDashboard = () => {
     }
   };
 
-  const copyToClipboard = async (text, id) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopiedId(id);
-      setMessage("Copied to clipboard!");
-      setTimeout(() => setCopiedId(null), 2000);
-    } catch (err) {
-      console.error("Failed to copy text: ", err);
-      setMessage("Failed to copy text. Please try again.");
-    }
-  };
-
-  const handleEditAddress = (id) => {
-    const address = shippingMarks.find((mark) => mark.id === id);
-    if (address) {
-      setTempName(address.name);
-      setEditingAddressId(id);
-    }
-  };
-
-  const handleSaveAddress = (id) => {
-    if (!tempName.trim()) {
-      setMessage("Please enter a valid name");
-      return;
-    }
-
-    // Update the name in localStorage
-    const savedMarks = JSON.parse(
-      localStorage.getItem("shippingMarks") || "[]"
-    );
-    const updatedMarks = savedMarks.map((mark) => {
-      if (mark.id === id) {
-        const updatedAddress = `${mark.id} - ${tempName}\n${
-          mark.address.split("\n")[1]
-        }`;
-        const updatedShippingMark = `${mark.id}:${tempName}`;
-        return {
-          ...mark,
-          name: tempName,
-          address: updatedAddress,
-          shippingMark: updatedShippingMark,
-        };
-      }
-      return mark;
-    });
-
-    localStorage.setItem("shippingMarks", JSON.stringify(updatedMarks));
-
-    // Update state
-    setShippingMarks(updatedMarks);
-    setEditingAddressId(null);
-    setTempName("");
-    setMessage("Address updated successfully!");
-  };
-
-  const handleCancelEdit = () => {
-    setEditingAddressId(null);
-    setTempName("");
-  };
-
-  const handleDeleteAddress = (id) => {
-    if (
-      window.confirm(
-        "Are you sure you want to delete this shipping address? This action cannot be undone."
-      )
-    ) {
-      const savedMarks = JSON.parse(
-        localStorage.getItem("shippingMarks") || "[]"
-      );
-      const updatedMarks = savedMarks.filter((mark) => mark.id !== id);
-      localStorage.setItem("shippingMarks", JSON.stringify(updatedMarks));
-
-      // Update state
-      setShippingMarks(updatedMarks);
-      setMessage("Shipping address deleted successfully");
-    }
-  };
 
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
@@ -731,9 +626,7 @@ const ShippingDashboard = () => {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0">
             <div className="flex items-center gap-4">
               <FaTruck
-                className={`text-2xl sm:text-3xl text-primary ${
-                  activeTab === "tracking" ? "animate-truck" : ""
-                }`}
+                className="text-2xl sm:text-3xl text-primary animate-truck"
               />
               <div>
                 <h1 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white">
@@ -765,235 +658,20 @@ const ShippingDashboard = () => {
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="mb-6 border-b border-gray-200 dark:border-gray-700">
-          <ul className="flex flex-wrap -mb-px text-sm font-medium text-center">
-            <li className="mr-2">
-              <button
-                onClick={() => setActiveTab("tracking")}
-                className={`inline-flex items-center justify-center p-4 rounded-t-lg border-b-2 group ${
-                  activeTab === "tracking"
-                    ? "text-primary border-primary"
-                    : "border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300"
-                }`}
-              >
-                <FaTruck
-                  className={`mr-2 w-5 h-5 ${
-                    activeTab === "tracking"
-                      ? "text-primary animate-truck"
-                      : "text-gray-400 group-hover:text-gray-500 dark:text-gray-500 dark:group-hover:text-gray-300"
-                  }`}
-                />
-                Tracking Management
-              </button>
-            </li>
-            <li className="mr-2">
-              <button
-                onClick={() => setActiveTab("addresses")}
-                className={`inline-flex items-center justify-center p-4 rounded-t-lg border-b-2 group ${
-                  activeTab === "addresses"
-                    ? "text-primary border-primary"
-                    : "border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300"
-                }`}
-              >
-                <FaMapMarkerAlt
-                  className={`mr-2 w-5 h-5 ${
-                    activeTab === "addresses"
-                      ? "text-primary"
-                      : "text-gray-400 group-hover:text-gray-500 dark:text-gray-500 dark:group-hover:text-gray-300"
-                  }`}
-                />
-                Address Management
-              </button>
-            </li>
-          </ul>
+        {/* Tracking Management */}
+        <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg shadow-md p-6 mb-8">
+          {/* Tracking Search Component */}
+          <div className="mb-8">
+            <TrackingSearch />
+          </div>
+          {/* Info: User-facing shipments list is intentionally hidden here */}
+          <div className="mt-2 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+            <p className="text-sm text-gray-700 dark:text-gray-300">
+              Add shipments here, then view and track them from your Profile →
+              Tracking tab.
+            </p>
+          </div>
         </div>
-
-        {/* Tracking Management Tab */}
-        {activeTab === "tracking" && (
-          <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg shadow-md p-6 mb-8">
-            {/* Tracking Search Component */}
-            <div className="mb-8">
-              <TrackingSearch />
-            </div>
-            {/* Info: User-facing shipments list is intentionally hidden here */}
-            <div className="mt-2 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-              <p className="text-sm text-gray-700 dark:text-gray-300">
-                Add shipments here, then view and track them from your Profile →
-                Tracking tab.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Address Management Tab */}
-        {activeTab === "addresses" && (
-          <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-lg shadow-md p-6 mb-8">
-            <div className="mb-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-gray-800 dark:text-white">
-                  My Shipping Addresses
-                </h2>
-              </div>
-              <p className="text-gray-600 dark:text-gray-400">
-                Manage your shipping addresses and shipping marks for packages
-                and orders
-              </p>
-            </div>
-
-            {shippingMarks.length === 0 ? (
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-8 text-center">
-                <FaMapMarkerAlt className="mx-auto text-4xl text-gray-400 mb-4" />
-                <h3 className="text-xl font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  No Shipping Addresses Yet
-                </h3>
-                <p className="text-gray-500 dark:text-gray-400 mb-4">
-                  You haven't generated any shipping addresses yet. Generate one
-                  to get started.
-                </p>
-                <Link
-                  to="/Fofoofo-address-generator"
-                  className="inline-block px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
-                >
-                  Generate Your First Address
-                </Link>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {shippingMarks.map((mark) => (
-                  <div
-                    key={mark.id}
-                    className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden"
-                  >
-                    <div className="p-4 sm:p-6">
-                      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-4 border-b border-gray-200 dark:border-gray-700 pb-4">
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <FaMapMarkerAlt className="text-primary" />
-                            <h3 className="font-semibold text-gray-800 dark:text-white">
-                              {editingAddressId === mark.id ? (
-                                <input
-                                  type="text"
-                                  value={tempName}
-                                  onChange={(e) => setTempName(e.target.value)}
-                                  className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md"
-                                  autoFocus
-                                />
-                              ) : (
-                                mark.name
-                              )}
-                            </h3>
-                          </div>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
-                            ID: {mark.id} • Created:{" "}
-                            {new Date(mark.date).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <div className="flex gap-2">
-                          {editingAddressId === mark.id ? (
-                            <>
-                              <button
-                                onClick={() => handleSaveAddress(mark.id)}
-                                className="px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center gap-1"
-                              >
-                                <FaCheck className="w-3 h-3" /> Save
-                              </button>
-                              <button
-                                onClick={handleCancelEdit}
-                                className="px-3 py-1 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors flex items-center gap-1"
-                              >
-                                <FaTimes className="w-3 h-3" /> Cancel
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <button
-                                onClick={() => handleEditAddress(mark.id)}
-                                className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-1"
-                              >
-                                <FaEdit className="w-3 h-3" /> Edit
-                              </button>
-                              <button
-                                onClick={() => handleDeleteAddress(mark.id)}
-                                className="px-3 py-1 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors flex items-center gap-1"
-                              >
-                                <FaTimes className="w-3 h-3" /> Delete
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="mb-4">
-                        <div className="flex justify-between items-center mb-2">
-                          <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                            Shipping Mark
-                          </p>
-                          <button
-                            onClick={() =>
-                              copyToClipboard(
-                                mark.shippingMark,
-                                `${mark.id}-mark`
-                              )
-                            }
-                            className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-1"
-                          >
-                            {copiedId === `${mark.id}-mark` ? (
-                              <>
-                                <FaCheck className="w-4 h-4" /> Copied
-                              </>
-                            ) : (
-                              <>
-                                <FaCopy className="w-4 h-4" /> Copy
-                              </>
-                            )}
-                          </button>
-                        </div>
-                        <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                          <p className="text-sm text-gray-900 dark:text-white break-all">
-                            {mark.shippingMark}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div>
-                        <div className="flex justify-between items-center mb-2">
-                          <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                            Full Address
-                          </p>
-                          <button
-                            onClick={() =>
-                              copyToClipboard(
-                                mark.address,
-                                `${mark.id}-address`
-                              )
-                            }
-                            className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-1"
-                          >
-                            {copiedId === `${mark.id}-address` ? (
-                              <>
-                                <FaCheck className="w-4 h-4" /> Copied
-                              </>
-                            ) : (
-                              <>
-                                <FaCopy className="w-4 h-4" /> Copy
-                              </>
-                            )}
-                          </button>
-                        </div>
-                        <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                          <p className="text-sm text-gray-900 dark:text-white break-all whitespace-pre-line">
-                            {mark.address}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
 
         {/* Section 3: CBM Calculator */}
         <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-lg shadow-md p-6">

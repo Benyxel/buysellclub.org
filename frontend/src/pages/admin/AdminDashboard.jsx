@@ -118,7 +118,31 @@ const AdminDashboard = () => {
       setActiveSection(savedSection);
     }
   }, []);
-  const [darkMode, setDarkMode] = useState(false);
+  
+  // Initialize dark mode from localStorage or default to true (dark mode)
+  const getInitialDarkMode = () => {
+    const savedTheme = localStorage.getItem("theme");
+    if (savedTheme) {
+      return savedTheme === "dark";
+    }
+    // Default to dark mode
+    return true;
+  };
+  
+  const [darkMode, setDarkMode] = useState(getInitialDarkMode());
+  
+  // Apply dark mode class on mount
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add("dark");
+      document.documentElement.classList.remove("light");
+      localStorage.setItem("theme", "dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      document.documentElement.classList.add("light");
+      localStorage.setItem("theme", "light");
+    }
+  }, [darkMode]);
   const [shippingSubMenu, setShippingSubMenu] = useState(
     getInitialShippingSubMenu()
   );
@@ -469,8 +493,17 @@ const AdminDashboard = () => {
   };
 
   const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
-    document.documentElement.classList.toggle("dark");
+    const newDarkMode = !darkMode;
+    setDarkMode(newDarkMode);
+    if (newDarkMode) {
+      document.documentElement.classList.add("dark");
+      document.documentElement.classList.remove("light");
+      localStorage.setItem("theme", "dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      document.documentElement.classList.add("light");
+      localStorage.setItem("theme", "light");
+    }
   };
 
   // const markNotificationAsRead = (id) => {

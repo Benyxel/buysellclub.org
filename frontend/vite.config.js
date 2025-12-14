@@ -23,11 +23,18 @@ export default defineConfig(({ mode }) => {
           target: "http://localhost:8000",
           changeOrigin: true,
           secure: false,
+          timeout: 10000,
+          configure: (proxy, _options) => {
+            proxy.on("error", (err, req, res) => {
+              console.log("Proxy error:", err.message, "for", req.url);
+            });
+          },
         },
         "/api": {
           target: "http://localhost:8000",
           changeOrigin: true,
           secure: false,
+          timeout: 10000,
         },
       },
     },

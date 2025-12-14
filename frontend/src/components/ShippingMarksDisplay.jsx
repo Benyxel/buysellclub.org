@@ -9,9 +9,8 @@ import {
   FaSearch,
   FaInfoCircle,
 } from "react-icons/fa";
-import axios from "axios";
+import API from "../api";
 import { toast } from "../utils/toast";
-import { API_BASE_URL } from "../config/api";
 
 const ShippingMarksDisplay = () => {
   const [shippingMarks, setShippingMarks] = useState([]);
@@ -37,30 +36,16 @@ const ShippingMarksDisplay = () => {
       setIsLoading(true);
       setError(null);
 
-      const token =
-        localStorage.getItem("adminToken") || localStorage.getItem("token");
-
-      if (!token) {
-        throw new Error("Authentication token not found. Please log in.");
-      }
-
-      // Fetch shipping marks from API
-      const response = await axios.get(
-        `${API_BASE_URL}/api/admin/shipping-marks-list`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          params: {
-            page: currentPage,
-            limit: itemsPerPage,
-            search: searchTerm,
-            sortField: sortConfig.key,
-            sortDirection: sortConfig.direction,
-          },
-        }
-      );
+      // Fetch shipping marks from API using the API helper for automatic authentication
+      const response = await API.get("/api/admin/shipping-marks-list", {
+        params: {
+          page: currentPage,
+          limit: itemsPerPage,
+          search: searchTerm,
+          sortField: sortConfig.key,
+          sortDirection: sortConfig.direction,
+        },
+      });
 
       console.log("API Response:", response.data);
 

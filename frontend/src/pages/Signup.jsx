@@ -242,15 +242,23 @@ const Signup = () => {
 
   const handleGoogleCredential = useCallback(
     async (tokenResponse) => {
-      if (!tokenResponse?.credential) {
+      console.log("Google credential received:", tokenResponse);
+      
+      // Handle both CredentialResponse and direct credential string
+      const credential = tokenResponse?.credential || tokenResponse;
+      
+      if (!credential || typeof credential !== 'string' || credential.trim() === '') {
+        console.error("Invalid credential format:", tokenResponse);
         setGoogleError("Unable to read Google credentials. Please try again.");
         setGoogleLoading(false);
         return;
       }
 
+      setGoogleLoading(true);
       try {
+        console.log("Sending credential to backend...");
         const response = await API.post("/buysellapi/auth/google-login/", {
-          credential: tokenResponse.credential,
+          credential: credential.trim(),
         });
         const {
           access,
@@ -281,10 +289,18 @@ const Signup = () => {
         }
       } catch (err) {
         console.error("Google login error:", err);
+        console.error("Error details:", {
+          message: err.message,
+          response: err.response?.data,
+          status: err.response?.status,
+          statusText: err.response?.statusText,
+          url: err.config?.url,
+        });
         const message =
           err.response?.data?.detail ||
           err.response?.data?.form ||
           err.response?.data?.message ||
+          err.message ||
           "Google signup failed. Please try again.";
         setGoogleError(message);
         toast.error(message);
@@ -301,26 +317,45 @@ const Signup = () => {
     setGoogleReady(false);
     const scriptId = "google-oauth-script";
     const initClient = () => {
-      if (!window.google?.accounts?.oauth2) {
+      if (!window.google?.accounts?.id) {
         setGoogleError(
           "Google Identity SDK failed to initialize. Refresh the page to try again."
         );
         return;
       }
 
-      googleTokenClientRef.current = window.google.accounts.oauth2.initTokenClient({
+      // Initialize Google Identity Services for ID tokens
+      window.google.accounts.id.initialize({
         client_id: googleClientId,
-        scope: "openid email profile",
-        response_type: "id_token",
-        callback: handleGoogleCredential,
+        callback: (response) => {
+          console.log("Google callback triggered:", response);
+          handleGoogleCredential(response);
+        },
+        auto_select: false,
+        cancel_on_tap_outside: true,
       });
+      
+      // Render the Google Sign-In button
+      const buttonDiv = document.getElementById("google-signin-button");
+      if (buttonDiv) {
+        // Clear any existing content
+        buttonDiv.innerHTML = '';
+        window.google.accounts.id.renderButton(buttonDiv, {
+          theme: "outline",
+          size: "large",
+          type: "standard",
+          text: "signup_with",
+          width: "100%",
+        });
+      }
+      
       setGoogleReady(true);
       setGoogleError("");
     };
 
     const existingScript = document.getElementById(scriptId);
     if (existingScript) {
-      if (window.google?.accounts?.oauth2) {
+      if (window.google?.accounts?.id) {
         initClient();
       } else {
         existingScript.addEventListener("load", initClient);
@@ -341,7 +376,10 @@ const Signup = () => {
     document.head.appendChild(script);
 
     return () => {
-      document.head.removeChild(script);
+      const scriptEl = document.getElementById(scriptId);
+      if (scriptEl && scriptEl.parentNode) {
+        scriptEl.parentNode.removeChild(scriptEl);
+      }
     };
   }, [googleClientId, handleGoogleCredential]);
 
@@ -357,13 +395,23 @@ const Signup = () => {
       return;
     }
 
-    if (!googleTokenClientRef.current) {
+    if (!window.google?.accounts?.id) {
       setGoogleError("Google login is still loading. Please wait a moment.");
       return;
     }
 
-    setGoogleLoading(true);
-    googleTokenClientRef.current.requestAccessToken({ prompt: "select_account" });
+    // Trigger the Google button click programmatically
+    const buttonDiv = document.getElementById("google-signin-button");
+    if (buttonDiv) {
+      const googleButton = buttonDiv.querySelector('div[role="button"]');
+      if (googleButton) {
+        googleButton.click();
+      } else {
+        setGoogleError("Google button is not ready. Please wait a moment and try again.");
+      }
+    } else {
+      setGoogleError("Google sign-in button not found. Please refresh the page.");
+    }
   };
 
   const handleGoogleContactSave = async () => {
@@ -890,19 +938,22 @@ const Signup = () => {
           </form>
 
           <div className="mt-6 rounded-2xl border border-gray-200/80 dark:border-gray-700 bg-white/80 dark:bg-gray-900/70 p-4 shadow-sm flex flex-col items-center gap-3">
-            <button
-              type="button"
-              onClick={handleGoogleSignup}
-              disabled={googleLoading || !googleReady || !acceptedTerms}
-              className={`w-full py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2 ${
-                googleLoading || !googleReady || !acceptedTerms
-                  ? "bg-gray-200 text-gray-600 cursor-not-allowed"
-                  : "bg-red-500 text-white hover:bg-red-600"
-              }`}
-            >
-              <FcGoogle className="w-5 h-5" />
-              {googleLoading ? "Waiting for Google…" : "Continue with Google"}
-            </button>
+            <div id="google-signin-button" className="w-full"></div>
+            {!googleReady && (
+              <button
+                type="button"
+                onClick={handleGoogleSignup}
+                disabled={googleLoading || !googleReady || !acceptedTerms}
+                className={`w-full py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2 ${
+                  googleLoading || !googleReady || !acceptedTerms
+                    ? "bg-gray-200 text-gray-600 cursor-not-allowed"
+                    : "bg-red-500 text-white hover:bg-red-600"
+                }`}
+              >
+                <FcGoogle className="w-5 h-5" />
+                {googleLoading ? "Waiting for Google…" : "Continue with Google"}
+              </button>
+            )}
             {googleError && (
               <p className="text-xs text-red-600">{googleError}</p>
             )}
