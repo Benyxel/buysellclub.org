@@ -458,9 +458,9 @@ const Training = () => {
       // Check if course is free
       if (coursePrice === 0 || !coursePrice) {
         // Free course, allow access
-        if (url && url !== '#') {
-          window.open(url, '_blank');
-        } else {
+      if (url && url !== '#') {
+        window.open(url, '_blank');
+      } else {
           toast.error('Video URL not available');
         }
         return;
@@ -759,13 +759,13 @@ const Training = () => {
                 )}
                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
                   {courseAccess[course._id] ? (
-                    <button
+                  <button
                       onClick={() => handleVideoClick(course._id, course.videoUrl, 'paid', null, course.price)}
                       className="p-1.5 bg-white rounded-full text-primary hover:text-primary/90"
                       title="Watch course"
-                    >
+                  >
                       <FaPlay className="w-5 h-5" />
-                    </button>
+                  </button>
                   ) : (
                     <button
                       onClick={() => handleVideoClick(course._id, course.videoUrl, 'paid', null, course.price)}
@@ -793,7 +793,7 @@ const Training = () => {
                   </span>
                 </div>
                 {courseAccess[course._id] ? (
-                  <button
+                <button
                     onClick={() => handleVideoClick(course._id, course.videoUrl, 'paid', null, course.price)}
                     className="w-full mt-2 bg-green-500 text-white py-1.5 text-xs rounded-lg hover:bg-green-600 transition-colors duration-200 flex items-center justify-center gap-1.5"
                   >
@@ -814,14 +814,14 @@ const Training = () => {
                     ) : (
                       <>
                         <FaShoppingCart className="w-3 h-3" />
-                        Purchase Course
+                  Purchase Course
                       </>
                     )}
-                  </button>
+                </button>
                 )}
               </div>
             </div>
-                     ))}
+          ))}
                    </div>
                  </div>
  
@@ -861,13 +861,13 @@ const Training = () => {
                       Next
                       <span>→</span>
                     </button>
-                  </div>
+        </div>
                 )}
                   </>
                 );
               })()}
             </>
-          )}
+      )}
         </div>
 
         {/* YouTube Videos Section */}
@@ -900,48 +900,48 @@ const Training = () => {
                        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 justify-items-center max-w-7xl w-full">
                          {currentVideos.map((video) => (
                          <div key={video._id} className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden w-full max-w-xs">
-                          <div className="relative">
-                            {video.thumbnail ? (
-                              <img
-                                src={video.thumbnail}
-                                alt={video.title}
+                  <div className="relative">
+                    {video.thumbnail ? (
+                      <img
+                        src={video.thumbnail}
+                        alt={video.title}
                                 className="w-full h-32 object-cover"
-                                onError={(e) => {
-                                  e.target.style.display = 'none';
-                                }}
-                              />
-                            ) : (
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                        }}
+                      />
+                    ) : (
                               <div className="w-full h-32 bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
                                 <span className="text-gray-400 dark:text-gray-500 text-xs">Video Thumbnail</span>
-                              </div>
-                            )}
-                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                              <button
-                                onClick={() => handleVideoClick(video.videoUrl, 'youtube', video.youtubeVideoId)}
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => handleVideoClick(video.videoUrl, 'youtube', video.youtubeVideoId)}
                                 className="p-1.5 bg-white rounded-full text-red-600 hover:text-red-700"
-                                title="Watch on YouTube"
-                              >
+                        title="Watch on YouTube"
+                      >
                                 <FaYoutube className="w-5 h-5" />
-                              </button>
-                            </div>
-                          </div>
+                      </button>
+                    </div>
+                  </div>
                           <div className="p-3">
                             <h3 className="text-sm font-semibold text-gray-800 dark:text-white mb-1 line-clamp-1">
-                              {video.title}
-                            </h3>
+                      {video.title}
+                    </h3>
                             <p className="text-gray-600 dark:text-gray-400 text-xs mb-2 line-clamp-2">
-                              {video.description}
-                            </p>
-                            <button
-                              onClick={() => handleVideoClick(video.videoUrl, 'youtube', video.youtubeVideoId)}
+                      {video.description}
+                    </p>
+                    <button
+                      onClick={() => handleVideoClick(video.videoUrl, 'youtube', video.youtubeVideoId)}
                               className="w-full mt-2 bg-red-600 text-white py-1.5 text-xs rounded-lg hover:bg-red-700 transition-colors duration-200 flex items-center justify-center gap-1.5"
-                            >
+                    >
                               <FaYoutube className="w-3 h-3" />
-                              Watch on YouTube
-                            </button>
-                          </div>
-                        </div>
-                         ))}
+                      Watch on YouTube
+                    </button>
+                  </div>
+                </div>
+              ))}
                        </div>
                      </div>
  
@@ -981,7 +981,7 @@ const Training = () => {
                           Next
                           <span>→</span>
                         </button>
-                      </div>
+            </div>
                     )}
                   </>
                 );
