@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "../utils/toast";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
+import { FcGoogle } from "react-icons/fc";
 import API from "../api";
 
 const Login = () => {
@@ -27,6 +28,15 @@ const Login = () => {
     password: "",
     form: "",
   });
+  const googleClientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID || "").trim();
+  const [googleReady, setGoogleReady] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleError, setGoogleError] = useState("");
+  const [showGoogleContactModal, setShowGoogleContactModal] = useState(false);
+  const [googleContact, setGoogleContact] = useState("");
+  const [googleContactError, setGoogleContactError] = useState("");
+  const [googleContactLoading, setGoogleContactLoading] = useState(false);
+  const [googleLoginUsername, setGoogleLoginUsername] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -187,6 +197,204 @@ const Login = () => {
       toast.error(msg);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleCredential = useCallback(
+    async (tokenResponse) => {
+      console.log("Google credential received:", tokenResponse);
+      
+      // Handle both CredentialResponse and direct credential string
+      const credential = tokenResponse?.credential || tokenResponse;
+      
+      if (!credential || typeof credential !== 'string' || credential.trim() === '') {
+        console.error("Invalid credential format:", tokenResponse);
+        setGoogleError("Unable to read Google credentials. Please try again.");
+        setGoogleLoading(false);
+        return;
+      }
+
+      setGoogleLoading(true);
+      try {
+        console.log("Sending credential to backend...");
+        const response = await API.post("/buysellapi/auth/google-login/", {
+          credential: credential.trim(),
+        });
+        const {
+          access,
+          refresh,
+          username: returnedUsername,
+          needs_contact_update,
+        } = response.data || {};
+
+        if (!access || !refresh) {
+          throw new Error("Authentication tokens were not returned.");
+        }
+
+        const persistedUsername = returnedUsername || "";
+        localStorage.setItem("token", access);
+        localStorage.setItem("refreshToken", refresh);
+        localStorage.setItem("userData", JSON.stringify({ username: persistedUsername }));
+        localStorage.setItem("loginPrompt", JSON.stringify({ username: persistedUsername }));
+        window.dispatchEvent(new Event("authChange"));
+        setGoogleLoginUsername(persistedUsername);
+        setGoogleError("");
+
+        if (needs_contact_update) {
+          setGoogleContact("");
+          setShowGoogleContactModal(true);
+        } else {
+          toast.success("Logged in with Google!");
+          navigate("/");
+        }
+      } catch (err) {
+        console.error("Google login error:", err);
+        console.error("Error details:", {
+          message: err.message,
+          response: err.response?.data,
+          status: err.response?.status,
+          statusText: err.response?.statusText,
+          url: err.config?.url,
+        });
+        const message =
+          err.response?.data?.detail ||
+          err.response?.data?.form ||
+          err.response?.data?.message ||
+          err.message ||
+          "Google login failed. Please try again.";
+        setGoogleError(message);
+        toast.error(message);
+      } finally {
+        setGoogleLoading(false);
+      }
+    },
+    [navigate]
+  );
+
+  useEffect(() => {
+    if (!googleClientId) return undefined;
+
+    setGoogleReady(false);
+    const scriptId = "google-oauth-script-login";
+    const initClient = () => {
+      if (!window.google?.accounts?.id) {
+        setGoogleError(
+          "Google Identity SDK failed to initialize. Refresh the page to try again."
+        );
+        return;
+      }
+
+      // Initialize Google Identity Services for ID tokens
+      window.google.accounts.id.initialize({
+        client_id: googleClientId,
+        callback: (response) => {
+          console.log("Google callback triggered:", response);
+          handleGoogleCredential(response);
+        },
+        auto_select: false,
+        cancel_on_tap_outside: true,
+      });
+      
+      // Render the Google Sign-In button
+      const buttonDiv = document.getElementById("google-login-button");
+      if (buttonDiv) {
+        // Clear any existing content
+        buttonDiv.innerHTML = '';
+        window.google.accounts.id.renderButton(buttonDiv, {
+          theme: "outline",
+          size: "large",
+          type: "standard",
+          text: "signin_with",
+          width: "100%",
+        });
+      }
+      
+      setGoogleReady(true);
+      setGoogleError("");
+    };
+
+    const existingScript = document.getElementById(scriptId);
+    if (existingScript) {
+      if (window.google?.accounts?.id) {
+        initClient();
+      } else {
+        existingScript.addEventListener("load", initClient);
+        return () => existingScript.removeEventListener("load", initClient);
+      }
+      return undefined;
+    }
+
+    const script = document.createElement("script");
+    script.id = scriptId;
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.onload = initClient;
+    script.onerror = () => {
+      setGoogleError("Failed to load Google login. Please try again shortly.");
+    };
+    document.head.appendChild(script);
+
+    return () => {
+      const scriptEl = document.getElementById(scriptId);
+      if (scriptEl && scriptEl.parentNode) {
+        scriptEl.parentNode.removeChild(scriptEl);
+      }
+    };
+  }, [googleClientId, handleGoogleCredential]);
+
+  const handleGoogleLogin = () => {
+    setGoogleError("");
+
+    if (!googleClientId) {
+      setGoogleError("Google login is not configured yet.");
+      return;
+    }
+
+    if (!window.google?.accounts?.id) {
+      setGoogleError("Google login is still loading. Please wait a moment.");
+      return;
+    }
+
+    // Trigger the Google button click programmatically
+    const buttonDiv = document.getElementById("google-login-button");
+    if (buttonDiv) {
+      const googleButton = buttonDiv.querySelector('div[role="button"]');
+      if (googleButton) {
+        googleButton.click();
+      } else {
+        setGoogleError("Google button is not ready. Please wait a moment and try again.");
+      }
+    } else {
+      setGoogleError("Google sign-in button not found. Please refresh the page.");
+    }
+  };
+
+  const handleGoogleContactSave = async () => {
+    const trimmedContact = googleContact.trim();
+    if (!trimmedContact) {
+      setGoogleContactError("Contact number is required");
+      return;
+    }
+
+    setGoogleContactError("");
+    setGoogleContactLoading(true);
+
+    try {
+      await API.patch("/buysellapi/users/me/", { contact: trimmedContact });
+      toast.success("Contact saved! Redirecting to your dashboard.");
+      setShowGoogleContactModal(false);
+      setGoogleContact("");
+      navigate("/");
+    } catch (err) {
+      const message =
+        err.response?.data?.contact ||
+        err.response?.data?.detail ||
+        "Failed to save contact. Please try again.";
+      setGoogleContactError(message);
+      toast.error(message);
+    } finally {
+      setGoogleContactLoading(false);
     }
   };
 
@@ -751,8 +959,118 @@ const Login = () => {
               >
                 {loading ? "Signing in..." : "Sign in"}
               </button>
+              
+              {/* Google Login Section */}
+              {googleClientId && (
+                <div className="mt-4">
+                  <div className="relative my-4">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
+                    </div>
+                    <div className="relative flex justify-center text-sm">
+                      <span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">
+                        Or continue with
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {googleError && (
+                    <div className="mb-3 p-2 rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-sm">
+                      {googleError}
+                    </div>
+                  )}
+                  
+                  <div id="google-login-button" className="w-full"></div>
+                  
+                  {!googleReady && googleClientId && (
+                    <button
+                      type="button"
+                      onClick={handleGoogleLogin}
+                      disabled={googleLoading || !googleReady}
+                      className={`w-full mt-2 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors flex items-center justify-center gap-2 ${
+                        googleLoading || !googleReady ? "opacity-70 cursor-not-allowed" : ""
+                      }`}
+                    >
+                      {googleLoading ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 dark:border-gray-300"></div>
+                          <span>Signing in with Google...</span>
+                        </>
+                      ) : (
+                        <>
+                          <FcGoogle className="w-5 h-5" />
+                          <span>Sign in with Google</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+              )}
             </form>
           )}
+          
+          {/* Google Contact Modal */}
+          {showGoogleContactModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
+                <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-4">
+                  Complete Your Profile
+                </h2>
+                <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+                  Please provide your contact number to complete your account setup.
+                </p>
+                <div className="mb-4">
+                  <label className="block text-sm text-gray-600 dark:text-gray-300 mb-1">
+                    Contact Number
+                  </label>
+                  <input
+                    type="text"
+                    value={googleContact}
+                    onChange={(e) => {
+                      setGoogleContact(e.target.value);
+                      setGoogleContactError("");
+                    }}
+                    className={`w-full px-4 py-2 rounded-lg border ${
+                      googleContactError
+                        ? "border-red-500"
+                        : "border-gray-300 dark:border-gray-600"
+                    } bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent`}
+                    placeholder="Enter your contact number"
+                  />
+                  {googleContactError && (
+                    <p className="mt-1 text-xs text-red-600 dark:text-red-400">
+                      {googleContactError}
+                    </p>
+                  )}
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={handleGoogleContactSave}
+                    disabled={googleContactLoading}
+                    className={`flex-1 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors ${
+                      googleContactLoading ? "opacity-70 cursor-not-allowed" : ""
+                    }`}
+                  >
+                    {googleContactLoading ? "Saving..." : "Save & Continue"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowGoogleContactModal(false);
+                      setGoogleContact("");
+                      setGoogleContactError("");
+                      navigate("/");
+                    }}
+                    className="flex-1 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    Skip for Now
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+          
           <div className="mt-4 text-sm text-gray-600 dark:text-gray-300">
             <span>Don&apos;t have an account? </span>
             <Link to="/Signup" className="text-primary hover:underline">

@@ -41,7 +41,7 @@ function normalizeBasePath(raw) {
   }
 }
 const envBase = normalizeBasePath(import.meta.env.VITE_BASE_PATH || "");
-const BASE_PATH = isDev ? envBase || "" : envBase || "/buysellclubproject";
+const BASE_PATH = isDev ? envBase || "" : envBase || "/";
 
 // Debug: Log base path and environment info
 console.log("[App] Initializing...");
@@ -106,7 +106,7 @@ try {
 if ("serviceWorker" in navigator) {
   try {
     const base = (
-      import.meta.env.VITE_BASE_PATH || "/buysellclubproject"
+      import.meta.env.VITE_BASE_PATH || "/"
     ).replace(/\/$/, "");
     const swUrl = `${base}/sw.js`;
     navigator.serviceWorker
