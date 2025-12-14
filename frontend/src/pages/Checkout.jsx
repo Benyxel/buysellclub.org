@@ -2,7 +2,7 @@ import React, { useState, useContext, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShopContext } from '../context/ShopContext';
 import { toast } from '../utils/toast';
-import { createOrder } from '../api';
+import { createOrder, initiateOrderPayment } from '../api';
 import { getPlaceholderImagePath } from '../utils/paths';
 
 const Checkout = () => {
@@ -167,12 +167,38 @@ const Checkout = () => {
       console.log('Order created successfully:', response.data);
       const data = response.data;
       
-      // Check if payment gateway URL is provided
-      if (data.payment_url && data.requires_payment) {
+      // Check if payment gateway URL is provided in response
+      if (data.payment_url) {
         // Redirect to payment gateway
         toast.success('Redirecting to payment gateway...');
         window.location.href = data.payment_url;
         return;
+      }
+      
+      // If no payment URL in response, try to initiate payment separately
+      if (data.id && data.total > 0) {
+        try {
+          const paymentResponse = await initiateOrderPayment(data.id);
+          
+          if (paymentResponse?.data?.payment_url) {
+            toast.success('Redirecting to payment gateway...');
+            window.location.href = paymentResponse.data.payment_url;
+            return;
+          }
+        } catch (paymentError) {
+          console.error('Error initiating payment:', paymentError);
+          console.error('Payment error response:', paymentError.response);
+          
+          // Handle different error types
+          if (paymentError.response?.status === 503) {
+            const errorMsg = paymentError.response?.data?.error || 'Payment gateway is currently unavailable. Please contact support or try again later.';
+            toast.error(errorMsg);
+          } else if (paymentError.response?.status === 400) {
+            const errorMsg = paymentError.response?.data?.error || 'Invalid payment request. Please try again.';
+            toast.error(errorMsg);
+          }
+          // Continue to fallback behavior (order created, but payment not initiated)
+        }
       }
       
       // Clear cart

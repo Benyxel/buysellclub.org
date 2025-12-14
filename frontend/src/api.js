@@ -250,6 +250,7 @@ const Api = {
     update: (id, payload) => http.put(`/buysellapi/orders/${id}/`, payload),
     remove: (id) => http.delete(`/buysellapi/orders/${id}/`),
     adminList: (params) => http.get("/buysellapi/admin/orders/", { params }),
+    payment: (id) => http.post(`/buysellapi/orders/${id}/payment/`),
   },
   buy4me: {
     list: (params) => http.get("/buysellapi/buy4me-requests/", { params }),
@@ -386,6 +387,7 @@ export const createOrder = Api.orders.create;
 export const updateOrder = Api.orders.update;
 export const deleteOrder = Api.orders.remove;
 export const getAdminOrders = Api.orders.adminList;
+export const initiateOrderPayment = Api.orders.payment;
 
 export const getBuy4meRequests = Api.buy4me.list;
 export const getBuy4meRequest = Api.buy4me.detail;

@@ -14,7 +14,7 @@ import { toast } from "../../utils/toast";
 import "react-toastify/dist/ReactToastify.css";
 import buyimg from "../../assets/bm2.jpg";
 import { useNavigate, useLocation } from "react-router-dom";
-import { createBuy4meRequest, updateBuy4meRequest, getQuickOrderProducts } from "../../api";
+import { createBuy4meRequest, updateBuy4meRequest, getQuickOrderProducts, initiateBuy4mePayment } from "../../api";
 
 // Removed placeholder products - only show products from backend API
 
@@ -363,13 +363,43 @@ const Buy4me = () => {
       });
       localStorage.setItem("updates", JSON.stringify(updates));
 
-      toast.success(
-        editMode ? "Order updated successfully!" : "Order placed successfully!"
-      );
-
       if (!editMode) {
+        // Check if invoice is ready and initiate payment
+        if (savedRequest.invoice_created && savedRequest.invoice_amount && savedRequest.invoice_amount > 0) {
+          try {
+            const paymentResponse = await initiateBuy4mePayment(savedRequest.id);
+            
+            if (paymentResponse.data.payment_url) {
+              toast.success('Redirecting to payment gateway...');
+              window.location.href = paymentResponse.data.payment_url;
+              return;
+            }
+          } catch (paymentError) {
+            console.error('Error initiating payment:', paymentError);
+            console.error('Payment error response:', paymentError.response);
+            
+            // Handle different error types
+            if (paymentError.response?.status === 503) {
+              const errorMsg = paymentError.response?.data?.error || 'Payment gateway is currently unavailable. Please contact support or try again later.';
+              toast.error(errorMsg);
+            } else if (paymentError.response?.status === 400) {
+              // Invoice not ready or other validation error - continue to payment page
+              const errorMsg = paymentError.response?.data?.error;
+              if (errorMsg && !errorMsg.includes('invoice')) {
+                // Only show error if it's not about invoice
+                toast.error(errorMsg);
+              }
+            } else {
+              const errorMsg = paymentError.response?.data?.error || paymentError.message || 'Failed to initiate payment';
+              toast.error(errorMsg);
+            }
+          }
+        }
+        
+        // Navigate to payment page (for manual payment or if invoice not ready)
         navigate("/Payment", { state: { order: savedRequest } });
       } else {
+        toast.success("Order updated successfully!");
         navigate("/profile");
       }
     } catch (error) {

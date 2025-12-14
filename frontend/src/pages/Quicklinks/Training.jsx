@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaCalendarAlt, FaClock, FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaPlay, FaShoppingCart, FaYoutube, FaPassport, FaDollarSign, FaMobileAlt, FaCreditCard, FaWallet, FaInfoCircle, FaLock, FaSpinner } from 'react-icons/fa';
 import { toast } from '../../utils/toast';
-import { createTrainingBooking, getTrainingCourses, checkCourseAccess, initiateCoursePayment } from '../../api';
+import { createTrainingBooking, getTrainingCourses, checkCourseAccess, initiateCoursePayment, initiateTrainingPayment } from '../../api';
 import { Api } from '../../api';
 
 const Training = () => {
@@ -25,6 +25,9 @@ const Training = () => {
   const [showPayment, setShowPayment] = useState(false);
   const [courseAccess, setCourseAccess] = useState({}); // Track which courses user has access to
   const [checkingAccess, setCheckingAccess] = useState({}); // Track which courses are being checked
+  const [currentPage, setCurrentPage] = useState(1);
+  const [youtubeCurrentPage, setYoutubeCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   // Available time slots
   const timeSlots = [
@@ -71,7 +74,14 @@ const Training = () => {
           duration: course.duration,
           thumbnail: course.thumbnail,
           videoUrl: course.video_url,
-        }));
+          created_at: course.created_at || course.createdAt || new Date().toISOString(),
+        }))
+        // Sort by created_at (most recent first)
+        .sort((a, b) => {
+          const dateA = new Date(a.created_at);
+          const dateB = new Date(b.created_at);
+          return dateB - dateA; // Most recent first
+        });
       
       const youtubeVideos = allCourses
         .filter(course => course.course_type === 'youtube')
@@ -82,7 +92,14 @@ const Training = () => {
           thumbnail: course.thumbnail,
           videoUrl: course.video_url,
           youtubeVideoId: course.youtube_video_id,
-        }));
+          created_at: course.created_at || course.createdAt || new Date().toISOString(),
+        }))
+        // Sort by created_at (most recent first)
+        .sort((a, b) => {
+          const dateA = new Date(a.created_at);
+          const dateB = new Date(b.created_at);
+          return dateB - dateA; // Most recent first
+        });
       
       setCourses(premiumCourses);
       setYoutubeVideos(youtubeVideos);
@@ -130,7 +147,7 @@ const Training = () => {
     });
   };
 
-  const handleProceedToPayment = (e) => {
+  const handleProceedToPayment = async (e) => {
     e.preventDefault();
     
     // Check if user is authenticated
@@ -168,8 +185,71 @@ const Training = () => {
       return;
     }
 
-    // Show payment section
-    setShowPayment(true);
+    setSubmitting(true);
+
+    try {
+      // First, create the booking with pending payment status
+      const bookingData = {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        booking_date: formData.booking_date,
+        booking_time: formData.booking_time,
+        has_valid_passport: formData.has_valid_passport,
+        notes: formData.notes || '',
+        trainingCost: defaultTrainingCost,
+        paymentStatus: 'pending',
+      };
+
+      let bookingResponse;
+      try {
+        bookingResponse = await createTrainingBooking(bookingData);
+      } catch (authError) {
+        // If authentication fails, try public endpoint
+        if (authError.response?.status === 401 || authError.response?.status === 403) {
+          bookingResponse = await Api.training.bookPublic(bookingData);
+        } else {
+          throw authError;
+        }
+      }
+
+      if (!bookingResponse || !bookingResponse.data || !bookingResponse.data.id) {
+        throw new Error('Failed to create booking');
+      }
+
+      const bookingId = bookingResponse.data.id;
+      
+      // Now initiate payment gateway
+      const paymentResponse = await initiateTrainingPayment(bookingId);
+      
+      if (paymentResponse.data.payment_url) {
+        // Redirect to payment gateway
+        toast.success('Redirecting to payment gateway...');
+        window.location.href = paymentResponse.data.payment_url;
+      } else {
+        toast.error('Payment gateway not configured. Please contact support.');
+        setSubmitting(false);
+      }
+    } catch (error) {
+      console.error('Error proceeding to payment:', error);
+      console.error('Error response:', error.response);
+      
+      // Handle different error types
+      if (error.response?.status === 503) {
+        const errorMsg = error.response?.data?.error || 'Payment gateway is currently unavailable. Please contact support or try again later.';
+        toast.error(errorMsg);
+      } else if (error.response?.status === 400) {
+        const errorMsg = error.response?.data?.error || 'Invalid booking request. Please check your information and try again.';
+        toast.error(errorMsg);
+      } else if (error.response?.status === 401 || error.response?.status === 403) {
+        toast.error('Please log in to book a training session');
+        navigate('/Login');
+      } else {
+        const errorMsg = error.response?.data?.error || error.message || 'Failed to proceed to payment. Please try again later.';
+        toast.error(errorMsg);
+      }
+      setSubmitting(false);
+    }
   };
 
   const handlePaymentComplete = async (paymentData) => {
@@ -344,8 +424,22 @@ const Training = () => {
       }
     } catch (error) {
       console.error('Error initiating payment:', error);
-      const errorMsg = error.response?.data?.error || error.message || 'Failed to initiate payment';
-      toast.error(errorMsg);
+      console.error('Error response:', error.response);
+      
+      // Handle 503 Service Unavailable (payment gateway not configured)
+      if (error.response?.status === 503) {
+        const errorMsg = error.response?.data?.error || 'Payment gateway is currently unavailable. Please contact support or try again later.';
+        toast.error(errorMsg);
+      } else if (error.response?.status === 400) {
+        const errorMsg = error.response?.data?.error || 'Invalid payment request. Please try again.';
+        toast.error(errorMsg);
+      } else if (error.response?.status === 401 || error.response?.status === 403) {
+        toast.error('Please log in to purchase courses');
+        navigate('/Login');
+      } else {
+        const errorMsg = error.response?.data?.error || error.message || 'Failed to initiate payment. Please try again later.';
+        toast.error(errorMsg);
+      }
     }
   };
 
@@ -402,131 +496,131 @@ const Training = () => {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-16">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-12 max-w-5xl mx-auto">
         {/* Contact Information */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
+          <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
             Training Information
           </h2>
-          <div className="space-y-4">
-            <div className="flex items-start gap-4">
-              <div className="p-3 bg-primary/10 rounded-full">
-                <FaMapMarkerAlt className="w-6 h-6 text-primary" />
+          <div className="space-y-3">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-primary/10 rounded-full flex-shrink-0">
+                <FaMapMarkerAlt className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <h3 className="font-semibold text-gray-800 dark:text-white">Location</h3>
-                <p className="text-gray-600 dark:text-gray-400">123 Training Center, City, Country</p>
+                <h3 className="text-sm font-semibold text-gray-800 dark:text-white">Location</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">123 Training Center, City, Country</p>
               </div>
             </div>
-            <div className="flex items-start gap-4">
-              <div className="p-3 bg-primary/10 rounded-full">
-                <FaClock className="w-6 h-6 text-primary" />
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-primary/10 rounded-full flex-shrink-0">
+                <FaClock className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <h3 className="font-semibold text-gray-800 dark:text-white">Available Hours</h3>
-                <p className="text-gray-600 dark:text-gray-400">Monday - Friday: 9:30 AM, 12:30 PM, 3:00 PM</p>
+                <h3 className="text-sm font-semibold text-gray-800 dark:text-white">Available Hours</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Monday - Friday: 9:30 AM, 12:30 PM, 3:00 PM</p>
               </div>
             </div>
-            <div className="flex items-start gap-4">
-              <div className="p-3 bg-primary/10 rounded-full">
-                <FaEnvelope className="w-6 h-6 text-primary" />
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-primary/10 rounded-full flex-shrink-0">
+                <FaEnvelope className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <h3 className="font-semibold text-gray-800 dark:text-white">Contact</h3>
-                <p className="text-gray-600 dark:text-gray-400">training@example.com</p>
+                <h3 className="text-sm font-semibold text-gray-800 dark:text-white">Contact</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">training@example.com</p>
               </div>
             </div>
           </div>
         </div>
 
         {/* Booking Form */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
+          <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
             Book Your Session
           </h2>
-          <form onSubmit={(e) => { e.preventDefault(); handleProceedToPayment(e); }} className="space-y-4">
+          <form onSubmit={(e) => { e.preventDefault(); handleProceedToPayment(e); }} className="space-y-3">
             <div>
-              <label className="block text-gray-700 dark:text-gray-300 mb-2">
+              <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1.5">
                 Full Name <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <FaUser className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <FaUser className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <input
                   type="text"
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:text-white"
+                  className="w-full pl-9 pr-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:text-white"
                   required
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-gray-700 dark:text-gray-300 mb-2">
+              <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1.5">
                 Email <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <FaEnvelope className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <FaEnvelope className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <input
                   type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:text-white"
+                  className="w-full pl-9 pr-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:text-white"
                   required
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-gray-700 dark:text-gray-300 mb-2">
+              <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1.5">
                 Phone Number <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <FaPhone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <FaPhone className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <input
                   type="tel"
                   name="phone"
                   value={formData.phone}
                   onChange={handleChange}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:text-white"
+                  className="w-full pl-9 pr-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:text-white"
                   required
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label className="block text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1.5">
                   Date <span className="text-red-500">*</span>
-                  <span className="text-xs text-gray-500 block mt-1">(Monday - Friday only)</span>
+                  <span className="text-xs text-gray-500 block mt-0.5">(Monday - Friday only)</span>
                 </label>
                 <div className="relative">
-                  <FaCalendarAlt className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <FaCalendarAlt className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <input
                     type="date"
                     name="booking_date"
                     value={formData.booking_date}
                     onChange={handleDateChange}
                     min={getMinDate()}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    className="w-full pl-9 pr-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:text-white"
                     required
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1.5">
                   Time <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
-                  <FaClock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 z-10" />
+                  <FaClock className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 z-10 w-4 h-4" />
                   <select
                     name="booking_time"
                     value={formData.booking_time}
                     onChange={handleChange}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:text-white appearance-none"
+                    className="w-full pl-9 pr-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:text-white appearance-none"
                     required
                   >
                     <option value="">Select a time</option>
@@ -540,24 +634,24 @@ const Training = () => {
               </div>
             </div>
 
-            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-              <div className="flex items-start gap-3">
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+              <div className="flex items-start gap-2">
                 <input
                   type="checkbox"
                   name="has_valid_passport"
                   id="has_valid_passport"
                   checked={formData.has_valid_passport}
                   onChange={handleChange}
-                  className="mt-1 h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                  className="mt-0.5 h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
                   required
                 />
                 <label htmlFor="has_valid_passport" className="flex-1">
-                  <div className="flex items-center gap-2 text-gray-800 dark:text-white font-medium mb-1">
-                    <FaPassport className="text-primary" />
+                  <div className="flex items-center gap-1.5 text-gray-800 dark:text-white text-sm font-medium mb-0.5">
+                    <FaPassport className="text-primary w-3.5 h-3.5" />
                     <span>I confirm that I have a valid passport</span>
                     <span className="text-red-500">*</span>
                   </div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
                     A valid passport is required to attend the training session. If you do not have a valid passport, please obtain one before booking.
                   </p>
                 </label>
@@ -565,29 +659,29 @@ const Training = () => {
             </div>
 
             <div>
-              <label className="block text-gray-700 dark:text-gray-300 mb-2">Additional Notes</label>
+              <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1.5">Additional Notes</label>
               <textarea
                 name="notes"
                 value={formData.notes}
                 onChange={handleChange}
-                rows="4"
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:text-white"
+                rows="3"
+                className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:text-white"
                 placeholder="Any special requirements or questions..."
               ></textarea>
             </div>
 
             {/* Payment Information */}
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-              <div className="flex items-start gap-3">
-                <FaDollarSign className="text-blue-600 dark:text-blue-400 mt-1" />
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+              <div className="flex items-start gap-2">
+                <FaDollarSign className="text-blue-600 dark:text-blue-400 mt-0.5 w-4 h-4" />
                 <div className="flex-1">
-                  <h4 className="text-gray-800 dark:text-white font-medium mb-1">
+                  <h4 className="text-sm text-gray-800 dark:text-white font-medium mb-0.5">
                     Training Cost
                   </h4>
-                  <p className="text-2xl font-bold text-primary mb-2">
+                  <p className="text-lg font-bold text-primary mb-1">
                     GHS {Number(defaultTrainingCost).toFixed(2)}
                   </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
                     Payment must be completed before booking can be submitted.
                   </p>
                 </div>
@@ -599,9 +693,9 @@ const Training = () => {
                 type="button"
                 onClick={handleProceedToPayment}
                 disabled={submitting || !formData.has_valid_passport || defaultTrainingCost <= 0}
-                className="w-full bg-primary text-white py-3 rounded-lg hover:bg-primary/90 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full bg-primary text-white py-2 text-sm rounded-lg hover:bg-primary/90 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                <FaDollarSign />
+                <FaDollarSign className="w-4 h-4" />
                 Proceed to Payment
               </button>
             ) : (
@@ -634,81 +728,92 @@ const Training = () => {
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {courses.map((course) => (
-            <div key={course._id} className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
+        <>
+          {/* Calculate pagination */}
+          {(() => {
+            const totalPages = Math.ceil(courses.length / itemsPerPage);
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            const currentCourses = courses.slice(startIndex, endIndex);
+            
+            return (
+              <>
+                 <div className="flex justify-center">
+                   <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 justify-items-center max-w-7xl w-full">
+                     {currentCourses.map((course) => (
+            <div key={course._id} className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden w-full max-w-xs mx-auto">
               <div className="relative">
                 {course.thumbnail ? (
                   <img
                     src={course.thumbnail}
                     alt={course.title}
-                    className="w-full h-48 object-cover"
+                    className="w-full h-32 object-cover"
                     onError={(e) => {
                       e.target.style.display = 'none';
                     }}
                   />
                 ) : (
-                  <div className="w-full h-48 bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                    <span className="text-gray-400 dark:text-gray-500 text-sm">Course Image</span>
+                  <div className="w-full h-32 bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                    <span className="text-gray-400 dark:text-gray-500 text-xs">Course Image</span>
                   </div>
                 )}
                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
                   {courseAccess[course._id] ? (
                     <button
                       onClick={() => handleVideoClick(course._id, course.videoUrl, 'paid', null, course.price)}
-                      className="p-2 bg-white rounded-full text-primary hover:text-primary/90"
+                      className="p-1.5 bg-white rounded-full text-primary hover:text-primary/90"
                       title="Watch course"
                     >
-                      <FaPlay className="w-8 h-8" />
+                      <FaPlay className="w-5 h-5" />
                     </button>
                   ) : (
                     <button
                       onClick={() => handleVideoClick(course._id, course.videoUrl, 'paid', null, course.price)}
-                      className="p-2 bg-white rounded-full text-gray-600 hover:text-gray-700"
+                      className="p-1.5 bg-white rounded-full text-gray-600 hover:text-gray-700"
                       title="Purchase to unlock"
                     >
-                      <FaLock className="w-8 h-8" />
+                      <FaLock className="w-5 h-5" />
                     </button>
                   )}
                 </div>
               </div>
-              <div className="p-4">
-                <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">
+              <div className="p-3">
+                <h3 className="text-sm font-semibold text-gray-800 dark:text-white mb-1 line-clamp-1">
                   {course.title}
                 </h3>
-                <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
+                <p className="text-gray-600 dark:text-gray-400 text-xs mb-2 line-clamp-2">
                   {course.description}
                 </p>
-                <div className="flex items-center justify-between">
-                  <span className="text-primary font-semibold">
-                    ${course.price.toFixed(2)}
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-primary font-semibold text-sm">
+                    ₵{course.price.toFixed(2)}
                   </span>
-                  <span className="text-gray-500 dark:text-gray-400 text-sm">
+                  <span className="text-gray-500 dark:text-gray-400 text-xs">
                     {course.duration}
                   </span>
                 </div>
                 {courseAccess[course._id] ? (
                   <button
                     onClick={() => handleVideoClick(course._id, course.videoUrl, 'paid', null, course.price)}
-                    className="w-full mt-4 bg-green-500 text-white py-2 rounded-lg hover:bg-green-600 transition-colors duration-200 flex items-center justify-center gap-2"
+                    className="w-full mt-2 bg-green-500 text-white py-1.5 text-xs rounded-lg hover:bg-green-600 transition-colors duration-200 flex items-center justify-center gap-1.5"
                   >
-                    <FaPlay />
+                    <FaPlay className="w-3 h-3" />
                     Watch Course
                   </button>
                 ) : (
                   <button
                     onClick={() => handlePurchase(course._id, course.price)}
-                    className="w-full mt-4 bg-primary text-white py-2 rounded-lg hover:bg-primary/90 transition-colors duration-200 flex items-center justify-center gap-2"
+                    className="w-full mt-2 bg-primary text-white py-1.5 text-xs rounded-lg hover:bg-primary/90 transition-colors duration-200 flex items-center justify-center gap-1.5"
                     disabled={checkingAccess[course._id]}
                   >
                     {checkingAccess[course._id] ? (
                       <>
-                        <FaSpinner className="animate-spin" />
+                        <FaSpinner className="animate-spin w-3 h-3" />
                         Checking...
                       </>
                     ) : (
                       <>
-                        <FaShoppingCart />
+                        <FaShoppingCart className="w-3 h-3" />
                         Purchase Course
                       </>
                     )}
@@ -716,9 +821,53 @@ const Training = () => {
                 )}
               </div>
             </div>
-          ))}
-        </div>
-      )}
+                     ))}
+                   </div>
+                 </div>
+ 
+                 {/* Pagination Controls for Premium Courses */}
+                {totalPages > 1 && (
+                  <div className="flex justify-center items-center gap-2 mt-8">
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                      className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors duration-200 flex items-center gap-2"
+                    >
+                      <span>←</span>
+                      Previous
+                    </button>
+                    
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                        <button
+                          key={page}
+                          onClick={() => setCurrentPage(page)}
+                          className={`px-3 py-1 rounded-lg transition-colors duration-200 ${
+                            currentPage === page
+                              ? 'bg-primary text-white'
+                              : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      ))}
+                    </div>
+                    
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                      className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors duration-200 flex items-center gap-2"
+                    >
+                      Next
+                      <span>→</span>
+                    </button>
+                  </div>
+                )}
+                  </>
+                );
+              })()}
+            </>
+          )}
         </div>
 
         {/* YouTube Videos Section */}
@@ -737,52 +886,107 @@ const Training = () => {
               <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {youtubeVideos.map((video) => (
-                <div key={video._id} className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
-                  <div className="relative">
-                    {video.thumbnail ? (
-                      <img
-                        src={video.thumbnail}
-                        alt={video.title}
-                        className="w-full h-48 object-cover"
-                        onError={(e) => {
-                          e.target.style.display = 'none';
-                        }}
-                      />
-                    ) : (
-                      <div className="w-full h-48 bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                        <span className="text-gray-400 dark:text-gray-500 text-sm">Video Thumbnail</span>
+            <>
+              {/* Calculate pagination for YouTube videos */}
+              {(() => {
+                const totalPages = Math.ceil(youtubeVideos.length / itemsPerPage);
+                const startIndex = (youtubeCurrentPage - 1) * itemsPerPage;
+                const endIndex = startIndex + itemsPerPage;
+                const currentVideos = youtubeVideos.slice(startIndex, endIndex);
+                
+                return (
+                  <>
+                     <div className="flex justify-center">
+                       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 justify-items-center max-w-7xl w-full">
+                         {currentVideos.map((video) => (
+                         <div key={video._id} className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden w-full max-w-xs">
+                          <div className="relative">
+                            {video.thumbnail ? (
+                              <img
+                                src={video.thumbnail}
+                                alt={video.title}
+                                className="w-full h-32 object-cover"
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                }}
+                              />
+                            ) : (
+                              <div className="w-full h-32 bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                                <span className="text-gray-400 dark:text-gray-500 text-xs">Video Thumbnail</span>
+                              </div>
+                            )}
+                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={() => handleVideoClick(video.videoUrl, 'youtube', video.youtubeVideoId)}
+                                className="p-1.5 bg-white rounded-full text-red-600 hover:text-red-700"
+                                title="Watch on YouTube"
+                              >
+                                <FaYoutube className="w-5 h-5" />
+                              </button>
+                            </div>
+                          </div>
+                          <div className="p-3">
+                            <h3 className="text-sm font-semibold text-gray-800 dark:text-white mb-1 line-clamp-1">
+                              {video.title}
+                            </h3>
+                            <p className="text-gray-600 dark:text-gray-400 text-xs mb-2 line-clamp-2">
+                              {video.description}
+                            </p>
+                            <button
+                              onClick={() => handleVideoClick(video.videoUrl, 'youtube', video.youtubeVideoId)}
+                              className="w-full mt-2 bg-red-600 text-white py-1.5 text-xs rounded-lg hover:bg-red-700 transition-colors duration-200 flex items-center justify-center gap-1.5"
+                            >
+                              <FaYoutube className="w-3 h-3" />
+                              Watch on YouTube
+                            </button>
+                          </div>
+                        </div>
+                         ))}
+                       </div>
+                     </div>
+ 
+                     {/* Pagination Controls for YouTube Videos */}
+                    {totalPages > 1 && (
+                      <div className="flex justify-center items-center gap-2 mt-8">
+                        <button
+                          onClick={() => setYoutubeCurrentPage(prev => Math.max(1, prev - 1))}
+                          disabled={youtubeCurrentPage === 1}
+                          className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors duration-200 flex items-center gap-2"
+                        >
+                          <span>←</span>
+                          Previous
+                        </button>
+                        
+                        <div className="flex items-center gap-1">
+                          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                            <button
+                              key={page}
+                              onClick={() => setYoutubeCurrentPage(page)}
+                              className={`px-3 py-1 rounded-lg transition-colors duration-200 ${
+                                youtubeCurrentPage === page
+                                  ? 'bg-primary text-white'
+                                  : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                              }`}
+                            >
+                              {page}
+                            </button>
+                          ))}
+                        </div>
+                        
+                        <button
+                          onClick={() => setYoutubeCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                          disabled={youtubeCurrentPage === totalPages}
+                          className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors duration-200 flex items-center gap-2"
+                        >
+                          Next
+                          <span>→</span>
+                        </button>
                       </div>
                     )}
-                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={() => handleVideoClick(video.videoUrl, 'youtube', video.youtubeVideoId)}
-                        className="p-2 bg-white rounded-full text-red-600 hover:text-red-700"
-                        title="Watch on YouTube"
-                      >
-                        <FaYoutube className="w-8 h-8" />
-                      </button>
-                    </div>
-                  </div>
-                  <div className="p-4">
-                    <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">
-                      {video.title}
-                    </h3>
-                    <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
-                      {video.description}
-                    </p>
-                    <button
-                      onClick={() => handleVideoClick(video.videoUrl, 'youtube', video.youtubeVideoId)}
-                      className="w-full mt-4 bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition-colors duration-200 flex items-center justify-center gap-2"
-                    >
-                      <FaYoutube />
-                      Watch on YouTube
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+                  </>
+                );
+              })()}
+            </>
           )}
         </div>
 
