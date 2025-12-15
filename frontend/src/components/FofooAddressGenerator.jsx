@@ -208,7 +208,7 @@ const FofoofoAddressGenerator = () => {
                     Enter Your Name
                   </label>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                    Your shipping mark will be generated as "mardid" + your username
+                    Your shipping mark will be generated in FIM000 format (e.g., FIM000, FIM001)
                   </p>
                   <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                     <input
@@ -239,7 +239,7 @@ const FofoofoAddressGenerator = () => {
                         Important Information
                       </p>
                       <p className="text-blue-800 dark:text-blue-200 text-sm">
-                        You can only create one shipping mark per user. Your shipping mark will be generated as "mardid" + your username. Once generated, the shipping mark cannot be edited.
+                        You can only create one shipping mark per user. Your shipping mark will be generated in FIM000 format (e.g., FIM000, FIM001). Once generated, the shipping mark cannot be edited.
                       </p>
                     </div>
                   </div>
