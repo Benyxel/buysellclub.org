@@ -13,11 +13,12 @@ import "react-toastify/dist/ReactToastify.css";
 import API from "../api";
 
 const FofoofoAddressGenerator = () => {
-  const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
   const [copied, setCopied] = useState(false);
   const [hasAddress, setHasAddress] = useState(false);
   const [existingAddress, setExistingAddress] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingUser, setIsLoadingUser] = useState(true);
 
   const navigate = useNavigate();
 
@@ -27,16 +28,35 @@ const FofoofoAddressGenerator = () => {
       localStorage.getItem("token") || localStorage.getItem("adminToken");
     if (!token) {
       toast.info("Please log in to generate your shipping address.");
+      setIsLoadingUser(false);
       return;
     }
 
-    // Always check for existing address first before doing anything else
-    checkExistingUserAddress();
+    // Load current user to get username
+    loadCurrentUser();
   }, [navigate]);
+
+  const loadCurrentUser = async () => {
+    try {
+      setIsLoadingUser(true);
+      const response = await API.get("/buysellapi/users/me/");
+      if (response.data && response.data.username) {
+        setUsername(response.data.username);
+      } else {
+        toast.error("Unable to load user information. Please try again.");
+      }
+    } catch (error) {
+      console.error("Error loading current user:", error);
+      toast.error("Unable to load user information. Please try again.");
+    } finally {
+      setIsLoadingUser(false);
+      // Check for existing address after loading user
+      checkExistingUserAddress();
+    }
+  };
 
   const checkExistingUserAddress = async () => {
     try {
-      setIsLoading(true);
       const resp = await API.get("/buysellapi/shipping-marks/me/");
       const data = resp?.data;
       if (data && data.markId) {
@@ -64,14 +84,12 @@ const FofoofoAddressGenerator = () => {
       console.error("Error checking existing address:", err);
       toast.error("Failed to check existing address");
       return false;
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const generateAddress = async () => {
-    if (!name.trim()) {
-      toast.error("Please enter your name");
+    if (!username.trim()) {
+      toast.error("Username not found. Please log in again.");
       return;
     }
     // Require authentication before attempting to create
@@ -88,7 +106,7 @@ const FofoofoAddressGenerator = () => {
     try {
       setIsLoading(true);
       const resp = await API.post("/buysellapi/shipping-marks/me/", {
-        name: name.trim(),
+        name: username.trim(),
       });
       const data = resp?.data;
       if (data && data.markId) {
@@ -124,7 +142,7 @@ const FofoofoAddressGenerator = () => {
         try {
           await API.post("/buysellapi/users/ensure-profile/");
           const retry = await API.post("/buysellapi/shipping-marks/me/", {
-            name: name.trim(),
+            name: username.trim(),
           });
           const data2 = retry?.data;
           if (data2 && data2.markId) {
@@ -185,7 +203,7 @@ const FofoofoAddressGenerator = () => {
               <FaTruck className="text-5xl lg:text-6xl text-primary" />
             </div>
             <h1 className="text-3xl lg:text-4xl font-bold text-gray-800 dark:text-white mb-2">
-              fofoofoimport Shipping Address Generator
+              Fofoofoimport Shipping Address Generator
             </h1>
             <p className="text-base lg:text-lg text-gray-600 dark:text-gray-400">
               Generate your unique shipping address for fofoofoimport warehouse
@@ -205,26 +223,27 @@ const FofoofoAddressGenerator = () => {
               <div className="mb-8">
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Enter Your Name
+                    Your Username
                   </label>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                    Your shipping mark will be generated in FIM000 format (e.g., FIM000, FIM001)
+                    Your shipping mark will be generated in FIM000 format (e.g., FIM000, FIM001) using your username
                   </p>
                   <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="flex-1 w-full sm:w-auto px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
-                      placeholder="Enter your name"
-                      disabled={isLoading}
-                    />
+                    <div className="flex-1 w-full sm:w-auto px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white">
+                      {isLoadingUser ? (
+                        <span className="text-gray-400">Loading username...</span>
+                      ) : username ? (
+                        <span className="font-medium">{username}</span>
+                      ) : (
+                        <span className="text-red-500">Username not found</span>
+                      )}
+                    </div>
                     <button
                       onClick={generateAddress}
                       className={`w-full sm:w-auto px-6 py-2.5 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors whitespace-nowrap font-medium ${
-                        isLoading ? "opacity-70 cursor-not-allowed" : ""
+                        isLoading || isLoadingUser || !username ? "opacity-70 cursor-not-allowed" : ""
                       }`}
-                      disabled={isLoading}
+                      disabled={isLoading || isLoadingUser || !username}
                     >
                       {isLoading ? "Generating..." : "Generate Address"}
                     </button>
