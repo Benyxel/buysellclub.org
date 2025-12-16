@@ -573,7 +573,7 @@ const TrackingSearch = () => {
             <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
               <p className="text-gray-700 dark:text-gray-300 text-sm">
                 Need help with your shipment? Contact our support team at
-                support@fofoofogroup.com or call 233-540266839.
+                support@buysellclub.org or call 233-540266839.
               </p>
             </div>
           </div>

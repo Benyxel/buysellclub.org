@@ -127,7 +127,7 @@ const TrackingPage = () => {
                   Email Us
                 </p>
                 <p className="font-medium text-gray-800 dark:text-white">
-                  support@fofoofogroup.com
+                  support@buysellclub.org
                 </p>
               </div>
             </div>

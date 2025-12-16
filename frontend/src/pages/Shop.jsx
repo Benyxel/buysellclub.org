@@ -170,7 +170,7 @@ const Shop = () => {
             ) : categories.length === 0 ? (
               <div className='text-sm text-gray-500 dark:text-gray-400'>No categories available</div>
             ) : (
-            <div className='space-y-2'>
+            <div className='space-y-2 max-h-48 overflow-y-auto pr-2 filter-scroll'>
                 {categories.map((cat) => (
                   <label key={cat.id || cat.slug} className='flex items-center gap-2 cursor-pointer group'>
                   <input
@@ -197,7 +197,7 @@ const Shop = () => {
             ) : productTypes.length === 0 ? (
               <div className='text-sm text-gray-500 dark:text-gray-400'>No product types available</div>
             ) : (
-            <div className='space-y-2'>
+            <div className='space-y-2 max-h-48 overflow-y-auto pr-2 filter-scroll'>
                 {productTypes.map((type) => (
                   <label key={type.id || type.slug} className='flex items-center gap-2 cursor-pointer group'>
                   <input

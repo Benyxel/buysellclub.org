@@ -28,11 +28,15 @@ const Contact = () => {
 
     try {
       const response = await API.post("/buysellapi/contact/", formData);
-      
+
       if (response.data.success) {
-        toast.success(response.data.message || "Message sent successfully! We'll get back to you soon.", {
-          toastId: "contact-success"
-        });
+        toast.success(
+          response.data.message ||
+            "Message sent successfully! We'll get back to you soon.",
+          {
+            toastId: "contact-success",
+          }
+        );
         // Reset form
         setFormData({
           name: "",
@@ -43,14 +47,18 @@ const Contact = () => {
       }
     } catch (error) {
       console.error("Contact form error:", error);
-      
+
       // Check if it's a 500 error but message might have been sent
       if (error.response?.status === 500) {
         // Check if we got a response with success message (sometimes errors occur after email is sent)
         if (error.response?.data?.success) {
-          toast.success(error.response.data.message || "Message sent successfully! We'll get back to you soon.", {
-            toastId: "contact-success-partial"
-          });
+          toast.success(
+            error.response.data.message ||
+              "Message sent successfully! We'll get back to you soon.",
+            {
+              toastId: "contact-success-partial",
+            }
+          );
           // Reset form
           setFormData({
             name: "",
@@ -60,22 +68,24 @@ const Contact = () => {
           });
         } else {
           // Real error - show error message
-          const errorMessage = error.response?.data?.error || 
-                               error.response?.data?.message || 
-                               error.message || 
-                               "Failed to send message. Please try again later or contact us directly.";
+          const errorMessage =
+            error.response?.data?.error ||
+            error.response?.data?.message ||
+            error.message ||
+            "Failed to send message. Please try again later or contact us directly.";
           toast.error(errorMessage, {
-            toastId: "contact-error"
+            toastId: "contact-error",
           });
         }
       } else {
         // Other errors (400, 401, etc.)
-        const errorMessage = error.response?.data?.error || 
-                             error.response?.data?.message || 
-                             error.message || 
-                             "Failed to send message. Please try again later.";
+        const errorMessage =
+          error.response?.data?.error ||
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to send message. Please try again later.";
         toast.error(errorMessage, {
-          toastId: "contact-error"
+          toastId: "contact-error",
         });
       }
     } finally {
@@ -136,7 +146,7 @@ const Contact = () => {
                     Email
                   </h3>
                   <p className="text-gray-600 dark:text-gray-400">
-                    support@fofoofogroup.com
+                    support@buysellclub.org
                   </p>
                 </div>
               </div>
@@ -150,7 +160,7 @@ const Contact = () => {
                     Address
                   </h3>
                   <p className="text-gray-600 dark:text-gray-400">
-                  Israel Yellow, Okropom street(Pazzy's Villa),
+                    Israel Palm-plaza, Okropom street(Pazzy's Villa),
                     <br />
                     Accra, Ghana
                   </p>
@@ -319,24 +329,25 @@ const Contact = () => {
           <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-6">
             Find Us
           </h2>
-           <div className="relative">
-             <div className="aspect-w-16 aspect-h-9 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden relative min-h-[450px]">
-               <iframe
-                 src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3970.0!2d-0.2653476!3d5.6357079!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0xfdf98d766f86a03%3A0x16cd336d229eabb1!2sPazzys%20villa!5e0!3m2!1sen!2sgh!4v1700000000000!5m2!1sen!2sgh"
-                 width="100%"
-                 height="450"
-                 style={{ border: 0 }}
-                 allowFullScreen=""
-                 loading="lazy"
-                 referrerPolicy="no-referrer-when-downgrade"
-                 className="rounded-lg w-full h-full absolute inset-0"
-                 title="BuySellClub Location - Pazzys Villa"
-               ></iframe>
-             </div>
+          <div className="relative">
+            <div className="aspect-w-16 aspect-h-9 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden relative min-h-[450px]">
+              <iframe
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3970.0!2d-0.2653476!3d5.6357079!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0xfdf98d766f86a03%3A0x16cd336d229eabb1!2sPazzys%20villa!5e0!3m2!1sen!2sgh!4v1700000000000!5m2!1sen!2sgh"
+                width="100%"
+                height="450"
+                style={{ border: 0 }}
+                allowFullScreen=""
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                className="rounded-lg w-full h-full absolute inset-0"
+                title="BuySellClub Location - Pazzys Villa"
+              ></iframe>
+            </div>
             {/* Fallback if map is blocked */}
             <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
               <p className="text-sm text-blue-800 dark:text-blue-200 mb-2">
-                <strong>Note:</strong> If the map above is not visible, it may be blocked by your browser's privacy settings or ad blocker.
+                <strong>Note:</strong> If the map above is not visible, it may
+                be blocked by your browser's privacy settings or ad blocker.
               </p>
               <div className="flex flex-wrap gap-4 mt-3">
                 <a
@@ -349,7 +360,9 @@ const Contact = () => {
                   Open in Google Maps
                 </a>
                 <a
-                  href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent("Israel Yellow, Okropom street, Pazzy's Villa, Accra, Ghana")}`}
+                  href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
+                    "Israel Palm-plaza, Okropom street, Pazzy's Villa, Accra, Ghana"
+                  )}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors text-sm"

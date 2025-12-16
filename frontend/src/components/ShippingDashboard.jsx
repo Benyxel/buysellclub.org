@@ -211,7 +211,7 @@ class UserAdd extends AdminUpdate {
           2. Once added, you can add it to your account
           3. Then you can track it here
           
-          Need help? Contact support at support@fofoofogroup.com
+          Need help? Contact support at support@buysellclub.org
         `,
         needsUserAdd: false,
       };
@@ -301,7 +301,7 @@ class UserAdd extends AdminUpdate {
       📞 Need Help?
       -------------
       If you have any questions about your shipment, please contact our support team at:
-      Email: support@fofoofogroup.com
+      Email: support@buysellclub.org
       Phone: 233-540266839
       
       Thank you for choosing our shipping service!
@@ -365,7 +365,7 @@ const ShippingDashboard = () => {
     try {
       const token = localStorage.getItem("token");
       const isAdmin = !!localStorage.getItem("adminToken");
-      
+
       // Admins don't need shipping marks
       if (isAdmin) {
         setHasShippingMark(true);
@@ -382,7 +382,7 @@ const ShippingDashboard = () => {
           }
         } catch (_) {}
       }
-      
+
       // Check localStorage for shipping marks
       const saved = JSON.parse(localStorage.getItem("shippingMarks") || "[]");
       if (Array.isArray(saved) && saved.length > 0 && saved[0].id) {
@@ -439,15 +439,18 @@ const ShippingDashboard = () => {
     }
   };
 
-
   const handleAddShipment = async (e) => {
     e.preventDefault();
 
     // Check if user has shipping mark before allowing shipment addition
     const hasMark = await checkShippingMark();
     if (!hasMark) {
-      setMessage("Please generate a shipping mark first before adding shipments. Go to the Address Generator to create one.");
-      toast.error("You must generate a shipping mark before adding shipments. Please visit the Address Generator first.");
+      setMessage(
+        "Please generate a shipping mark first before adding shipments. Go to the Address Generator to create one."
+      );
+      toast.error(
+        "You must generate a shipping mark before adding shipments. Please visit the Address Generator first."
+      );
       return;
     }
 
@@ -491,9 +494,7 @@ const ShippingDashboard = () => {
           // Check if tracking exists in backend
           try {
             const resp = await API.get(
-              `/buysellapi/trackings/by-number/${encodeURIComponent(
-                tn
-              )}/`
+              `/buysellapi/trackings/by-number/${encodeURIComponent(tn)}/`
             );
 
             const backendTracking = resp?.data;
@@ -576,7 +577,6 @@ const ShippingDashboard = () => {
     }
   };
 
-
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
       case "delivered":
@@ -625,9 +625,7 @@ const ShippingDashboard = () => {
         <div className="bg-gradient-to-br from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/20 rounded-lg shadow-md p-4 sm:p-6 mb-8">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0">
             <div className="flex items-center gap-4">
-              <FaTruck
-                className="text-2xl sm:text-3xl text-primary animate-truck"
-              />
+              <FaTruck className="text-2xl sm:text-3xl text-primary animate-truck" />
               <div>
                 <h1 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white">
                   Add and Track Shipment
@@ -642,7 +640,9 @@ const ShippingDashboard = () => {
                 onClick={async () => {
                   const hasMark = await checkShippingMark();
                   if (!hasMark) {
-                    toast.error("You must generate a shipping mark before adding shipments. Please visit the Address Generator first.");
+                    toast.error(
+                      "You must generate a shipping mark before adding shipments. Please visit the Address Generator first."
+                    );
                     return;
                   }
                   setShowAddForm(true);
