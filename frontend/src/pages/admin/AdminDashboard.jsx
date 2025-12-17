@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "../../utils/toast";
 import API, { getLiveChatUnreadCount, markAllLiveChatRead } from "../../api";
@@ -409,50 +409,85 @@ const AdminDashboard = () => {
     fetchMe();
   }, [navigate]);
 
-  // Fetch allowed dashboard tabs for this admin user once we have currentUser
+  // Fetch allowed dashboard tabs for this admin user
+  const fetchTabs = useCallback(async () => {
+    if (!currentUser) return;
+    
+    try {
+      // Add cache-busting timestamp to ensure fresh data in production
+      const resp = await API.get("/buysellapi/dashboard-tabs/", {
+        params: { _t: Date.now() }
+      });
+      const tabs = Array.isArray(resp.data) ? resp.data : [];
+      // Use tabs returned by the backend to determine which sections
+      // the current admin is allowed to see.
+      const slugs = tabs.map((t) => t.slug);
+      const meta = {};
+      tabs.forEach((t) => {
+        meta[t.slug] = {
+          assigned: Boolean(t.assigned),
+        };
+      });
+      // Superadmin: ensure all frontend menu items remain accessible even if DB lacks some entries
+      if (currentUser && currentUser.is_superuser) {
+        const allSlugs = Array.from(
+          new Set([...slugs, ...menuItems.map((m) => m.section)])
+        );
+        setAllowedTabs(
+          allSlugs.length > 0 ? allSlugs : menuItems.map((m) => m.section)
+        );
+      } else {
+        // Admins and regular users: ONLY show tabs that are explicitly assigned to them
+        // No fallback - if no tabs are assigned, they see nothing
+        setAllowedTabs(slugs);
+      }
+      setAllowedTabsMeta(meta);
+    } catch (err) {
+      // On error, only superadmins get all tabs as fallback
+      // Admins and regular users get nothing if there's an error
+      console.error("Failed to fetch dashboard tabs:", err?.response || err);
+      if (currentUser && currentUser.is_superuser) {
+        setAllowedTabs(menuItems.map((m) => m.section));
+      } else {
+        setAllowedTabs([]);
+      }
+      setAllowedTabsMeta({});
+    }
+  }, [currentUser, menuItems]);
+
+  // Fetch tabs when currentUser changes or menuItems change
   useEffect(() => {
-    const fetchTabs = async () => {
-      try {
-        const resp = await API.get("/buysellapi/dashboard-tabs/");
-        const tabs = Array.isArray(resp.data) ? resp.data : [];
-        // Use tabs returned by the backend to determine which sections
-        // the current admin is allowed to see.
-        const slugs = tabs.map((t) => t.slug);
-        const meta = {};
-        tabs.forEach((t) => {
-          meta[t.slug] = {
-            assigned: Boolean(t.assigned),
-          };
-        });
-        // Superadmin: ensure all frontend menu items remain accessible even if DB lacks some entries
-        if (currentUser && currentUser.is_superuser) {
-          const allSlugs = Array.from(
-            new Set([...slugs, ...menuItems.map((m) => m.section)])
-          );
-          setAllowedTabs(
-            allSlugs.length > 0 ? allSlugs : menuItems.map((m) => m.section)
-          );
-        } else {
-          // Admins and regular users: ONLY show tabs that are explicitly assigned to them
-          // No fallback - if no tabs are assigned, they see nothing
-          setAllowedTabs(slugs);
-        }
-        setAllowedTabsMeta(meta);
-      } catch (err) {
-        // On error, only superadmins get all tabs as fallback
-        // Admins and regular users get nothing if there's an error
-        console.error("Failed to fetch dashboard tabs:", err?.response || err);
-        if (currentUser && currentUser.is_superuser) {
-          setAllowedTabs(menuItems.map((m) => m.section));
-        } else {
-          setAllowedTabs([]);
-        }
-        setAllowedTabsMeta({});
+    if (currentUser) fetchTabs();
+  }, [currentUser, menuItems, fetchTabs]);
+
+  // Refetch tabs when window gains focus (user returns to tab/window)
+  // This ensures tabs are refreshed if assigned while user is away
+  useEffect(() => {
+    const handleFocus = () => {
+      if (currentUser && document.visibilityState === 'visible') {
+        fetchTabs();
       }
     };
+    
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleFocus);
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
+    };
+  }, [currentUser, fetchTabs]);
 
-    if (currentUser) fetchTabs();
-  }, [currentUser, menuItems]);
+  // Refetch tabs periodically to catch any changes (every 30 seconds)
+  useEffect(() => {
+    if (!currentUser) return;
+    
+    const interval = setInterval(() => {
+      fetchTabs();
+    }, 30000); // 30 seconds
+    
+    return () => clearInterval(interval);
+  }, [currentUser, fetchTabs]);
 
   // Allow superadmin to sync the default frontend menu into DashboardTab records
   const syncDefaultTabs = async () => {

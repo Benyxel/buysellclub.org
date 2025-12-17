@@ -256,10 +256,15 @@ const Api = {
     list: (params) => http.get("/buysellapi/buy4me-requests/", { params }),
     detail: (id) => http.get(`/buysellapi/buy4me-requests/${id}/`),
     create: (payload) => http.post("/buysellapi/buy4me-requests/", payload),
+    createWithPayment: (payload) => http.post("/buysellapi/buy4me-requests/create-with-payment/", payload),
     update: (id, payload) =>
       http.put(`/buysellapi/buy4me-requests/${id}/`, payload),
     remove: (id) => http.delete(`/buysellapi/buy4me-requests/${id}/`),
     payment: (id) => http.post(`/buysellapi/buy4me-requests/${id}/payment/`),
+    settings: {
+      get: () => http.get("/buysellapi/buy4me-settings/"),
+      update: (payload) => http.post("/buysellapi/buy4me-settings/", payload),
+    },
     admin: {
       list: (params) =>
         http.get("/buysellapi/admin/buy4me-requests/", { params }),
@@ -392,6 +397,7 @@ export const initiateOrderPayment = Api.orders.payment;
 export const getBuy4meRequests = Api.buy4me.list;
 export const getBuy4meRequest = Api.buy4me.detail;
 export const createBuy4meRequest = Api.buy4me.create;
+export const createBuy4meRequestWithPayment = Api.buy4me.createWithPayment;
 export const updateBuy4meRequest = Api.buy4me.update;
 export const deleteBuy4meRequest = Api.buy4me.remove;
 export const initiateBuy4mePayment = Api.buy4me.payment;
@@ -403,6 +409,8 @@ export const updateBuy4meRequestStatus = Api.buy4me.admin.updateStatus;
 export const updateBuy4meRequestTracking = Api.buy4me.admin.updateTracking;
 export const createBuy4meRequestInvoice = Api.buy4me.admin.invoice.create;
 export const updateBuy4meRequestInvoiceStatus = Api.buy4me.admin.invoice.update;
+export const getBuy4meSettings = Api.buy4me.settings.get;
+export const updateBuy4meSettings = Api.buy4me.settings.update;
 
 export const getQuickOrderProducts = Api.quickOrder.list;
 export const initiateQuickOrderPayment = Api.quickOrder.payment;

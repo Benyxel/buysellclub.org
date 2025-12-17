@@ -216,10 +216,28 @@ const Product = () => {
             </div>
           )}
           
+          {/* Stock status */}
+          {productData.inventory !== undefined && productData.inventory <= 0 && (
+            <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+              <p className="text-red-600 dark:text-red-400 font-semibold">Out of Stock</p>
+              <p className="text-red-500 dark:text-red-500 text-sm mt-1">This product is currently unavailable.</p>
+            </div>
+          )}
+          {productData.inventory !== undefined && productData.inventory > 0 && productData.inventory <= 5 && (
+            <div className="mb-4 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
+              <p className="text-orange-600 dark:text-orange-400 font-semibold">Low Stock</p>
+              <p className="text-orange-500 dark:text-orange-500 text-sm mt-1">Only {productData.inventory} item(s) left in stock.</p>
+            </div>
+          )}
+          
           {/* cart-btn */}
           <button
             onClick={() => addToCart(productData._id, size || "default")}
-            className='bg-brandGreen text-white px-8 py-3 text-sm active:bg-gray-700'
+            className={`px-8 py-3 text-sm transition-colors ${
+              productData.inventory !== undefined && productData.inventory <= 0
+                ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                : 'bg-brandGreen text-white active:bg-gray-700'
+            }`}
             disabled={productData.inventory !== undefined && productData.inventory <= 0}
           >
             {productData.inventory !== undefined && productData.inventory <= 0

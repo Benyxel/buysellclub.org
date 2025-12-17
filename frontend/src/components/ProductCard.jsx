@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { FaHeart, FaShoppingCart } from 'react-icons/fa';
+import { ShopContext } from '../context/ShopContext';
 
 const ProductCard = ({ product }) => {
+  const { addToCart } = useContext(ShopContext);
   const [isFavorite, setIsFavorite] = useState(false);
 
   useEffect(() => {
@@ -52,6 +54,12 @@ const ProductCard = ({ product }) => {
           </h3>
         </Link>
         <p className="text-primary font-bold mb-4">₵{product.price}</p>
+        {product.inventory !== undefined && product.inventory <= 0 && (
+          <p className="text-red-500 text-sm font-semibold mb-2">Out of Stock</p>
+        )}
+        {product.inventory !== undefined && product.inventory > 0 && product.inventory <= 5 && (
+          <p className="text-orange-500 text-sm font-semibold mb-2">Only {product.inventory} left in stock</p>
+        )}
         <div className="flex justify-between items-center">
           <button
             onClick={toggleFavorite}
@@ -63,9 +71,19 @@ const ProductCard = ({ product }) => {
           >
             <FaHeart className="w-5 h-5" />
           </button>
-          <button className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2">
+          <button
+            onClick={() => addToCart(product._id || product.id, "default")}
+            disabled={product.inventory !== undefined && product.inventory <= 0}
+            className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-colors ${
+              product.inventory !== undefined && product.inventory <= 0
+                ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                : 'bg-primary text-white hover:bg-primary/90'
+            }`}
+          >
             <FaShoppingCart className="w-4 h-4" />
-            Add to Cart
+            {product.inventory !== undefined && product.inventory <= 0
+              ? 'Out of Stock'
+              : 'Add to Cart'}
           </button>
         </div>
       </div>

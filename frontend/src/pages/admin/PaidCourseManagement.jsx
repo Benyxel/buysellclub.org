@@ -8,6 +8,7 @@ import {
   deleteTrainingCourse,
 } from '../../api';
 import { getApiUrl } from '../../config/api';
+import api from '../../api';
 
 const PaidCourseManagement = () => {
   const [courses, setCourses] = useState([]);
@@ -145,78 +146,28 @@ const PaidCourseManagement = () => {
         throw new Error('Authentication token not found');
       }
 
-      // Ensure URL has trailing slash to match Django pattern
-      const uploadUrl = getApiUrl('buysellapi/admin/upload/');
-      console.log('Uploading file to:', uploadUrl);
-      console.log('File info:', {
+      console.log('Uploading file:', {
         name: file.name,
         size: file.size,
         type: file.type,
         uploadType: type
       });
       
-      let response;
-      try {
-        response = await fetch(uploadUrl, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`
-            // Don't set Content-Type header - let browser set it with boundary for FormData
-          },
-          body: formData
-        });
-      } catch (fetchError) {
-        console.error('Network error during upload:', fetchError);
-        throw new Error(`Network error: ${fetchError.message}. Please check your connection and try again.`);
-      }
-      
-      console.log('Upload response status:', response.status, response.statusText);
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-
-      if (!response.ok) {
-        let errorMessage = `Failed to upload ${type}`;
-        let errorDetails = null;
-        let responseText = '';
-        
-        try {
-          // Try to get response as text first
-          responseText = await response.text();
-          console.log('Error response text:', responseText);
-          
-          // Try to parse as JSON
-          if (responseText.trim().startsWith('{') || responseText.trim().startsWith('[')) {
-            try {
-              errorDetails = JSON.parse(responseText);
-              errorMessage = errorDetails.error || errorDetails.detail || errorDetails.message || errorMessage;
-              console.log('Parsed error details:', errorDetails);
-            } catch (parseError) {
-              console.warn('Failed to parse error response as JSON:', parseError);
-              errorMessage = responseText || errorMessage;
-            }
-          } else {
-            errorMessage = responseText || errorMessage;
+      // Use axios instance which handles auth, CSRF, and error handling automatically
+      // Note: Don't set Content-Type header - axios will set it automatically with boundary for FormData
+      const response = await api.post('/buysellapi/admin/upload/', formData, {
+        timeout: 300000, // 5 minutes timeout for large video files
+        onUploadProgress: (progressEvent) => {
+          if (progressEvent.total) {
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            setUploadProgress(percentCompleted);
           }
-        } catch (e) {
-          console.error('Error reading response:', e);
-          errorMessage = `Server error (${response.status}): ${response.statusText}`;
-        }
-        
-        console.error(`Upload failed (${response.status}):`, {
-          status: response.status,
-          statusText: response.statusText,
-          errorMessage,
-          errorDetails,
-          responseText,
-          url: uploadUrl
-        });
-        
-        throw new Error(errorMessage);
-      }
+        },
+      });
 
-      const data = await response.json();
-      console.log('Upload success, response data:', data);
+      console.log('Upload success, response data:', response.data);
       // Handle both response formats: filePath or url
-      return data.filePath || data.url || data.saved_path;
+      return response.data.filePath || response.data.url || response.data.saved_path;
     } catch (error) {
       console.error('Upload error:', error);
       console.error('Error stack:', error.stack);

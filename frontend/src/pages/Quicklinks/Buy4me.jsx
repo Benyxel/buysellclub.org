@@ -9,12 +9,13 @@ import {
   FaSave,
   FaEdit,
   FaTimes,
+  FaInfoCircle,
 } from "react-icons/fa";
 import { toast } from "../../utils/toast";
 import "react-toastify/dist/ReactToastify.css";
 import buyimg from "../../assets/bm2.jpg";
 import { useNavigate, useLocation } from "react-router-dom";
-import { createBuy4meRequest, updateBuy4meRequest, getQuickOrderProducts, initiateBuy4mePayment } from "../../api";
+import { createBuy4meRequest, createBuy4meRequestWithPayment, updateBuy4meRequest, getQuickOrderProducts, initiateBuy4mePayment, getBuy4meSettings } from "../../api";
 
 // Removed placeholder products - only show products from backend API
 
@@ -26,6 +27,7 @@ const Buy4me = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [quickOrderProducts, setQuickOrderProducts] = useState([]);
+  const [defaultSourcingPayment, setDefaultSourcingPayment] = useState(100);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -45,6 +47,24 @@ const Buy4me = () => {
     (sum, link) => sum + (link.quantity || 0),
     0
   );
+
+  // Fetch buy4me settings for default sourcing payment
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const response = await getBuy4meSettings();
+        console.log("Buy4me settings response:", response);
+        if (response.data?.defaultSourcingPayment) {
+          setDefaultSourcingPayment(response.data.defaultSourcingPayment);
+          console.log("Default sourcing payment set to:", response.data.defaultSourcingPayment);
+        }
+      } catch (error) {
+        console.error("Failed to fetch buy4me settings:", error);
+        // Use default value if fetch fails
+      }
+    };
+    fetchSettings();
+  }, []);
 
   // Fetch quick order products from the API
   useEffect(() => {
@@ -204,7 +224,8 @@ const Buy4me = () => {
       localStorage.setItem("updates", JSON.stringify(updates));
 
       toast.success("Order placed successfully!");
-      navigate("/Payment", { state: { order: savedRequest } });
+      // Don't navigate to Payment - invoice will be created by admin
+      // User will be notified when payment is ready
     } catch (error) {
       console.error("Error submitting quick order:", error);
       console.error("Error response:", error.response);
@@ -341,66 +362,83 @@ const Buy4me = () => {
       let savedRequest;
       
       if (editMode) {
+        // For edit mode, use the regular update endpoint
         response = await updateBuy4meRequest(editOrderId, orderData);
         savedRequest = response.data;
-      } else {
-        response = await createBuy4meRequest(orderData);
-        savedRequest = response.data;
-      }
-      
-      console.log('Buy4me request created/updated:', savedRequest);
-
-      const updates = JSON.parse(localStorage.getItem("updates") || "[]");
-      updates.unshift({
-        id: Date.now().toString(),
-        type: "order",
-        title: editMode ? "Order Updated" : "New Order Placed",
-        message: editMode
-          ? `Your order for "${savedRequest.title}" has been updated.`
-          : `Your order for "${savedRequest.title}" has been placed successfully.`,
-        date: new Date().toISOString(),
-        read: false,
-      });
-      localStorage.setItem("updates", JSON.stringify(updates));
-
-      if (!editMode) {
-        // Check if invoice is ready and initiate payment
-        if (savedRequest.invoice_created && savedRequest.invoice_amount && savedRequest.invoice_amount > 0) {
-          try {
-            const paymentResponse = await initiateBuy4mePayment(savedRequest.id);
-            
-            if (paymentResponse.data.payment_url) {
-              toast.success('Redirecting to payment gateway...');
-              window.location.href = paymentResponse.data.payment_url;
-              return;
-            }
-          } catch (paymentError) {
-            console.error('Error initiating payment:', paymentError);
-            console.error('Payment error response:', paymentError.response);
-            
-            // Handle different error types
-            if (paymentError.response?.status === 503) {
-              const errorMsg = paymentError.response?.data?.error || 'Payment gateway is currently unavailable. Please contact support or try again later.';
-              toast.error(errorMsg);
-            } else if (paymentError.response?.status === 400) {
-              // Invoice not ready or other validation error - continue to payment page
-              const errorMsg = paymentError.response?.data?.error;
-              if (errorMsg && !errorMsg.includes('invoice')) {
-                // Only show error if it's not about invoice
-                toast.error(errorMsg);
-              }
-            } else {
-              const errorMsg = paymentError.response?.data?.error || paymentError.message || 'Failed to initiate payment';
-              toast.error(errorMsg);
-            }
-          }
-        }
         
-        // Navigate to payment page (for manual payment or if invoice not ready)
-        navigate("/Payment", { state: { order: savedRequest } });
-      } else {
+        const updates = JSON.parse(localStorage.getItem("updates") || "[]");
+        updates.unshift({
+          id: Date.now().toString(),
+          type: "order",
+          title: "Order Updated",
+          message: `Your order for "${savedRequest.title}" has been updated.`,
+          date: new Date().toISOString(),
+          read: false,
+        });
+        localStorage.setItem("updates", JSON.stringify(updates));
         toast.success("Order updated successfully!");
         navigate("/profile");
+      } else {
+        // For new orders, use payment-first flow
+        // Use default sourcing payment from settings
+        const estimatedAmount = defaultSourcingPayment;
+        
+        console.log('Using sourcing payment amount:', estimatedAmount, 'GHS');
+        
+        const orderDataWithPayment = {
+          ...orderData,
+          estimated_amount: estimatedAmount,
+        };
+        
+        try {
+          response = await createBuy4meRequestWithPayment(orderDataWithPayment);
+          savedRequest = response.data;
+          
+          console.log('Buy4me request created with payment:', savedRequest);
+          console.log('Payment amount used:', savedRequest.estimated_amount || estimatedAmount);
+          
+          // If payment URL is returned, redirect to payment gateway
+          if (savedRequest.payment_url) {
+            toast.success('Redirecting to payment gateway...');
+            
+            // Add to updates before redirecting
+            const updates = JSON.parse(localStorage.getItem("updates") || "[]");
+            updates.unshift({
+              id: Date.now().toString(),
+              type: "order",
+              title: "Payment Required",
+              message: `Please complete payment for your order "${savedRequest.title}".`,
+              date: new Date().toISOString(),
+              read: false,
+            });
+            localStorage.setItem("updates", JSON.stringify(updates));
+            
+            // Redirect to payment gateway
+            window.location.href = savedRequest.payment_url;
+            return; // Exit early since we're redirecting
+          } else {
+            // Payment URL not returned - this shouldn't happen, but handle gracefully
+            toast.error('Payment gateway did not return a payment URL. Please contact support.');
+            setIsSubmitting(false);
+            return;
+          }
+        } catch (error) {
+          console.error('Error creating buy4me request with payment:', error);
+          console.error('Error response:', error.response);
+          
+          // Handle different error types
+          if (error.response?.status === 503) {
+            const errorMsg = error.response?.data?.error || 'Payment gateway is currently unavailable. Please contact support or try again later.';
+            toast.error(errorMsg);
+          } else if (error.response?.status === 400) {
+            const errorMsg = error.response?.data?.error || 'Invalid order data. Please check your inputs.';
+            toast.error(errorMsg);
+          } else {
+            toast.error('Failed to create order. Please try again later.');
+          }
+          setIsSubmitting(false);
+          return;
+        }
       }
     } catch (error) {
       console.error("Error submitting request:", error);
@@ -597,6 +635,25 @@ const Buy4me = () => {
                     </p>
                   </div>
                 </div>
+
+                {/* Sourcing Payment Information */}
+                {!editMode && (
+                  <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <div className="flex items-start gap-3">
+                      <FaInfoCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-blue-900 dark:text-blue-200 mb-1">
+                          Sourcing Payment Required
+                        </p>
+                        <p className="text-sm text-blue-700 dark:text-blue-300">
+                          You will be required to pay <strong>GHS {defaultSourcingPayment}</strong> for sourcing the product. 
+                          This payment is for sourcing services only, not for purchasing the product itself. 
+                          The product purchase amount will be calculated and invoiced separately after sourcing is complete.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <button
                   type="submit"

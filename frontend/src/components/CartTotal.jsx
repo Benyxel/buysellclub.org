@@ -4,7 +4,8 @@ import { FaReceipt } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 
 const CartTotal = () => {
-  const { currency, delivery_fee, getCartAmount } = useContext(ShopContext);
+  const { currency, getCartAmount } = useContext(ShopContext);
+  const delivery_fee = 0; // Delivery fee set to 0
   const subtotal = getCartAmount();
   const total = subtotal === 0 ? 0 : subtotal + delivery_fee;
 

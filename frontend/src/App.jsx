@@ -19,7 +19,6 @@ import Contact from "./pages/Contact";
 import PlaceOrder from "./pages/PlaceOrder";
 import Training from "./pages/Quicklinks/Training";
 import AlipayPayment from "./pages/Quicklinks/AlipayPayment";
-import Payment from "./pages/Quicklinks/Payment";
 import PaymentCallback from "./pages/PaymentCallback";
 import Favorites from "./pages/Favorites";
 import MyProfile from "./components/MyProfile";
@@ -214,14 +213,6 @@ function App() {
                     element={
                       <ProtectedRoute>
                         <AlipayPayment />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="Payment"
-                    element={
-                      <ProtectedRoute>
-                        <Payment />
                       </ProtectedRoute>
                     }
                   />

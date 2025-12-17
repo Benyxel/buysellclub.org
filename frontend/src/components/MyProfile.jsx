@@ -48,7 +48,7 @@ import { toast } from "../utils/toast";
 import "react-toastify/dist/ReactToastify.css";
 import axios from "axios";
 import { API_BASE_URL } from "../config/api";
-import API from "../api";
+import API, { initiateBuy4mePayment } from "../api";
 import Invoice from "./Invoice";
 import InvoiceModal from "./InvoiceModal";
 import { getPlaceholderImagePath } from "../utils/paths";
@@ -3448,11 +3448,25 @@ const MyProfile = () => {
                                   {order.invoice &&
                                     order.invoice.status === "pending" && (
                                       <button
-                                        onClick={() =>
-                                          navigate("/Payment", {
-                                            state: { order },
-                                          })
-                                        }
+                                        onClick={async () => {
+                                          try {
+                                            if (!order.id) {
+                                              toast.error("Order ID not found");
+                                              return;
+                                            }
+                                            const paymentResponse = await initiateBuy4mePayment(order.id);
+                                            if (paymentResponse.data.payment_url) {
+                                              toast.success('Redirecting to payment gateway...');
+                                              window.location.href = paymentResponse.data.payment_url;
+                                            } else {
+                                              toast.error('Payment gateway did not return a payment URL. Please contact support.');
+                                            }
+                                          } catch (error) {
+                                            console.error('Error initiating payment:', error);
+                                            const errorMsg = error.response?.data?.error || error.message || 'Failed to initiate payment. Please contact support.';
+                                            toast.error(errorMsg);
+                                          }
+                                        }}
                                         className="px-3 py-1 text-xs font-medium bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
                                       >
                                         Pay Invoice
@@ -3699,13 +3713,26 @@ const MyProfile = () => {
 
                                 {item.invoice.status === "pending" && (
                                   <button
-                                    onClick={() => {
-                                      // Navigate to payment page for this invoice
-                                      navigate("/Payment", {
-                                        state: {
-                                          invoiceId: item.invoice.invoiceNumber,
-                                        },
-                                      });
+                                    onClick={async () => {
+                                      try {
+                                        // Get the buy4me request ID from the item
+                                        const requestId = item.request?.id || item.id;
+                                        if (!requestId) {
+                                          toast.error("Request ID not found");
+                                          return;
+                                        }
+                                        const paymentResponse = await initiateBuy4mePayment(requestId);
+                                        if (paymentResponse.data.payment_url) {
+                                          toast.success('Redirecting to payment gateway...');
+                                          window.location.href = paymentResponse.data.payment_url;
+                                        } else {
+                                          toast.error('Payment gateway did not return a payment URL. Please contact support.');
+                                        }
+                                      } catch (error) {
+                                        console.error('Error initiating payment:', error);
+                                        const errorMsg = error.response?.data?.error || error.message || 'Failed to initiate payment. Please contact support.';
+                                        toast.error(errorMsg);
+                                      }
                                     }}
                                     className="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium rounded-md text-white bg-green-600 hover:bg-green-700 transition-colors"
                                   >

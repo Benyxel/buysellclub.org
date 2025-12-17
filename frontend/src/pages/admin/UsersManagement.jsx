@@ -999,9 +999,9 @@ const UsersManagement = () => {
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
-                  Manage Dashboard Tabs for {manageTabsUser?.username}
-                </h3>
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
+                Manage Dashboard Tabs for {manageTabsUser?.username}
+              </h3>
                 {manageTabsUser?.is_superuser && (
                   <p className="text-sm text-blue-600 dark:text-blue-400 mt-1">
                     ⚠️ Superusers always have access to all tabs and cannot have tabs unassigned.

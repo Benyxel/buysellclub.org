@@ -184,6 +184,22 @@ const ShopContextProvider = (props) => {
     let cartData = structuredClone(cartItems);
     const itemIdKey = String(itemId); // Normalize itemId to string for consistency
 
+    // Calculate current cart quantity for this product (across all sizes)
+    let currentCartQuantity = 0;
+    if (cartData[itemIdKey]) {
+      Object.values(cartData[itemIdKey]).forEach(qty => {
+        currentCartQuantity += qty;
+      });
+    }
+
+    // Check if adding one more would exceed inventory
+    if (product.inventory !== undefined && (currentCartQuantity + 1) > product.inventory) {
+      toast.error(
+        `Only ${product.inventory} item(s) available in stock. You already have ${currentCartQuantity} in your cart.`
+      );
+      return;
+    }
+
     if (cartData[itemIdKey]) {
       if (cartData[itemIdKey][sizeKey]) {
         cartData[itemIdKey][sizeKey] += 1;
@@ -306,6 +322,43 @@ const ShopContextProvider = (props) => {
   const updateQuantity = async (itemId, size, quantity) => {
     if (quantity < 0) {
       quantity = 0;
+    }
+    
+    // Find the product to check inventory
+    const product = products.find(
+      (p) =>
+        p._id === Number(itemId) ||
+        p._id === itemId ||
+        String(p._id) === String(itemId)
+    );
+    
+    // Check inventory if product exists and has inventory tracking
+    if (product && product.inventory !== undefined && quantity > 0) {
+      // Calculate current cart quantity for this product (across all sizes)
+      let currentCartQuantity = 0;
+      const itemIdKey = String(itemId);
+      if (cartItems[itemIdKey]) {
+        Object.values(cartItems[itemIdKey]).forEach(qty => {
+          currentCartQuantity += qty;
+        });
+      }
+      
+      // Calculate what the new total would be (current - current size quantity + new quantity)
+      const sizeKey = size || "default";
+      const currentSizeQuantity = cartItems[itemIdKey]?.[sizeKey] || 0;
+      const newTotalQuantity = currentCartQuantity - currentSizeQuantity + quantity;
+      
+      // If new total exceeds inventory, limit to available stock
+      if (newTotalQuantity > product.inventory) {
+        const maxAllowed = product.inventory - (currentCartQuantity - currentSizeQuantity);
+        if (maxAllowed <= 0) {
+          toast.error(`Only ${product.inventory} item(s) available in stock.`);
+          quantity = 0; // Remove from cart if no stock available
+        } else {
+          toast.warning(`Only ${product.inventory} item(s) available in stock. Quantity adjusted to ${maxAllowed}.`);
+          quantity = maxAllowed;
+        }
+      }
     }
     
     let cartData = structuredClone(cartItems);

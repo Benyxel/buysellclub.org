@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { toast } from '../utils/toast';
-import API from '../api';
+import api from '../api';
 
 const PaymentCallback = () => {
   const [searchParams] = useSearchParams();
@@ -24,7 +24,7 @@ const PaymentCallback = () => {
 
       try {
         // Query payment status using the token via our backend
-        const response = await API.post('/buysellapi/payment/verify-expresspay/', {
+        const response = await api.post('/buysellapi/payment/verify-expresspay/', {
           'order-id': orderId,
           token: token,
         });

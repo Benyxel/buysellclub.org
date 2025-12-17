@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaEdit, FaTrash, FaEye, FaCheck, FaTimes, FaFileInvoiceDollar, FaPrint, FaDownload, FaSpinner, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaEye, FaCheck, FaTimes, FaFileInvoiceDollar, FaPrint, FaDownload, FaSpinner, FaChevronLeft, FaChevronRight, FaCog } from 'react-icons/fa';
 import { toast } from '../../utils/toast';
 import InvoiceModal from '../../components/InvoiceModal';
 import Invoice from '../../components/Invoice';
@@ -12,6 +12,8 @@ import {
   deleteAdminBuy4meRequest,
   createBuy4meRequestInvoice,
   updateBuy4meRequestInvoiceStatus,
+  getBuy4meSettings,
+  updateBuy4meSettings,
 } from '../../api';
 
 const Buy4meAdmin = () => {
@@ -33,6 +35,13 @@ const Buy4meAdmin = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  
+  // Settings state
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [defaultSourcingPayment, setDefaultSourcingPayment] = useState(100);
+  const [settingsNotes, setSettingsNotes] = useState('');
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [loadingSettings, setLoadingSettings] = useState(false);
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -315,6 +324,47 @@ const Buy4meAdmin = () => {
     }
   };
 
+  // Settings handlers
+  const handleOpenSettings = async () => {
+    setLoadingSettings(true);
+    try {
+      const response = await getBuy4meSettings();
+      if (response.data) {
+        setDefaultSourcingPayment(response.data.defaultSourcingPayment || 100);
+        setSettingsNotes(response.data.notes || '');
+      }
+      setShowSettingsModal(true);
+    } catch (error) {
+      console.error('Error fetching buy4me settings:', error);
+      toast.error('Failed to load settings');
+    } finally {
+      setLoadingSettings(false);
+    }
+  };
+
+  const handleSaveSettings = async () => {
+    if (!defaultSourcingPayment || defaultSourcingPayment <= 0) {
+      toast.error('Default sourcing payment must be greater than 0');
+      return;
+    }
+
+    setSavingSettings(true);
+    try {
+      await updateBuy4meSettings({
+        defaultSourcingPayment: parseFloat(defaultSourcingPayment),
+        notes: settingsNotes,
+      });
+      toast.success('Settings updated successfully');
+      setShowSettingsModal(false);
+    } catch (error) {
+      console.error('Error updating buy4me settings:', error);
+      const errorMessage = error.response?.data?.error || 'Failed to update settings';
+      toast.error(errorMessage);
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
   const filteredRequests = requests
     .filter(request => statusFilter === 'all' || request.status === statusFilter)
     .filter(request => {
@@ -434,11 +484,21 @@ const Buy4meAdmin = () => {
   return (
     <div className="min-h-screen">
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">Buy4ME Requests Management</h2>
-          <p className="text-gray-600 dark:text-gray-400">
-            View and manage customer product purchase requests
-          </p>
+        <div className="mb-6 flex justify-between items-start">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">Buy4ME Requests Management</h2>
+            <p className="text-gray-600 dark:text-gray-400">
+              View and manage customer product purchase requests
+            </p>
+          </div>
+          <button
+            onClick={handleOpenSettings}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+            title="Buy4me Settings"
+          >
+            <FaCog className="w-5 h-5" />
+            <span>Settings</span>
+          </button>
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
@@ -1391,6 +1451,89 @@ const Buy4meAdmin = () => {
         cancelText="Cancel"
         type="danger"
       />
+
+      {/* Settings Modal */}
+      {showSettingsModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                  Buy4me Settings
+                </h3>
+                <button
+                  onClick={() => setShowSettingsModal(false)}
+                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                >
+                  <FaTimes className="w-5 h-5" />
+                </button>
+              </div>
+
+              {loadingSettings ? (
+                <div className="flex justify-center py-8">
+                  <FaSpinner className="animate-spin text-4xl text-primary" />
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Default Sourcing Payment (GHS) <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={defaultSourcingPayment}
+                      onChange={(e) => setDefaultSourcingPayment(e.target.value)}
+                      className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+                      placeholder="100.00"
+                    />
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      This is the default amount users will pay for sourcing services before product purchase.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Notes (Optional)
+                    </label>
+                    <textarea
+                      value={settingsNotes}
+                      onChange={(e) => setSettingsNotes(e.target.value)}
+                      rows="3"
+                      className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+                      placeholder="Add any notes about these settings..."
+                    />
+                  </div>
+
+                  <div className="flex gap-3 pt-4">
+                    <button
+                      onClick={handleSaveSettings}
+                      disabled={savingSettings}
+                      className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {savingSettings ? (
+                        <>
+                          <FaSpinner className="animate-spin" />
+                          <span>Saving...</span>
+                        </>
+                      ) : (
+                        <span>Save Settings</span>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => setShowSettingsModal(false)}
+                      className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

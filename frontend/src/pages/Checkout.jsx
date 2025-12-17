@@ -1,5 +1,6 @@
 import React, { useState, useContext, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { FaSpinner } from 'react-icons/fa';
 import { ShopContext } from '../context/ShopContext';
 import { toast } from '../utils/toast';
 import { createOrder, initiateOrderPayment } from '../api';
@@ -17,11 +18,11 @@ const Checkout = () => {
     city: '',
     state: '',
     zipCode: '',
-    country: 'Ghana',
-    paymentMethod: 'credit_card'
+    country: 'Ghana'
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [connectingToPayment, setConnectingToPayment] = useState(false);
 
   // Convert cartItems object to array format for display
   const checkoutItems = useMemo(() => {
@@ -112,6 +113,39 @@ const Checkout = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
+    
+    // Validate inventory before submitting
+    const inventoryErrors = [];
+    for (const item of checkoutItems) {
+      const product = products.find(
+        (p) =>
+          p._id === Number(item.productId) ||
+          p._id === item.productId ||
+          String(p._id) === String(item.productId)
+      );
+      
+      if (product) {
+        if (product.inventory === undefined) {
+          // If inventory is not tracked, skip validation
+          continue;
+        }
+        
+        if (product.inventory < item.quantity) {
+          inventoryErrors.push(
+            `Product "${item.name}" has only ${product.inventory} in stock, but you have ${item.quantity} in your cart.`
+          );
+        }
+      }
+    }
+    
+    if (inventoryErrors.length > 0) {
+      toast.error(inventoryErrors[0]);
+      if (inventoryErrors.length > 1) {
+        console.error("Multiple inventory errors:", inventoryErrors);
+      }
+      return;
+    }
+    
     setLoading(true);
 
     try {
@@ -137,7 +171,7 @@ const Checkout = () => {
         tax: 0,
         shipping_cost: 0,
         total: parseFloat(getCartAmount().toFixed(2)),
-        payment_method: formData.paymentMethod,
+        payment_method: 'expresspay', // Always use ExpressPay
         status: 'pending',
         payment_status: 'pending'
       };
@@ -177,6 +211,11 @@ const Checkout = () => {
       
       // If no payment URL in response, try to initiate payment separately
       if (data.id && data.total > 0) {
+        // Show loading state while connecting to payment gateway
+        setLoading(false); // Allow form to show connecting state
+        setConnectingToPayment(true);
+        toast.info("Connecting to payment gateway...");
+
         try {
           const paymentResponse = await initiateOrderPayment(data.id);
           
@@ -184,10 +223,16 @@ const Checkout = () => {
             toast.success('Redirecting to payment gateway...');
             window.location.href = paymentResponse.data.payment_url;
             return;
+          } else {
+            toast.error("Payment gateway not configured. Please contact support.");
+            setConnectingToPayment(false);
+            setLoading(false);
           }
         } catch (paymentError) {
           console.error('Error initiating payment:', paymentError);
           console.error('Payment error response:', paymentError.response);
+          
+          setConnectingToPayment(false);
           
           // Handle different error types
           if (paymentError.response?.status === 503) {
@@ -198,6 +243,7 @@ const Checkout = () => {
             toast.error(errorMsg);
           }
           // Continue to fallback behavior (order created, but payment not initiated)
+          setLoading(false);
         }
       }
       
@@ -210,6 +256,7 @@ const Checkout = () => {
       // Redirect to order confirmation page
       navigate(`/Orders`);
     } catch (error) {
+      setConnectingToPayment(false);
       console.error('Error placing order:', error);
       console.error('Error response:', error.response?.data);
       
@@ -485,33 +532,37 @@ const Checkout = () => {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Payment Method
-                  </label>
-                  <select
-                    name="paymentMethod"
-                    value={formData.paymentMethod}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  >
-                    <option value="credit_card">Credit Card</option>
-                    <option value="paypal">PayPal</option>
-                    <option value="bank_transfer">Bank Transfer</option>
-                  </select>
-                </div>
-
                 <button
                   type="submit"
-                  disabled={loading}
-                  className={`w-full py-3 px-4 rounded-lg text-white font-semibold ${
-                    loading
+                  disabled={loading || connectingToPayment}
+                  className={`w-full py-3 px-4 rounded-lg text-white font-semibold flex items-center justify-center gap-2 ${
+                    loading || connectingToPayment
                       ? 'bg-gray-400 cursor-not-allowed'
-                      : 'bg-blue-600 hover:bg-blue-700'
+                      : 'bg-red-600 hover:bg-red-700'
                   }`}
                 >
-                  {loading ? 'Processing...' : 'Place Order'}
+                  {connectingToPayment ? (
+                    <>
+                      <FaSpinner className="w-4 h-4 animate-spin" />
+                      Connecting to Payment Gateway...
+                    </>
+                  ) : loading ? (
+                    <>
+                      <FaSpinner className="w-4 h-4 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    'Place Order'
+                  )}
                 </button>
+                {connectingToPayment && (
+                  <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <div className="flex items-center gap-2 text-sm text-blue-700 dark:text-blue-300">
+                      <FaSpinner className="w-4 h-4 animate-spin" />
+                      <span>Please wait while we connect to the payment gateway. This may take a few seconds...</span>
+                    </div>
+                  </div>
+                )}
               </form>
             </div>
           </div>
