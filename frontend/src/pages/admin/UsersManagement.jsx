@@ -262,7 +262,47 @@ const UsersManagement = () => {
         throw new Error(`Failed to ${shouldAssign ? 'assign' : 'unassign'} tab: ${errorMsg}`);
       }
       
-      // Refresh tabs to get updated data
+      // Refresh user's assigned tabs after successful assignment
+      // Add a small delay to ensure database is updated
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      try {
+        const userResp = await API.get(
+          `/buysellapi/dashboard-tabs/user/${manageTabsUser.id}/`
+        );
+        const userTabs = Array.isArray(userResp.data) ? userResp.data : [];
+        const newAssignedTabs = new Set(userTabs.map((t) => t.slug));
+        
+        // Verify the assignment was saved correctly
+        const isCorrectlyAssigned = shouldAssign === newAssignedTabs.has(tabSlug);
+        
+        if (isCorrectlyAssigned) {
+          // Assignment matches expectation - update state with server response
+          setAssignedTabs(newAssignedTabs);
+          console.log(`Tab ${tabSlug} assignment verified: ${shouldAssign ? 'assigned' : 'unassigned'}`);
+        } else {
+          // Mismatch - keep optimistic update and log warning
+          console.warn(
+            `Tab ${tabSlug} assignment mismatch: expected ${shouldAssign ? 'assigned' : 'unassigned'}, ` +
+            `but server shows ${newAssignedTabs.has(tabSlug) ? 'assigned' : 'unassigned'}. ` +
+            `Keeping optimistic update.`
+          );
+          // Keep the optimistic update we set earlier
+          setAssignedTabs(next);
+        }
+      } catch (refreshErr) {
+        console.error("Failed to refresh user tabs:", refreshErr);
+        console.error("Refresh error details:", {
+          status: refreshErr.response?.status,
+          data: refreshErr.response?.data,
+          userId: manageTabsUser.id
+        });
+        // If refresh fails, keep the optimistic update since assignment API call succeeded
+        // Don't revert - the assignment was successful, just the refresh failed
+        toast.warning("Tab assignment succeeded but could not refresh. The checkbox may not update immediately.");
+      }
+      
+      // Also refresh all tabs to get updated data
       try {
         const allResp = await API.get("/buysellapi/dashboard-tabs/all/");
         const dbTabs = Array.isArray(allResp.data) ? allResp.data : [];
@@ -278,17 +318,6 @@ const UsersManagement = () => {
           };
         });
         setAllTabs(combinedTabs);
-        
-        // Refresh user's assigned tabs
-        try {
-          const userResp = await API.get(
-            `/buysellapi/dashboard-tabs/user/${manageTabsUser.id}/`
-          );
-          const userTabs = Array.isArray(userResp.data) ? userResp.data : [];
-          setAssignedTabs(new Set(userTabs.map((t) => t.slug)));
-        } catch (refreshErr) {
-          console.warn("Failed to refresh user tabs:", refreshErr);
-        }
       } catch (refreshErr) {
         console.warn("Failed to refresh all tabs:", refreshErr);
       }
