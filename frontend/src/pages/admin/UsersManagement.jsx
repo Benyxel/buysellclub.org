@@ -95,18 +95,20 @@ const UsersManagement = () => {
   const [assignedTabs, setAssignedTabs] = useState(new Set());
   const [tabsLoading, setTabsLoading] = useState(false);
 
-  // Define all available menu items as tabs
+  // Define all available menu items as tabs - must match AdminDashboard.jsx menuItems
   const availableMenuItems = [
     { label: "Dashboard", section: "dashboard" },
     { label: "Users", section: "users" },
     { label: "Shipping", section: "shipping" },
     { label: "Alipay Payments", section: "alipay-payments" },
     { label: "Buy4me", section: "buy4me" },
+    { label: "Agent Management", section: "agents" },
     { label: "Orders", section: "orders" },
     { label: "Products", section: "products" },
     { label: "Categories", section: "categories" },
     { label: "Training", section: "training" },
     { label: "YouTube", section: "youtube" },
+    { label: "Gallery", section: "gallery" },
     { label: "Quick Orders", section: "quick-orders" },
     { label: "Messages", section: "messages" },
     { label: "Analytics", section: "analytics" },
@@ -161,7 +163,6 @@ const UsersManagement = () => {
           description: menuItem.label,
           order: idx,
           is_active: true,
-          assigned_to_all_admins: false,
           _existsInDb: false, // Flag to indicate this tab doesn't exist in DB yet
         };
       });
@@ -179,7 +180,6 @@ const UsersManagement = () => {
         description: menuItem.label,
         order: idx,
         is_active: true,
-        assigned_to_all_admins: false,
         _existsInDb: false,
       }));
       setAllTabs(fallbackTabs);
@@ -191,6 +191,13 @@ const UsersManagement = () => {
 
   const toggleTabAssignment = async (tabSlug) => {
     if (!manageTabsUser) return;
+    
+    // Prevent unassigning tabs from superusers
+    if (manageTabsUser.is_superuser && assignedTabs.has(tabSlug)) {
+      toast.error("Cannot unassign tabs from superusers. Superusers always have access to all tabs.");
+      return;
+    }
+    
     const shouldAssign = !assignedTabs.has(tabSlug);
     // Optimistic update
     const next = new Set(assignedTabs);
@@ -268,7 +275,6 @@ const UsersManagement = () => {
             description: menuItem.label,
             order: idx,
             is_active: true,
-            assigned_to_all_admins: false,
           };
         });
         setAllTabs(combinedTabs);
@@ -307,98 +313,25 @@ const UsersManagement = () => {
     }
   };
 
-  const assignTabToAdmins = async (tabSlug, assign = true) => {
-    if (!manageTabsUser) return;
-    try {
-      setTabsLoading(true);
-      
-      // First, ensure the tab exists in the database (create if needed)
-      const menuItem = availableMenuItems.find(m => m.section === tabSlug);
-      if (menuItem) {
-        // Check if tab exists in DB - if it has an id, it exists in DB
-        const currentTab = allTabs.find(t => t.slug === tabSlug);
-        const tabExistsInDb = currentTab && currentTab.id;
-        
-        if (!tabExistsInDb) {
-          try {
-            // Create the tab first
-            await API.post("/buysellapi/dashboard-tabs/all/", {
-              name: menuItem.label,
-              slug: tabSlug,
-              description: menuItem.label,
-              order: availableMenuItems.findIndex(m => m.section === tabSlug),
-            });
-          } catch (createErr) {
-            // If tab already exists (400 error), that's fine - just continue
-            // This can happen if tab was created between our check and the create request
-            if (createErr.response?.status === 400) {
-              const errorMsg = createErr.response?.data?.error || "";
-              if (errorMsg.includes("already exists")) {
-                // Tab already exists, continue with assignment
-              } else {
-                throw createErr;
-              }
-            } else {
-              throw createErr;
-            }
-          }
-        }
-      }
-      
-      await API.post("/buysellapi/dashboard-tabs/assign-role/", {
-        tab_slug: tabSlug,
-        role: "admin",
-        assign,
-      });
-      toast.success(
-        assign ? "Assigned to all admins" : "Unassigned from all admins"
-      );
-      // Refresh user's assigned tabs (in case this affected membership)
-      const userResp = await API.get(
-        `/buysellapi/dashboard-tabs/user/${manageTabsUser.id}/`
-      );
-      const userTabs = Array.isArray(userResp.data) ? userResp.data : [];
-      setAssignedTabs(new Set(userTabs.map((t) => t.slug)));
-      // Refresh all tabs list
-      const allResp = await API.get("/buysellapi/dashboard-tabs/all/");
-      const dbTabs = Array.isArray(allResp.data) ? allResp.data : [];
-      const dbTabsMap = new Map(dbTabs.map(t => [t.slug, t]));
-      const combinedTabs = availableMenuItems.map((menuItem, idx) => {
-        const dbTab = dbTabsMap.get(menuItem.section);
-        return dbTab || {
-          name: menuItem.label,
-          slug: menuItem.section,
-          description: menuItem.label,
-          order: idx,
-          is_active: true,
-          assigned_to_all_admins: false,
-        };
-      });
-      setAllTabs(combinedTabs);
-    } catch (err) {
-      console.error("Failed to assign tab to admins:", err);
-      toast.error("Failed to assign tab to admins");
-    } finally {
-      setTabsLoading(false);
-    }
-  };
 
   const syncDefaultTabs = async () => {
     if (!isSuper) return;
     try {
       setTabsLoading(true);
-      // Define default menu items to sync
+      // Define default menu items to sync - must match AdminDashboard.jsx menuItems
       const menuItems = [
         { label: "Dashboard", section: "dashboard" },
         { label: "Users", section: "users" },
         { label: "Shipping", section: "shipping" },
         { label: "Alipay Payments", section: "alipay-payments" },
         { label: "Buy4me", section: "buy4me" },
+        { label: "Agent Management", section: "agents" },
         { label: "Orders", section: "orders" },
         { label: "Products", section: "products" },
         { label: "Categories", section: "categories" },
         { label: "Training", section: "training" },
         { label: "YouTube", section: "youtube" },
+        { label: "Gallery", section: "gallery" },
         { label: "Quick Orders", section: "quick-orders" },
         { label: "Messages", section: "messages" },
         { label: "Analytics", section: "analytics" },
@@ -1065,9 +998,16 @@ const UsersManagement = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
-                Manage Dashboard Tabs for {manageTabsUser?.username}
-              </h3>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
+                  Manage Dashboard Tabs for {manageTabsUser?.username}
+                </h3>
+                {manageTabsUser?.is_superuser && (
+                  <p className="text-sm text-blue-600 dark:text-blue-400 mt-1">
+                    ⚠️ Superusers always have access to all tabs and cannot have tabs unassigned.
+                  </p>
+                )}
+              </div>
               <button
                 onClick={() => {
                   setShowManageTabsModal(false);
@@ -1104,11 +1044,6 @@ const UsersManagement = () => {
                           <div className="font-medium text-gray-800 dark:text-white">
                             {tab.name}
                           </div>
-                          {tab.assigned_to_all_admins && (
-                            <div className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">
-                              All Admins
-                            </div>
-                          )}
                         </div>
                         {tab.description && (
                           <div className="text-xs text-gray-500 dark:text-gray-400">
@@ -1121,36 +1056,15 @@ const UsersManagement = () => {
                           type="checkbox"
                           checked={assignedTabs.has(tab.slug)}
                           onChange={() => toggleTabAssignment(tab.slug)}
-                          className="h-4 w-4"
+                          disabled={manageTabsUser?.is_superuser || manageTabsUser?.is_superuser === true}
+                          className="h-4 w-4 disabled:opacity-50 disabled:cursor-not-allowed"
+                          title={manageTabsUser?.is_superuser ? "Superusers always have all tabs" : ""}
                         />
-                        <button
-                          onClick={() => {
-                            if (
-                              !window.confirm("Assign this tab to ALL admins?")
-                            )
-                              return;
-                            assignTabToAdmins(tab.slug, true);
-                          }}
-                          className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-md hover:bg-green-200"
-                          title="Assign to all admins"
-                        >
-                          Assign Admins
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (
-                              !window.confirm(
-                                "Remove this tab from ALL admins?"
-                              )
-                            )
-                              return;
-                            assignTabToAdmins(tab.slug, false);
-                          }}
-                          className="px-2 py-1 text-xs bg-red-100 text-red-800 rounded-md hover:bg-red-200"
-                          title="Remove from all admins"
-                        >
-                          Unassign Admins
-                        </button>
+                        {manageTabsUser?.is_superuser && (
+                          <span className="text-xs text-gray-500 dark:text-gray-400 italic">
+                            (Superuser - all tabs)
+                          </span>
+                        )}
                       </div>
                     </label>
                   ))

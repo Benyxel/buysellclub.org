@@ -20,6 +20,7 @@ import PlaceOrder from "./pages/PlaceOrder";
 import Training from "./pages/Quicklinks/Training";
 import AlipayPayment from "./pages/Quicklinks/AlipayPayment";
 import Payment from "./pages/Quicklinks/Payment";
+import PaymentCallback from "./pages/PaymentCallback";
 import Favorites from "./pages/Favorites";
 import MyProfile from "./components/MyProfile";
 import Login from "./pages/Login";
@@ -76,29 +77,23 @@ function App() {
     return () => clearInterval(interval);
   }, []);
 
-  // Show maintenance page if enabled and not on admin routes
-  if (!loading && maintenance?.is_enabled && !isAdminRoute) {
-    return (
-      <MaintenancePage
-        title={maintenance.title}
-        message={maintenance.message}
-        estimatedTime={maintenance.estimated_time}
-      />
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
-      <ScrollToTop />
-      <Routes>
+    <>
+      {/* Show maintenance page if enabled and not on admin routes */}
+      {!loading && maintenance?.is_enabled && !isAdminRoute ? (
+        <MaintenancePage
+          title={maintenance.title}
+          message={maintenance.message}
+          estimatedTime={maintenance.estimated_time}
+        />
+      ) : loading ? (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        </div>
+      ) : (
+        <div className="min-h-screen flex flex-col bg-gray-50">
+          <ScrollToTop />
+          <Routes>
         {/* Auth pages without Navbar and Footer */}
         <Route path="/Login" element={<Login />} />
         <Route path="/Signup" element={<Signup />} />
@@ -163,6 +158,7 @@ function App() {
                   <Route path="Training" element={<Training />} />
                   <Route path="Gallery" element={<Gallery />} />
                   <Route path="tracking" element={<TrackingPage />} />
+                  <Route path="payment/callback" element={<PaymentCallback />} />
 
                   {/* Protected routes - require login */}
                   <Route
@@ -263,7 +259,9 @@ function App() {
           }
         />
       </Routes>
-      <LoginPromptModal />
+          <LoginPromptModal />
+        </div>
+      )}
       <ToastContainer
         position="top-right"
         autoClose={4000}
@@ -278,7 +276,7 @@ function App() {
         limit={5}
         enableMultiContainer={false}
       />
-    </div>
+    </>
   );
 }
 

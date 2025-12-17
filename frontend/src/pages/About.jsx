@@ -177,9 +177,9 @@ const About = () => {
           </div>
         </div>
         <div className="text-center">
-          <div className="text-4xl font-bold text-primary mb-2">50+</div>
+          <div className="text-4xl font-bold text-primary mb-2">16</div>
           <div className="text-gray-600 dark:text-gray-400">
-            Countries Served
+            Regions Served
           </div>
         </div>
         <div className="text-center">

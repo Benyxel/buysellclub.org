@@ -10,6 +10,8 @@ import {
   FaTimes,
   FaSave,
   FaExclamationTriangle,
+  FaChevronLeft,
+  FaChevronRight,
 } from "react-icons/fa";
 import {
   getAdminQuickOrderProducts,
@@ -26,6 +28,11 @@ const QuickOrderProducts = () => {
   const [editMode, setEditMode] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
 
   const [formData, setFormData] = useState({
     _id: "",
@@ -39,11 +46,26 @@ const QuickOrderProducts = () => {
     active: true,
   });
 
-  const fetchProducts = async () => {
+  const fetchProducts = async (page = currentPage, size = pageSize) => {
     try {
       setIsLoading(true);
-      const response = await getAdminQuickOrderProducts();
-      const productsData = Array.isArray(response.data) ? response.data : (response.data.results || []);
+      const params = { page: page || 1, page_size: size || 10 };
+      const response = await getAdminQuickOrderProducts(params);
+      
+      // Handle both array and paginated response
+      let productsData = [];
+      if (response.data && typeof response.data === 'object' && 'results' in response.data) {
+        // Paginated response
+        productsData = response.data.results || [];
+        setTotal(response.data.count || 0);
+      } else if (Array.isArray(response.data)) {
+        // Non-paginated array response (fallback)
+        productsData = response.data;
+        setTotal(response.data.length);
+      } else {
+        productsData = [];
+        setTotal(0);
+      }
       
       // Transform products to match expected format
       const transformedProducts = productsData.map(product => ({
@@ -68,14 +90,28 @@ const QuickOrderProducts = () => {
       }
       // Set empty array on any error to prevent UI crashes
       setProducts([]);
+      setTotal(0);
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchProducts();
-  }, []);
+    fetchProducts(currentPage, pageSize);
+  }, [currentPage, pageSize]);
+
+  // Pagination handlers
+  const totalPages = Math.ceil(total / pageSize);
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
+
+  const handlePageSizeChange = (newSize) => {
+    setPageSize(newSize);
+    setCurrentPage(1);
+  };
 
   const handleAddNew = () => {
     setFormData({
@@ -120,7 +156,7 @@ const QuickOrderProducts = () => {
 
       toast.success("Product deleted successfully", { toastId: "delete-product-success" });
       setConfirmDelete(null);
-      fetchProducts();
+      fetchProducts(currentPage, pageSize);
     } catch (error) {
       console.error("Error deleting product:", error);
       const errorMsg = error.response?.data?.detail || 
@@ -245,7 +281,7 @@ const QuickOrderProducts = () => {
         minQuantity: 20,
         active: true,
       });
-      fetchProducts();
+      fetchProducts(currentPage, pageSize);
     } catch (error) {
       console.error("Error saving product:", error);
       const errorMessage = error.response?.data?.error || error.response?.data?.detail || error.message || "Failed to save product";
@@ -478,6 +514,7 @@ const QuickOrderProducts = () => {
           </p>
         </div>
       ) : (
+        <>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {products.map((product) => (
             <div
@@ -547,6 +584,56 @@ const QuickOrderProducts = () => {
             </div>
           ))}
         </div>
+
+        {/* Pagination */}
+        {total > 0 && (
+          <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-4 bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                Showing {(currentPage - 1) * pageSize + 1} to{" "}
+                {Math.min(currentPage * pageSize, total)} of {total} products
+              </span>
+              <select
+                value={pageSize}
+                onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm text-gray-700 dark:text-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent"
+              >
+                <option value={10}>10 per page</option>
+                <option value={20}>20 per page</option>
+                <option value={50}>50 per page</option>
+                <option value={100}>100 per page</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className={`px-3 py-1 rounded-lg border border-gray-300 dark:border-gray-600 ${
+                  currentPage === 1
+                    ? "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-600 cursor-not-allowed"
+                    : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                }`}
+              >
+                <FaChevronLeft />
+              </button>
+              <span className="text-sm text-gray-600 dark:text-gray-400 px-3">
+                Page {currentPage} of {totalPages || 1}
+              </span>
+              <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage >= totalPages}
+                className={`px-3 py-1 rounded-lg border border-gray-300 dark:border-gray-600 ${
+                  currentPage >= totalPages
+                    ? "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-600 cursor-not-allowed"
+                    : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                }`}
+              >
+                <FaChevronRight />
+              </button>
+            </div>
+          </div>
+        )}
+        </>
       )}
     </div>
   );

@@ -422,7 +422,6 @@ const AdminDashboard = () => {
         tabs.forEach((t) => {
           meta[t.slug] = {
             assigned: Boolean(t.assigned),
-            assignedToAll: Boolean(t.assigned_to_all_admins),
           };
         });
         // Superadmin: ensure all frontend menu items remain accessible even if DB lacks some entries
@@ -476,7 +475,6 @@ const AdminDashboard = () => {
       tabsResp.forEach((t) => {
         meta[t.slug] = {
           assigned: Boolean(t.assigned),
-          assignedToAll: Boolean(t.assigned_to_all_admins),
         };
       });
       setAllowedTabsMeta(meta);
@@ -1237,15 +1235,9 @@ const AdminDashboard = () => {
                               {chatUnreadCount}
                             </span>
                           )}
-                          {allowedTabsMeta[item.section]?.assignedToAll && (
-                            <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">
-                              All
-                            </span>
+                          {allowedTabsMeta[item.section]?.assigned && (
+                            <span className="ml-2 w-2 h-2 rounded-full bg-green-500 inline-block" />
                           )}
-                          {allowedTabsMeta[item.section]?.assigned &&
-                            !allowedTabsMeta[item.section]?.assignedToAll && (
-                              <span className="ml-2 w-2 h-2 rounded-full bg-green-500 inline-block" />
-                            )}
                         </span>
                       )}
                     </button>

@@ -291,7 +291,7 @@ const Api = {
   quickOrder: {
     list: (params) => http.get("/buysellapi/quick-order-products/", { params }),
     payment: (id, amount) => http.post(`/buysellapi/quick-order-products/${id}/payment/`, { amount }),
-    adminList: () => http.get("/buysellapi/admin/quick-order-products/"),
+    adminList: (params) => http.get("/buysellapi/admin/quick-order-products/", { params }),
     adminDetail: (id) =>
       http.get(`/buysellapi/admin/quick-order-products/${id}/`),
     create: (payload) =>

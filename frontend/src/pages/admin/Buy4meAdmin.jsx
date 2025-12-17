@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaEdit, FaTrash, FaEye, FaCheck, FaTimes, FaFileInvoiceDollar, FaPrint, FaDownload, FaSpinner } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaEye, FaCheck, FaTimes, FaFileInvoiceDollar, FaPrint, FaDownload, FaSpinner, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import { toast } from '../../utils/toast';
 import InvoiceModal from '../../components/InvoiceModal';
 import Invoice from '../../components/Invoice';
@@ -33,17 +33,50 @@ const Buy4meAdmin = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
 
   useEffect(() => {
-    fetchBuy4meRequests();
-  }, []);
+    fetchBuy4meRequests(currentPage, pageSize);
+  }, [currentPage, pageSize]);
 
-  const fetchBuy4meRequests = async () => {
+  // Pagination handlers
+  const totalPages = Math.ceil(total / pageSize);
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
+
+  const handlePageSizeChange = (newSize) => {
+    setPageSize(newSize);
+    setCurrentPage(1);
+  };
+
+  const fetchBuy4meRequests = async (page = currentPage, size = pageSize) => {
     // Always fetch fresh data from server
     try {
       setLoading(true);
-      const response = await getAdminBuy4meRequests();
-      const requestsData = Array.isArray(response.data) ? response.data : [];
+      const params = { page: page || 1, page_size: size || 10 };
+      const response = await getAdminBuy4meRequests(params);
+      
+      // Handle both array and paginated response
+      let requestsData = [];
+      if (response.data && typeof response.data === 'object' && 'results' in response.data) {
+        // Paginated response
+        requestsData = response.data.results || [];
+        setTotal(response.data.count || 0);
+      } else if (Array.isArray(response.data)) {
+        // Non-paginated array response (fallback)
+        requestsData = response.data;
+        setTotal(response.data.length);
+      } else {
+        requestsData = [];
+        setTotal(0);
+      }
       
       // Transform data to match frontend expectations
       const transformedRequests = requestsData.map(request => ({
@@ -76,6 +109,7 @@ const Buy4meAdmin = () => {
       }
       // Set empty array on any error to prevent UI crashes
       setRequests([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
@@ -148,7 +182,7 @@ const Buy4meAdmin = () => {
       );
       
       // Refresh data from server to ensure consistency
-      fetchBuy4meRequests();
+      fetchBuy4meRequests(currentPage, pageSize);
       
       if (selectedRequest && (selectedRequest.id === deleteTarget || selectedRequest._id === deleteTarget)) {
         setSelectedRequest(null);
@@ -336,7 +370,7 @@ const Buy4meAdmin = () => {
       );
       
       // Refresh data from server to ensure consistency
-      fetchBuy4meRequests();
+      fetchBuy4meRequests(currentPage, pageSize);
       
       setSelectedRequests([]);
     } catch (error) {
@@ -354,7 +388,7 @@ const Buy4meAdmin = () => {
       await Promise.all(updatePromises);
       toast.success(`${selectedIds.length} request(s) status updated successfully`);
       setSelectedRequests([]);
-      fetchBuy4meRequests();
+      fetchBuy4meRequests(currentPage, pageSize);
     } catch (error) {
       console.error('Error bulk updating status:', error);
       toast.error('Failed to update some requests');
@@ -620,6 +654,55 @@ const Buy4meAdmin = () => {
           </table>
         </div>
       </div>
+
+      {/* Pagination */}
+      {total > 0 && (
+        <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-4 bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-gray-600 dark:text-gray-400">
+              Showing {(currentPage - 1) * pageSize + 1} to{" "}
+              {Math.min(currentPage * pageSize, total)} of {total} requests
+            </span>
+            <select
+              value={pageSize}
+              onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+              className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm text-gray-700 dark:text-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent"
+            >
+              <option value={10}>10 per page</option>
+              <option value={20}>20 per page</option>
+              <option value={50}>50 per page</option>
+              <option value={100}>100 per page</option>
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className={`px-3 py-1 rounded-lg border border-gray-300 dark:border-gray-600 ${
+                currentPage === 1
+                  ? "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-600 cursor-not-allowed"
+                  : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+              }`}
+            >
+              <FaChevronLeft />
+            </button>
+            <span className="text-sm text-gray-600 dark:text-gray-400 px-3">
+              Page {currentPage} of {totalPages || 1}
+            </span>
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage >= totalPages}
+              className={`px-3 py-1 rounded-lg border border-gray-300 dark:border-gray-600 ${
+                currentPage >= totalPages
+                  ? "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-600 cursor-not-allowed"
+                  : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+              }`}
+            >
+              <FaChevronRight />
+            </button>
+          </div>
+        </div>
+      )}
 
       {selectedRequest && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">

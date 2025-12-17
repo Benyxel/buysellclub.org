@@ -1,13 +1,21 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { BsToggle2On, BsToggle2Off } from "react-icons/bs";
 
 const DarkMode = () => {
-  const [theme, setTheme] = React.useState(localStorage.getItem("theme")? localStorage.getItem("theme") : "dark");
+  const [theme, setTheme] = useState(() => {
+    // Initialize theme from localStorage or default to "dark"
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem("theme") || "dark";
+    }
+    return "dark";
+  });
 
-  const element = document.documentElement;
- 
-  React.useEffect(()=> {
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const element = document.documentElement;
     localStorage.setItem("theme", theme);
+    
     if (theme === "dark"){
         element.classList.add("dark");
         element.classList.remove("light");

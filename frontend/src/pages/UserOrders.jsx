@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useLocation } from 'react-router-dom';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { FaEye, FaTimes, FaShoppingBag, FaSpinner } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import { toast } from '../utils/toast';
@@ -12,6 +12,8 @@ const UserOrders = () => {
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [loading, setLoading] = useState(true);
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const orderRefs = useRef({});
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
@@ -175,7 +177,11 @@ const UserOrders = () => {
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                     {orders.map((order) => (
-                      <tr key={order.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                      <tr 
+                        key={order.id} 
+                        ref={(el) => { if (el) orderRefs.current[order.id] = el; }}
+                        className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                      >
                   <td className="py-3 px-4">#{order.id}</td>
                   <td className="py-3 px-4">
                     {new Date(order.created_at || order.createdAt).toLocaleDateString('en-US', {

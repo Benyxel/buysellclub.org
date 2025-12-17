@@ -11,7 +11,7 @@ import {
   deleteProductType,
 } from "../../api";
 import { toast } from "../../utils/toast";
-import { FaPlus, FaEdit, FaTrash, FaTimes, FaCheck } from "react-icons/fa";
+import { FaPlus, FaEdit, FaTrash, FaTimes, FaCheck, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 
 const initialCategoryForm = {
   name: "",
@@ -45,6 +45,18 @@ export default function CategoriesTypesManagement() {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState(() => getInitialTab());
   
+  // Pagination state for Categories
+  const [categoriesPage, setCategoriesPage] = useState(1);
+  const [categoriesPageSize, setCategoriesPageSize] = useState(10);
+  const [categoriesTotal, setCategoriesTotal] = useState(0);
+  const [categoriesCount, setCategoriesCount] = useState(0);
+  
+  // Pagination state for Product Types
+  const [typesPage, setTypesPage] = useState(1);
+  const [typesPageSize, setTypesPageSize] = useState(10);
+  const [typesTotal, setTypesTotal] = useState(0);
+  const [typesCount, setTypesCount] = useState(0);
+  
   // Category state
   const [categoryForm, setCategoryForm] = useState(initialCategoryForm);
   const [editingCategory, setEditingCategory] = useState(null);
@@ -55,14 +67,28 @@ export default function CategoriesTypesManagement() {
   const [editingType, setEditingType] = useState(null);
   const [showTypeForm, setShowTypeForm] = useState(false);
 
-  const loadCategories = async () => {
+  const loadCategories = async (page = categoriesPage, pageSize = categoriesPageSize) => {
     try {
-      const resp = await getCategories();
+      const resp = await getCategories({ page, page_size: pageSize });
       // Handle both array and paginated response
-      const items = Array.isArray(resp.data) 
-        ? resp.data 
-        : (resp.data?.results || []);
-      setCategories(items);
+      // Prioritize paginated response format (results + count)
+      if (resp.data && typeof resp.data === 'object' && 'results' in resp.data) {
+        // Paginated response
+        const items = resp.data.results || [];
+        setCategories(items);
+        setCategoriesTotal(resp.data.count || 0);
+        setCategoriesCount(resp.data.count || 0);
+      } else if (Array.isArray(resp.data)) {
+        // Non-paginated array response (fallback)
+        setCategories(resp.data);
+        setCategoriesTotal(resp.data.length);
+        setCategoriesCount(resp.data.length);
+      } else {
+        // Empty or unexpected response
+        setCategories([]);
+        setCategoriesTotal(0);
+        setCategoriesCount(0);
+      }
     } catch (err) {
       console.error("Failed to load categories", err);
       // Only show error for actual failures (4xx/5xx), not for empty data
@@ -72,17 +98,41 @@ export default function CategoriesTypesManagement() {
         toast.error(errorMsg, { toastId: "load-categories-error" });
       }
       setCategories([]); // Set empty array on error
+      setCategoriesTotal(0);
+      setCategoriesCount(0);
     }
   };
 
-  const loadProductTypes = async () => {
+  const loadProductTypes = async (page = typesPage, pageSize = typesPageSize) => {
     try {
-      const resp = await getProductTypes();
+      // Ensure we always pass explicit page and page_size parameters
+      const params = { page: page || 1, page_size: pageSize || 10 };
+      console.log("Loading product types with params:", params);
+      const resp = await getProductTypes(params);
+      console.log("Product types response:", resp.data);
+      
       // Handle both array and paginated response
-      const items = Array.isArray(resp.data) 
-        ? resp.data 
-        : (resp.data?.results || []);
-      setProductTypes(items);
+      // Prioritize paginated response format (results + count)
+      if (resp.data && typeof resp.data === 'object' && 'results' in resp.data) {
+        // Paginated response
+        const items = resp.data.results || [];
+        console.log(`Paginated response: ${items.length} items, total count: ${resp.data.count}`);
+        setProductTypes(items);
+        setTypesTotal(resp.data.count || 0);
+        setTypesCount(resp.data.count || 0);
+      } else if (Array.isArray(resp.data)) {
+        // Non-paginated array response (fallback)
+        console.log(`Non-paginated array response: ${resp.data.length} items`);
+        setProductTypes(resp.data);
+        setTypesTotal(resp.data.length);
+        setTypesCount(resp.data.length);
+      } else {
+        // Empty or unexpected response
+        console.log("Empty or unexpected response:", resp.data);
+        setProductTypes([]);
+        setTypesTotal(0);
+        setTypesCount(0);
+      }
     } catch (err) {
       console.error("Failed to load product types", err);
       // Only show error for actual failures (4xx/5xx), not for empty data
@@ -92,12 +142,18 @@ export default function CategoriesTypesManagement() {
         toast.error(errorMsg, { toastId: "load-types-error" });
       }
       setProductTypes([]); // Set empty array on error
+      setTypesTotal(0);
+      setTypesCount(0);
     }
   };
 
   const load = async () => {
     setLoading(true);
-    await Promise.all([loadCategories(), loadProductTypes()]);
+    // Explicitly pass page and pageSize to ensure pagination works
+    await Promise.all([
+      loadCategories(categoriesPage, categoriesPageSize),
+      loadProductTypes(typesPage, typesPageSize)
+    ]);
     setLoading(false);
   };
 
@@ -123,6 +179,36 @@ export default function CategoriesTypesManagement() {
   const handleTabChange = (tabKey) => {
     setActiveTab(tabKey);
     setSearchParams({ tab: tabKey }, { replace: true });
+  };
+
+  // Pagination handlers for Categories
+  const categoriesTotalPages = Math.ceil(categoriesTotal / categoriesPageSize);
+  const handleCategoriesPageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= categoriesTotalPages) {
+      setCategoriesPage(newPage);
+      loadCategories(newPage, categoriesPageSize);
+    }
+  };
+
+  const handleCategoriesPageSizeChange = (newSize) => {
+    setCategoriesPageSize(newSize);
+    setCategoriesPage(1);
+    loadCategories(1, newSize);
+  };
+
+  // Pagination handlers for Product Types
+  const typesTotalPages = Math.ceil(typesTotal / typesPageSize);
+  const handleTypesPageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= typesTotalPages) {
+      setTypesPage(newPage);
+      loadProductTypes(newPage, typesPageSize);
+    }
+  };
+
+  const handleTypesPageSizeChange = (newSize) => {
+    setTypesPageSize(newSize);
+    setTypesPage(1);
+    loadProductTypes(1, newSize);
   };
 
   useEffect(() => {
@@ -162,7 +248,7 @@ export default function CategoriesTypesManagement() {
         toast.success("Category created successfully!");
       }
       resetCategoryForm();
-      loadCategories();
+      loadCategories(categoriesPage, categoriesPageSize);
     } catch (err) {
       console.error("Failed to save category", err);
       const errorMsg =
@@ -193,7 +279,7 @@ export default function CategoriesTypesManagement() {
     try {
       await deleteCategory(category.slug);
       toast.success("Category deleted successfully!");
-      loadCategories();
+      loadCategories(categoriesPage, categoriesPageSize);
     } catch (err) {
       console.error("Failed to delete category", err);
       toast.error("Failed to delete category");
@@ -239,7 +325,7 @@ export default function CategoriesTypesManagement() {
         toast.success("Product type created successfully!");
       }
       resetTypeForm();
-      loadProductTypes();
+      loadProductTypes(typesPage, typesPageSize);
     } catch (err) {
       console.error("Failed to save product type", err);
       const errorMsg =
@@ -270,7 +356,7 @@ export default function CategoriesTypesManagement() {
     try {
       await deleteProductType(type.slug);
       toast.success("Product type deleted successfully!");
-      loadProductTypes();
+      loadProductTypes(typesPage, typesPageSize);
     } catch (err) {
       console.error("Failed to delete product type", err);
       toast.error("Failed to delete product type");
@@ -332,7 +418,7 @@ export default function CategoriesTypesManagement() {
             <div>
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
-                  Categories ({categories.length})
+                  Categories ({categoriesTotal})
                 </h2>
                 <button
                   onClick={() => {
@@ -504,6 +590,55 @@ export default function CategoriesTypesManagement() {
                   </tbody>
                 </table>
               </div>
+
+              {/* Categories Pagination */}
+              {categoriesTotal > 0 && (
+                <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-4 bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                      Showing {(categoriesPage - 1) * categoriesPageSize + 1} to{" "}
+                      {Math.min(categoriesPage * categoriesPageSize, categoriesTotal)} of {categoriesTotal} categories
+                    </span>
+                    <select
+                      value={categoriesPageSize}
+                      onChange={(e) => handleCategoriesPageSizeChange(Number(e.target.value))}
+                      className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm text-gray-700 dark:text-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent"
+                    >
+                      <option value={10}>10 per page</option>
+                      <option value={20}>20 per page</option>
+                      <option value={50}>50 per page</option>
+                      <option value={100}>100 per page</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleCategoriesPageChange(categoriesPage - 1)}
+                      disabled={categoriesPage === 1}
+                      className={`px-3 py-1 rounded-lg border border-gray-300 dark:border-gray-600 ${
+                        categoriesPage === 1
+                          ? "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-600 cursor-not-allowed"
+                          : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                      }`}
+                    >
+                      <FaChevronLeft />
+                    </button>
+                    <span className="text-sm text-gray-600 dark:text-gray-400 px-3">
+                      Page {categoriesPage} of {categoriesTotalPages || 1}
+                    </span>
+                    <button
+                      onClick={() => handleCategoriesPageChange(categoriesPage + 1)}
+                      disabled={categoriesPage >= categoriesTotalPages}
+                      className={`px-3 py-1 rounded-lg border border-gray-300 dark:border-gray-600 ${
+                        categoriesPage >= categoriesTotalPages
+                          ? "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-600 cursor-not-allowed"
+                          : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                      }`}
+                    >
+                      <FaChevronRight />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -512,7 +647,7 @@ export default function CategoriesTypesManagement() {
             <div>
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
-                  Product Types ({productTypes.length})
+                  Product Types ({typesTotal})
                 </h2>
                 <button
                   onClick={() => {
@@ -684,6 +819,55 @@ export default function CategoriesTypesManagement() {
                   </tbody>
                 </table>
               </div>
+
+              {/* Product Types Pagination */}
+              {typesTotal > 0 && (
+                <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-4 bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                      Showing {(typesPage - 1) * typesPageSize + 1} to{" "}
+                      {Math.min(typesPage * typesPageSize, typesTotal)} of {typesTotal} product types
+                    </span>
+                    <select
+                      value={typesPageSize}
+                      onChange={(e) => handleTypesPageSizeChange(Number(e.target.value))}
+                      className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm text-gray-700 dark:text-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent"
+                    >
+                      <option value={10}>10 per page</option>
+                      <option value={20}>20 per page</option>
+                      <option value={50}>50 per page</option>
+                      <option value={100}>100 per page</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleTypesPageChange(typesPage - 1)}
+                      disabled={typesPage === 1}
+                      className={`px-3 py-1 rounded-lg border border-gray-300 dark:border-gray-600 ${
+                        typesPage === 1
+                          ? "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-600 cursor-not-allowed"
+                          : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                      }`}
+                    >
+                      <FaChevronLeft />
+                    </button>
+                    <span className="text-sm text-gray-600 dark:text-gray-400 px-3">
+                      Page {typesPage} of {typesTotalPages || 1}
+                    </span>
+                    <button
+                      onClick={() => handleTypesPageChange(typesPage + 1)}
+                      disabled={typesPage >= typesTotalPages}
+                      className={`px-3 py-1 rounded-lg border border-gray-300 dark:border-gray-600 ${
+                        typesPage >= typesTotalPages
+                          ? "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-600 cursor-not-allowed"
+                          : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                      }`}
+                    >
+                      <FaChevronRight />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </>

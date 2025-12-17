@@ -8,7 +8,7 @@ import {
   getProductTypes,
 } from "../../api";
 import { toast } from "../../utils/toast";
-import { FaPlus, FaEdit, FaTrash, FaImage, FaTimes, FaCheck } from "react-icons/fa";
+import { FaPlus, FaEdit, FaTrash, FaImage, FaTimes, FaCheck, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import BulkActions from "../../components/shared/BulkActions";
 
 const initialForm = {
@@ -47,52 +47,109 @@ export default function AdminProducts() {
   const [showForm, setShowForm] = useState(false);
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [selectAll, setSelectAll] = useState(false);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
 
   const loadCategories = async () => {
     try {
-      const resp = await getCategories();
-      const items = Array.isArray(resp.data) ? resp.data : [];
+      // Request a large page size to get all categories
+      const resp = await getCategories({ page_size: 1000 });
+      let items = [];
+      
+      // Handle paginated response
+      if (resp.data && typeof resp.data === 'object' && 'results' in resp.data) {
+        items = resp.data.results || [];
+      } 
+      // Handle array response (non-paginated)
+      else if (Array.isArray(resp.data)) {
+        items = resp.data;
+      }
+      
       setCategories(items.filter(cat => cat.is_active));
     } catch (err) {
       console.error("Failed to load categories", err);
+      setCategories([]);
     }
   };
 
   const loadProductTypes = async () => {
     try {
-      const resp = await getProductTypes();
-      const items = Array.isArray(resp.data) ? resp.data : [];
+      // Request a large page size to get all product types
+      const resp = await getProductTypes({ page_size: 1000 });
+      let items = [];
+      
+      // Handle paginated response
+      if (resp.data && typeof resp.data === 'object' && 'results' in resp.data) {
+        items = resp.data.results || [];
+      } 
+      // Handle array response (non-paginated)
+      else if (Array.isArray(resp.data)) {
+        items = resp.data;
+      }
+      
       setProductTypes(items.filter(type => type.is_active));
     } catch (err) {
       console.error("Failed to load product types", err);
+      setProductTypes([]);
     }
   };
 
-  const load = async () => {
+  const load = async (page = currentPage, size = pageSize) => {
     setLoading(true);
     try {
-      const resp = await getProducts({});
-      const items = Array.isArray(
-        resp.data.results ? resp.data.results : resp.data
-      )
-        ? resp.data.results
-          ? resp.data.results
-          : resp.data
-        : [];
+      const params = { page: page || 1, page_size: size || 10 };
+      const resp = await getProducts(params);
+      
+      // Handle both array and paginated response
+      let items = [];
+      if (resp.data && typeof resp.data === 'object' && 'results' in resp.data) {
+        // Paginated response
+        items = resp.data.results || [];
+        setTotal(resp.data.count || 0);
+      } else if (Array.isArray(resp.data)) {
+        // Non-paginated array response (fallback)
+        items = resp.data;
+        setTotal(resp.data.length);
+      } else if (resp.data?.results) {
+        // Alternative paginated format
+        items = resp.data.results;
+        setTotal(resp.data.count || items.length);
+      } else {
+        items = [];
+        setTotal(0);
+      }
       setProducts(items);
     } catch (err) {
       console.error("Failed to load products", err);
       toast.error("Failed to load products");
+      setProducts([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    load();
+    load(currentPage, pageSize);
     loadCategories();
     loadProductTypes();
-  }, []);
+  }, [currentPage, pageSize]);
+
+  // Pagination handlers
+  const totalPages = Math.ceil(total / pageSize);
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
+
+  const handlePageSizeChange = (newSize) => {
+    setPageSize(newSize);
+    setCurrentPage(1);
+  };
 
   // Auto-generate slug when name changes
   useEffect(() => {
@@ -222,7 +279,7 @@ export default function AdminProducts() {
       }
 
       resetForm();
-      load();
+      load(currentPage, pageSize);
     } catch (err) {
       console.error("Save product failed - Full error:", err);
       console.error("Error response:", err.response);
@@ -304,7 +361,7 @@ export default function AdminProducts() {
     try {
       await deleteProduct(slug);
       toast.success("Product deleted successfully");
-      load();
+      load(currentPage, pageSize);
     } catch (err) {
       console.error("Delete failed", err);
       toast.error(err.response?.data?.detail || "Failed to delete product");
@@ -342,7 +399,7 @@ export default function AdminProducts() {
       await Promise.all(deletePromises);
       toast.success(`${selectedSlugs.length} product(s) deleted successfully`);
       setSelectedProducts([]);
-      load();
+      load(currentPage, pageSize);
     } catch (error) {
       console.error("Error bulk deleting products:", error);
       toast.error("Failed to delete some products");
@@ -359,7 +416,7 @@ export default function AdminProducts() {
       await Promise.all(updatePromises);
       toast.success(`${selectedSlugs.length} product(s) status updated successfully`);
       setSelectedProducts([]);
-      load();
+      load(currentPage, pageSize);
     } catch (error) {
       console.error("Error bulk updating status:", error);
       toast.error("Failed to update some products");
@@ -671,7 +728,7 @@ export default function AdminProducts() {
       {/* Products List */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
         <h3 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">
-          Existing Products ({products.length})
+          Existing Products ({total})
         </h3>
 
         {/* Bulk Actions */}
@@ -804,6 +861,55 @@ export default function AdminProducts() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Pagination */}
+        {total > 0 && (
+          <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-4 bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                Showing {(currentPage - 1) * pageSize + 1} to{" "}
+                {Math.min(currentPage * pageSize, total)} of {total} products
+              </span>
+              <select
+                value={pageSize}
+                onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm text-gray-700 dark:text-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent"
+              >
+                <option value={10}>10 per page</option>
+                <option value={20}>20 per page</option>
+                <option value={50}>50 per page</option>
+                <option value={100}>100 per page</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className={`px-3 py-1 rounded-lg border border-gray-300 dark:border-gray-600 ${
+                  currentPage === 1
+                    ? "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-600 cursor-not-allowed"
+                    : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                }`}
+              >
+                <FaChevronLeft />
+              </button>
+              <span className="text-sm text-gray-600 dark:text-gray-400 px-3">
+                Page {currentPage} of {totalPages || 1}
+              </span>
+              <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage >= totalPages}
+                className={`px-3 py-1 rounded-lg border border-gray-300 dark:border-gray-600 ${
+                  currentPage >= totalPages
+                    ? "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-600 cursor-not-allowed"
+                    : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                }`}
+              >
+                <FaChevronRight />
+              </button>
+            </div>
           </div>
         )}
       </div>

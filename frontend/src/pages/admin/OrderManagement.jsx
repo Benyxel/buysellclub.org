@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaSearch, FaSortAmountDown, FaSortAmountUp, FaFilter, FaDownload, FaEye, FaCheck, FaTimes } from 'react-icons/fa';
+import { FaSearch, FaSortAmountDown, FaSortAmountUp, FaFilter, FaDownload, FaEye, FaCheck, FaTimes, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import { toast } from '../../utils/toast';
 import API, { getOrders } from '../../api';
 import BulkActions from '../../components/shared/BulkActions';
@@ -22,26 +22,62 @@ const OrderManagement = () => {
   const [loading, setLoading] = useState(true);
   const [selectedOrders, setSelectedOrders] = useState([]);
   const [selectAll, setSelectAll] = useState(false);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
 
   useEffect(() => {
-    fetchOrders();
-  }, []);
+    fetchOrders(currentPage, pageSize);
+  }, [currentPage, pageSize]);
+
+  // Pagination handlers
+  const totalPages = Math.ceil(total / pageSize);
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
+
+  const handlePageSizeChange = (newSize) => {
+    setPageSize(newSize);
+    setCurrentPage(1);
+  };
 
   useEffect(() => {
     applyFiltersAndSort();
   }, [orders, searchTerm, sortField, sortDirection, filterStatus]);
 
-  const fetchOrders = async () => {
+  const fetchOrders = async (page = currentPage, size = pageSize) => {
     setLoading(true);
     try {
       // Use admin endpoint to get all orders - always fetch fresh data
-      const response = await API.get("/buysellapi/admin/orders/");
-      const ordersData = Array.isArray(response.data) ? response.data : (response.data.results || []);
+      const params = { page: page || 1, page_size: size || 10 };
+      const response = await API.get("/buysellapi/admin/orders/", { params });
+      
+      // Handle both array and paginated response
+      let ordersData = [];
+      if (response.data && typeof response.data === 'object' && 'results' in response.data) {
+        // Paginated response
+        ordersData = response.data.results || [];
+        setTotal(response.data.count || 0);
+      } else if (Array.isArray(response.data)) {
+        // Non-paginated array response (fallback)
+        ordersData = response.data;
+        setTotal(response.data.length);
+      } else {
+        ordersData = [];
+        setTotal(0);
+      }
       setOrders(ordersData);
       setFilteredOrders(ordersData);
     } catch (error) {
       console.error('Error fetching orders:', error);
       toast.error(error.response?.data?.error || 'Failed to load orders');
+      setOrders([]);
+      setFilteredOrders([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
@@ -116,7 +152,7 @@ const OrderManagement = () => {
 
       toast.success('Order status updated successfully');
       closeStatusModal();
-      fetchOrders(); // Refresh orders with fresh data
+      fetchOrders(currentPage, pageSize); // Refresh orders with fresh data
     } catch (error) {
       console.error('Error updating order status:', error);
       const errorMessage = error.response?.data?.status || error.response?.data?.payment_status || error.response?.data?.error || 'Failed to update order status';
@@ -536,6 +572,55 @@ const OrderManagement = () => {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pagination */}
+      {total > 0 && (
+        <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-4 bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-gray-600 dark:text-gray-400">
+              Showing {(currentPage - 1) * pageSize + 1} to{" "}
+              {Math.min(currentPage * pageSize, total)} of {total} orders
+            </span>
+            <select
+              value={pageSize}
+              onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+              className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm text-gray-700 dark:text-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent"
+            >
+              <option value={10}>10 per page</option>
+              <option value={20}>20 per page</option>
+              <option value={50}>50 per page</option>
+              <option value={100}>100 per page</option>
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className={`px-3 py-1 rounded-lg border border-gray-300 dark:border-gray-600 ${
+                currentPage === 1
+                  ? "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-600 cursor-not-allowed"
+                  : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+              }`}
+            >
+              <FaChevronLeft />
+            </button>
+            <span className="text-sm text-gray-600 dark:text-gray-400 px-3">
+              Page {currentPage} of {totalPages || 1}
+            </span>
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage >= totalPages}
+              className={`px-3 py-1 rounded-lg border border-gray-300 dark:border-gray-600 ${
+                currentPage >= totalPages
+                  ? "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-600 cursor-not-allowed"
+                  : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+              }`}
+            >
+              <FaChevronRight />
+            </button>
           </div>
         </div>
       )}

@@ -53,7 +53,7 @@ const Category2 = () => {
 
                 <Link to={"/Training"}>
                   <Buy4meB
-                    text={"View Training"}
+                    text={"Book Training"}
                     bgColor={"bg-white"}
                     textColor={"text-primary"}
                   />

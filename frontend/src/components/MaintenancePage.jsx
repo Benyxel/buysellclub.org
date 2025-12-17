@@ -47,7 +47,7 @@ const MaintenancePage = ({ title, message, estimatedTime }) => {
             <div className="flex items-center justify-center gap-2 mt-2 text-primary hover:text-primary-focus">
               <FaEnvelope className="text-sm" />
               <a href="mailto:support@example.com" className="text-sm font-medium">
-                Contact Support
+                Support@buysellclub.org
               </a>
             </div>
           </div>

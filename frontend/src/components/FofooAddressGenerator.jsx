@@ -115,6 +115,9 @@ const FofoofoAddressGenerator = () => {
         // Cache for offline fallback
         localStorage.setItem("userShippingMark", JSON.stringify(data));
         toast.success("Shipping address generated successfully!");
+      } else {
+        console.warn("Unexpected response format:", data);
+        toast.error("Received unexpected response format. Please try again or contact support.");
       }
     } catch (err) {
       if (err?.response?.status === 200 && err?.response?.data?.markId) {
@@ -160,9 +163,17 @@ const FofoofoAddressGenerator = () => {
         }
       } else {
         console.error("Error creating shipping address:", err);
-        toast.error(
-          err?.response?.data?.message || "Failed to create shipping address"
-        );
+        const errorMessage = err?.response?.data?.message || 
+                            err?.response?.data?.error ||
+                            err?.message ||
+                            "Failed to create shipping address. Please try again or contact support.";
+        toast.error(errorMessage);
+        
+        // Log full error details for debugging
+        if (err?.response) {
+          console.error("Response status:", err.response.status);
+          console.error("Response data:", err.response.data);
+        }
       }
     } finally {
       setIsLoading(false);
