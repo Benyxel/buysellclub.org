@@ -276,17 +276,17 @@ const Training = () => {
       toast.info("Connecting to payment gateway...");
 
       try {
-        // Now initiate payment gateway
-        const paymentResponse = await initiateTrainingPayment(bookingId);
+      // Now initiate payment gateway
+      const paymentResponse = await initiateTrainingPayment(bookingId);
 
-        if (paymentResponse.data.payment_url) {
-          // Redirect to payment gateway
-          toast.success("Redirecting to payment gateway...");
-          window.location.href = paymentResponse.data.payment_url;
-        } else {
-          toast.error("Payment gateway not configured. Please contact support.");
+      if (paymentResponse.data.payment_url) {
+        // Redirect to payment gateway
+        toast.success("Redirecting to payment gateway...");
+        window.location.href = paymentResponse.data.payment_url;
+      } else {
+        toast.error("Payment gateway not configured. Please contact support.");
           setConnectingToPayment(false);
-          setSubmitting(false);
+        setSubmitting(false);
         }
       } catch (paymentError) {
         setConnectingToPayment(false);
@@ -812,17 +812,17 @@ const Training = () => {
 
             {!showPayment ? (
               <>
-                <button
-                  type="button"
-                  onClick={handleProceedToPayment}
-                  disabled={
-                    submitting ||
+              <button
+                type="button"
+                onClick={handleProceedToPayment}
+                disabled={
+                  submitting ||
                     connectingToPayment ||
-                    !formData.has_valid_passport ||
-                    defaultTrainingCost <= 0
-                  }
-                  className="w-full bg-primary text-white py-2 text-sm rounded-lg hover:bg-primary/90 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
+                  !formData.has_valid_passport ||
+                  defaultTrainingCost <= 0
+                }
+                className="w-full bg-primary text-white py-2 text-sm rounded-lg hover:bg-primary/90 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
                   {connectingToPayment ? (
                     <>
                       <FaSpinner className="w-4 h-4 animate-spin" />
@@ -835,11 +835,11 @@ const Training = () => {
                     </>
                   ) : (
                     <>
-                      <FaDollarSign className="w-4 h-4" />
-                      Proceed to Payment
+                <FaDollarSign className="w-4 h-4" />
+                Proceed to Payment
                     </>
                   )}
-                </button>
+              </button>
                 {connectingToPayment && (
                   <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
                     <div className="flex items-center gap-2 text-sm text-blue-700 dark:text-blue-300">

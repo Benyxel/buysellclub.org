@@ -10,6 +10,8 @@ import {
   FaEdit,
   FaTimes,
   FaInfoCircle,
+  FaChevronLeft,
+  FaChevronRight,
 } from "react-icons/fa";
 import { toast } from "../../utils/toast";
 import "react-toastify/dist/ReactToastify.css";
@@ -24,10 +26,16 @@ const Buy4me = () => {
   const navigate = useNavigate();
   const [editMode, setEditMode] = useState(false);
   const [editOrderId, setEditOrderId] = useState(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  // Separate loading states for independent button operations
+  const [isSubmittingBuy4me, setIsSubmittingBuy4me] = useState(false);
+  const [submittingQuickOrderId, setSubmittingQuickOrderId] = useState(null); // Track which quick order product is being submitted
   const [isLoading, setIsLoading] = useState(true);
   const [quickOrderProducts, setQuickOrderProducts] = useState([]);
   const [defaultSourcingPayment, setDefaultSourcingPayment] = useState(100);
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -71,36 +79,45 @@ const Buy4me = () => {
     const fetchQuickOrderProducts = async () => {
       try {
         setIsLoading(true);
-        // Always fetch fresh data from server
-        const response = await getQuickOrderProducts();
+        // Fetch with pagination parameters
+        const params = { page: currentPage, page_size: pageSize };
+        const response = await getQuickOrderProducts(params);
         console.log("Quick order products API response:", response);
         
         // Handle different response structures
         let products = [];
-        if (Array.isArray(response.data)) {
+        if (response.data && typeof response.data === 'object' && 'results' in response.data) {
+          // Paginated response
+          products = response.data.results || [];
+          setTotal(response.data.count || 0);
+        } else if (Array.isArray(response.data)) {
+          // Non-paginated array response (fallback)
           products = response.data;
-        } else if (response.data && Array.isArray(response.data.results)) {
-          products = response.data.results;
+          setTotal(response.data.length);
         } else if (response.data && typeof response.data === 'object') {
           // If it's a single object, wrap it in an array
           products = [response.data];
+          setTotal(1);
+        } else {
+          products = [];
+          setTotal(0);
         }
         
         console.log("Extracted products:", products);
+        console.log("Total products from API:", total);
+        console.log("Current page:", currentPage, "Page size:", pageSize);
         
-        // Filter out inactive products and transform to match expected format
-        const transformedProducts = products
-          .filter(product => product.is_active !== false) // Only show active products
-          .map(product => ({
-            id: product.id,
-            title: product.title,
-            description: product.description || '',
-            images: product.images || [],
-            link: product.product_url || '',
-            minQuantity: product.min_quantity || 20,
-          }));
+        // Backend already filters active products, so just transform the format
+        const transformedProducts = products.map(product => ({
+          id: product.id,
+          title: product.title,
+          description: product.description || '',
+          images: product.images || [],
+          link: product.product_url || '',
+          minQuantity: product.min_quantity || 20,
+        }));
         
-        console.log("Transformed products:", transformedProducts);
+        console.log("Transformed products count:", transformedProducts.length);
         setQuickOrderProducts(transformedProducts);
       } catch (error) {
         console.error("Error fetching quick order products:", error);
@@ -117,13 +134,28 @@ const Buy4me = () => {
         }
         // Set empty array - no placeholder products
         setQuickOrderProducts([]);
+        setTotal(0);
       } finally {
         setIsLoading(false);
       }
     };
     
     fetchQuickOrderProducts();
-  }, []);
+  }, [currentPage, pageSize]);
+
+  // Pagination handlers
+  const totalPages = Math.ceil(total / pageSize);
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const handlePageSizeChange = (newSize) => {
+    setPageSize(newSize);
+    setCurrentPage(1);
+  };
 
   useEffect(() => {
     if (location.state?.order) {
@@ -185,7 +217,8 @@ const Buy4me = () => {
   }, [location.state]);
 
   const handleQuickOrder = async (product) => {
-    setIsSubmitting(true);
+    // Set the specific product ID that's being submitted
+    setSubmittingQuickOrderId(product.id || product._id);
 
     try {
       // Format links according to the expected schema format
@@ -195,37 +228,54 @@ const Buy4me = () => {
         validLink = "https://" + validLink;
       }
 
-      // Prepare the order data for Django API
-      const orderData = {
+      // Prepare the order data for Django API with payment
+      // Quick orders require 30 GHS payment before order placement
+      const QUICK_ORDER_PAYMENT_AMOUNT = 30;
+      
+      const orderDataWithPayment = {
         title: product.title || "Quick Order Product",
         description: product.description || "Ordered from Quick Order Products",
         product_url: validLink,
         additional_links: [],
         images: Array.isArray(product.images) ? product.images : (product.images ? [product.images] : []),
         quantity: product.minQuantity || 20,
+        estimated_amount: QUICK_ORDER_PAYMENT_AMOUNT,
       };
 
-      console.log("Submitting order data:", orderData);
+      console.log("Submitting quick order with payment:", orderDataWithPayment);
 
-      // Submit the order using Django API
-      const response = await createBuy4meRequest(orderData);
+      // Submit the order using createBuy4meRequestWithPayment to require payment first
+      const response = await createBuy4meRequestWithPayment(orderDataWithPayment);
       const savedRequest = response.data;
-
-      // Add to updates
-      const updates = JSON.parse(localStorage.getItem("updates") || "[]");
-      updates.unshift({
-        id: Date.now().toString(),
-        type: "order",
-        title: "New Order Placed",
-        message: `Your order for "${savedRequest.title}" has been placed successfully.`,
-        date: new Date().toISOString(),
-        read: false,
-      });
-      localStorage.setItem("updates", JSON.stringify(updates));
-
-      toast.success("Order placed successfully!");
-      // Don't navigate to Payment - invoice will be created by admin
-      // User will be notified when payment is ready
+      
+      console.log('Quick order request created with payment:', savedRequest);
+      console.log('Payment amount:', savedRequest.estimated_amount || QUICK_ORDER_PAYMENT_AMOUNT);
+      
+      // If payment URL is returned, redirect to payment gateway
+      if (savedRequest.payment_url) {
+        toast.success('Redirecting to payment gateway...');
+        
+        // Add to updates before redirecting
+        const updates = JSON.parse(localStorage.getItem("updates") || "[]");
+        updates.unshift({
+          id: Date.now().toString(),
+          type: "order",
+          title: "Payment Required",
+          message: `Please complete payment of GHS ${QUICK_ORDER_PAYMENT_AMOUNT} for your quick order "${savedRequest.title}".`,
+          date: new Date().toISOString(),
+          read: false,
+        });
+        localStorage.setItem("updates", JSON.stringify(updates));
+        
+        // Redirect to payment gateway
+        window.location.href = savedRequest.payment_url;
+        return; // Exit early since we're redirecting
+      } else {
+        // Payment URL not returned - this shouldn't happen, but handle gracefully
+        toast.error('Payment gateway did not return a payment URL. Please contact support.');
+        setSubmittingQuickOrderId(null);
+        return;
+      }
     } catch (error) {
       console.error("Error submitting quick order:", error);
       console.error("Error response:", error.response);
@@ -263,9 +313,19 @@ const Buy4me = () => {
         errorMessage = error.message;
       }
       
-      toast.error(errorMessage, { autoClose: 5000 });
+      // Handle specific error cases
+      if (error.response?.status === 503) {
+        const errorMsg = error.response?.data?.error || 'Payment gateway is currently unavailable. Please contact support or try again later.';
+        toast.error(errorMsg);
+      } else if (error.response?.status === 400) {
+        const errorMsg = error.response?.data?.error || 'Invalid order data. Please check your inputs.';
+        toast.error(errorMsg);
+      } else {
+        toast.error(errorMessage, { autoClose: 5000 });
+      }
     } finally {
-      setIsSubmitting(false);
+      // Reset the submitting state for this specific product
+      setSubmittingQuickOrderId(null);
     }
   };
 
@@ -309,12 +369,12 @@ const Buy4me = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsSubmitting(true);
+    setIsSubmittingBuy4me(true);
 
     try {
       if (!formData.title || !formData.description) {
         toast.error("Please fill in all required fields");
-        setIsSubmitting(false);
+        setIsSubmittingBuy4me(false);
         return;
       }
 
@@ -324,7 +384,7 @@ const Buy4me = () => {
       );
       if (!hasLinks) {
         toast.error("Please provide at least one product link");
-        setIsSubmitting(false);
+        setIsSubmittingBuy4me(false);
         return;
       }
 
@@ -377,7 +437,22 @@ const Buy4me = () => {
         });
         localStorage.setItem("updates", JSON.stringify(updates));
         toast.success("Order updated successfully!");
-        navigate("/profile");
+        
+        // Stay on the same page - reset form and exit edit mode
+        setEditMode(false);
+        setEditOrderId(null);
+        setFormData({
+          title: "",
+          description: "",
+          images: ["", "", "", "", ""],
+          additionalLinks: [
+            { url: "", quantity: 0 },
+            { url: "", quantity: 0 },
+            { url: "", quantity: 0 },
+            { url: "", quantity: 0 },
+            { url: "", quantity: 0 },
+          ],
+        });
       } else {
         // For new orders, use payment-first flow
         // Use default sourcing payment from settings
@@ -397,11 +472,9 @@ const Buy4me = () => {
           console.log('Buy4me request created with payment:', savedRequest);
           console.log('Payment amount used:', savedRequest.estimated_amount || estimatedAmount);
           
-          // If payment URL is returned, redirect to payment gateway
+          // If payment URL is returned, show success message and redirect to payment gateway
           if (savedRequest.payment_url) {
-            toast.success('Redirecting to payment gateway...');
-            
-            // Add to updates before redirecting
+            // Add to updates
             const updates = JSON.parse(localStorage.getItem("updates") || "[]");
             updates.unshift({
               id: Date.now().toString(),
@@ -413,13 +486,32 @@ const Buy4me = () => {
             });
             localStorage.setItem("updates", JSON.stringify(updates));
             
-            // Redirect to payment gateway
-            window.location.href = savedRequest.payment_url;
+            // Show success message and stay on page briefly before redirecting
+            toast.success('Order created successfully! Redirecting to payment gateway...');
+            
+            // Reset form
+            setFormData({
+              title: "",
+              description: "",
+              images: ["", "", "", "", ""],
+              additionalLinks: [
+                { url: "", quantity: 0 },
+                { url: "", quantity: 0 },
+                { url: "", quantity: 0 },
+                { url: "", quantity: 0 },
+                { url: "", quantity: 0 },
+              ],
+            });
+            
+            // Redirect to payment gateway after a short delay to show success message
+            setTimeout(() => {
+              window.location.href = savedRequest.payment_url;
+            }, 1500); // 1.5 second delay to show success message
             return; // Exit early since we're redirecting
           } else {
             // Payment URL not returned - this shouldn't happen, but handle gracefully
             toast.error('Payment gateway did not return a payment URL. Please contact support.');
-            setIsSubmitting(false);
+            setIsSubmittingBuy4me(false);
             return;
           }
         } catch (error) {
@@ -436,7 +528,7 @@ const Buy4me = () => {
           } else {
             toast.error('Failed to create order. Please try again later.');
           }
-          setIsSubmitting(false);
+          setIsSubmittingBuy4me(false);
           return;
         }
       }
@@ -479,7 +571,7 @@ const Buy4me = () => {
       
       toast.error(errorMessage, { autoClose: 5000 });
     } finally {
-      setIsSubmitting(false);
+      setIsSubmittingBuy4me(false);
     }
   };
 
@@ -657,9 +749,10 @@ const Buy4me = () => {
 
                 <button
                   type="submit"
-                  className="w-full px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                  disabled={isSubmittingBuy4me}
+                  className="w-full px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isSubmitting
+                  {isSubmittingBuy4me
                     ? "Submitting..."
                     : editMode
                     ? "Update Order"
@@ -724,52 +817,117 @@ const Buy4me = () => {
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                   {quickOrderProducts.map((product, productIndex) => (
                     <div
                       key={product._id || product.id || `product-${productIndex}`}
-                      className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow"
+                      className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 hover:shadow-md transition-shadow"
                     >
                       <div className="flex flex-col h-full">
                         <div className="flex-grow">
-                          <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
+                          <div className="flex gap-1 mb-2 overflow-x-auto pb-2">
                             {product.images && product.images.length > 0 ? (
-                              product.images.map((image, index) => (
+                              product.images.slice(0, 2).map((image, index) => (
                                 <img
                                   key={`${product._id || product.id || productIndex}-img-${index}`}
                                   src={image}
                                   alt={`${product.title} image ${index + 1}`}
-                                  className="w-20 h-20 object-cover rounded-lg"
+                                  className="w-14 h-14 object-cover rounded-lg flex-shrink-0"
                                 />
                               ))
                             ) : (
-                              <div className="w-20 h-20 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-                                <FaImage className="w-8 h-8 text-gray-400" />
+                              <div className="w-14 h-14 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <FaImage className="w-6 h-6 text-gray-400" />
+                              </div>
+                            )}
+                            {product.images && product.images.length > 2 && (
+                              <div className="w-14 h-14 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center text-xs text-gray-500 flex-shrink-0">
+                                +{product.images.length - 2}
                               </div>
                             )}
                           </div>
-                          <h3 className="font-medium text-gray-900 dark:text-white">
+                          <h3 className="font-medium text-sm text-gray-900 dark:text-white line-clamp-2 mb-1">
                             {product.title}
                           </h3>
-                          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                          <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mb-2">
                             {product.description}
                           </p>
-                          <p className="text-sm text-primary mt-2">
-                            Minimum Quantity: {product.minQuantity}
+                          <p className="text-xs text-primary mb-1">
+                            Min: {product.minQuantity}
                           </p>
+                          <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-800 mb-2">
+                            <p className="text-xs font-medium text-blue-900 dark:text-blue-200">
+                              Payment Required: GHS 30
+                            </p>
+                            <p className="text-xs text-blue-700 dark:text-blue-300">
+                              Pay before order placement
+                            </p>
+                          </div>
                         </div>
-                        <div className="mt-4">
+                        <div className="mt-3">
                           <button
                             onClick={() => handleQuickOrder(product)}
-                            className="w-full px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                            disabled={submittingQuickOrderId === (product.id || product._id)}
+                            className="w-full px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           >
-                            {isSubmitting ? "Processing..." : "Place Order"}
+                            {submittingQuickOrderId === (product.id || product._id) ? "Processing..." : "Pay & Place Order"}
                           </button>
                         </div>
                       </div>
                     </div>
                   ))}
                 </div>
+                
+                {/* Pagination */}
+                {total > 0 && (
+                  <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-4 bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
+                    <div className="flex items-center gap-4">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        Showing {(currentPage - 1) * pageSize + 1} to{" "}
+                        {Math.min(currentPage * pageSize, total)} of {total} products
+                      </span>
+                      <select
+                        value={pageSize}
+                        onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                        className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm text-gray-700 dark:text-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent"
+                      >
+                        <option value={10}>10 per page</option>
+                        <option value={20}>20 per page</option>
+                        <option value={30}>30 per page</option>
+                        <option value={50}>50 per page</option>
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className={`px-3 py-1 rounded-lg border border-gray-300 dark:border-gray-600 ${
+                          currentPage === 1
+                            ? "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-600 cursor-not-allowed"
+                            : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                        }`}
+                      >
+                        <FaChevronLeft />
+                      </button>
+                      <span className="text-sm text-gray-600 dark:text-gray-400 px-3">
+                        Page {currentPage} of {totalPages || 1}
+                      </span>
+                      <button
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        disabled={currentPage >= totalPages}
+                        className={`px-3 py-1 rounded-lg border border-gray-300 dark:border-gray-600 ${
+                          currentPage >= totalPages
+                            ? "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-600 cursor-not-allowed"
+                            : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                        }`}
+                      >
+                        <FaChevronRight />
+                      </button>
+                    </div>
+                  </div>
+                )}
+                </>
               )}
             </div>
           </div>

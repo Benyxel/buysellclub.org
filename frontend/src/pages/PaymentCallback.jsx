@@ -43,10 +43,10 @@ const PaymentCallback = () => {
               setMessage(`Payment successful! Your training booking #${bookingId} is confirmed.`);
               toast.success('Training booking payment confirmed!');
               setTimeout(() => navigate('/Profile'), 2000);
-            } else if (orderId.startsWith('buy4me_')) {
-              const requestId = orderId.replace('buy4me_', '');
-              setMessage(`Payment successful! Your Buy4me request #${requestId} is being processed.`);
-              toast.success('Buy4me payment confirmed!');
+            } else if (orderId.startsWith('buy4me_') || orderId.startsWith('quickorder_')) {
+              const requestId = orderId.replace('buy4me_', '').replace('quickorder_', '');
+              setMessage(`Payment successful! Your order #${requestId} is being processed.`);
+              toast.success('Order payment confirmed!');
               setTimeout(() => navigate('/Profile'), 2000);
             } else if (orderId.startsWith('course_')) {
               const courseId = orderId.replace('course_', '');
@@ -54,7 +54,7 @@ const PaymentCallback = () => {
               toast.success('Course payment confirmed!');
               setTimeout(() => navigate('/Profile'), 2000);
             } else {
-              // Regular shop order - show order ID and redirect to Orders page
+              // Regular shop order or numeric order ID - show order ID and redirect to Orders page
               const shopOrderId = orderId;
               setMessage(`Payment successful! Your order #${shopOrderId} has been confirmed and is being processed.`);
               toast.success(`Order #${shopOrderId} payment confirmed!`);

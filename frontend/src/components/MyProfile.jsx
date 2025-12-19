@@ -111,7 +111,9 @@ const MyProfile = () => {
   const handleSubmitAgentRequest = async () => {
     // Check if user already has a pending request
     if (agentRequestStatus === "pending") {
-      toast.warning("You already have a pending agent request. Please wait for admin review.");
+      toast.warning(
+        "You already have a pending agent request. Please wait for admin review."
+      );
       return;
     }
 
@@ -152,7 +154,7 @@ const MyProfile = () => {
 
     try {
       setSubmittingAgentRequest(true);
-      
+
       // Prepare form data
       const formData = new FormData();
       formData.append("agent_type", selectedAgentType);
@@ -177,7 +179,9 @@ const MyProfile = () => {
       // Try the endpoint - if it doesn't exist, we'll show a helpful error
       const response = await API.post("/buysellapi/agent-requests/", formData);
 
-      toast.success("Agent request submitted successfully! We will review your request.");
+      toast.success(
+        "Agent request submitted successfully! We will review your request."
+      );
       setShowBecomeAgentModal(false);
       setSelectedAgentType("");
       setAgentRequestMessage("");
@@ -189,7 +193,7 @@ const MyProfile = () => {
         phoneNumber: "",
       });
       setAgentRequestStatus("pending");
-      
+
       // Refresh user profile to get updated status
       await fetchUserProfile();
     } catch (error) {
@@ -199,16 +203,17 @@ const MyProfile = () => {
         data: error.response?.data,
         message: error.message,
       });
-      
+
       let errorMsg = "Failed to submit agent request. Please try again.";
-      
+
       if (error.response) {
         // Server responded with error
         if (error.response.status === 404) {
-          errorMsg = "Agent request endpoint not found. Please contact the administrator. The backend endpoint '/buysellapi/agent-requests/' needs to be implemented.";
+          errorMsg =
+            "Agent request endpoint not found. Please contact the administrator. The backend endpoint '/buysellapi/agent-requests/' needs to be implemented.";
         } else {
-          errorMsg = 
-            error.response.data?.detail || 
+          errorMsg =
+            error.response.data?.detail ||
             error.response.data?.error ||
             error.response.data?.message ||
             `Server error: ${error.response.status}`;
@@ -220,7 +225,7 @@ const MyProfile = () => {
         // Something else happened
         errorMsg = error.message || "An unexpected error occurred";
       }
-      
+
       // Log full error details for debugging
       console.error("Full error object:", {
         message: error.message,
@@ -228,7 +233,7 @@ const MyProfile = () => {
         request: error.request,
         config: error.config,
       });
-      
+
       toast.error(errorMsg);
     } finally {
       setSubmittingAgentRequest(false);
@@ -294,7 +299,7 @@ const MyProfile = () => {
   const [agentRequestMessage, setAgentRequestMessage] = useState("");
   const [submittingAgentRequest, setSubmittingAgentRequest] = useState(false);
   const [agentRequestStatus, setAgentRequestStatus] = useState(null); // 'pending', 'approved', 'rejected', null
-  
+
   // Corporate Agent form fields
   const [corporateFormData, setCorporateFormData] = useState({
     businessName: "",
@@ -493,7 +498,6 @@ const MyProfile = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mpShowAddForm]);
 
-
   // Keep the existing useEffect for initial data load
   useEffect(() => {
     // Load user shipments from backend only (clear any old state first)
@@ -539,22 +543,22 @@ const MyProfile = () => {
         refreshUserData();
       }
     };
-    
+
     // Refresh when window regains focus
     const handleFocus = () => {
       refreshUserData();
     };
-    
+
     // Periodic refresh (every 15 seconds)
     const interval = setInterval(() => {
       if (document.visibilityState === "visible") {
         refreshUserData();
       }
     }, 15000); // 15 seconds
-    
+
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("focus", handleFocus);
-    
+
     return () => {
       clearInterval(interval);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
@@ -2253,15 +2257,17 @@ const MyProfile = () => {
                     "User"}
                 {currentUser?.is_agent && (
                   <>
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
-                      currentUser?.agent_type === "corporate"
-                        ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 border-blue-200"
-                        : currentUser?.agent_type === "local"
-                        ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border-green-200"
-                        : currentUser?.agent_type === "affiliate"
-                        ? "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 border-purple-200"
-                        : "bg-primary/10 text-primary border-primary/20"
-                    }`}>
+                    <span
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+                        currentUser?.agent_type === "corporate"
+                          ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 border-blue-200"
+                          : currentUser?.agent_type === "local"
+                          ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border-green-200"
+                          : currentUser?.agent_type === "affiliate"
+                          ? "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 border-purple-200"
+                          : "bg-primary/10 text-primary border-primary/20"
+                      }`}
+                    >
                       {currentUser?.agent_type === "corporate" ? (
                         <FaBuilding className="mr-1" />
                       ) : currentUser?.agent_type === "local" ? (
@@ -2296,17 +2302,19 @@ const MyProfile = () => {
               </p>
 
               {/* Become Agent Button - Only show if user is not already an agent and no pending request */}
-              {!isLoading && !currentUser?.is_agent && agentRequestStatus !== "pending" && (
-                <div className="mt-4">
-                  <button
-                    onClick={() => setShowBecomeAgentModal(true)}
-                    className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all shadow-md hover:shadow-lg"
-                  >
-                    <FaUserTag className="mr-2" />
-                    Become An Agent
-                  </button>
-                </div>
-              )}
+              {!isLoading &&
+                !currentUser?.is_agent &&
+                agentRequestStatus !== "pending" && (
+                  <div className="mt-4">
+                    <button
+                      onClick={() => setShowBecomeAgentModal(true)}
+                      className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all shadow-md hover:shadow-lg"
+                    >
+                      <FaUserTag className="mr-2" />
+                      Become An Agent
+                    </button>
+                  </div>
+                )}
 
               {/* Agent Request Status */}
               {agentRequestStatus && !currentUser?.is_agent && (
@@ -2323,13 +2331,15 @@ const MyProfile = () => {
                       Agent Request Approved
                       {currentUser?.agent_type && (
                         <span className="ml-2 font-semibold">
-                          ({currentUser?.agent_type === "corporate"
+                          (
+                          {currentUser?.agent_type === "corporate"
                             ? "Corporate"
                             : currentUser?.agent_type === "local"
                             ? "Local"
                             : currentUser?.agent_type === "affiliate"
                             ? "Affiliate"
-                            : ""} Agent)
+                            : ""}{" "}
+                          Agent)
                         </span>
                       )}
                     </span>
@@ -3454,16 +3464,32 @@ const MyProfile = () => {
                                               toast.error("Order ID not found");
                                               return;
                                             }
-                                            const paymentResponse = await initiateBuy4mePayment(order.id);
-                                            if (paymentResponse.data.payment_url) {
-                                              toast.success('Redirecting to payment gateway...');
-                                              window.location.href = paymentResponse.data.payment_url;
+                                            const paymentResponse =
+                                              await initiateBuy4mePayment(
+                                                order.id
+                                              );
+                                            if (
+                                              paymentResponse.data.payment_url
+                                            ) {
+                                              toast.success(
+                                                "Redirecting to payment gateway..."
+                                              );
+                                              window.location.href =
+                                                paymentResponse.data.payment_url;
                                             } else {
-                                              toast.error('Payment gateway did not return a payment URL. Please contact support.');
+                                              toast.error(
+                                                "Payment gateway did not return a payment URL. Please contact support."
+                                              );
                                             }
                                           } catch (error) {
-                                            console.error('Error initiating payment:', error);
-                                            const errorMsg = error.response?.data?.error || error.message || 'Failed to initiate payment. Please contact support.';
+                                            console.error(
+                                              "Error initiating payment:",
+                                              error
+                                            );
+                                            const errorMsg =
+                                              error.response?.data?.error ||
+                                              error.message ||
+                                              "Failed to initiate payment. Please contact support.";
                                             toast.error(errorMsg);
                                           }
                                         }}
@@ -3716,21 +3742,36 @@ const MyProfile = () => {
                                     onClick={async () => {
                                       try {
                                         // Get the buy4me request ID from the item
-                                        const requestId = item.request?.id || item.id;
+                                        const requestId =
+                                          item.request?.id || item.id;
                                         if (!requestId) {
                                           toast.error("Request ID not found");
                                           return;
                                         }
-                                        const paymentResponse = await initiateBuy4mePayment(requestId);
+                                        const paymentResponse =
+                                          await initiateBuy4mePayment(
+                                            requestId
+                                          );
                                         if (paymentResponse.data.payment_url) {
-                                          toast.success('Redirecting to payment gateway...');
-                                          window.location.href = paymentResponse.data.payment_url;
+                                          toast.success(
+                                            "Redirecting to payment gateway..."
+                                          );
+                                          window.location.href =
+                                            paymentResponse.data.payment_url;
                                         } else {
-                                          toast.error('Payment gateway did not return a payment URL. Please contact support.');
+                                          toast.error(
+                                            "Payment gateway did not return a payment URL. Please contact support."
+                                          );
                                         }
                                       } catch (error) {
-                                        console.error('Error initiating payment:', error);
-                                        const errorMsg = error.response?.data?.error || error.message || 'Failed to initiate payment. Please contact support.';
+                                        console.error(
+                                          "Error initiating payment:",
+                                          error
+                                        );
+                                        const errorMsg =
+                                          error.response?.data?.error ||
+                                          error.message ||
+                                          "Failed to initiate payment. Please contact support.";
                                         toast.error(errorMsg);
                                       }
                                     }}
@@ -4577,27 +4618,28 @@ const MyProfile = () => {
                     Become an Agent
                   </h3>
                   <button
-                  onClick={() => {
-                    setShowBecomeAgentModal(false);
-                    setSelectedAgentType("");
-                    setAgentRequestMessage("");
-                    setCorporateFormData({
-                      businessName: "",
-                      businessCert: null,
-                      location: "",
-                      ghanaCard: null,
-                      phoneNumber: "",
-                    });
-                  }}
-                  className="text-gray-400 hover:text-gray-500"
-                >
-                  <FaTimes />
-                </button>
+                    onClick={() => {
+                      setShowBecomeAgentModal(false);
+                      setSelectedAgentType("");
+                      setAgentRequestMessage("");
+                      setCorporateFormData({
+                        businessName: "",
+                        businessCert: null,
+                        location: "",
+                        ghanaCard: null,
+                        phoneNumber: "",
+                      });
+                    }}
+                    className="text-gray-400 hover:text-gray-500"
+                  >
+                    <FaTimes />
+                  </button>
                 </div>
 
                 <div className="space-y-4">
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Select the type of agent you want to become. Our team will review your request and get back to you.
+                    Select the type of agent you want to become. Our team will
+                    review your request and get back to you.
                   </p>
 
                   {/* Agent Type Selection */}
@@ -4617,11 +4659,13 @@ const MyProfile = () => {
                         }`}
                       >
                         <div className="flex items-center gap-3">
-                          <div className={`p-2 rounded-lg ${
-                            selectedAgentType === "corporate"
-                              ? "bg-blue-600 text-white"
-                              : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
-                          }`}>
+                          <div
+                            className={`p-2 rounded-lg ${
+                              selectedAgentType === "corporate"
+                                ? "bg-blue-600 text-white"
+                                : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
+                            }`}
+                          >
                             <FaBuilding className="w-5 h-5" />
                           </div>
                           <div className="flex-1">
@@ -4629,7 +4673,8 @@ const MyProfile = () => {
                               Corporate Agent
                             </h4>
                             <p className="text-sm text-gray-600 dark:text-gray-400">
-                              For businesses and corporations bringing goods
+                              For companies that partner with us. We handle the
+                              shipping; you manage your own clients.
                             </p>
                           </div>
                           {selectedAgentType === "corporate" && (
@@ -4649,11 +4694,13 @@ const MyProfile = () => {
                         }`}
                       >
                         <div className="flex items-center gap-3">
-                          <div className={`p-2 rounded-lg ${
-                            selectedAgentType === "local"
-                              ? "bg-green-600 text-white"
-                              : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
-                          }`}>
+                          <div
+                            className={`p-2 rounded-lg ${
+                              selectedAgentType === "local"
+                                ? "bg-green-600 text-white"
+                                : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
+                            }`}
+                          >
                             <FaMapMarkerAlt className="w-5 h-5" />
                           </div>
                           <div className="flex-1">
@@ -4661,7 +4708,8 @@ const MyProfile = () => {
                               Local Agent
                             </h4>
                             <p className="text-sm text-gray-600 dark:text-gray-400">
-                              For local agents bringing goods to the platform
+                              Represent us in your area or community and earn
+                              commissions on completed services.
                             </p>
                           </div>
                           {selectedAgentType === "local" && (
@@ -4681,11 +4729,13 @@ const MyProfile = () => {
                         }`}
                       >
                         <div className="flex items-center gap-3">
-                          <div className={`p-2 rounded-lg ${
-                            selectedAgentType === "affiliate"
-                              ? "bg-purple-600 text-white"
-                              : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
-                          }`}>
+                          <div
+                            className={`p-2 rounded-lg ${
+                              selectedAgentType === "affiliate"
+                                ? "bg-purple-600 text-white"
+                                : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
+                            }`}
+                          >
                             <FaHandshake className="w-5 h-5" />
                           </div>
                           <div className="flex-1">
@@ -4693,7 +4743,8 @@ const MyProfile = () => {
                               Affiliate Agent
                             </h4>
                             <p className="text-sm text-gray-600 dark:text-gray-400">
-                              For affiliate partners bringing goods
+                              For promoters who refer customers and earn rewards
+                              once the customer uses our services.
                             </p>
                           </div>
                           {selectedAgentType === "affiliate" && (
@@ -4710,7 +4761,7 @@ const MyProfile = () => {
                       <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-4">
                         Corporate Agent Information
                       </h4>
-                      
+
                       {/* Business Name */}
                       <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -4781,7 +4832,10 @@ const MyProfile = () => {
                             <div className="flex flex-col items-center justify-center pt-5 pb-6">
                               <FaImage className="w-8 h-8 mb-2 text-gray-400" />
                               <p className="mb-2 text-sm text-gray-500 dark:text-gray-400">
-                                <span className="font-semibold">Click to upload</span> or drag and drop
+                                <span className="font-semibold">
+                                  Click to upload
+                                </span>{" "}
+                                or drag and drop
                               </p>
                               <p className="text-xs text-gray-500 dark:text-gray-400">
                                 PDF, PNG, JPG (MAX. 10MB)
@@ -4797,7 +4851,10 @@ const MyProfile = () => {
                               accept=".pdf,.png,.jpg,.jpeg"
                               className="hidden"
                               onChange={(e) =>
-                                handleFileChange("businessCert", e.target.files[0])
+                                handleFileChange(
+                                  "businessCert",
+                                  e.target.files[0]
+                                )
                               }
                             />
                           </label>
@@ -4814,7 +4871,10 @@ const MyProfile = () => {
                             <div className="flex flex-col items-center justify-center pt-5 pb-6">
                               <FaImage className="w-8 h-8 mb-2 text-gray-400" />
                               <p className="mb-2 text-sm text-gray-500 dark:text-gray-400">
-                                <span className="font-semibold">Click to upload</span> or drag and drop
+                                <span className="font-semibold">
+                                  Click to upload
+                                </span>{" "}
+                                or drag and drop
                               </p>
                               <p className="text-xs text-gray-500 dark:text-gray-400">
                                 PDF, PNG, JPG (MAX. 10MB)

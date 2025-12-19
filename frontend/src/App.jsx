@@ -55,6 +55,18 @@ function App() {
   const [loading, setLoading] = useState(true);
   const isAdminRoute = window.location.pathname.startsWith("/admin-dashboard") || 
                        window.location.pathname.startsWith("/admin/");
+  // Payment callback should work even during maintenance
+  // Check both pathname and full path to handle query parameters
+  const currentPath = window.location.pathname;
+  const currentUrl = window.location.href;
+  const isPaymentCallback = currentPath.startsWith("/payment/callback") || 
+                            currentPath === "/payment/callback" ||
+                            currentUrl.includes("/payment/callback");
+  
+  // Debug logging for payment callback detection
+  if (isPaymentCallback) {
+    console.log('Payment callback route detected - will bypass maintenance mode');
+  }
 
   useEffect(() => {
     const checkMaintenance = async () => {
@@ -78,8 +90,8 @@ function App() {
 
   return (
     <>
-      {/* Show maintenance page if enabled and not on admin routes */}
-      {!loading && maintenance?.is_enabled && !isAdminRoute ? (
+      {/* Show maintenance page if enabled and not on admin routes or payment callback */}
+      {!loading && maintenance?.is_enabled && !isAdminRoute && !isPaymentCallback ? (
         <MaintenancePage
           title={maintenance.title}
           message={maintenance.message}

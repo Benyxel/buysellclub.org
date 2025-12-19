@@ -486,10 +486,10 @@ const Buy4meAdmin = () => {
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
         <div className="mb-6 flex justify-between items-start">
           <div>
-            <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">Buy4ME Requests Management</h2>
-            <p className="text-gray-600 dark:text-gray-400">
-              View and manage customer product purchase requests
-            </p>
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">Buy4ME Requests Management</h2>
+          <p className="text-gray-600 dark:text-gray-400">
+            View and manage customer product purchase requests
+          </p>
           </div>
           <button
             onClick={handleOpenSettings}

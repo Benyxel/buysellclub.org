@@ -17,7 +17,7 @@ const About = () => {
       {/* Hero Section */}
       <div className="text-center mb-16">
         <h1 className="text-4xl font-bold text-gray-800 dark:text-white mb-4">
-          About Fofoofo
+          About Buysellclub
         </h1>
         <p className="text-xl text-gray-600 dark:text-gray-400 max-w-3xl mx-auto">
           Your trusted partner in international shipping and e-commerce. We
@@ -33,7 +33,7 @@ const About = () => {
             Our Mission
           </h2>
           <p className="text-gray-600 dark:text-gray-400">
-            At Fofoofo, we're dedicated to revolutionizing the way Ghanaians
+            At Buysellclub, we're dedicated to revolutionizing the way Ghanaians
             access global products. Our mission is to provide seamless
             international shipping solutions, making it easier for our customers
             to shop from anywhere in the world.
@@ -149,7 +149,7 @@ const About = () => {
           Ready to Get Started?
         </h2>
         <p className="text-gray-600 dark:text-gray-400 mb-6">
-          Join thousands of satisfied customers who trust Fofoofo for their
+          Join thousands of satisfied customers who trust Buysellclub for their
           international shipping needs.
         </p>
         <div className="flex justify-center gap-4">
@@ -178,9 +178,7 @@ const About = () => {
         </div>
         <div className="text-center">
           <div className="text-4xl font-bold text-primary mb-2">16</div>
-          <div className="text-gray-600 dark:text-gray-400">
-            Regions Served
-          </div>
+          <div className="text-gray-600 dark:text-gray-400">Regions Served</div>
         </div>
         <div className="text-center">
           <div className="text-4xl font-bold text-primary mb-2">99%</div>

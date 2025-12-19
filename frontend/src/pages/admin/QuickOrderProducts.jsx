@@ -515,11 +515,11 @@ const QuickOrderProducts = () => {
         </div>
       ) : (
         <>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
           {products.map((product) => (
             <div
               key={product._id}
-              className={`border rounded-lg p-4 ${
+              className={`border rounded-lg p-3 ${
                 product.active
                   ? "border-gray-200"
                   : "border-gray-300 bg-gray-50"
@@ -527,27 +527,27 @@ const QuickOrderProducts = () => {
             >
               <div className="flex justify-between mb-2">
                 <h3
-                  className={`font-medium ${
+                  className={`font-medium text-sm line-clamp-1 ${
                     product.active ? "text-gray-900" : "text-gray-500"
                   }`}
                 >
                   {product.title}
                   {!product.active && (
-                    <span className="ml-2 text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded">
+                    <span className="ml-1 text-xs bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded">
                       Inactive
                     </span>
                   )}
                 </h3>
-                <div className="flex gap-2">
+                <div className="flex gap-1">
                   <button
                     onClick={() => handleEdit(product)}
-                    className="text-blue-500 hover:text-blue-700"
+                    className="text-blue-500 hover:text-blue-700 text-sm"
                   >
                     <FaEdit />
                   </button>
                   <button
                     onClick={() => handleDelete(product._id)}
-                    className={`${
+                    className={`text-sm ${
                       confirmDelete === product._id
                         ? "text-red-600"
                         : "text-gray-500 hover:text-red-500"
@@ -562,24 +562,28 @@ const QuickOrderProducts = () => {
                 </div>
               </div>
 
-              <div className="flex gap-2 mb-2 overflow-x-auto pb-2">
-                {product.images.map((image, index) => (
+              <div className="flex gap-1 mb-2 overflow-x-auto pb-2">
+                {product.images.slice(0, 3).map((image, index) => (
                   <img
                     key={index}
                     src={image}
                     alt={`${product.title} image ${index + 1}`}
-                    className="w-16 h-16 object-cover rounded"
+                    className="w-12 h-12 object-cover rounded flex-shrink-0"
                   />
                 ))}
+                {product.images.length > 3 && (
+                  <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center text-xs text-gray-500">
+                    +{product.images.length - 3}
+                  </div>
+                )}
               </div>
 
-              <p className="text-sm text-gray-500 line-clamp-2 mb-2">
+              <p className="text-xs text-gray-500 line-clamp-2 mb-2">
                 {product.description}
               </p>
 
               <div className="flex justify-between text-xs text-gray-500">
-                <span>Min Qty: {product.minQuantity}</span>
-                <span>{new Date(product.updatedAt).toLocaleDateString()}</span>
+                <span>Min: {product.minQuantity}</span>
               </div>
             </div>
           ))}
