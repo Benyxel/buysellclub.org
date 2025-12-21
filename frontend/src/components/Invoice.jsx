@@ -137,7 +137,7 @@ const Invoice = ({ invoice, request, printable = false, invoiceId, customerEmail
           <div>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">INVOICE</h2>
             {!invoice.isAgentInvoice && (
-              <p className="text-sm text-gray-500 dark:text-gray-400">Buy &amp; Sell Club</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Buysellclub</p>
             )}
           </div>
         </div>
@@ -347,22 +347,18 @@ const Invoice = ({ invoice, request, printable = false, invoiceId, customerEmail
         ) : (
           <>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-              Please make payment to the following account by <span className="font-medium">{formattedDate(invoice.dueDate)}</span>:
+              Please make payment to the following Momo account by <span className="font-medium">{formattedDate(invoice.dueDate)}</span>:
             </p>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <p className="text-gray-500 dark:text-gray-400">Bank Name:</p>
-                <p className="font-medium text-gray-900 dark:text-white">First International Bank</p>
-              </div>
-              <div>
-                <p className="text-gray-500 dark:text-gray-400">Account Name:</p>
-                <p className="font-medium text-gray-900 dark:text-white">Buy & Sell Club Ltd</p>
+                <p className="text-gray-500 dark:text-gray-400">Momo Name:</p>
+                <p className="font-medium text-gray-900 dark:text-white">Buysellclub(Daniel Twumasi)</p>
               </div>
               <div>
                 <p className="text-gray-500 dark:text-gray-400">Account Number:</p>
-                <p className="font-medium text-gray-900 dark:text-white">1234567890</p>
+                <p className="font-medium text-gray-900 dark:text-white">0544370928</p>
               </div>
-              <div>
+              <div className="col-span-2">
                 <p className="text-gray-500 dark:text-gray-400">Reference:</p>
                 <p className="font-medium text-gray-900 dark:text-white">{invoice.invoiceNumber}</p>
               </div>
@@ -375,7 +371,7 @@ const Invoice = ({ invoice, request, printable = false, invoiceId, customerEmail
       {/* Terms and Notes */}
       <div className="mb-6 text-sm text-gray-600 dark:text-gray-400">
         <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Terms & Notes</h3>
-        <p>Payment is due within 7 days of invoice date. Late payments may be subject to a 5% late fee.</p>
+        <p>Payment is due within 1 day of invoice date. No late payment fee.</p>
         <p className="mt-2">Thank you for your business!</p>
       </div>
 

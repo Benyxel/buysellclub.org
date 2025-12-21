@@ -1017,11 +1017,11 @@ const Login = () => {
                   Complete Your Profile
                 </h2>
                 <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
-                  Please provide your contact number to complete your account setup.
+                  Please provide your contact number to complete your account setup. This is required to continue.
                 </p>
                 <div className="mb-4">
                   <label className="block text-sm text-gray-600 dark:text-gray-300 mb-1">
-                    Contact Number
+                    Contact Number <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -1030,6 +1030,7 @@ const Login = () => {
                       setGoogleContact(e.target.value);
                       setGoogleContactError("");
                     }}
+                    required
                     className={`w-full px-4 py-2 rounded-lg border ${
                       googleContactError
                         ? "border-red-500"
@@ -1047,24 +1048,12 @@ const Login = () => {
                   <button
                     type="button"
                     onClick={handleGoogleContactSave}
-                    disabled={googleContactLoading}
+                    disabled={googleContactLoading || !googleContact.trim()}
                     className={`flex-1 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors ${
-                      googleContactLoading ? "opacity-70 cursor-not-allowed" : ""
+                      googleContactLoading || !googleContact.trim() ? "opacity-70 cursor-not-allowed" : ""
                     }`}
                   >
                     {googleContactLoading ? "Saving..." : "Save & Continue"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowGoogleContactModal(false);
-                      setGoogleContact("");
-                      setGoogleContactError("");
-                      navigate("/");
-                    }}
-                    className="flex-1 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                  >
-                    Skip for Now
                   </button>
                 </div>
               </div>

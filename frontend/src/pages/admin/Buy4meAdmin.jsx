@@ -900,7 +900,7 @@ const Buy4meAdmin = () => {
                         if (newTrackingStatus) {
                           try {
                             const requestId = selectedRequest.id || selectedRequest._id;
-                            const response = await updateBuy4meRequestTracking(requestId, newTrackingStatus);
+                            const response = await updateBuy4meRequestTracking(requestId, { tracking_status: newTrackingStatus });
                             const updatedRequest = response.data;
                             const transformedRequest = {
                               _id: updatedRequest.id,

@@ -988,16 +988,24 @@ const Signup = () => {
               Almost done, {googleSignupUsername || "friend"}!
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
-              Please add a contact number so we can keep you updated about shipments.
+              Please add a contact number so we can keep you updated about shipments. This is required to continue.
             </p>
             <label className="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1">
-              Contact Number
+              Contact Number <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               value={googleContact}
-              onChange={(e) => setGoogleContact(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+              onChange={(e) => {
+                setGoogleContact(e.target.value);
+                setGoogleContactError("");
+              }}
+              required
+              className={`w-full px-3 py-2 rounded-lg border ${
+                googleContactError
+                  ? "border-red-500"
+                  : "border-gray-300 dark:border-gray-600"
+              } bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent`}
               placeholder="+233 123456789"
             />
             {googleContactError && (
@@ -1006,9 +1014,9 @@ const Signup = () => {
             <button
               type="button"
               onClick={handleGoogleContactSave}
-              disabled={googleContactLoading}
+              disabled={googleContactLoading || !googleContact.trim()}
               className={`mt-4 w-full py-2.5 rounded-lg text-sm font-semibold transition ${
-                googleContactLoading
+                googleContactLoading || !googleContact.trim()
                   ? "bg-gray-200 text-gray-600 cursor-not-allowed"
                   : "bg-primary text-white hover:bg-primary/90"
               }`}

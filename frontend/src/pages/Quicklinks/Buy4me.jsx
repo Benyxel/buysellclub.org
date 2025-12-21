@@ -36,6 +36,13 @@ const Buy4me = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
+  // Image preview modal state
+  const [imagePreview, setImagePreview] = useState({
+    isOpen: false,
+    images: [],
+    currentIndex: 0,
+    productTitle: "",
+  });
 
   const [formData, setFormData] = useState({
     title: "",
@@ -157,6 +164,67 @@ const Buy4me = () => {
     setCurrentPage(1);
   };
 
+  // Image preview handlers
+  const openImagePreview = (images, startIndex = 0, productTitle = "") => {
+    setImagePreview({
+      isOpen: true,
+      images: images || [],
+      currentIndex: startIndex,
+      productTitle: productTitle,
+    });
+  };
+
+  const closeImagePreview = () => {
+    setImagePreview({
+      isOpen: false,
+      images: [],
+      currentIndex: 0,
+      productTitle: "",
+    });
+  };
+
+  const navigateImage = (direction) => {
+    if (imagePreview.images.length === 0) return;
+    
+    let newIndex;
+    if (direction === "next") {
+      newIndex = (imagePreview.currentIndex + 1) % imagePreview.images.length;
+    } else {
+      newIndex = (imagePreview.currentIndex - 1 + imagePreview.images.length) % imagePreview.images.length;
+    }
+    
+    setImagePreview({
+      ...imagePreview,
+      currentIndex: newIndex,
+    });
+  };
+
+  // Handle keyboard navigation for image preview
+  useEffect(() => {
+    if (!imagePreview.isOpen || imagePreview.images.length === 0) return;
+
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        closeImagePreview();
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        setImagePreview((prev) => {
+          const newIndex = (prev.currentIndex - 1 + prev.images.length) % prev.images.length;
+          return { ...prev, currentIndex: newIndex };
+        });
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        setImagePreview((prev) => {
+          const newIndex = (prev.currentIndex + 1) % prev.images.length;
+          return { ...prev, currentIndex: newIndex };
+        });
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [imagePreview.isOpen, imagePreview.images.length]);
+
   useEffect(() => {
     if (location.state?.order) {
       const { order } = location.state;
@@ -229,8 +297,8 @@ const Buy4me = () => {
       }
 
       // Prepare the order data for Django API with payment
-      // Quick orders require 30 GHS payment before order placement
-      const QUICK_ORDER_PAYMENT_AMOUNT = 30;
+      // Quick orders use the default sourcing payment from backend settings
+      const quickOrderPaymentAmount = defaultSourcingPayment;
       
       const orderDataWithPayment = {
         title: product.title || "Quick Order Product",
@@ -239,7 +307,7 @@ const Buy4me = () => {
         additional_links: [],
         images: Array.isArray(product.images) ? product.images : (product.images ? [product.images] : []),
         quantity: product.minQuantity || 20,
-        estimated_amount: QUICK_ORDER_PAYMENT_AMOUNT,
+        estimated_amount: quickOrderPaymentAmount,
       };
 
       console.log("Submitting quick order with payment:", orderDataWithPayment);
@@ -249,7 +317,7 @@ const Buy4me = () => {
       const savedRequest = response.data;
       
       console.log('Quick order request created with payment:', savedRequest);
-      console.log('Payment amount:', savedRequest.estimated_amount || QUICK_ORDER_PAYMENT_AMOUNT);
+      console.log('Payment amount:', savedRequest.estimated_amount || quickOrderPaymentAmount);
       
       // If payment URL is returned, redirect to payment gateway
       if (savedRequest.payment_url) {
@@ -261,7 +329,7 @@ const Buy4me = () => {
           id: Date.now().toString(),
           type: "order",
           title: "Payment Required",
-          message: `Please complete payment of GHS ${QUICK_ORDER_PAYMENT_AMOUNT} for your quick order "${savedRequest.title}".`,
+          message: `Please complete payment of GHS ${quickOrderPaymentAmount} for your quick order "${savedRequest.title}".`,
           date: new Date().toISOString(),
           read: false,
         });
@@ -828,22 +896,29 @@ const Buy4me = () => {
                         <div className="flex-grow">
                           <div className="flex gap-1 mb-2 overflow-x-auto pb-2">
                             {product.images && product.images.length > 0 ? (
-                              product.images.slice(0, 2).map((image, index) => (
-                                <img
-                                  key={`${product._id || product.id || productIndex}-img-${index}`}
-                                  src={image}
-                                  alt={`${product.title} image ${index + 1}`}
-                                  className="w-14 h-14 object-cover rounded-lg flex-shrink-0"
-                                />
-                              ))
+                              <>
+                                {product.images.slice(0, 2).map((image, index) => (
+                                  <img
+                                    key={`${product._id || product.id || productIndex}-img-${index}`}
+                                    src={image}
+                                    alt={`${product.title} image ${index + 1}`}
+                                    className="w-14 h-14 object-cover rounded-lg flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                                    onClick={() => openImagePreview(product.images, index, product.title)}
+                                  />
+                                ))}
+                                {product.images.length > 2 && (
+                                  <div
+                                    className="w-14 h-14 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center text-xs text-gray-500 flex-shrink-0 cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                                    onClick={() => openImagePreview(product.images, 2, product.title)}
+                                    title={`View all ${product.images.length} images`}
+                                  >
+                                    +{product.images.length - 2}
+                                  </div>
+                                )}
+                              </>
                             ) : (
                               <div className="w-14 h-14 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center flex-shrink-0">
                                 <FaImage className="w-6 h-6 text-gray-400" />
-                              </div>
-                            )}
-                            {product.images && product.images.length > 2 && (
-                              <div className="w-14 h-14 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center text-xs text-gray-500 flex-shrink-0">
-                                +{product.images.length - 2}
                               </div>
                             )}
                           </div>
@@ -858,7 +933,7 @@ const Buy4me = () => {
                           </p>
                           <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-800 mb-2">
                             <p className="text-xs font-medium text-blue-900 dark:text-blue-200">
-                              Payment Required: GHS 30
+                              Payment Required: GHS {defaultSourcingPayment}
                             </p>
                             <p className="text-xs text-blue-700 dark:text-blue-300">
                               Pay before order placement
@@ -933,6 +1008,105 @@ const Buy4me = () => {
           </div>
         </div>
       </div>
+
+      {/* Image Preview Modal */}
+      {imagePreview.isOpen && imagePreview.images.length > 0 && (
+        <div
+          className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4"
+          onClick={closeImagePreview}
+        >
+          <div
+            className="relative max-w-7xl max-h-[90vh] w-full h-full flex items-center justify-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close Button */}
+            <button
+              onClick={closeImagePreview}
+              className="absolute top-4 right-4 z-10 p-2 bg-black/50 hover:bg-black/70 text-white rounded-full transition-colors"
+              aria-label="Close preview"
+            >
+              <FaTimes className="w-6 h-6" />
+            </button>
+
+            {/* Navigation Buttons */}
+            {imagePreview.images.length > 1 && (
+              <>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigateImage("prev");
+                  }}
+                  className="absolute left-4 z-10 p-3 bg-black/50 hover:bg-black/70 text-white rounded-full transition-colors"
+                  aria-label="Previous image"
+                >
+                  <FaChevronLeft className="w-6 h-6" />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigateImage("next");
+                  }}
+                  className="absolute right-4 z-10 p-3 bg-black/50 hover:bg-black/70 text-white rounded-full transition-colors"
+                  aria-label="Next image"
+                >
+                  <FaChevronRight className="w-6 h-6" />
+                </button>
+              </>
+            )}
+
+            {/* Image Container */}
+            <div className="flex flex-col items-center justify-center w-full h-full">
+              <img
+                src={imagePreview.images[imagePreview.currentIndex]}
+                alt={`${imagePreview.productTitle} - Image ${imagePreview.currentIndex + 1}`}
+                className="max-w-full max-h-[85vh] object-contain rounded-lg"
+              />
+              
+              {/* Image Counter */}
+              {imagePreview.images.length > 1 && (
+                <div className="mt-4 px-4 py-2 bg-black/50 text-white rounded-lg">
+                  <span className="text-sm">
+                    {imagePreview.currentIndex + 1} / {imagePreview.images.length}
+                  </span>
+                </div>
+              )}
+
+              {/* Product Title */}
+              {imagePreview.productTitle && (
+                <p className="mt-2 text-white text-sm text-center max-w-2xl">
+                  {imagePreview.productTitle}
+                </p>
+              )}
+            </div>
+
+            {/* Thumbnail Navigation (if multiple images) */}
+            {imagePreview.images.length > 1 && (
+              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2 overflow-x-auto max-w-full px-4">
+                {imagePreview.images.map((img, index) => (
+                  <button
+                    key={index}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setImagePreview({ ...imagePreview, currentIndex: index });
+                    }}
+                    className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
+                      index === imagePreview.currentIndex
+                        ? "border-primary scale-110"
+                        : "border-transparent opacity-60 hover:opacity-100"
+                    }`}
+                  >
+                    <img
+                      src={img}
+                      alt={`Thumbnail ${index + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
