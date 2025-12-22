@@ -25,6 +25,10 @@ const UsersManagement = () => {
   const [userIdToDelete, setUserIdToDelete] = useState(null);
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [selectAll, setSelectAll] = useState(false);
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
   // Add user form (matches backend /user/register/ fields)
   const [addForm, setAddForm] = useState({
     username: "",
@@ -45,16 +49,35 @@ const UsersManagement = () => {
     location: "",
   });
 
-  const fetchUsers = async () => {
-    // Always fetch fresh data from server
+  const fetchUsers = async (page = currentPage, size = pageSize) => {
+    // Always fetch fresh data from server with pagination
     try {
       setLoading(true);
-      // Use shared API wrapper (adds JWT automatically)
+      // Use shared API wrapper (adds JWT automatically) with pagination params
       const resp = await API.get("/buysellapi/users/", { 
-        isAdmin: true
+        isAdmin: true,
+        params: {
+          page: page || 1,
+          page_size: size || 10
+        }
       });
-      const data = Array.isArray(resp.data) ? resp.data : [];
-      setUsers(data);
+      
+      // Handle both array and paginated response
+      let usersData = [];
+      if (resp.data && typeof resp.data === 'object' && 'results' in resp.data) {
+        // Paginated response
+        usersData = resp.data.results || [];
+        setTotal(resp.data.count || 0);
+      } else if (Array.isArray(resp.data)) {
+        // Non-paginated array response (fallback)
+        usersData = resp.data;
+        setTotal(resp.data.length);
+      } else {
+        usersData = [];
+        setTotal(0);
+      }
+      
+      setUsers(usersData);
     } catch (error) {
       console.error("Error fetching users:", error);
       // Only show error for actual failures (4xx/5xx), not for empty data
@@ -68,6 +91,7 @@ const UsersManagement = () => {
         }
       }
       setUsers([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
@@ -83,10 +107,27 @@ const UsersManagement = () => {
       } catch {
         setIsAdmin(false);
       }
-      fetchUsers();
+      fetchUsers(currentPage, pageSize);
     };
     init();
   }, []);
+
+  useEffect(() => {
+    fetchUsers(currentPage, pageSize);
+  }, [currentPage, pageSize]);
+
+  // Pagination handlers
+  const totalPages = Math.ceil(total / pageSize);
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
+
+  const handlePageSizeChange = (newSize) => {
+    setPageSize(newSize);
+    setCurrentPage(1);
+  };
 
   // Manage Tabs modal state (superadmin-only feature)
   const [showManageTabsModal, setShowManageTabsModal] = useState(false);
@@ -429,7 +470,7 @@ const UsersManagement = () => {
         location: "",
       });
       // Refresh list
-      fetchUsers();
+      fetchUsers(currentPage, pageSize);
     } catch (error) {
       console.error("Error adding user:", error);
       const msg =
@@ -450,7 +491,7 @@ const UsersManagement = () => {
       await API.put(`/buysellapi/users/${selectedUser.id}/update/`, editForm);
       toast.success("User updated successfully");
       setShowEditModal(false);
-      fetchUsers();
+      fetchUsers(currentPage, pageSize);
     } catch (error) {
       console.error("Error updating user:", error);
       const msg = error.response?.data?.detail || "Failed to update user";
@@ -473,7 +514,7 @@ const UsersManagement = () => {
       setUsers((prevUsers) => prevUsers.filter((user) => user.id !== userIdToDelete));
       
       // Refresh data from server to ensure consistency
-      fetchUsers(true);
+      fetchUsers(currentPage, pageSize);
     } catch (error) {
       console.error("Error deleting user:", error);
       const msg =
@@ -540,7 +581,7 @@ const UsersManagement = () => {
       setUsers((prevUsers) => prevUsers.filter((user) => !selectedIds.includes(user.id)));
       
       // Refresh data from server to ensure consistency
-      fetchUsers(true);
+      fetchUsers(currentPage, pageSize);
       
       setSelectedUsers([]);
     } catch (error) {
@@ -563,7 +604,7 @@ const UsersManagement = () => {
       await Promise.all(updatePromises);
       toast.success(`${selectedIds.length} user(s) status updated successfully`);
       setSelectedUsers([]);
-      fetchUsers();
+      fetchUsers(currentPage, pageSize);
     } catch (error) {
       console.error("Error bulk updating status:", error);
       toast.error("Failed to update some users");
@@ -766,6 +807,47 @@ const UsersManagement = () => {
           </tbody>
         </table>
       </div>
+
+      {/* Pagination */}
+      {total > 0 && (
+        <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-4 bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-gray-600 dark:text-gray-400">
+              Showing {(currentPage - 1) * pageSize + 1} to{" "}
+              {Math.min(currentPage * pageSize, total)} of {total} users
+            </span>
+            <select
+              value={pageSize}
+              onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+              className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm text-gray-700 dark:text-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent"
+            >
+              <option value={10}>10 per page</option>
+              <option value={20}>20 per page</option>
+              <option value={50}>50 per page</option>
+              <option value={100}>100 per page</option>
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="px-3 py-1 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600"
+            >
+              Previous
+            </button>
+            <span className="text-sm text-gray-600 dark:text-gray-400">
+              Page {currentPage} of {totalPages}
+            </span>
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Add User Modal */}
       {showAddModal && (

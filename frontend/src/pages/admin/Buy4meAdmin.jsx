@@ -476,7 +476,13 @@ const Buy4meAdmin = () => {
   if (showPrintableInvoice) {
     return (
       <div className="print-container">
-        <Invoice invoice={selectedRequest?.invoice} request={selectedRequest} printable={true} />
+        <Invoice 
+          invoice={selectedRequest?.invoice} 
+          request={selectedRequest} 
+          printable={true}
+          invoiceId={selectedRequest?.id}
+          customerEmail={selectedRequest?.user_email || selectedRequest?.userEmail}
+        />
       </div>
     );
   }
@@ -1419,7 +1425,9 @@ const Buy4meAdmin = () => {
         isOpen={showInvoiceModal} 
         onClose={() => setShowInvoiceModal(false)} 
         invoice={selectedRequest?.invoice} 
-        request={selectedRequest} 
+        request={selectedRequest}
+        invoiceId={selectedRequest?.id}
+        customerEmail={selectedRequest?.user_email || selectedRequest?.userEmail}
       />
 
       {/* Delete Confirmation Modal */}

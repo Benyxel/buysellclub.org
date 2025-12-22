@@ -72,7 +72,19 @@ const Invoice = ({ invoice, request, printable = false, invoiceId, customerEmail
   const confirmSendEmail = async () => {
     try {
       setSendingEmail(true);
-      const response = await API.post(`/buysellapi/agent/invoices/${invoiceId}/`, {});
+      
+      // Check if this is a buy4me invoice (has request prop with buy4me-specific fields)
+      const isBuy4meInvoice = request && (request.product_url || request.title);
+      
+      let response;
+      if (isBuy4meInvoice) {
+        // Use buy4me invoice email endpoint
+        response = await API.post(`/buysellapi/admin/buy4me-requests/${invoiceId}/send-invoice/`, {});
+      } else {
+        // Use agent invoice endpoint
+        response = await API.post(`/buysellapi/agent/invoices/${invoiceId}/`, {});
+      }
+      
       toast.success(`Invoice sent successfully to ${customerEmail}`);
       setShowEmailModal(false);
       if (onEmailSent) {
