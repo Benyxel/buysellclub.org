@@ -116,13 +116,13 @@ const Buy4me = () => {
         
         // Backend already filters active products, so just transform the format
         const transformedProducts = products.map(product => ({
-          id: product.id,
-          title: product.title,
-          description: product.description || '',
-          images: product.images || [],
-          link: product.product_url || '',
-          minQuantity: product.min_quantity || 20,
-        }));
+            id: product.id,
+            title: product.title,
+            description: product.description || '',
+            images: product.images || [],
+            link: product.product_url || '',
+            minQuantity: product.min_quantity || 20,
+          }));
         
         console.log("Transformed products count:", transformedProducts.length);
         setQuickOrderProducts(transformedProducts);
@@ -315,7 +315,7 @@ const Buy4me = () => {
       // Submit the order using createBuy4meRequestWithPayment to require payment first
       const response = await createBuy4meRequestWithPayment(orderDataWithPayment);
       const savedRequest = response.data;
-      
+
       console.log('Quick order request created with payment:', savedRequest);
       console.log('Payment amount:', savedRequest.estimated_amount || quickOrderPaymentAmount);
       
@@ -324,17 +324,17 @@ const Buy4me = () => {
         toast.success('Redirecting to payment gateway...');
         
         // Add to updates before redirecting
-        const updates = JSON.parse(localStorage.getItem("updates") || "[]");
-        updates.unshift({
-          id: Date.now().toString(),
-          type: "order",
+      const updates = JSON.parse(localStorage.getItem("updates") || "[]");
+      updates.unshift({
+        id: Date.now().toString(),
+        type: "order",
           title: "Payment Required",
           message: `Please complete payment of GHS ${quickOrderPaymentAmount} for your quick order "${savedRequest.title}".`,
-          date: new Date().toISOString(),
-          read: false,
-        });
-        localStorage.setItem("updates", JSON.stringify(updates));
-        
+        date: new Date().toISOString(),
+        read: false,
+      });
+      localStorage.setItem("updates", JSON.stringify(updates));
+
         // Redirect to payment gateway
         window.location.href = savedRequest.payment_url;
         return; // Exit early since we're redirecting
@@ -389,7 +389,7 @@ const Buy4me = () => {
         const errorMsg = error.response?.data?.error || 'Invalid order data. Please check your inputs.';
         toast.error(errorMsg);
       } else {
-        toast.error(errorMessage, { autoClose: 5000 });
+      toast.error(errorMessage, { autoClose: 5000 });
       }
     } finally {
       // Reset the submitting state for this specific product
@@ -573,7 +573,7 @@ const Buy4me = () => {
             
             // Redirect to payment gateway after a short delay to show success message
             setTimeout(() => {
-              window.location.href = savedRequest.payment_url;
+            window.location.href = savedRequest.payment_url;
             }, 1500); // 1.5 second delay to show success message
             return; // Exit early since we're redirecting
           } else {
@@ -892,13 +892,13 @@ const Buy4me = () => {
                             {product.images && product.images.length > 0 ? (
                               <>
                                 {product.images.slice(0, 2).map((image, index) => (
-                                  <img
-                                    key={`${product._id || product.id || productIndex}-img-${index}`}
-                                    src={image}
-                                    alt={`${product.title} image ${index + 1}`}
+                                <img
+                                  key={`${product._id || product.id || productIndex}-img-${index}`}
+                                  src={image}
+                                  alt={`${product.title} image ${index + 1}`}
                                     className="w-14 h-14 object-cover rounded-lg flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
                                     onClick={() => openImagePreview(product.images, index, product.title)}
-                                  />
+                                />
                                 ))}
                                 {product.images.length > 2 && (
                                   <div
@@ -931,8 +931,8 @@ const Buy4me = () => {
                             </p>
                             <p className="text-xs text-blue-700 dark:text-blue-300">
                               Pay before order placement
-                            </p>
-                          </div>
+                          </p>
+                        </div>
                         </div>
                         <div className="mt-3">
                           <button
@@ -994,7 +994,7 @@ const Buy4me = () => {
                         <FaChevronRight />
                       </button>
                     </div>
-                  </div>
+                </div>
                 )}
                 </>
               )}

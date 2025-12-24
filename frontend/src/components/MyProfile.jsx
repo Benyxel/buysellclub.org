@@ -1183,7 +1183,13 @@ const MyProfile = () => {
                 eta: d.eta ?? "",
                 date_added: d.date_added || enriched.date_added,
                 action: d.action || enriched.action,
+                container_number: d.container_number || enriched.container_number || null,
               };
+              
+              // Debug: log container_number if available
+              if (d.container_number) {
+                console.log("Container number found:", d.container_number);
+              }
 
               // Capture a candidate shipping mark name from backend if present
               if (!candidateMarkName && d.shipping_mark) {
@@ -3226,6 +3232,16 @@ const MyProfile = () => {
                                         : "-"}
                                     </span>
                                   </div>
+                                  {(selectedTracking.container_number || selectedTracking.container_number === 0) && (
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-500 dark:text-gray-400">
+                                        Container Number:
+                                      </span>
+                                      <span className="font-medium text-blue-600 dark:text-blue-400">
+                                        {selectedTracking.container_number}
+                                      </span>
+                                    </div>
+                                  )}
                                 </div>
                                 {selectedTracking.action && (
                                   <div className="mt-3">

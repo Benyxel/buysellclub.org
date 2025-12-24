@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   FaSearch,
   FaTruck,
@@ -8,14 +8,21 @@ import {
   FaDollarSign,
   FaCube,
   FaCheckCircle,
+  FaIdBadge,
+  FaShip,
 } from "react-icons/fa";
 import API from "../api";
 
 const TrackingSearch = () => {
+  const [searchMode, setSearchMode] = useState("tracking"); // "tracking" or "mark-container"
   const [trackingNumber, setTrackingNumber] = useState("");
+  const [markId, setMarkId] = useState("");
+  const [selectedContainer, setSelectedContainer] = useState("");
+  const [containers, setContainers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [trackingResult, setTrackingResult] = useState(null);
+  const [markContainerResult, setMarkContainerResult] = useState(null);
   const [activeRates, setActiveRates] = useState(null);
 
   const getStatusLabel = (statusValue) => {
@@ -49,6 +56,64 @@ const TrackingSearch = () => {
     return null;
   };
 
+  const fetchContainers = async () => {
+    try {
+      const resp = await API.get("/buysellapi/containers/public/");
+      if (resp?.data && Array.isArray(resp.data)) {
+        setContainers(resp.data);
+      }
+    } catch (e) {
+      console.error("Error fetching containers:", e);
+    }
+  };
+
+  useEffect(() => {
+    if (searchMode === "mark-container") {
+      fetchContainers();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchMode]);
+
+  const handleSearchByMarkContainer = async (e) => {
+    e.preventDefault();
+    if (!markId.trim()) {
+      setError("Please enter your Mark ID");
+      return;
+    }
+    if (!selectedContainer) {
+      setError("Please select a container");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    setMarkContainerResult(null);
+    setTrackingResult(null);
+    
+    try {
+      const response = await API.get("/buysellapi/trackings/by-mark-container/", {
+        params: {
+          mark_id: markId.trim(),
+          container_id: selectedContainer,
+        },
+      });
+      
+      if (response.data) {
+        setMarkContainerResult(response.data);
+      }
+    } catch (error) {
+      console.error("Error searching by mark ID and container:", error);
+      if (error.response?.status === 404) {
+        setError("No packages found for this Mark ID in the selected container.");
+      } else if (error.response?.status === 400) {
+        setError(error.response.data?.error || "Invalid input. Please check your Mark ID and container selection.");
+      } else {
+        setError("Failed to search. Please try again later.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!trackingNumber.trim()) {
@@ -58,6 +123,7 @@ const TrackingSearch = () => {
     setLoading(true);
     setError(null);
     setTrackingResult(null);
+    setMarkContainerResult(null);
     try {
       const response = await API.get(
         `/buysellapi/trackings/by-number/${encodeURIComponent(
@@ -67,6 +133,7 @@ const TrackingSearch = () => {
       if (response.data) {
         const backendData = response.data;
         const statusLabel = getStatusLabel(backendData.status || "pending");
+        
         setTrackingResult({
           trackingNumber: backendData.tracking_number,
           status: statusLabel,
@@ -80,6 +147,7 @@ const TrackingSearch = () => {
           goodsType: backendData.goods_type || null,
           eta: backendData.eta || null,
           action: backendData.action || null,
+          containerNumber: backendData.container_number || null,
           statusHistory: [
             {
               status: statusLabel,
@@ -184,44 +252,138 @@ const TrackingSearch = () => {
             Track Your Shipment
           </h2>
           <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-            Enter your tracking number to get real-time updates on your
-            package's location and status.
+            {searchMode === "tracking"
+              ? "Enter your tracking number to get real-time updates on your package's location and status."
+              : "Enter your Mark ID and select a container to view all your packages, total CBM, and shipping fees."}
           </p>
         </div>
 
-        <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 mb-10 chrome-border-animation">
-          <form
-            onSubmit={handleSearch}
-            className="flex flex-col sm:flex-row gap-4"
-          >
-            <div className="relative flex-1">
-              <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Enter your tracking number..."
-                value={trackingNumber}
-                onChange={(e) => setTrackingNumber(e.target.value)}
-                className="w-full pl-12 pr-4 py-4 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent text-base"
-              />
-            </div>
+        {/* Search Mode Toggle */}
+        <div className="flex justify-center mb-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-1 shadow-md inline-flex">
             <button
-              type="submit"
-              disabled={loading}
-              className="px-8 py-4 bg-primary text-white font-semibold rounded-lg hover:bg-primary/80 transition-colors flex items-center justify-center gap-2"
+              type="button"
+              onClick={() => {
+                setSearchMode("tracking");
+                setError(null);
+                setTrackingResult(null);
+                setMarkContainerResult(null);
+              }}
+              className={`px-6 py-2 rounded-md font-medium transition-all ${
+                searchMode === "tracking"
+                  ? "bg-primary text-white shadow-md"
+                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+              }`}
             >
-              {loading ? (
-                <>
-                  <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
-                  <span>Searching...</span>
-                </>
-              ) : (
-                <>
-                  <FaTruck className="text-lg animate-truck" />
-                  <span>Track Package</span>
-                </>
-              )}
+              <FaTruck className="inline mr-2" />
+              By Tracking Number
             </button>
-          </form>
+            <button
+              type="button"
+              onClick={() => {
+                setSearchMode("mark-container");
+                setError(null);
+                setTrackingResult(null);
+                setMarkContainerResult(null);
+              }}
+              className={`px-6 py-2 rounded-md font-medium transition-all ${
+                searchMode === "mark-container"
+                  ? "bg-primary text-white shadow-md"
+                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+              }`}
+            >
+              <FaIdBadge className="inline mr-2" />
+              By Mark ID & Container
+            </button>
+          </div>
+        </div>
+
+        <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 mb-10 chrome-border-animation">
+          {searchMode === "tracking" ? (
+            <form
+              onSubmit={handleSearch}
+              className="flex flex-col sm:flex-row gap-4"
+            >
+              <div className="relative flex-1">
+                <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Enter your tracking number..."
+                  value={trackingNumber}
+                  onChange={(e) => setTrackingNumber(e.target.value)}
+                  className="w-full pl-12 pr-4 py-4 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent text-base"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="px-8 py-4 bg-primary text-white font-semibold rounded-lg hover:bg-primary/80 transition-colors flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                  <>
+                    <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
+                    <span>Searching...</span>
+                  </>
+                ) : (
+                  <>
+                    <FaTruck className="text-lg animate-truck" />
+                    <span>Track Package</span>
+                  </>
+                )}
+              </button>
+            </form>
+          ) : (
+            <form
+              onSubmit={handleSearchByMarkContainer}
+              className="flex flex-col gap-4"
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="relative">
+                  <FaIdBadge className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Enter your Mark ID (e.g., FIM000)"
+                    value={markId}
+                    onChange={(e) => setMarkId(e.target.value.toUpperCase())}
+                    className="w-full pl-12 pr-4 py-4 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent text-base"
+                  />
+                </div>
+                <div className="relative">
+                  <FaShip className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <select
+                    value={selectedContainer}
+                    onChange={(e) => setSelectedContainer(e.target.value)}
+                    className="w-full pl-12 pr-4 py-4 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent text-base appearance-none"
+                    required
+                  >
+                    <option value="">Select Container *</option>
+                    {containers.map((container) => (
+                      <option key={container.id} value={container.id}>
+                        {container.container_number} ({container.status})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="px-8 py-4 bg-primary text-white font-semibold rounded-lg hover:bg-primary/80 transition-colors flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                  <>
+                    <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
+                    <span>Searching...</span>
+                  </>
+                ) : (
+                  <>
+                    <FaSearch className="text-lg" />
+                    <span>Search Packages</span>
+                  </>
+                )}
+              </button>
+            </form>
+          )}
 
           {error && (
             <div className="mt-6 p-4 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-lg border border-red-200 dark:border-red-800/30">
@@ -230,6 +392,75 @@ const TrackingSearch = () => {
           )}
         </div>
 
+        {/* Mark ID + Container Results */}
+        {markContainerResult && (
+          <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 animate-slide-in-up chrome-border-animation">
+            <div className="flex items-center justify-between mb-6 border-b border-gray-200 dark:border-gray-700 pb-4">
+              <div>
+                <h3 className="text-xl font-bold text-gray-800 dark:text-white">
+                  Container Summary
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400 text-sm">
+                  Mark ID: <span className="font-semibold">{markContainerResult.mark_id}</span> | Container: <span className="font-semibold">{markContainerResult.container.container_number}</span>
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+              <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 p-6 rounded-lg border border-blue-200 dark:border-blue-800">
+                <div className="flex items-center gap-3 mb-2">
+                  <FaBoxOpen className="text-blue-500 text-2xl" />
+                  <h4 className="text-sm text-gray-600 dark:text-gray-400 font-medium">Total Packages</h4>
+                </div>
+                <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+                  {markContainerResult.summary.total_packages}
+                </p>
+              </div>
+
+              <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 p-6 rounded-lg border border-purple-200 dark:border-purple-800">
+                <div className="flex items-center gap-3 mb-2">
+                  <FaCube className="text-purple-500 text-2xl" />
+                  <h4 className="text-sm text-gray-600 dark:text-gray-400 font-medium">Total CBM</h4>
+                </div>
+                <p className="text-3xl font-bold text-purple-600 dark:text-purple-400">
+                  {markContainerResult.summary.total_cbm}
+                </p>
+              </div>
+
+              <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 p-6 rounded-lg border border-green-200 dark:border-green-800">
+                <div className="flex items-center gap-3 mb-2">
+                  <FaDollarSign className="text-green-500 text-2xl" />
+                  <h4 className="text-sm text-gray-600 dark:text-gray-400 font-medium">Total Shipping Fee</h4>
+                </div>
+                <p className="text-3xl font-bold text-green-600 dark:text-green-400">
+                  ${markContainerResult.summary.total_shipping_fee_usd}
+                </p>
+              </div>
+            </div>
+
+            {markContainerResult.tracking_numbers && markContainerResult.tracking_numbers.length > 0 && (
+              <div className="mt-6">
+                <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-3">
+                  Tracking Numbers ({markContainerResult.tracking_numbers.length})
+                </h4>
+                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 max-h-60 overflow-y-auto">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    {markContainerResult.tracking_numbers.map((tn, idx) => (
+                      <div
+                        key={idx}
+                        className="bg-white dark:bg-gray-800 px-3 py-2 rounded text-sm font-mono text-gray-700 dark:text-gray-300"
+                      >
+                        {tn}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Single Tracking Result */}
         {trackingResult && (
           <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 animate-slide-in-up chrome-border-animation">
             <div className="flex items-center justify-between mb-6 border-b border-gray-200 dark:border-gray-700 pb-4 animate-fade-in">
@@ -388,6 +619,29 @@ const TrackingSearch = () => {
                     </h4>
                     <p className="font-medium text-gray-800 dark:text-white">
                       {new Date(trackingResult.eta).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {(trackingResult.containerNumber || trackingResult.containerNumber === 0) && (
+                <div
+                  className="flex items-start gap-4 hover-lift animate-fade-in"
+                  style={{
+                    animationDelay: "0.7s",
+                    opacity: 0,
+                    animation: "fadeInUp 0.6s ease-out 0.7s forwards",
+                  }}
+                >
+                  <div className="p-3 bg-cyan-50 dark:bg-cyan-900/20 rounded-full transition-all duration-300 hover:scale-110 hover:rotate-6">
+                    <FaBoxOpen className="text-cyan-500" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                      Container Number
+                    </h4>
+                    <p className="font-medium text-cyan-600 dark:text-cyan-400">
+                      {trackingResult.containerNumber}
                     </p>
                   </div>
                 </div>

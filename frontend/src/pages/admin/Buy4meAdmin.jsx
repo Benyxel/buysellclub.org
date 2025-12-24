@@ -1425,7 +1425,7 @@ const Buy4meAdmin = () => {
         isOpen={showInvoiceModal} 
         onClose={() => setShowInvoiceModal(false)} 
         invoice={selectedRequest?.invoice} 
-        request={selectedRequest}
+        request={selectedRequest} 
         invoiceId={selectedRequest?.id}
         customerEmail={selectedRequest?.user_email || selectedRequest?.userEmail}
       />

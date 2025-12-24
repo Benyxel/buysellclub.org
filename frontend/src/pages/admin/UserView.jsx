@@ -19,78 +19,26 @@ const UserView = () => {
   const fetchUserByMarkId = React.useCallback(async () => {
     try {
       setLoading(true);
-      // Fetch all users and find the one with matching mark_id
-      const resp = await API.get("/buysellapi/users/");
-      const users = Array.isArray(resp.data) ? resp.data : [];
-
-      console.log("Searching for markId:", markId);
-      console.log(
-        "All users:",
-        users.map((u) => ({
-          username: u.username,
-          has_shipping_mark: !!u.shipping_mark,
-          shipping_mark_obj: u.shipping_mark,
-        }))
-      );
-      console.log(
-        "Users with shipping marks:",
-        users
-          .filter((u) => u.shipping_mark)
-          .map((u) => ({
-            username: u.username,
-            mark_id: u.shipping_mark?.mark_id,
-            mark_name: u.shipping_mark?.name,
-            full_mark: u.shipping_mark,
-          }))
-      );
-
-      // Try to match by mark_id or by the full "markId:name" format
-      const matchedUser = users.find((u) => {
-        if (!u.shipping_mark) return false;
-
-        // Check if shipping_mark is a string (like "FIM639:John Doe") or an object
-        if (typeof u.shipping_mark === "string") {
-          const markLower = u.shipping_mark.toLowerCase();
-          const searchLower = markId?.toLowerCase();
-
-          // Direct match
-          if (markLower === searchLower) return true;
-
-          // Match the part before the colon
-          const markIdPart = u.shipping_mark.split(":")[0].toLowerCase();
-          if (markIdPart === searchLower) return true;
-
-          return false;
-        }
-
-        // If it's an object with mark_id property
-        const userMarkId = u.shipping_mark.mark_id?.toLowerCase();
-        const searchMarkId = markId?.toLowerCase();
-
-        // Direct match
-        if (userMarkId === searchMarkId) return true;
-
-        // Match against "markId:name" format
-        const fullMark =
-          `${u.shipping_mark.mark_id}:${u.shipping_mark.name}`.toLowerCase();
-        if (fullMark === searchMarkId) return true;
-
-        // Match if the search string is part of the mark
-        if (fullMark.includes(searchMarkId)) return true;
-
-        return false;
-      });
-
-      if (matchedUser) {
-        setUser(matchedUser);
+      
+      // Extract mark_id from URL parameter (might be in format "markId:name" or just "markId")
+      const actualMarkId = markId?.split(":")[0] || markId;
+      
+      // Use the new endpoint to get user by mark_id
+      const resp = await API.get(`/buysellapi/users/by-mark/${actualMarkId}/`);
+      
+      if (resp.data) {
+        setUser(resp.data);
       } else {
-        console.error("No user found for markId:", markId);
+        console.error("No user found for markId:", actualMarkId);
         toast.error("User not found with this shipping mark");
-        // User not found - just show the "not found" UI
       }
     } catch (error) {
-      console.error("Error fetching user:", error);
-      toast.error("Failed to fetch user details");
+      console.error("Error fetching user by markId:", error);
+      if (error.response?.status === 404) {
+        toast.error("User not found with this shipping mark");
+      } else {
+        toast.error("Failed to fetch user details");
+      }
     } finally {
       setLoading(false);
     }
