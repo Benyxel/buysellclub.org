@@ -841,7 +841,7 @@ export default function AdminProducts() {
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-4 text-sm">
+                    <td className="px-4 py-4 text-sm text-gray-900 dark:text-white">
                       <div className="flex gap-2">
                         <button
                           onClick={() => onEdit(p)}

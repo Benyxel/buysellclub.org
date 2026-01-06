@@ -9,6 +9,7 @@ import {
   FaShip,
   FaEye,
   FaBoxes,
+  FaPrint,
 } from "react-icons/fa";
 import ConfirmModal from "./shared/ConfirmModal";
 
@@ -748,13 +749,203 @@ const ContainerManagement = () => {
               </div>
             </div>
 
+            {/* CBM Summary Table */}
+            {containerDetails.trackings && containerDetails.trackings.length > 0 && (
+              <div className="mb-6">
+                <h4 className="font-semibold text-gray-800 dark:text-white mb-3 flex items-center gap-2">
+                  <FaBoxes className="text-blue-600" />
+                  Container CBM Summary
+                </h4>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm bg-white dark:bg-gray-800 rounded-lg shadow-md">
+                    <thead className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-gray-700 dark:to-gray-600">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-gray-700 dark:text-gray-300 font-semibold">
+                          Total Packages
+                        </th>
+                        <th className="px-4 py-3 text-left text-gray-700 dark:text-gray-300 font-semibold">
+                          Total CBM
+                        </th>
+                        <th className="px-4 py-3 text-left text-gray-700 dark:text-gray-300 font-semibold">
+                          Total Shipping Fee
+                        </th>
+                        <th className="px-4 py-3 text-left text-gray-700 dark:text-gray-300 font-semibold">
+                          Average CBM per Package
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-t border-gray-200 dark:border-gray-700">
+                        <td className="px-4 py-3 text-gray-900 dark:text-white font-bold text-lg">
+                          {containerDetails.trackings.length}
+                        </td>
+                        <td className="px-4 py-3 text-gray-900 dark:text-white font-bold text-lg text-blue-600 dark:text-blue-400">
+                          {containerDetails.trackings
+                            .reduce((sum, t) => sum + (parseFloat(t.cbm) || 0), 0)
+                            .toFixed(3)} m³
+                        </td>
+                        <td className="px-4 py-3 text-gray-900 dark:text-white font-bold text-lg text-green-600 dark:text-green-400">
+                          ${containerDetails.trackings
+                            .reduce((sum, t) => sum + (parseFloat(t.shipping_fee) || 0), 0)
+                            .toFixed(2)}
+                        </td>
+                        <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
+                          {containerDetails.trackings.length > 0
+                            ? (
+                                containerDetails.trackings.reduce(
+                                  (sum, t) => sum + (parseFloat(t.cbm) || 0),
+                                  0
+                                ) / containerDetails.trackings.length
+                              ).toFixed(3)
+                            : "0.000"}{" "}
+                          m³
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
             {/* Mark ID Statistics */}
             {containerDetails.mark_id_stats &&
               containerDetails.mark_id_stats.length > 0 && (
                 <div className="mb-6">
-                  <h4 className="font-semibold text-gray-800 dark:text-white mb-3">
-                    Statistics by Mark ID
-                  </h4>
+                  <div className="flex justify-between items-center mb-3">
+                    <h4 className="font-semibold text-gray-800 dark:text-white">
+                      Statistics by Mark ID
+                    </h4>
+                    <button
+                      onClick={() => {
+                        const printWindow = window.open("", "_blank");
+                        const totalPackages = containerDetails.mark_id_stats
+                          .reduce((sum, stat) => sum + (stat.count || 0), 0);
+                        const totalCbm = containerDetails.mark_id_stats
+                          .reduce((sum, stat) => sum + (parseFloat(stat.total_cbm) || 0), 0)
+                          .toFixed(3);
+                        const totalFee = containerDetails.mark_id_stats
+                          .reduce((sum, stat) => sum + (parseFloat(stat.total_fee) || 0), 0)
+                          .toFixed(2);
+                        
+                        printWindow.document.write(`
+                          <!DOCTYPE html>
+                          <html>
+                            <head>
+                              <title>Container Statistics by Mark ID - ${containerDetails.container_number}</title>
+                              <style>
+                                body {
+                                  font-family: Arial, sans-serif;
+                                  padding: 20px;
+                                  color: #333;
+                                }
+                                .header {
+                                  text-align: center;
+                                  margin-bottom: 30px;
+                                  border-bottom: 2px solid #333;
+                                  padding-bottom: 20px;
+                                }
+                                .header h1 {
+                                  margin: 0;
+                                  font-size: 24px;
+                                  color: #1e40af;
+                                }
+                                .header p {
+                                  margin: 5px 0;
+                                  color: #666;
+                                }
+                                table {
+                                  width: 100%;
+                                  border-collapse: collapse;
+                                  margin-top: 20px;
+                                }
+                                th {
+                                  background-color: #f3f4f6;
+                                  padding: 12px;
+                                  text-align: left;
+                                  border: 1px solid #ddd;
+                                  font-weight: bold;
+                                }
+                                td {
+                                  padding: 10px;
+                                  border: 1px solid #ddd;
+                                }
+                                tr:nth-child(even) {
+                                  background-color: #f9fafb;
+                                }
+                                .footer {
+                                  margin-top: 20px;
+                                  padding-top: 20px;
+                                  border-top: 2px solid #333;
+                                }
+                                .footer-row {
+                                  font-weight: bold;
+                                  background-color: #e5e7eb;
+                                }
+                                @media print {
+                                  body { margin: 0; padding: 15px; }
+                                  .no-print { display: none; }
+                                }
+                              </style>
+                            </head>
+                            <body>
+                              <div class="header">
+                                <h1>Container Statistics by Mark ID</h1>
+                                <p><strong>Container Number:</strong> ${containerDetails.container_number}</p>
+                                <p><strong>Status:</strong> ${
+                                  statusOptions.find(
+                                    (opt) => opt.value === containerDetails.status
+                                  )?.label || containerDetails.status || "N/A"
+                                }</p>
+                                <p><strong>Date Printed:</strong> ${new Date().toLocaleString()}</p>
+                              </div>
+                              <table>
+                                <thead>
+                                  <tr>
+                                    <th>Mark ID</th>
+                                    <th>Packages</th>
+                                    <th>Total CBM</th>
+                                    <th>Total Fee</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  ${containerDetails.mark_id_stats.map((stat, index) => `
+                                    <tr>
+                                      <td style="font-weight: bold;">${stat.shipping_mark || "-"}</td>
+                                      <td>${stat.count || 0}</td>
+                                      <td>${parseFloat(stat.total_cbm || 0).toFixed(3)}</td>
+                                      <td>$${parseFloat(stat.total_fee || 0).toFixed(2)}</td>
+                                    </tr>
+                                  `).join("")}
+                                </tbody>
+                                <tfoot>
+                                  <tr class="footer-row">
+                                    <td style="text-align: right; font-weight: bold;">Total:</td>
+                                    <td style="font-weight: bold;">${totalPackages}</td>
+                                    <td style="font-weight: bold;">${totalCbm} m³</td>
+                                    <td style="font-weight: bold;">$${totalFee}</td>
+                                  </tr>
+                                </tfoot>
+                              </table>
+                              <div class="footer">
+                                <p><strong>Total Mark IDs:</strong> ${containerDetails.mark_id_stats.length}</p>
+                                <p><strong>Total Packages:</strong> ${totalPackages}</p>
+                                <p><strong>Total CBM:</strong> ${totalCbm} m³</p>
+                                <p><strong>Total Shipping Fee:</strong> $${totalFee}</p>
+                              </div>
+                            </body>
+                          </html>
+                        `);
+                        printWindow.document.close();
+                        setTimeout(() => {
+                          printWindow.print();
+                        }, 250);
+                      }}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      title="Print Statistics by Mark ID"
+                    >
+                      <FaPrint /> Print
+                    </button>
+                  </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead className="bg-gray-50 dark:bg-gray-700">
@@ -800,9 +991,141 @@ const ContainerManagement = () => {
             {containerDetails.trackings &&
               containerDetails.trackings.length > 0 && (
                 <div>
-                  <h4 className="font-semibold text-gray-800 dark:text-white mb-3">
-                    All Tracking Numbers ({containerDetails.trackings.length})
-                  </h4>
+                  <div className="flex justify-between items-center mb-3">
+                    <h4 className="font-semibold text-gray-800 dark:text-white">
+                      All Tracking Numbers ({containerDetails.trackings.length})
+                    </h4>
+                    <button
+                      onClick={() => {
+                        const printWindow = window.open("", "_blank");
+                        const totalCbm = containerDetails.trackings
+                          .reduce((sum, t) => sum + (parseFloat(t.cbm) || 0), 0)
+                          .toFixed(3);
+                        const totalFee = containerDetails.trackings
+                          .reduce((sum, t) => sum + (parseFloat(t.shipping_fee) || 0), 0)
+                          .toFixed(2);
+                        
+                        printWindow.document.write(`
+                          <!DOCTYPE html>
+                          <html>
+                            <head>
+                              <title>Tracking Numbers - ${containerDetails.container_number}</title>
+                              <style>
+                                body {
+                                  font-family: Arial, sans-serif;
+                                  padding: 20px;
+                                  color: #333;
+                                }
+                                .header {
+                                  text-align: center;
+                                  margin-bottom: 30px;
+                                  border-bottom: 2px solid #333;
+                                  padding-bottom: 20px;
+                                }
+                                .header h1 {
+                                  margin: 0;
+                                  font-size: 24px;
+                                  color: #1e40af;
+                                }
+                                .header p {
+                                  margin: 5px 0;
+                                  color: #666;
+                                }
+                                table {
+                                  width: 100%;
+                                  border-collapse: collapse;
+                                  margin-top: 20px;
+                                }
+                                th {
+                                  background-color: #f3f4f6;
+                                  padding: 12px;
+                                  text-align: left;
+                                  border: 1px solid #ddd;
+                                  font-weight: bold;
+                                }
+                                td {
+                                  padding: 10px;
+                                  border: 1px solid #ddd;
+                                }
+                                tr:nth-child(even) {
+                                  background-color: #f9fafb;
+                                }
+                                .footer {
+                                  margin-top: 20px;
+                                  padding-top: 20px;
+                                  border-top: 2px solid #333;
+                                }
+                                .footer-row {
+                                  font-weight: bold;
+                                  background-color: #e5e7eb;
+                                }
+                                @media print {
+                                  body { margin: 0; padding: 15px; }
+                                  .no-print { display: none; }
+                                }
+                              </style>
+                            </head>
+                            <body>
+                              <div class="header">
+                                <h1>Container Tracking Numbers</h1>
+                                <p><strong>Container Number:</strong> ${containerDetails.container_number}</p>
+                                <p><strong>Status:</strong> ${
+                                  statusOptions.find(
+                                    (opt) => opt.value === containerDetails.status
+                                  )?.label || containerDetails.status
+                                }</p>
+                                <p><strong>Date Printed:</strong> ${new Date().toLocaleString()}</p>
+                              </div>
+                              <table>
+                                <thead>
+                                  <tr>
+                                    <th>#</th>
+                                    <th>Tracking Number</th>
+                                    <th>Mark ID</th>
+                                    <th>Status</th>
+                                    <th>CBM</th>
+                                    <th>Shipping Fee</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  ${containerDetails.trackings.map((tracking, index) => `
+                                    <tr>
+                                      <td>${index + 1}</td>
+                                      <td>${tracking.tracking_number}</td>
+                                      <td>${tracking.shipping_mark || "-"}</td>
+                                      <td>${tracking.status}</td>
+                                      <td>${tracking.cbm ? parseFloat(tracking.cbm).toFixed(3) : "-"}</td>
+                                      <td>$${tracking.shipping_fee ? parseFloat(tracking.shipping_fee).toFixed(2) : "0.00"}</td>
+                                    </tr>
+                                  `).join("")}
+                                </tbody>
+                                <tfoot>
+                                  <tr class="footer-row">
+                                    <td colspan="4" style="text-align: right; font-weight: bold;">Total:</td>
+                                    <td style="font-weight: bold;">${totalCbm} m³</td>
+                                    <td style="font-weight: bold;">$${totalFee}</td>
+                                  </tr>
+                                </tfoot>
+                              </table>
+                              <div class="footer">
+                                <p><strong>Total Packages:</strong> ${containerDetails.trackings.length}</p>
+                                <p><strong>Total CBM:</strong> ${totalCbm} m³</p>
+                                <p><strong>Total Shipping Fee:</strong> $${totalFee}</p>
+                              </div>
+                            </body>
+                          </html>
+                        `);
+                        printWindow.document.close();
+                        setTimeout(() => {
+                          printWindow.print();
+                        }, 250);
+                      }}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      title="Print Tracking Numbers"
+                    >
+                      <FaPrint /> Print
+                    </button>
+                  </div>
                   <div className="max-h-64 overflow-y-auto">
                     <table className="w-full text-sm">
                       <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
@@ -834,11 +1157,23 @@ const ContainerManagement = () => {
                               {tracking.status}
                             </td>
                             <td className="px-4 py-2 text-gray-700 dark:text-gray-300">
-                              {tracking.cbm || "-"}
+                              {tracking.cbm ? parseFloat(tracking.cbm).toFixed(3) : "-"}
                             </td>
                           </tr>
                         ))}
                       </tbody>
+                      <tfoot className="bg-gray-100 dark:bg-gray-700 font-semibold">
+                        <tr>
+                          <td className="px-4 py-3 text-gray-900 dark:text-white" colSpan="3">
+                            <span className="text-gray-600 dark:text-gray-400">Total:</span>
+                          </td>
+                          <td className="px-4 py-3 text-gray-900 dark:text-white text-blue-600 dark:text-blue-400">
+                            {containerDetails.trackings
+                              .reduce((sum, t) => sum + (parseFloat(t.cbm) || 0), 0)
+                              .toFixed(3)} m³
+                          </td>
+                        </tr>
+                      </tfoot>
                     </table>
                   </div>
                 </div>

@@ -754,7 +754,7 @@ const TrackingManagement = () => {
                 <th className="py-3 px-4 text-left">
                   <button
                     onClick={() => handleSort("trackingNum")}
-                    className="flex items-center text-gray-700 dark:text-gray-300 font-medium text-sm"
+                    className="flex items-center text-gray-700 dark:text-white font-medium text-sm"
                   >
                     Tracking Number
                     {sortField === "trackingNum" &&
@@ -768,7 +768,7 @@ const TrackingManagement = () => {
                 <th className="py-3 px-4 text-left">
                   <button
                     onClick={() => handleSort("shippingMark")}
-                    className="flex items-center text-gray-700 dark:text-gray-300 font-medium text-sm"
+                    className="flex items-center text-gray-700 dark:text-white font-medium text-sm"
                   >
                     Shipping Mark
                     {sortField === "shippingMark" &&
@@ -782,7 +782,7 @@ const TrackingManagement = () => {
                 <th className="py-3 px-4 text-left">
                   <button
                     onClick={() => handleSort("status")}
-                    className="flex items-center text-gray-700 dark:text-gray-300 font-medium text-sm"
+                    className="flex items-center text-gray-700 dark:text-white font-medium text-sm"
                   >
                     Status
                     {sortField === "status" &&
@@ -796,7 +796,7 @@ const TrackingManagement = () => {
                 <th className="py-3 px-4 text-left">
                   <button
                     onClick={() => handleSort("cbm")}
-                    className="flex items-center text-gray-700 dark:text-gray-300 font-medium text-sm"
+                    className="flex items-center text-gray-700 dark:text-white font-medium text-sm"
                   >
                     CBM
                     {sortField === "cbm" &&
@@ -807,16 +807,16 @@ const TrackingManagement = () => {
                       ))}
                   </button>
                 </th>
-                <th className="py-3 px-4 text-left">Shipping Fee</th>
+                <th className="py-3 px-4 text-left text-gray-700 dark:text-white font-medium">Shipping Fee</th>
                 <th className="py-3 px-4 text-left">
-                  <span className="text-gray-700 dark:text-gray-300 font-medium text-sm">
+                  <span className="text-gray-700 dark:text-white font-medium text-sm">
                     Container
                   </span>
                 </th>
                 <th className="py-3 px-4 text-left">
                   <button
                     onClick={() => handleSort("addedDate")}
-                    className="flex items-center text-gray-700 dark:text-gray-300 font-medium text-sm"
+                    className="flex items-center text-gray-700 dark:text-white font-medium text-sm"
                   >
                     Added Date
                     {sortField === "addedDate" &&
@@ -827,8 +827,8 @@ const TrackingManagement = () => {
                       ))}
                   </button>
                 </th>
-                <th className="py-3 px-4 text-left">ETA</th>
-                <th className="py-3 px-4 text-left">Operations</th>
+                <th className="py-3 px-4 text-left text-gray-700 dark:text-white font-medium">ETA</th>
+                <th className="py-3 px-4 text-left text-gray-700 dark:text-white font-medium">Operations</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -850,10 +850,10 @@ const TrackingManagement = () => {
                         className="rounded"
                       />
                     </td>
-                    <td className="py-3 px-4 font-medium">
+                    <td className="py-3 px-4 font-medium text-gray-900 dark:text-white">
                       {tracking.TrackingNum}
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-4 text-gray-900 dark:text-white">
                       {tracking.ShippingMark ? (
                         <button
                           onClick={() =>
@@ -869,7 +869,7 @@ const TrackingManagement = () => {
                         "-"
                       )}
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-4 text-gray-900 dark:text-white">
                       {tracking.Status && (
                         <span
                           className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(
@@ -880,27 +880,27 @@ const TrackingManagement = () => {
                         </span>
                       )}
                     </td>
-                    <td className="py-3 px-4">{tracking.CBM || "-"}</td>
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-4 text-gray-900 dark:text-white">{tracking.CBM || "-"}</td>
+                    <td className="py-3 px-4 text-gray-900 dark:text-white">
                       {tracking.ShippingFee
                         ? `$${parseFloat(tracking.ShippingFee).toFixed(2)}`
                         : "-"}
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-4 text-gray-900 dark:text-white">
                       {tracking.ContainerNumber ? (
                         <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded">
                           {tracking.ContainerNumber}
                         </span>
                       ) : (
-                        <span className="text-gray-400 text-sm">-</span>
+                        <span className="text-gray-400 dark:text-gray-500 text-sm">-</span>
                       )}
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-4 text-gray-900 dark:text-white">
                       {tracking.AddedDate
                         ? new Date(tracking.AddedDate).toLocaleDateString()
                         : "-"}
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-4 text-gray-900 dark:text-white">
                       {tracking.ETA
                         ? new Date(tracking.ETA).toLocaleDateString()
                         : "-"}
@@ -919,7 +919,7 @@ const TrackingManagement = () => {
                               [tracking.id]: e.target.value,
                             }))
                           }
-                          className="px-2 py-1 border rounded text-sm dark:bg-gray-700 dark:border-gray-600"
+                          className="px-2 py-1 border rounded text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                         >
                           <option value="">Select Rate</option>
                           <option value="normal">Normal</option>

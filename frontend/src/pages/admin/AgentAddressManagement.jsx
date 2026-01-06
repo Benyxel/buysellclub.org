@@ -599,13 +599,13 @@ const AgentAddressManagement = () => {
                         <td className="py-3 px-4 font-medium">
                           {address.markId || address.mark_id}
                         </td>
-                        <td className="py-3 px-4">{address.name}</td>
-                        <td className="py-3 px-4">
+                        <td className="py-3 px-4 text-gray-900 dark:text-white">{address.name}</td>
+                        <td className="py-3 px-4 text-gray-900 dark:text-white">
                           <div className="max-w-xs truncate">
                             {address.fullAddress || address.full_address}
                           </div>
                         </td>
-                        <td className="py-3 px-4">
+                        <td className="py-3 px-4 text-gray-900 dark:text-white">
                           {address.shippingMark || address.shipping_mark}
                         </td>
                         <td className="py-3 px-4">

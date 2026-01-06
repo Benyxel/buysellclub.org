@@ -46,7 +46,7 @@ const Category2 = () => {
                 <p className="mb-[0px] font-bold  text-white">
                   Learn How to import your self
                 </p>
-                <p className="text-2xl font-semibold mb-[30px]">Training</p>
+                <p className="text-2xl font-semibold mb-[30px]">From China</p>
                 <p className="text-4xl xl:text-5xl font-bold opacity-20 mb-10">
                   Mini Importation
                 </p>

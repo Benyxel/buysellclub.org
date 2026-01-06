@@ -36,6 +36,7 @@ import AdminDashboard from "./pages/admin/AdminDashboard.jsx";
 import Gallery from "./pages/Gallery";
 import AdminLogin from "./pages/AdminLogin";
 import TrackingPage from "./pages/TrackingPage";
+import PublicInvoice from "./pages/PublicInvoice";
 import ProtectedRoute from "./auth/ProtectedRoute.jsx";
 import AdminRoute from "./auth/AdminRoute.jsx";
 import AgentRoute from "./auth/AgentRoute.jsx";
@@ -178,6 +179,7 @@ function App() {
                   <Route path="Training" element={<Training />} />
                   <Route path="Gallery" element={<Gallery />} />
                   <Route path="tracking" element={<TrackingPage />} />
+                  <Route path="invoice" element={<PublicInvoice />} />
                   <Route path="payment/callback" element={<PaymentCallback />} />
 
                   {/* Protected routes - require login */}

@@ -6,12 +6,16 @@
   RewriteEngine On
   RewriteBase /
 
+  # IMPORTANT: Handle API requests FIRST before SPA routing
+  # If /buysellapi/ or /api/ requests reach the frontend server, it means VITE_API_BASE_URL is not set
+  # Return 404 immediately (these should go to the backend, not frontend)
+  RewriteCond %{REQUEST_URI} ^/(buysellapi|api)/
+  RewriteRule . - [R=404,L]
+
   # Handle Angular/React Router - redirect all requests to index.html
-  # except for files that exist
+  # except for files that exist and API paths (already handled above)
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
-  RewriteCond %{REQUEST_URI} !^/buysellapi/
-  RewriteCond %{REQUEST_URI} !^/api/
   RewriteRule . /index.html [L]
 
   # Force HTTPS (uncomment if you have SSL certificate)

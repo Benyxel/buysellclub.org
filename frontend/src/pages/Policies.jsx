@@ -13,21 +13,201 @@ import {
 const policySections = [
   {
     id: "shipping",
-    title: "Shipping & Freight Policy",
+    title: "Terms & Conditions & Shipping Guide",
     icon: <FaTruck className="text-blue-600 text-3xl" />,
     description:
-      "Clear SLAs for line-haul, air cargo, last-mile delivery, and customs handling across China–Ghana trade lanes.",
-    commitments: [
-      "Weekly consolidation out of Yiwu, Guangzhou, and Shenzhen.",
-      "Average ocean freight transit: 28–32 days door-to-door; air freight: 5–8 days.",
-      "Mandatory pre-alerts at each milestone (warehouse-in, vessel departure, Ghana arrival, customs release).",
-      "Cargo insurance offered up to GHS 200,000 per consignment; higher values by endorsement.",
-    ],
-    compliance: [
-      "GHPA, GRA Customs, and Civil Aviation Authority standards adhered to.",
-      "Dangerous goods accepted only with MSDS and prior approval.",
-      "Digital proof-of-delivery stored for 24 months.",
-    ],
+      "Fofoofo Imports – Terms & Conditions & Shipping Guide (Operated by Fofoofo Group PTY LTD). By using the services of Fofoofo Imports, you agree to abide by the following Terms and Conditions and comply with all applicable laws. If you do not agree, please do not use our services.",
+    content: (
+      <div className="space-y-6 text-gray-700 dark:text-gray-300">
+        <div>
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+            📦 GENERAL TERMS & CONDITIONS
+          </h3>
+          <div className="space-y-4">
+            <div>
+              <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
+                Estimated Delivery Period
+              </h4>
+              <p>
+                Delivery times are <strong>not 100% guaranteed</strong> due to unforeseen circumstances such as flight delays, customs clearance, inspections, holidays, or port issues. All delivery timelines provided are <strong>estimates based on the past two (2) months' performance</strong>.
+              </p>
+            </div>
+            <div>
+              <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
+                Dangerous Goods Disclosure
+              </h4>
+              <p>
+                Clients must <strong>fully declare all dangerous or restricted goods</strong>. Failure to do so makes the client <strong>fully liable</strong> for any penalties, losses, seizures, or damages incurred.
+              </p>
+            </div>
+            <div>
+              <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
+                Transparency & Proper Labeling
+              </h4>
+              <p>
+                All clients must be <strong>honest about the contents</strong> of their packages. Clients must ensure suppliers <strong>properly label parcels</strong>, clearly indicating:
+              </p>
+              <ul className="list-disc list-inside ml-4 mt-2 space-y-1">
+                <li>Product name</li>
+                <li>Quantity</li>
+                <li>Correct <strong>shipping mark</strong></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
+                Warehouse Address
+              </h4>
+              <p>
+                Clients must <strong>confirm and generate the correct warehouse address</strong> before shipping goods. Fofoofo Imports will not be responsible for items sent to incorrect addresses.
+              </p>
+            </div>
+            <div>
+              <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
+                Extra Fees
+              </h4>
+              <p>
+                Certain items such as <strong>cosmetics, liquids, batteries, and some electronics</strong> may attract <strong>additional customs or handling fees</strong> when shipping to Ghana.
+              </p>
+            </div>
+            <div>
+              <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
+                Pickup Deadline
+              </h4>
+              <p>
+                Goods must be <strong>picked up within 7 days</strong> of arrival notification. A <strong>$5 per day penalty</strong> applies after the 7-day grace period.
+              </p>
+            </div>
+            <div>
+              <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
+                Parcel Inspection
+              </h4>
+              <p>
+                Clients must <strong>inspect their parcels at our office upon pickup</strong>. Any issues reported <strong>after leaving our premises will not be accepted</strong>.
+              </p>
+            </div>
+            <div>
+              <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
+                Product Quality Disclaimer
+              </h4>
+              <p>
+                Fofoofo Imports <strong>does not guarantee product quality or condition</strong>. We deliver items <strong>exactly as received from suppliers</strong>.
+              </p>
+            </div>
+            <div>
+              <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
+                Electronics Disclaimer
+              </h4>
+              <p>
+                We <strong>do not guarantee the full functionality</strong> of electronic items.
+              </p>
+            </div>
+            <div>
+              <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
+                Unclaimed Goods
+              </h4>
+              <p>
+                Goods not picked up within <strong>one (1) month</strong> of arrival will be <strong>disposed of or sold</strong> without notice or compensation.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+            💸 REFUNDS & COMPENSATIONS
+          </h3>
+          <div className="space-y-4">
+            <div>
+              <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
+                Fragile Items
+              </h4>
+              <p>
+                No refunds or compensation for damage to <strong>glass, liquid, ceramic, or fragile items</strong>. Clients may request <strong>extra protective or wooden packaging</strong> at an additional cost.
+              </p>
+            </div>
+            <div>
+              <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
+                Supplier Responsibility
+              </h4>
+              <p>
+                Fofoofo Imports is <strong>not responsible for product quality</strong> when the supplier was <strong>chosen by the client</strong>.
+              </p>
+            </div>
+            <div>
+              <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
+                Shipping Delays
+              </h4>
+              <p>
+                No refunds for delays caused by <strong>weather, customs inspections, port congestion, or government regulations</strong>.
+              </p>
+            </div>
+            <div>
+              <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
+                Buy-For-Me Service
+              </h4>
+              <p>
+                No refunds for goods or shipping when <strong>client-provided product links</strong> are used. Clients are responsible for supplier research.
+              </p>
+            </div>
+            <div>
+              <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
+                Packaging Responsibility
+              </h4>
+              <p>
+                We are <strong>not liable for damages</strong> caused by poor packaging or incorrect labeling by suppliers.
+              </p>
+            </div>
+            <div>
+              <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
+                Procurement-Based Refunds
+              </h4>
+              <p>
+                If Fofoofo Imports procures goods on your behalf, compensation (if applicable) will be <strong>up to 70% of product value</strong>. The client bears the remaining <strong>30% risk</strong>.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 rounded">
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+            ⚠️ IMPORTANT PAYMENT & STORAGE POLICY (NEW)
+          </h3>
+          <ul className="space-y-2">
+            <li>
+              If a client is <strong>unable to pay shipping fees within 14 days (2 weeks)</strong> of being billed, 👉 <strong>the goods will be sold without refund</strong> to recover costs.
+            </li>
+            <li>
+              Late payments attract a <strong>$5 per day penalty</strong>.
+            </li>
+            <li>
+              Goods unpaid after <strong>one (1) month</strong> will be sold <strong>with no refund</strong>.
+            </li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+            📝 IMPORTANT NOTES
+          </h3>
+          <ul className="list-disc list-inside space-y-2 ml-4">
+            <li>Fragile items must be <strong>wooden-framed, otherwise the client accepts full risk</strong>.</li>
+            <li><strong>Shipping mark must include "M856" + client name</strong>.</li>
+            <li><strong>No cash payments accepted</strong> — only approved electronic payment methods.</li>
+            <li>Our <strong>air shipping address is the same as our sea shipping address</strong>.</li>
+            <li>Clients must <strong>notify us in advance</strong> of any items intended for <strong>air shipping</strong>.</li>
+          </ul>
+        </div>
+
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-4 rounded">
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+            🚨 VERY IMPORTANT
+          </h3>
+          <p>
+            Failure to comply with these terms may result in <strong>delays, penalties, seizure of goods, or loss without compensation</strong>.
+          </p>
+        </div>
+      </div>
+    ),
   },
   {
     id: "alipay",
@@ -202,34 +382,38 @@ const Policies = () => {
                 </div>
               </div>
 
-              <div className="grid md:grid-cols-2 gap-6">
-                <div>
-                  <h3 className="text-lg font-semibold mb-3 text-primary">
-                    Service Commitments
-                  </h3>
-                  <ul className="space-y-2 text-gray-700 dark:text-gray-200">
-                    {section.commitments.map((item, index) => (
-                      <li key={index} className="flex gap-2">
-                        <span className="text-primary font-bold">•</span>
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                  </ul>
+              {section.content ? (
+                <div>{section.content}</div>
+              ) : (
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div>
+                    <h3 className="text-lg font-semibold mb-3 text-primary">
+                      Service Commitments
+                    </h3>
+                    <ul className="space-y-2 text-gray-700 dark:text-gray-200">
+                      {section.commitments?.map((item, index) => (
+                        <li key={index} className="flex gap-2">
+                          <span className="text-primary font-bold">•</span>
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold mb-3 text-primary">
+                      Compliance & Controls
+                    </h3>
+                    <ul className="space-y-2 text-gray-700 dark:text-gray-200">
+                      {section.compliance?.map((item, index) => (
+                        <li key={index} className="flex gap-2">
+                          <span className="text-primary font-bold">•</span>
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-lg font-semibold mb-3 text-primary">
-                    Compliance & Controls
-                  </h3>
-                  <ul className="space-y-2 text-gray-700 dark:text-gray-200">
-                    {section.compliance.map((item, index) => (
-                      <li key={index} className="flex gap-2">
-                        <span className="text-primary font-bold">•</span>
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
+              )}
             </article>
           ))}
         </div>

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { FaCheckCircle, FaTimesCircle, FaHourglassHalf, FaDownload, FaPrint, FaEnvelope, FaSpinner } from 'react-icons/fa';
 import { format } from 'date-fns';
-import LogoPlaceholder from '../assets/buyselll.jpg';
+import LogoPlaceholder from '../assets/buysellogo.png';
 import API from '../api';
 import { toast } from '../utils/toast';
 import ConfirmModal from './shared/ConfirmModal';

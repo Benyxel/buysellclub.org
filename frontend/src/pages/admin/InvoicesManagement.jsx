@@ -571,12 +571,12 @@ export default function InvoicesManagement() {
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                       {invoiceDetails.items.map((item) => (
                         <tr key={item.id}>
-                          <td className="px-3 py-2">{item.tracking_number}</td>
-                          <td className="px-3 py-2">{item.description}</td>
-                          <td className="px-3 py-2 text-right">
+                          <td className="px-3 py-2 text-gray-900 dark:text-white">{item.tracking_number}</td>
+                          <td className="px-3 py-2 text-gray-900 dark:text-white">{item.description}</td>
+                          <td className="px-3 py-2 text-right text-gray-900 dark:text-white">
                             {Number(item.cbm || 0).toFixed(3)}
                           </td>
-                          <td className="px-3 py-2 text-right">
+                          <td className="px-3 py-2 text-right text-gray-900 dark:text-white">
                             ${Number(item.rate_per_cbm || 0).toFixed(2)}
                           </td>
                           <td className="px-3 py-2 text-right">

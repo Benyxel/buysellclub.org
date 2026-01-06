@@ -24,7 +24,9 @@ const UserView = () => {
       const actualMarkId = markId?.split(":")[0] || markId;
       
       // Use the new endpoint to get user by mark_id
-      const resp = await API.get(`/buysellapi/users/by-mark/${actualMarkId}/`);
+      const url = `/buysellapi/users/by-mark/${actualMarkId}/`;
+      console.log("Fetching user from:", url);
+      const resp = await API.get(url);
       
       if (resp.data) {
         setUser(resp.data);
@@ -34,6 +36,13 @@ const UserView = () => {
       }
     } catch (error) {
       console.error("Error fetching user by markId:", error);
+      console.error("Error details:", {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        url: error.config?.url,
+        baseURL: error.config?.baseURL,
+      });
       if (error.response?.status === 404) {
         toast.error("User not found with this shipping mark");
       } else {

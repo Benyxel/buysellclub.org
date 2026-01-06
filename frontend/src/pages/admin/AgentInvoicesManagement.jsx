@@ -307,14 +307,14 @@ const AgentInvoicesManagement = () => {
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                     {invoicePreview.items.map((it) => (
                       <tr key={it.id}>
-                        <td className="px-3 py-2">
+                        <td className="px-3 py-2 text-gray-900 dark:text-white">
                           {it.tracking_number}
                         </td>
-                        <td className="px-3 py-2">{it.status}</td>
-                        <td className="px-3 py-2 text-right">
+                        <td className="px-3 py-2 text-gray-900 dark:text-white">{it.status}</td>
+                        <td className="px-3 py-2 text-right text-gray-900 dark:text-white">
                           {Number(it.cbm || 0).toFixed(3)}
                         </td>
-                        <td className="px-3 py-2 text-right">
+                        <td className="px-3 py-2 text-right text-gray-900 dark:text-white">
                           {Number(it.shipping_fee || 0).toFixed(2)}
                         </td>
                       </tr>

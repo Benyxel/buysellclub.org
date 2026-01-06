@@ -271,8 +271,8 @@ const OrderManagement = () => {
                     )}
                   </button>
                 </th>
-                <th className="py-3 px-4 text-left">Customer</th>
-                <th className="py-3 px-4 text-left">Total</th>
+                <th className="py-3 px-4 text-left text-gray-700 dark:text-gray-300 font-medium">Customer</th>
+                <th className="py-3 px-4 text-left text-gray-700 dark:text-gray-300 font-medium">Total</th>
                 <th className="py-3 px-4 text-left">
                   <button
                     onClick={() => {
@@ -287,7 +287,7 @@ const OrderManagement = () => {
                     )}
                   </button>
                 </th>
-                <th className="py-3 px-4 text-left">Payment Status</th>
+                <th className="py-3 px-4 text-left text-gray-700 dark:text-gray-300 font-medium">Payment Status</th>
                 <th className="py-3 px-4 text-left">
                   <button
                     onClick={() => {
@@ -302,7 +302,7 @@ const OrderManagement = () => {
                     )}
                   </button>
                 </th>
-                <th className="py-3 px-4 text-left">Actions</th>
+                <th className="py-3 px-4 text-left text-gray-700 dark:text-gray-300 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -323,14 +323,14 @@ const OrderManagement = () => {
                         className="rounded"
                       />
                     </td>
-                    <td className="py-3 px-4">#{order.id}</td>
+                    <td className="py-3 px-4 text-gray-900 dark:text-white">#{order.id}</td>
                     <td className="py-3 px-4">
                       <div>
                         <p className="font-medium text-gray-900 dark:text-white">{order.customer_name}</p>
                         <p className="text-sm text-gray-500 dark:text-gray-400">{order.customer_email}</p>
                       </div>
                     </td>
-                    <td className="py-3 px-4">₵{typeof order.total === 'number' ? order.total.toFixed(2) : parseFloat(order.total || 0).toFixed(2)}</td>
+                    <td className="py-3 px-4 text-gray-900 dark:text-white">₵{typeof order.total === 'number' ? order.total.toFixed(2) : parseFloat(order.total || 0).toFixed(2)}</td>
                     <td className="py-3 px-4">
                       <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(order.status)}`}>
                         {order.status}
@@ -349,7 +349,7 @@ const OrderManagement = () => {
                         {order.payment_status}
                       </span>
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-4 text-gray-900 dark:text-white">
                       {new Date(order.created_at).toLocaleDateString()}
                     </td>
                     <td className="py-3 px-4">

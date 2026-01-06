@@ -736,7 +736,7 @@ const AgentTrackingManagement = () => {
                 <th className="py-3 px-4 text-left">
                   <button
                     onClick={() => handleSort("trackingNum")}
-                    className="flex items-center text-gray-700 dark:text-gray-300 font-medium text-sm"
+                    className="flex items-center text-gray-700 dark:text-white font-medium text-sm"
                   >
                     Tracking Number
                     {sortField === "trackingNum" &&
@@ -750,7 +750,7 @@ const AgentTrackingManagement = () => {
                 <th className="py-3 px-4 text-left">
                   <button
                     onClick={() => handleSort("shippingMark")}
-                    className="flex items-center text-gray-700 dark:text-gray-300 font-medium text-sm"
+                    className="flex items-center text-gray-700 dark:text-white font-medium text-sm"
                   >
                     Shipping Mark
                     {sortField === "shippingMark" &&
@@ -764,7 +764,7 @@ const AgentTrackingManagement = () => {
                 <th className="py-3 px-4 text-left">
                   <button
                     onClick={() => handleSort("status")}
-                    className="flex items-center text-gray-700 dark:text-gray-300 font-medium text-sm"
+                    className="flex items-center text-gray-700 dark:text-white font-medium text-sm"
                   >
                     Status
                     {sortField === "status" &&
@@ -778,7 +778,7 @@ const AgentTrackingManagement = () => {
                 <th className="py-3 px-4 text-left">
                   <button
                     onClick={() => handleSort("cbm")}
-                    className="flex items-center text-gray-700 dark:text-gray-300 font-medium text-sm"
+                    className="flex items-center text-gray-700 dark:text-white font-medium text-sm"
                   >
                     CBM
                     {sortField === "cbm" &&
@@ -789,16 +789,16 @@ const AgentTrackingManagement = () => {
                       ))}
                   </button>
                 </th>
-                <th className="py-3 px-4 text-left">Shipping Fee</th>
+                <th className="py-3 px-4 text-left text-gray-700 dark:text-white font-medium">Shipping Fee</th>
                 <th className="py-3 px-4 text-left">
-                  <span className="text-gray-700 dark:text-gray-300 font-medium text-sm">
+                  <span className="text-gray-700 dark:text-white font-medium text-sm">
                     Container
                   </span>
                 </th>
                 <th className="py-3 px-4 text-left">
                   <button
                     onClick={() => handleSort("addedDate")}
-                    className="flex items-center text-gray-700 dark:text-gray-300 font-medium text-sm"
+                    className="flex items-center text-gray-700 dark:text-white font-medium text-sm"
                   >
                     Added Date
                     {sortField === "addedDate" &&
@@ -809,8 +809,8 @@ const AgentTrackingManagement = () => {
                       ))}
                   </button>
                 </th>
-                <th className="py-3 px-4 text-left">ETA</th>
-                <th className="py-3 px-4 text-left">Operations</th>
+                <th className="py-3 px-4 text-left text-gray-700 dark:text-white font-medium">ETA</th>
+                <th className="py-3 px-4 text-left text-gray-700 dark:text-white font-medium">Operations</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -862,8 +862,8 @@ const AgentTrackingManagement = () => {
                         </span>
                       )}
                     </td>
-                    <td className="py-3 px-4">{tracking.CBM || "-"}</td>
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-4 text-gray-900 dark:text-white">{tracking.CBM || "-"}</td>
+                    <td className="py-3 px-4 text-gray-900 dark:text-white">
                       {tracking.ShippingFee
                         ? `$${parseFloat(tracking.ShippingFee).toFixed(2)}`
                         : "-"}

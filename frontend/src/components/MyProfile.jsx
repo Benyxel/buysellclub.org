@@ -41,6 +41,7 @@ import {
   FaUserTag,
   FaBuilding,
   FaHandshake,
+  FaAlipay,
 } from "react-icons/fa";
 import { trackingSystem } from "./ShippingDashboard";
 import { Link, useNavigate } from "react-router-dom";
@@ -48,7 +49,7 @@ import { toast } from "../utils/toast";
 import "react-toastify/dist/ReactToastify.css";
 import axios from "axios";
 import { API_BASE_URL } from "../config/api";
-import API, { initiateBuy4mePayment } from "../api";
+import API, { Api, initiateBuy4mePayment } from "../api";
 import Invoice from "./Invoice";
 import InvoiceModal from "./InvoiceModal";
 import { getPlaceholderImagePath } from "../utils/paths";
@@ -346,6 +347,9 @@ const MyProfile = () => {
     userTrackingNumber: "",
   });
   const [mpHasShippingMark, setMpHasShippingMark] = useState(false);
+  // Alipay payments state
+  const [alipayPayments, setAlipayPayments] = useState([]);
+  const [alipayPaymentsLoading, setAlipayPaymentsLoading] = useState(false);
 
   // Save active tab to localStorage and update URL whenever it changes
   useEffect(() => {
@@ -361,6 +365,13 @@ const MyProfile = () => {
   useEffect(() => {
     if (activeTab === "tracking") {
       fetchUserTrackings();
+    }
+  }, [activeTab]);
+
+  // Fetch Alipay payments when Alipay Payment tab is opened
+  useEffect(() => {
+    if (activeTab === "alipay") {
+      fetchAlipayPayments();
     }
   }, [activeTab]);
 
@@ -1135,6 +1146,22 @@ const MyProfile = () => {
         console.error("fetchActiveRates error", e);
     }
     return null;
+  };
+
+  // Fetch user's Alipay payments
+  const fetchAlipayPayments = async () => {
+    try {
+      setAlipayPaymentsLoading(true);
+      const response = await Api.alipay.myPayments({ limit: 100 });
+      const payments = response?.data?.data || response?.data || [];
+      setAlipayPayments(payments);
+    } catch (error) {
+      console.error("Error fetching Alipay payments:", error);
+      setAlipayPayments([]);
+      toast.error("Failed to load Alipay payments");
+    } finally {
+      setAlipayPaymentsLoading(false);
+    }
   };
 
   const fetchUserTrackings = async () => {
@@ -2440,6 +2467,17 @@ const MyProfile = () => {
                     }`}
                   />
                   Tracking
+                </button>
+                <button
+                  onClick={() => setActiveTab("alipay")}
+                  className={`w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 rounded-lg transition-colors text-sm sm:text-base ${
+                    activeTab === "alipay"
+                      ? "bg-primary text-white"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                >
+                  <FaAlipay className="w-4 h-4 sm:w-5 sm:h-5" />
+                  Alipay Payment
                 </button>
                 <button
                   onClick={() => setActiveTab("buy4me")}
@@ -4225,6 +4263,100 @@ const MyProfile = () => {
             )}
 
             {/* Settings Tab */}
+            {/* Alipay Payment Tab */}
+            {activeTab === "alipay" && (
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
+                    Alipay Payment Requests
+                  </h2>
+                  <Link
+                    to="/AlipayPayment"
+                    className="text-sm text-primary hover:text-primary/90 flex items-center gap-2"
+                  >
+                    <FaPlus className="w-4 h-4" />
+                    New Payment Request
+                  </Link>
+                </div>
+
+                {alipayPaymentsLoading ? (
+                  <div className="flex justify-center items-center py-12">
+                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
+                  </div>
+                ) : alipayPayments.length === 0 ? (
+                  <div className="text-center py-12">
+                    <FaAlipay className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600 dark:text-gray-400 text-lg mb-2">
+                      No Alipay payment requests found
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-500 mb-4">
+                      Submit your first Alipay payment request to get started
+                    </p>
+                    <Link
+                      to="/AlipayPayment"
+                      className="inline-block px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                    >
+                      Submit Payment Request
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto max-h-96 overflow-y-auto">
+                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                      <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-10">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            Date
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            Status
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                        {alipayPayments.map((payment) => {
+                          const getStatusBadge = (status) => {
+                            const statusLower = (status || "").toLowerCase();
+                            if (statusLower === "completed") {
+                              return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
+                            } else if (statusLower === "pending") {
+                              return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200";
+                            } else if (statusLower === "rejected" || statusLower === "cancelled") {
+                              return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200";
+                            } else if (statusLower === "processing") {
+                              return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
+                            }
+                            return "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300";
+                          };
+
+                          return (
+                            <tr
+                              key={payment.id}
+                              className="hover:bg-gray-50 dark:hover:bg-gray-700"
+                            >
+                              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                                {payment.created_at
+                                  ? new Date(payment.created_at).toLocaleDateString()
+                                  : "-"}
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-sm">
+                                <span
+                                  className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadge(
+                                    payment.status
+                                  )}`}
+                                >
+                                  {payment.status || "pending"}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
             {activeTab === "settings" && (
               <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
                 <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-6">

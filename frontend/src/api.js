@@ -42,6 +42,19 @@ const resolveBaseUrl = () => {
 
 const BASE_URL = resolveBaseUrl();
 
+// Log base URL in development for debugging (remove in production if needed)
+if (typeof window !== "undefined" && (import.meta.env?.DEV || window.location.hostname === "localhost")) {
+  console.log("API Base URL:", BASE_URL || "(relative - using Vite proxy)");
+}
+
+// Warn in production if BASE_URL is not set (relative URLs won't work if frontend and backend are on different domains)
+if (typeof window !== "undefined" && !import.meta.env?.DEV && window.location.hostname !== "localhost" && !BASE_URL) {
+  console.error(
+    "⚠️ VITE_API_BASE_URL is not set! API requests will fail if frontend and backend are on different domains.\n" +
+    "Please set VITE_API_BASE_URL environment variable to your backend URL (e.g., http://apibuysellclub.org.buysellclub.org)"
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Utilities
 // ---------------------------------------------------------------------------
@@ -286,10 +299,21 @@ const Api = {
   shipping: {
     marks: (params) => http.get("/buysellapi/shipping-marks/", { params }),
     dashboard: () => http.get("/buysellapi/shipping-dashboard/"),
+    rate: () => http.get("/buysellapi/shipping-rates/"),
+  },
+  containers: {
+    current: (params) => http.get("/buysellapi/containers/current/", { params }),
+    list: () => http.get("/buysellapi/containers/public/"),
+  },
+  invoices: {
+    public: (params) => http.get("/buysellapi/invoices/public/", { params }),
   },
   alipay: {
     payments: (params) => {
       return http.get("/buysellapi/admin/alipay-payments", { params });
+    },
+    myPayments: (params) => {
+      return http.get("/buysellapi/alipay-payments/me", { params });
     },
     rate: () => http.get("/buysellapi/alipay-exchange-rate/"),
   },

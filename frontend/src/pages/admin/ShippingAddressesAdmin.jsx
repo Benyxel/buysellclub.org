@@ -735,14 +735,14 @@ const ShippingAddressesAdmin = () => {
                         className="rounded"
                       />
                     </td>
-                    <td className="py-3 px-4 font-medium">{address.markId}</td>
-                    <td className="py-3 px-4">{address.name}</td>
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-4 font-medium text-gray-900 dark:text-white">{address.markId}</td>
+                    <td className="py-3 px-4 text-gray-900 dark:text-white">{address.name}</td>
+                    <td className="py-3 px-4 text-gray-900 dark:text-white">
                       <div className="max-w-xs truncate">
                         {address.fullAddress}
                       </div>
                     </td>
-                    <td className="py-3 px-4">{address.shippingMark}</td>
+                    <td className="py-3 px-4 text-gray-900 dark:text-white">{address.shippingMark}</td>
                     <td className="py-3 px-4">
                       {address.createdAt
                         ? new Date(address.createdAt).toLocaleDateString()

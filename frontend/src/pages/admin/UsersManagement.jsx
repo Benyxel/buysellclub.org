@@ -620,7 +620,7 @@ const UsersManagement = () => {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
           Users Management
@@ -765,7 +765,7 @@ const UsersManagement = () => {
                     {user.contact}
                   </div>
                 </td>
-                <td className="px-3 py-3 whitespace-nowrap text-sm font-medium">
+                <td className="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                   <button
                     onClick={() => {
                       setSelectedUser(user);

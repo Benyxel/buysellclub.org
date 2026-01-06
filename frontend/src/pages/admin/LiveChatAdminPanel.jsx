@@ -365,9 +365,9 @@ const LiveChatAdminPanel = ({ refreshSignal = 0, onUnreadCountChange }) => {
           </div>
           <div className="max-h-[60vh] overflow-y-auto">
             {loading ? (
-              <div className="p-4 text-center text-gray-500">Loading…</div>
+              <div className="p-4 text-center text-gray-500 dark:text-gray-400">Loading…</div>
             ) : conversations.length === 0 ? (
-              <div className="p-4 text-center text-gray-500">
+              <div className="p-4 text-center text-gray-500 dark:text-gray-400">
                 No chat messages yet.
               </div>
             ) : (
@@ -500,7 +500,7 @@ const LiveChatAdminPanel = ({ refreshSignal = 0, onUnreadCountChange }) => {
             {selectedMessages.length === 0 && (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center mb-3">
-                  <FaUser className="text-2xl text-gray-400" />
+                  <FaUser className="text-2xl text-gray-400 dark:text-gray-500" />
                 </div>
                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
                   Choose a conversation
@@ -664,7 +664,7 @@ const LiveChatAdminPanel = ({ refreshSignal = 0, onUnreadCountChange }) => {
               onChange={(e) => handleTyping(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Write a reply"
-              className="w-full resize-none rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500"
+              className="w-full resize-none rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-pink-500"
             />
             <div className="mt-2 flex justify-end">
               <button

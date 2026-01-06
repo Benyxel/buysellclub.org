@@ -10,6 +10,10 @@ import {
   FaFilter,
   FaDownload,
   FaExclamationTriangle,
+  FaPlus,
+  FaUpload,
+  FaQrcode,
+  FaSearch,
 } from "react-icons/fa";
 import { toast } from "../../utils/toast";
 import API, { Api } from "../../api";
@@ -32,6 +36,44 @@ const AlipayManagement = () => {
   const [transactionId, setTransactionId] = useState("");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [paymentIdToDelete, setPaymentIdToDelete] = useState(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [users, setUsers] = useState([]);
+  const [userSearchTerm, setUserSearchTerm] = useState("");
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    user: "",
+    accountType: "personal",
+    alipayAccount: "",
+    realName: "",
+    originalCurrency: "CNY",
+    originalAmount: "",
+    convertedCurrency: "CEDI",
+    convertedAmount: "",
+    exchangeRate: "",
+    platformSource: "Alipay",
+    status: "pending",
+    transactionId: "",
+    adminNotes: "",
+    qrCodeImage: null,
+    qrCodePreview: "",
+    proofOfPayment: null,
+    proofOfPaymentPreview: "",
+  });
+
+  // Fetch users for dropdown
+  const fetchUsers = useCallback(async () => {
+    try {
+      const response = await API.get("/buysellapi/users/", {
+        params: { page_size: 1000 }, // Get all users for dropdown
+      });
+      const usersData = Array.isArray(response.data)
+        ? response.data
+        : response.data?.results || [];
+      setUsers(usersData);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+    }
+  }, []);
 
   // Define fetchPayments before useEffect to avoid TDZ errors when referencing in deps
   // Always fetch fresh data for Alipay payments
@@ -109,7 +151,21 @@ const AlipayManagement = () => {
   useEffect(() => {
     fetchPayments();
     fetchExchangeRate();
-  }, [fetchPayments]);
+    fetchUsers();
+  }, [fetchPayments, fetchUsers]);
+
+  // Close user dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showUserDropdown && !event.target.closest('.user-search-container')) {
+        setShowUserDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showUserDropdown]);
 
   const fetchExchangeRate = async () => {
     try {
@@ -306,6 +362,148 @@ const AlipayManagement = () => {
     setIsUpdateStatusOpen(true);
   };
 
+  const handleCreatePayment = () => {
+    // Reset form and fetch current exchange rate
+    setCreateForm({
+      user: "",
+      accountType: "personal",
+      alipayAccount: "",
+      realName: "",
+      originalCurrency: "CNY",
+      originalAmount: "",
+      convertedCurrency: "CEDI",
+      convertedAmount: "",
+      exchangeRate: exchangeRate.toString(),
+      platformSource: "Alipay",
+      status: "pending",
+      transactionId: "",
+      adminNotes: "",
+      qrCodeImage: null,
+      qrCodePreview: "",
+      proofOfPayment: null,
+      proofOfPaymentPreview: "",
+    });
+    setUserSearchTerm("");
+    setShowUserDropdown(false);
+    setShowCreateModal(true);
+  };
+
+  const handleQRCodeUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("QR code image must be less than 5MB");
+        return;
+      }
+      if (!file.type.startsWith("image/")) {
+        toast.error("Please upload an image file");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setCreateForm({ ...createForm, qrCodeImage: file, qrCodePreview: reader.result });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleProofUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("Proof of payment image must be less than 5MB");
+        return;
+      }
+      if (!file.type.startsWith("image/")) {
+        toast.error("Please upload an image file");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setCreateForm({ ...createForm, proofOfPayment: file, proofOfPaymentPreview: reader.result });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const calculateConvertedAmount = (amount, rate, fromCurrency, toCurrency) => {
+    if (!amount || !rate) return "";
+    const numAmount = parseFloat(amount);
+    if (isNaN(numAmount)) return "";
+    
+    if (fromCurrency === "CNY" && toCurrency === "CEDI") {
+      // Convert CNY to CEDI using ghs_to_cny rate (inverse)
+      return (numAmount / rate).toFixed(2);
+    } else if (fromCurrency === "CEDI" && toCurrency === "CNY") {
+      // Convert CEDI to CNY using ghs_to_cny rate
+      return (numAmount * rate).toFixed(2);
+    }
+    return "";
+  };
+
+  const handleCreateSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!createForm.originalAmount) {
+      toast.error("Please enter the original amount");
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      
+      // Add all form fields
+      if (createForm.user) formData.append("user", createForm.user);
+      formData.append("accountType", createForm.accountType);
+      formData.append("alipayAccount", createForm.alipayAccount || "");
+      formData.append("realName", createForm.realName || "");
+      formData.append("originalCurrency", createForm.originalCurrency);
+      formData.append("originalAmount", createForm.originalAmount);
+      formData.append("convertedCurrency", createForm.convertedCurrency);
+      formData.append("convertedAmount", createForm.convertedAmount || calculateConvertedAmount(
+        createForm.originalAmount,
+        createForm.exchangeRate || exchangeRate,
+        createForm.originalCurrency,
+        createForm.convertedCurrency
+      ));
+      formData.append("exchangeRate", createForm.exchangeRate || exchangeRate);
+      formData.append("platformSource", createForm.platformSource);
+      formData.append("status", createForm.status);
+      formData.append("transactionId", createForm.transactionId || "");
+      formData.append("adminNotes", createForm.adminNotes || "");
+
+      // Add file uploads if provided
+      if (createForm.qrCodeImage) {
+        formData.append("qrCodeImage", createForm.qrCodeImage);
+      } else if (createForm.qrCodePreview) {
+        formData.append("qrCodeImage", createForm.qrCodePreview);
+      }
+
+      if (createForm.proofOfPayment) {
+        formData.append("proofOfPayment", createForm.proofOfPayment);
+      } else if (createForm.proofOfPaymentPreview) {
+        formData.append("proofOfPayment", createForm.proofOfPaymentPreview);
+      }
+
+      const response = await API.post("/buysellapi/admin/alipay-payments/create", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      toast.success("Alipay payment created successfully");
+      setShowCreateModal(false);
+      fetchPayments();
+    } catch (error) {
+      console.error("Error creating payment:", error);
+      const errorMsg = error.response?.data?.error || 
+                       error.response?.data?.detail ||
+                       Object.values(error.response?.data || {}).flat().join(", ") ||
+                       "Failed to create payment";
+      toast.error(errorMsg);
+    }
+  };
+
   const getStatusBadge = (status) => {
     switch (status) {
       case "pending":
@@ -372,6 +570,13 @@ const AlipayManagement = () => {
             Alipay Payments Management
           </h2>
           <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+            <button
+              onClick={handleCreatePayment}
+              className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 transition"
+            >
+              <FaPlus className="mr-2" />
+              Create Payment
+            </button>
             <button
               onClick={() => setIsRateModalOpen(true)}
               className="inline-flex items-center px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-opacity-50 transition"
@@ -482,7 +687,7 @@ const AlipayManagement = () => {
                     payments.map((payment) => (
                       <tr
                         key={payment._id}
-                        className="hover:bg-gray-50 dark:hover:bg-gray-700 odd:bg-white even:bg-gray-50 dark:odd:bg-gray-800 dark:even:bg-gray-750/50"
+                        className="odd:bg-white even:bg-gray-50 dark:odd:bg-gray-800 dark:even:bg-gray-700/50"
                       >
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
@@ -914,6 +1119,363 @@ const AlipayManagement = () => {
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Payment Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                  Create Alipay Payment
+                </h3>
+                <button
+                  onClick={() => setShowCreateModal(false)}
+                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                >
+                  <FaTimes />
+                </button>
+              </div>
+
+              <form onSubmit={handleCreateSubmit} className="space-y-4">
+                {/* User Selection with Search */}
+                <div className="relative user-search-container">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Select User (Optional)
+                  </label>
+                  <div className="relative">
+                    <div className="relative">
+                      <FaSearch className="absolute left-3 top-3 text-gray-400" />
+                      <input
+                        type="text"
+                        value={userSearchTerm}
+                        onChange={(e) => {
+                          setUserSearchTerm(e.target.value);
+                          setShowUserDropdown(true);
+                        }}
+                        onFocus={() => setShowUserDropdown(true)}
+                        placeholder="Search by name or email..."
+                        className="mt-1 block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                      />
+                      {createForm.user && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCreateForm({ ...createForm, user: "" });
+                            setUserSearchTerm("");
+                          }}
+                          className="absolute right-2 top-2.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                        >
+                          <FaTimes />
+                        </button>
+                      )}
+                    </div>
+                    {showUserDropdown && userSearchTerm && (
+                      <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg max-h-60 overflow-auto">
+                        {users
+                          .filter((user) => {
+                            const searchLower = userSearchTerm.toLowerCase();
+                            const name = (user.full_name || user.username || "").toLowerCase();
+                            const email = (user.email || "").toLowerCase();
+                            return name.includes(searchLower) || email.includes(searchLower);
+                          })
+                          .slice(0, 10)
+                          .map((user) => (
+                            <div
+                              key={user.id}
+                              onClick={() => {
+                                setCreateForm({ ...createForm, user: user.id });
+                                setUserSearchTerm(`${user.full_name || user.username} (${user.email})`);
+                                setShowUserDropdown(false);
+                              }}
+                              className="px-4 py-2 hover:bg-blue-50 dark:hover:bg-gray-700 cursor-pointer border-b border-gray-200 dark:border-gray-700 last:border-b-0"
+                            >
+                              <div className="font-medium text-gray-900 dark:text-white">
+                                {user.full_name || user.username}
+                              </div>
+                              <div className="text-sm text-gray-500 dark:text-gray-400">
+                                {user.email}
+                              </div>
+                            </div>
+                          ))}
+                        {users.filter((user) => {
+                          const searchLower = userSearchTerm.toLowerCase();
+                          const name = (user.full_name || user.username || "").toLowerCase();
+                          const email = (user.email || "").toLowerCase();
+                          return name.includes(searchLower) || email.includes(searchLower);
+                        }).length === 0 && (
+                          <div className="px-4 py-2 text-gray-500 dark:text-gray-400 text-sm">
+                            No users found
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {createForm.user && (
+                    <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                      Selected: {users.find((u) => u.id === parseInt(createForm.user))?.full_name || users.find((u) => u.id === parseInt(createForm.user))?.username} ({users.find((u) => u.id === parseInt(createForm.user))?.email})
+                    </div>
+                  )}
+                </div>
+
+                {/* Account Type */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Account Type
+                  </label>
+                  <select
+                    value={createForm.accountType}
+                    onChange={(e) => setCreateForm({ ...createForm, accountType: e.target.value })}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  >
+                    <option value="personal">Personal</option>
+                    <option value="supplier">Supplier</option>
+                  </select>
+                </div>
+
+                {/* Alipay Account & Real Name */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Alipay Account
+                    </label>
+                    <input
+                      type="text"
+                      value={createForm.alipayAccount}
+                      onChange={(e) => setCreateForm({ ...createForm, alipayAccount: e.target.value })}
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Real Name
+                    </label>
+                    <input
+                      type="text"
+                      value={createForm.realName}
+                      onChange={(e) => setCreateForm({ ...createForm, realName: e.target.value })}
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    />
+                  </div>
+                </div>
+
+                {/* Currency & Amount */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Original Currency
+                    </label>
+                    <select
+                      value={createForm.originalCurrency}
+                      onChange={(e) => {
+                        const newCurrency = e.target.value;
+                        const newConverted = newCurrency === "CNY" ? "CEDI" : "CNY";
+                        setCreateForm({
+                          ...createForm,
+                          originalCurrency: newCurrency,
+                          convertedCurrency: newConverted,
+                          convertedAmount: calculateConvertedAmount(
+                            createForm.originalAmount,
+                            createForm.exchangeRate || exchangeRate,
+                            newCurrency,
+                            newConverted
+                          ),
+                        });
+                      }}
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    >
+                      <option value="CNY">CNY</option>
+                      <option value="CEDI">CEDI</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Original Amount *
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={createForm.originalAmount}
+                      onChange={(e) => {
+                        const amount = e.target.value;
+                        setCreateForm({
+                          ...createForm,
+                          originalAmount: amount,
+                          convertedAmount: calculateConvertedAmount(
+                            amount,
+                            createForm.exchangeRate || exchangeRate,
+                            createForm.originalCurrency,
+                            createForm.convertedCurrency
+                          ),
+                        });
+                      }}
+                      required
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Converted Amount ({createForm.convertedCurrency})
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={createForm.convertedAmount}
+                      readOnly
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    />
+                  </div>
+                </div>
+
+                {/* Exchange Rate & Platform */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Exchange Rate
+                    </label>
+                    <input
+                      type="number"
+                      step="0.001"
+                      value={createForm.exchangeRate || exchangeRate}
+                      onChange={(e) => {
+                        const rate = e.target.value;
+                        setCreateForm({
+                          ...createForm,
+                          exchangeRate: rate,
+                          convertedAmount: calculateConvertedAmount(
+                            createForm.originalAmount,
+                            rate || exchangeRate,
+                            createForm.originalCurrency,
+                            createForm.convertedCurrency
+                          ),
+                        });
+                      }}
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Platform Source
+                    </label>
+                    <select
+                      value={createForm.platformSource}
+                      onChange={(e) => setCreateForm({ ...createForm, platformSource: e.target.value })}
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    >
+                      <option value="Alipay">Alipay</option>
+                      <option value="1688.com">1688.com</option>
+                      <option value="Pinduoduo">Pinduoduo</option>
+                      <option value="Alibaba">Alibaba</option>
+                      <option value="Idlefish">Idlefish</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Status & Transaction ID */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Status
+                    </label>
+                    <select
+                      value={createForm.status}
+                      onChange={(e) => setCreateForm({ ...createForm, status: e.target.value })}
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="processing">Processing</option>
+                      <option value="completed">Completed</option>
+                      <option value="rejected">Rejected</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Transaction ID
+                    </label>
+                    <input
+                      type="text"
+                      value={createForm.transactionId}
+                      onChange={(e) => setCreateForm({ ...createForm, transactionId: e.target.value })}
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    />
+                  </div>
+                </div>
+
+                {/* Admin Notes */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Admin Notes
+                  </label>
+                  <textarea
+                    value={createForm.adminNotes}
+                    onChange={(e) => setCreateForm({ ...createForm, adminNotes: e.target.value })}
+                    rows={3}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  />
+                </div>
+
+                {/* QR Code Upload */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    QR Code Image (Optional)
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleQRCodeUpload}
+                    className="mt-1 block w-full text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-gray-700 dark:file:text-gray-300"
+                  />
+                  {createForm.qrCodePreview && (
+                    <img
+                      src={createForm.qrCodePreview}
+                      alt="QR Code Preview"
+                      className="mt-2 max-h-32 rounded"
+                    />
+                  )}
+                </div>
+
+                {/* Proof of Payment Upload */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Proof of Payment (Optional)
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleProofUpload}
+                    className="mt-1 block w-full text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-gray-700 dark:file:text-gray-300"
+                  />
+                  {createForm.proofOfPaymentPreview && (
+                    <img
+                      src={createForm.proofOfPaymentPreview}
+                      alt="Proof Preview"
+                      className="mt-2 max-h-32 rounded"
+                    />
+                  )}
+                </div>
+
+                {/* Submit Buttons */}
+                <div className="flex justify-end mt-6 space-x-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateModal(false)}
+                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                  >
+                    Create Payment
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </div>

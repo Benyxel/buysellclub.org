@@ -695,7 +695,7 @@ const AlipayPayment = () => {
                             <FaUser className="w-5 h-5 text-blue-500" />
                           </div>
                           <p className="text-sm text-gray-500 dark:text-gray-400">
-                            For business accounts
+                            For supplier accounts
                           </p>
                         </div>
                       </label>

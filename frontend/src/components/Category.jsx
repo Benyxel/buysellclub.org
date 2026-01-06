@@ -45,8 +45,8 @@ const Category = () => {
             <div>
               {/* Buy for me card */}
               <div className='mb-4'>
-                <p className='mb-[0px] font-bold  text-gray-400'>Shipping to ship from china to</p>
-                <p className='text-2xl font-semibold mb-[30px]'>Ghana</p>
+                <p className='mb-[0px] font-bold  text-gray-400'>Shipping from china to</p>
+                <p className='text-2xl font-semibold mb-[30px]'>Ghana?</p>
                 <p className='text-4xl xl:text-5xl font-bold opacity-20 mb-10'>Shipping to GH</p>
                 <Link to={'/Shipping'}> 
                 <TrackB 

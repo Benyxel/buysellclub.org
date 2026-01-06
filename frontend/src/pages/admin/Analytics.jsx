@@ -88,6 +88,12 @@ const Analytics = ({ activeTab = "overview" }) => {
   }, []);
 
   const formatCurrency = (amount, currency = "USD") => {
+    if (currency === "CNY") {
+      return `¥${parseFloat(amount || 0).toLocaleString("en-US", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}`;
+    }
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: currency === "GHS" ? "GHS" : "USD",
@@ -104,7 +110,7 @@ const Analytics = ({ activeTab = "overview" }) => {
 
   if (error) {
     return (
-      <div className="p-6">
+      <div className="p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
           <p className="text-red-800 dark:text-red-200">{error}</p>
         </div>
@@ -114,14 +120,14 @@ const Analytics = ({ activeTab = "overview" }) => {
 
   if (!analytics) {
     return (
-      <div className="p-6">
-        <p>No analytics data available</p>
+      <div className="p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
+        <p className="text-gray-900 dark:text-white">No analytics data available</p>
       </div>
     );
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
       {activeTab === "overview" && (
         <>
           <div className="flex justify-between items-center mb-6">
@@ -392,7 +398,7 @@ const Analytics = ({ activeTab = "overview" }) => {
 
           {/* Summary */}
           {analytics.alipay?.summary && (
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
               <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   Total
@@ -427,12 +433,23 @@ const Analytics = ({ activeTab = "overview" }) => {
               </div>
               <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4">
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Total Revenue
+                  Total Revenue (GHS)
                 </p>
                 <p className="text-xl font-bold text-purple-600 dark:text-purple-400">
                   {formatCurrency(
-                    analytics.alipay.summary.total_revenue,
+                    analytics.alipay.summary.total_revenue_ghs || 0,
                     "GHS"
+                  )}
+                </p>
+              </div>
+              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Total Revenue (CNY)
+                </p>
+                <p className="text-xl font-bold text-blue-600 dark:text-blue-400">
+                  {formatCurrency(
+                    analytics.alipay.summary.total_revenue_cny || 0,
+                    "CNY"
                   )}
                 </p>
               </div>
@@ -457,7 +474,10 @@ const Analytics = ({ activeTab = "overview" }) => {
                           Count
                         </th>
                         <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                          Amount (GHS)
+                          Revenue (GHS)
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                          Revenue (CNY)
                         </th>
                       </tr>
                     </thead>
@@ -471,7 +491,10 @@ const Analytics = ({ activeTab = "overview" }) => {
                             {item.count}
                           </td>
                           <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
-                            {formatCurrency(item.total_amount, "GHS")}
+                            {formatCurrency(item.total_ghs || 0, "GHS")}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
+                            {formatCurrency(item.total_cny || 0, "CNY")}
                           </td>
                         </tr>
                       ))}
@@ -497,7 +520,10 @@ const Analytics = ({ activeTab = "overview" }) => {
                           Count
                         </th>
                         <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                          Amount (GHS)
+                          Revenue (GHS)
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                          Revenue (CNY)
                         </th>
                       </tr>
                     </thead>
@@ -514,7 +540,10 @@ const Analytics = ({ activeTab = "overview" }) => {
                             {item.count}
                           </td>
                           <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
-                            {formatCurrency(item.total_amount, "GHS")}
+                            {formatCurrency(item.total_ghs || 0, "GHS")}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
+                            {formatCurrency(item.total_cny || 0, "CNY")}
                           </td>
                         </tr>
                       ))}
@@ -540,7 +569,10 @@ const Analytics = ({ activeTab = "overview" }) => {
                           Count
                         </th>
                         <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                          Amount (GHS)
+                          Revenue (GHS)
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                          Revenue (CNY)
                         </th>
                       </tr>
                     </thead>
@@ -554,7 +586,10 @@ const Analytics = ({ activeTab = "overview" }) => {
                             {item.count}
                           </td>
                           <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
-                            {formatCurrency(item.total_amount, "GHS")}
+                            {formatCurrency(item.total_ghs || 0, "GHS")}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
+                            {formatCurrency(item.total_cny || 0, "CNY")}
                           </td>
                         </tr>
                       ))}

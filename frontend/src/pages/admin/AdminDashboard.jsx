@@ -155,6 +155,12 @@ const AdminDashboard = () => {
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
   const [chatRefreshSignal, setChatRefreshSignal] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [unreadCounts, setUnreadCounts] = useState({
+    alipay: 0,
+    buy4me: 0,
+    orders: 0,
+    training: 0,
+  });
   const [dashboardData, setDashboardData] = useState(null);
   const [dashboardLoading, setDashboardLoading] = useState(false);
   const [dashboardError, setDashboardError] = useState(null);
@@ -260,6 +266,26 @@ const AdminDashboard = () => {
     }
   };
 
+  // Fetch unread counts for tabs
+  const fetchUnreadCounts = async () => {
+    try {
+      const response = await API.get("/buysellapi/admin/unread-counts/");
+      if (response?.data) {
+        setUnreadCounts({
+          alipay: response.data.alipay || 0,
+          buy4me: response.data.buy4me || 0,
+          orders: response.data.orders || 0,
+          training: response.data.training || 0,
+        });
+      }
+    } catch (error) {
+      // Fail silently - don't show error for counts
+      if (error.response?.status !== 401 && error.response?.status !== 403) {
+        console.error("Error fetching unread counts:", error);
+      }
+    }
+  };
+
   const fetchLiveChatUnreadCount = async () => {
     try {
       const resp = await getLiveChatUnreadCount();
@@ -282,7 +308,8 @@ const AdminDashboard = () => {
       setDashboardData({
         totalUsers: data.totalUsers || 0,
         totalOrders: data.totalOrders || 0,
-        totalAlipayPayments: data.totalAlipayPayments || 0,
+        totalAlipayPaymentsGHS: data.totalAlipayPaymentsGHS || 0,
+        totalAlipayPaymentsCNY: data.totalAlipayPaymentsCNY || 0,
         totalBuy4meRequests: data.totalBuy4meRequests || 0,
         totalShippingMarks: data.totalShippingMarks || 0,
         totalProducts: data.totalProducts || 0,
@@ -352,10 +379,12 @@ const AdminDashboard = () => {
   useEffect(() => {
     fetchAdminNotifications();
     fetchLiveChatUnreadCount();
+    fetchUnreadCounts();
 
     const interval = setInterval(() => {
       fetchAdminNotifications();
       fetchLiveChatUnreadCount();
+      fetchUnreadCounts();
     }, 15000); // 15 seconds for faster updates
 
     return () => clearInterval(interval);
@@ -560,7 +589,7 @@ const AdminDashboard = () => {
                 <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
               </div>
             ) : dashboardError ? (
-              <div className="text-red-500">{dashboardError}</div>
+              <div className="text-red-500 dark:text-red-400">{dashboardError}</div>
             ) : (
               dashboardData && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -570,10 +599,10 @@ const AdminDashboard = () => {
                         <FaUsers className="text-2xl text-blue-600 dark:text-blue-400" />
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold mb-2">
+                        <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
                           Total Users
                         </h3>
-                        <p className="text-3xl font-bold text-blue-600">
+                        <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">
                           {dashboardData.totalUsers}
                         </p>
                       </div>
@@ -586,10 +615,10 @@ const AdminDashboard = () => {
                         <FaShoppingCart className="text-2xl text-green-600 dark:text-green-400" />
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold mb-2">
+                        <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
                           Total Orders
                         </h3>
-                        <p className="text-3xl font-bold text-green-600">
+                        <p className="text-3xl font-bold text-green-600 dark:text-green-400">
                           {dashboardData.totalOrders}
                         </p>
                       </div>
@@ -601,13 +630,24 @@ const AdminDashboard = () => {
                       <div className="p-3 bg-purple-100 dark:bg-purple-900 rounded-full">
                         <FaAlipay className="text-2xl text-purple-600 dark:text-purple-400" />
                       </div>
-                      <div>
-                        <h3 className="text-lg font-semibold mb-2">
+                      <div className="flex-1">
+                        <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
                           Total Alipay Payments
                         </h3>
-                        <p className="text-3xl font-bold text-purple-600">
-                          {dashboardData.totalAlipayPayments}
-                        </p>
+                        <div className="space-y-1">
+                          <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                            ₵{dashboardData.totalAlipayPaymentsGHS?.toLocaleString("en-US", {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            }) || "0.00"}
+                          </p>
+                          <p className="text-xl font-semibold text-blue-600 dark:text-blue-400">
+                            ¥{dashboardData.totalAlipayPaymentsCNY?.toLocaleString("en-US", {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            }) || "0.00"}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -618,10 +658,10 @@ const AdminDashboard = () => {
                         <FaHandHoldingUsd className="text-2xl text-yellow-600 dark:text-yellow-400" />
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold mb-2">
+                        <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
                           Total Buy4me Requests
                         </h3>
-                        <p className="text-3xl font-bold text-yellow-600">
+                        <p className="text-3xl font-bold text-yellow-600 dark:text-yellow-400">
                           {dashboardData.totalBuy4meRequests}
                         </p>
                       </div>
@@ -634,10 +674,10 @@ const AdminDashboard = () => {
                         <FaTag className="text-2xl text-pink-600 dark:text-pink-400" />
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold mb-2">
+                        <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
                           Total Shipping Marks
                         </h3>
-                        <p className="text-3xl font-bold text-pink-600">
+                        <p className="text-3xl font-bold text-pink-600 dark:text-pink-400">
                           {dashboardData.totalShippingMarks}
                         </p>
                       </div>
@@ -650,10 +690,10 @@ const AdminDashboard = () => {
                         <FaBox className="text-2xl text-orange-600 dark:text-orange-400" />
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold mb-2">
+                        <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
                           Total Products
                         </h3>
-                        <p className="text-3xl font-bold text-orange-600">
+                        <p className="text-3xl font-bold text-orange-600 dark:text-orange-400">
                           {dashboardData.totalProducts}
                         </p>
                       </div>
@@ -666,10 +706,10 @@ const AdminDashboard = () => {
                         <FaUserTag className="text-2xl text-teal-600 dark:text-teal-400" />
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold mb-2">
+                        <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
                           Total Agents
                         </h3>
-                        <p className="text-3xl font-bold text-teal-600">
+                        <p className="text-3xl font-bold text-teal-600 dark:text-teal-400">
                           {dashboardData.totalAgents}
                         </p>
                       </div>
@@ -682,10 +722,10 @@ const AdminDashboard = () => {
                         <FaExchangeAlt className="text-2xl text-indigo-600 dark:text-indigo-400" />
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold mb-2">
+                        <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
                           Alipay Rate (GHS→CNY)
                         </h3>
-                        <p className="text-3xl font-bold text-indigo-600">
+                        <p className="text-3xl font-bold text-indigo-600 dark:text-indigo-400">
                           {dashboardData.exchangeRate ?? "N/A"}
                         </p>
                       </div>
@@ -1201,7 +1241,7 @@ const AdminDashboard = () => {
   }
 
   return (
-    <div className={`min-h-screen flex ${darkMode ? "dark" : ""}`}>
+    <div className={`min-h-screen flex bg-gray-50 dark:bg-gray-900 ${darkMode ? "dark" : ""}`}>
       {/* Sidebar */}
       <div
         className={`bg-white dark:bg-gray-800 shadow-lg transition-all duration-300 ${
@@ -1251,10 +1291,39 @@ const AdminDashboard = () => {
                 return itemsToRender.map((item, index) => {
                   const showChatBadge =
                     item.section === "messages" && chatUnreadCount > 0;
+                  
+                  // Get unread count for this tab
+                  let tabUnreadCount = 0;
+                  if (item.section === "alipay-payments") {
+                    tabUnreadCount = unreadCounts.alipay;
+                  } else if (item.section === "buy4me") {
+                    tabUnreadCount = unreadCounts.buy4me;
+                  } else if (item.section === "orders") {
+                    tabUnreadCount = unreadCounts.orders;
+                  } else if (item.section === "training") {
+                    tabUnreadCount = unreadCounts.training;
+                  }
+                  
+                  const showTabBadge = tabUnreadCount > 0;
+                  
                   return (
                     <button
                       key={index}
-                      onClick={() => setActiveSection(item.section)}
+                      onClick={() => {
+                        setActiveSection(item.section);
+                        // Clear unread count when tab is opened
+                        if (tabUnreadCount > 0) {
+                          if (item.section === "alipay-payments") {
+                            setUnreadCounts(prev => ({ ...prev, alipay: 0 }));
+                          } else if (item.section === "buy4me") {
+                            setUnreadCounts(prev => ({ ...prev, buy4me: 0 }));
+                          } else if (item.section === "orders") {
+                            setUnreadCounts(prev => ({ ...prev, orders: 0 }));
+                          } else if (item.section === "training") {
+                            setUnreadCounts(prev => ({ ...prev, training: 0 }));
+                          }
+                        }
+                      }}
                       className={`w-full flex items-center space-x-3 p-3 rounded-lg transition-colors ${
                         activeSection === item.section
                           ? "bg-blue-50 dark:bg-blue-900 text-blue-600 dark:text-blue-400"
@@ -1268,6 +1337,11 @@ const AdminDashboard = () => {
                           {showChatBadge && (
                             <span className="ml-2 text-xs font-semibold text-white bg-red-500 rounded-full px-2 py-0.5">
                               {chatUnreadCount}
+                            </span>
+                          )}
+                          {showTabBadge && (
+                            <span className="ml-2 text-xs font-semibold text-white bg-red-500 rounded-full px-2 py-0.5">
+                              {tabUnreadCount > 99 ? "99+" : tabUnreadCount}
                             </span>
                           )}
                           {allowedTabsMeta[item.section]?.assigned && (
@@ -1324,7 +1398,7 @@ const AdminDashboard = () => {
 
       {/* Main Content */}
       <div
-        className={`flex-1 transition-all duration-300 ${
+        className={`flex-1 transition-all duration-300 bg-gray-50 dark:bg-gray-900 ${
           isSidebarOpen ? "ml-64" : "ml-20"
         }`}
       >
