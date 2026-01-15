@@ -49,7 +49,16 @@ import { toast } from "../utils/toast";
 import "react-toastify/dist/ReactToastify.css";
 import axios from "axios";
 import { API_BASE_URL } from "../config/api";
-import API, { Api, initiateBuy4mePayment } from "../api";
+import API, {
+  Api,
+  initiateBuy4mePayment,
+  getCachedData,
+  setCachedData,
+  CACHE_DURATION,
+  clearCache,
+  getLocalAgentSettings,
+} from "../api";
+import { storageCache } from "../utils/storageCache";
 import Invoice from "./Invoice";
 import InvoiceModal from "./InvoiceModal";
 import { getPlaceholderImagePath } from "../utils/paths";
@@ -152,6 +161,10 @@ const MyProfile = () => {
         return;
       }
     }
+    if (selectedAgentType === "local" && !localAgentLocation.trim()) {
+      toast.error("Location is required");
+      return;
+    }
 
     try {
       setSubmittingAgentRequest(true);
@@ -175,6 +188,9 @@ const MyProfile = () => {
           formData.append("ghana_card", corporateFormData.ghanaCard);
         }
       }
+      if (selectedAgentType === "local") {
+        formData.append("location", localAgentLocation);
+      }
 
       // Don't set Content-Type header - let axios handle it automatically for FormData
       // Try the endpoint - if it doesn't exist, we'll show a helpful error
@@ -186,6 +202,7 @@ const MyProfile = () => {
       setShowBecomeAgentModal(false);
       setSelectedAgentType("");
       setAgentRequestMessage("");
+      setLocalAgentLocation("");
       setCorporateFormData({
         businessName: "",
         businessCert: null,
@@ -300,6 +317,12 @@ const MyProfile = () => {
   const [agentRequestMessage, setAgentRequestMessage] = useState("");
   const [submittingAgentRequest, setSubmittingAgentRequest] = useState(false);
   const [agentRequestStatus, setAgentRequestStatus] = useState(null); // 'pending', 'approved', 'rejected', null
+  const [localAgentCapacity, setLocalAgentCapacity] = useState({
+    max: 0,
+    current: 0,
+    limitReached: false,
+    loading: false,
+  });
 
   // Corporate Agent form fields
   const [corporateFormData, setCorporateFormData] = useState({
@@ -309,6 +332,44 @@ const MyProfile = () => {
     ghanaCard: null,
     phoneNumber: "",
   });
+  const [localAgentLocation, setLocalAgentLocation] = useState("");
+
+  useEffect(() => {
+    if (!showBecomeAgentModal) return;
+
+    let isMounted = true;
+    const loadCapacity = async () => {
+      try {
+        setLocalAgentCapacity((prev) => ({ ...prev, loading: true }));
+        const response = await getLocalAgentSettings();
+        const data = response.data || {};
+        const max = Number(data.max_local_agents || 0);
+        const current = Number(data.current_local_agents || 0);
+        const limitReached =
+          typeof data.limit_reached === "boolean"
+            ? data.limit_reached
+            : max > 0 && current >= max;
+        if (isMounted) {
+          setLocalAgentCapacity({
+            max,
+            current,
+            limitReached,
+            loading: false,
+          });
+        }
+      } catch (error) {
+        if (isMounted) {
+          setLocalAgentCapacity((prev) => ({ ...prev, loading: false }));
+        }
+      }
+    };
+
+    loadCapacity();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [showBecomeAgentModal]);
   const trackableBuy4meOrders = buy4meOrders.filter(
     (order) =>
       order.tracking_status ||
@@ -560,12 +621,16 @@ const MyProfile = () => {
       refreshUserData();
     };
 
-    // Periodic refresh (every 15 seconds)
+    // Periodic refresh (every 60 seconds - reduced frequency)
     const interval = setInterval(() => {
       if (document.visibilityState === "visible") {
-        refreshUserData();
+        // Only refresh if cache is stale (older than 2 minutes)
+        const profileCache = storageCache.get('user-profile', 120000);
+        if (!profileCache) {
+          refreshUserData();
+        }
       }
-    }, 15000); // 15 seconds
+    }, 60000); // Changed from 15 seconds to 60 seconds
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("focus", handleFocus);
@@ -1135,7 +1200,7 @@ const MyProfile = () => {
   const fetchActiveRates = async () => {
     if (activeRates) return activeRates;
     try {
-      const resp = await API.get("/buysellapi/shipping-rates/");
+      const resp = await API.get("/buysellapi/ad-shipping-rates/");
       if (resp?.data) {
         setActiveRates(resp.data);
         return resp.data;
@@ -1150,11 +1215,26 @@ const MyProfile = () => {
 
   // Fetch user's Alipay payments
   const fetchAlipayPayments = async () => {
+    const cacheKey = 'user-alipay-payments';
+    
+    // Check cache first (5 minute cache)
+    const cached = getCachedData(cacheKey);
+    if (cached) {
+      setAlipayPayments(cached);
+      setAlipayPaymentsLoading(false);
+      return;
+    }
+    
     try {
       setAlipayPaymentsLoading(true);
-      const response = await Api.alipay.myPayments({ limit: 100 });
+      const response = await Api.alipay.myPayments({ limit: 100 }, {
+        cacheDuration: CACHE_DURATION.MEDIUM, // 5 minutes
+      });
       const payments = response?.data?.data || response?.data || [];
       setAlipayPayments(payments);
+      
+      // Cache the result
+      setCachedData(cacheKey, payments, CACHE_DURATION.MEDIUM);
     } catch (error) {
       console.error("Error fetching Alipay payments:", error);
       setAlipayPayments([]);
@@ -2319,11 +2399,17 @@ const MyProfile = () => {
                         : "Agent"}
                     </span>
                     <Link
-                      to="/agent-dashboard"
+                      to={
+                        currentUser?.agent_type === "local"
+                          ? "/local-agent-dashboard"
+                          : "/agent-dashboard"
+                      }
                       className="ml-3 inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all shadow-md hover:shadow-lg text-sm"
                     >
                       <FaUserTag className="mr-2" />
-                      Agent Dashboard
+                      {currentUser?.agent_type === "local"
+                        ? "Local Agent Dashboard"
+                        : "Agent Dashboard"}
                     </Link>
                   </>
                 )}
@@ -4748,6 +4834,7 @@ const MyProfile = () => {
                 setShowBecomeAgentModal(false);
                 setSelectedAgentType("");
                 setAgentRequestMessage("");
+                setLocalAgentLocation("");
                 setCorporateFormData({
                   businessName: "",
                   businessCert: null,
@@ -4770,6 +4857,7 @@ const MyProfile = () => {
                       setShowBecomeAgentModal(false);
                       setSelectedAgentType("");
                       setAgentRequestMessage("");
+                      setLocalAgentLocation("");
                       setCorporateFormData({
                         businessName: "",
                         businessCert: null,
@@ -4834,12 +4922,20 @@ const MyProfile = () => {
                       {/* Local Agent */}
                       <button
                         type="button"
-                        onClick={() => setSelectedAgentType("local")}
+                        onClick={() => {
+                          if (localAgentCapacity.limitReached) return;
+                          setSelectedAgentType("local");
+                        }}
                         className={`w-full p-4 border-2 rounded-lg transition-all text-left ${
                           selectedAgentType === "local"
                             ? "border-green-600 bg-green-50 dark:bg-green-900/20"
                             : "border-gray-300 dark:border-gray-600 hover:border-gray-400"
+                        } ${
+                          localAgentCapacity.limitReached
+                            ? "opacity-60 cursor-not-allowed"
+                            : ""
                         }`}
+                        disabled={localAgentCapacity.limitReached}
                       >
                         <div className="flex items-center gap-3">
                           <div
@@ -4859,6 +4955,11 @@ const MyProfile = () => {
                               Represent us in your area or community and earn
                               commissions on completed services.
                             </p>
+                            {localAgentCapacity.limitReached && (
+                              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                Currently full. Requests are still accepted.
+                              </p>
+                            )}
                           </div>
                           {selectedAgentType === "local" && (
                             <FaCheckCircle className="text-green-600 w-5 h-5" />
@@ -4902,6 +5003,28 @@ const MyProfile = () => {
                       </button>
                     </div>
                   </div>
+
+                  {/* Local Agent Location - Show only when Local is selected */}
+                  {selectedAgentType === "local" && (
+                    <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700 space-y-4">
+                      <h4 className="text-md font-semibold text-gray-900 dark:text-white">
+                        Local Agent Information
+                      </h4>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Location *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={localAgentLocation}
+                          onChange={(e) => setLocalAgentLocation(e.target.value)}
+                          placeholder="Enter your location"
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        />
+                      </div>
+                    </div>
+                  )}
 
                   {/* Corporate Agent Form - Show only when Corporate is selected */}
                   {selectedAgentType === "corporate" && (
@@ -5072,6 +5195,7 @@ const MyProfile = () => {
                   disabled={
                     !selectedAgentType ||
                     submittingAgentRequest ||
+                    (selectedAgentType === "local" && !localAgentLocation) ||
                     (selectedAgentType === "corporate" &&
                       (!corporateFormData.businessName ||
                         !corporateFormData.location ||
@@ -5089,6 +5213,7 @@ const MyProfile = () => {
                     setShowBecomeAgentModal(false);
                     setSelectedAgentType("");
                     setAgentRequestMessage("");
+                  setLocalAgentLocation("");
                     setCorporateFormData({
                       businessName: "",
                       businessCert: null,

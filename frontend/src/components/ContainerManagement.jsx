@@ -25,6 +25,9 @@ const ContainerManagement = () => {
   const [invoicePreview, setInvoicePreview] = useState(null);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [invoiceSending, setInvoiceSending] = useState(false);
+  const [invoiceGoodsType, setInvoiceGoodsType] = useState("normal");
+  const [agentShippingRates, setAgentShippingRates] = useState(null);
+  const [shippingRates, setShippingRates] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -75,7 +78,86 @@ const ContainerManagement = () => {
 
   useEffect(() => {
     fetchContainers();
+    fetchShippingRates();
+    fetchAgentShippingRates();
   }, [fetchContainers]);
+
+  const fetchShippingRates = async () => {
+    try {
+      const response = await api.get("/buysellapi/shipping-rates/");
+      if (response?.data) {
+        setShippingRates(response.data);
+      }
+    } catch (error) {
+      console.error("Error fetching shipping rates:", error);
+    }
+  };
+
+  const fetchAgentShippingRates = async () => {
+    try {
+      const response = await api.get("/buysellapi/agent/shipping-rates/");
+      if (response?.data) {
+        setAgentShippingRates(response.data);
+      }
+    } catch (error) {
+      if (error.response?.status !== 404) {
+        console.error("Error fetching agent shipping rates:", error);
+      }
+      setAgentShippingRates(null);
+    }
+  };
+
+  // Calculate shipping fee based on total CBM using the same logic as shipping management
+  // Split CBM into whole part and decimal part:
+  // - Whole part uses standard rate
+  // - Decimal part uses <1 CBM rate
+  // Example: 1.9 CBM = (1 × standard_rate) + (0.9 × lt1_rate)
+  const calculateShippingFee = (totalCbm, goodsType = "normal") => {
+    // Determine which rates to use: agent rates or regular rates
+    const isAgentRate = goodsType === "agent_normal" || goodsType === "agent_special";
+    const rates = isAgentRate ? agentShippingRates : shippingRates;
+    
+    if (!rates || !totalCbm || totalCbm <= 0) return 0;
+    
+    const cbm = parseFloat(totalCbm);
+    if (!isFinite(cbm) || cbm <= 0) return 0;
+
+    // Get rates based on goods type
+    // Options: "normal", "special", "agent_normal", "agent_special"
+    const useSpecialRate = goodsType === "special" || goodsType === "agent_special";
+    const standardRate = parseFloat(
+      useSpecialRate
+        ? rates.special_goods_rate
+        : rates.normal_goods_rate
+    );
+    const lt1Rate = parseFloat(
+      useSpecialRate
+        ? rates.special_goods_rate_lt1 ?? rates.special_goods_rate
+        : rates.normal_goods_rate_lt1 ?? rates.normal_goods_rate
+    );
+
+    if (!isFinite(standardRate) || standardRate <= 0) return 0;
+    if (!isFinite(lt1Rate) || lt1Rate <= 0) return 0;
+
+    // Determine if CBM is a whole number (e.g., 1, 2, 3) or has decimals (e.g., 1.5, 2.3)
+    const isWholeNumber = Math.abs(cbm - Math.floor(cbm)) < 1e-6;
+
+    if (isWholeNumber) {
+      // For whole numbers (1, 2, 3, etc.), use: whole number × standard rate
+      return cbm * standardRate;
+    } else {
+      // For numbers with decimals (e.g., 1.9, 2.3):
+      // Split into whole part and decimal part
+      const wholePart = Math.floor(cbm);
+      const decimalPart = cbm - wholePart;
+
+      // Whole part uses standard rate, decimal part uses <1 CBM rate
+      const wholeFee = wholePart * standardRate;
+      const decimalFee = decimalPart * lt1Rate;
+
+      return wholeFee + decimalFee;
+    }
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -573,6 +655,21 @@ const ContainerManagement = () => {
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
                 </div>
+                <div className="min-w-[180px]">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Goods Type
+                  </label>
+                  <select
+                    value={invoiceGoodsType}
+                    onChange={(e) => setInvoiceGoodsType(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  >
+                    <option value="normal">Normal Goods</option>
+                    <option value="special">Special Goods</option>
+                    <option value="agent_normal">Agent Normal Rate</option>
+                    <option value="agent_special">Agent Special Rate</option>
+                  </select>
+                </div>
                 <button
                   onClick={async () => {
                     if (!invoiceMarkId) {
@@ -587,6 +684,7 @@ const ContainerManagement = () => {
                           params: {
                             mark_id: invoiceMarkId,
                             container_id: containerDetails.id,
+                            goods_type: invoiceGoodsType,
                           },
                         }
                       );
@@ -612,17 +710,25 @@ const ContainerManagement = () => {
                     if (!invoicePreview || !invoiceMarkId) return;
                     setInvoiceSending(true);
                     try {
-                      const res = await api.post("/buysellapi/invoices/send/", {
+                      const res = await api.post("/buysellapi/invoices/", {
                         mark_id: invoiceMarkId,
                         container_id: containerDetails.id,
+                        goods_type: invoiceGoodsType,
                       });
                       toast.success(
-                        res.data?.sent ? "Invoice email sent" : "Invoice queued"
+                        res.data?.invoice_number 
+                          ? `Invoice ${res.data.invoice_number} created successfully`
+                          : "Invoice created successfully"
                       );
+                      // Clear preview after successful creation
+                      setInvoicePreview(null);
+                      setInvoiceMarkId("");
                     } catch (err) {
-                      console.error("Invoice send error", err);
+                      console.error("Invoice create error", err);
                       toast.error(
-                        err.response?.data?.detail || "Failed to send invoice"
+                        err.response?.data?.detail || 
+                        err.response?.data?.error ||
+                        "Failed to create invoice"
                       );
                     } finally {
                       setInvoiceSending(false);
@@ -635,7 +741,7 @@ const ContainerManagement = () => {
                     (invoicePreview?.totals?.count || 0) === 0
                   }
                 >
-                  {invoiceSending ? "Sending..." : "Send Invoice"}
+                  {invoiceSending ? "Creating..." : "Create Invoice"}
                 </button>
               </div>
 
@@ -651,42 +757,61 @@ const ContainerManagement = () => {
                       <table className="w-full text-sm">
                         <thead className="bg-gray-50 dark:bg-gray-700">
                           <tr>
-                            <th className="px-3 py-2 text-left">Tracking #</th>
-                            <th className="px-3 py-2 text-left">Status</th>
-                            <th className="px-3 py-2 text-right">CBM</th>
-                            <th className="px-3 py-2 text-right">Fee ($)</th>
+                            <th className="px-3 py-2 text-left text-gray-700 dark:text-white font-medium">Tracking #</th>
+                            <th className="px-3 py-2 text-left text-gray-700 dark:text-white font-medium">Status</th>
+                            <th className="px-3 py-2 text-right text-gray-700 dark:text-white font-medium">CBM</th>
+                            <th className="px-3 py-2 text-right text-gray-700 dark:text-white font-medium">Fee ($)</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                           {invoicePreview.items.map((it) => (
                             <tr key={it.id}>
-                              <td className="px-3 py-2">
+                              <td className="px-3 py-2 text-gray-900 dark:text-white">
                                 {it.tracking_number}
                               </td>
-                              <td className="px-3 py-2">{it.status}</td>
-                              <td className="px-3 py-2 text-right">
+                              <td className="px-3 py-2 text-gray-900 dark:text-white">{it.status}</td>
+                              <td className="px-3 py-2 text-right text-gray-900 dark:text-white">
                                 {Number(it.cbm || 0).toFixed(3)}
                               </td>
-                              <td className="px-3 py-2 text-right">
-                                {Number(it.shipping_fee || 0).toFixed(2)}
+                              <td className="px-3 py-2 text-right text-gray-900 dark:text-white">
+                                ${Math.ceil(Number(it.shipping_fee || 0))}
                               </td>
                             </tr>
                           ))}
                         </tbody>
                         <tfoot>
                           <tr className="font-semibold">
-                            <td className="px-3 py-2 text-right" colSpan={2}>
-                              Totals
+                            <td className="px-3 py-2 text-right text-gray-900 dark:text-white" colSpan={2}>
+                              Total CBM
                             </td>
-                            <td className="px-3 py-2 text-right">
+                            <td className="px-3 py-2 text-right text-gray-900 dark:text-white">
                               {Number(
                                 invoicePreview.totals?.total_cbm || 0
                               ).toFixed(3)}
                             </td>
-                            <td className="px-3 py-2 text-right">
-                              {Number(
+                            <td className="px-3 py-2 text-right text-gray-900 dark:text-white">
+                              ${Math.ceil(Number(
                                 invoicePreview.totals?.total_fee || 0
-                              ).toFixed(2)}
+                              ))}
+                            </td>
+                          </tr>
+                          <tr className="font-semibold bg-blue-50 dark:bg-blue-900/20">
+                            <td className="px-3 py-2 text-right text-gray-900 dark:text-white" colSpan={2}>
+                              Shipping Fee
+                            </td>
+                            <td className="px-3 py-2 text-right text-gray-900 dark:text-white">
+                              {Number(
+                                invoicePreview.totals?.total_cbm || 0
+                              ).toFixed(3)} CBM
+                            </td>
+                            <td className="px-3 py-2 text-right text-blue-600 dark:text-blue-400">
+                              ${Math.ceil(Number(
+                                invoicePreview.totals?.shipping_fee || 
+                                calculateShippingFee(
+                                  invoicePreview.totals?.total_cbm || 0,
+                                  invoiceGoodsType
+                                )
+                              ))}
                             </td>
                           </tr>
                         </tfoot>
@@ -1095,7 +1220,7 @@ const ContainerManagement = () => {
                                       <td>${tracking.shipping_mark || "-"}</td>
                                       <td>${tracking.status}</td>
                                       <td>${tracking.cbm ? parseFloat(tracking.cbm).toFixed(3) : "-"}</td>
-                                      <td>$${tracking.shipping_fee ? parseFloat(tracking.shipping_fee).toFixed(2) : "0.00"}</td>
+                                      <td>$${tracking.shipping_fee ? Math.ceil(parseFloat(tracking.shipping_fee)) : "0"}</td>
                                     </tr>
                                   `).join("")}
                                 </tbody>

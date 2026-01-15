@@ -157,7 +157,7 @@ const ContainerInfoWidget = () => {
       // Fetch current shipping rate
       let shippingRate = null;
       try {
-        const shippingRateResponse = await Api.shipping.rate();
+        const shippingRateResponse = await Api.shipping.adRate();
         if (shippingRateResponse?.data?.normal_goods_rate) {
           shippingRate = parseFloat(shippingRateResponse.data.normal_goods_rate);
         }

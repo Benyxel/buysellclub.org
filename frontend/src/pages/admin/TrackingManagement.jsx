@@ -17,6 +17,7 @@ import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import API from "../../api";
 import ConfirmModal from "../../components/shared/ConfirmModal";
+import { usePersistedPagination } from "../../hooks/usePersistedPagination";
 
 // Status options aligned to backend Tracking model, UI stores labels in trackingSystem
 const statusOptions = [
@@ -56,8 +57,16 @@ const TrackingManagement = () => {
   const [editTracking, setEditTracking] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
   const [viewTracking, setViewTracking] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  // Use persisted pagination to maintain page across refreshes
+  const [currentPage, setCurrentPage] = usePersistedPagination('tracking-management-page', 1);
+  const [pageSize, setPageSize] = useState(() => {
+    try {
+      const saved = localStorage.getItem('tracking-management-page-size');
+      return saved ? parseInt(saved, 10) : 10;
+    } catch {
+      return 10;
+    }
+  });
   const viewContentRef = useRef(null);
 
   const [newTracking, setNewTracking] = useState({
@@ -117,8 +126,10 @@ const TrackingManagement = () => {
       });
 
       if (response.data && Array.isArray(response.data)) {
-        // Filter out agent-created trackings (they should only appear in Agent Tracking Management)
-        const nonAgentTrackings = response.data.filter(t => !t.created_by_agent);
+        // Filter out agent-created trackings except local agents (local should appear here)
+        const nonAgentTrackings = response.data.filter(
+          (t) => !t.created_by_agent || t.created_by_agent_type === "local"
+        );
         
         // Transform backend data to frontend format
         const transformed = nonAgentTrackings.map((t) => ({
@@ -243,8 +254,22 @@ const TrackingManagement = () => {
     return option ? option.label : "Pending";
   };
 
+  // Track previous filter values to detect actual changes
+  const prevFiltersRef = useRef({ filterStatus, filterContainer, searchTerm });
+  
   useEffect(() => {
-    setCurrentPage(1);
+    // Check if filters actually changed
+    const filtersChanged = 
+      prevFiltersRef.current.filterStatus !== filterStatus ||
+      prevFiltersRef.current.filterContainer !== filterContainer ||
+      prevFiltersRef.current.searchTerm !== searchTerm;
+    
+    // Only reset to page 1 if filters actually changed
+    if (filtersChanged) {
+      setCurrentPage(1);
+      prevFiltersRef.current = { filterStatus, filterContainer, searchTerm };
+    }
+    
     let result = [...trackings];
     if (filterStatus !== "all") {
       result = result.filter(
@@ -1011,7 +1036,15 @@ const TrackingManagement = () => {
           <select
             value={pageSize}
             onChange={(e) => {
-              setPageSize(parseInt(e.target.value, 10));
+              const newSize = parseInt(e.target.value, 10);
+              setPageSize(newSize);
+              // Save page size preference
+              try {
+                localStorage.setItem('tracking-management-page-size', newSize.toString());
+              } catch (error) {
+                console.error('Failed to save page size:', error);
+              }
+              // Reset to page 1 when page size changes
               setCurrentPage(1);
             }}
             className="ml-2 px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"

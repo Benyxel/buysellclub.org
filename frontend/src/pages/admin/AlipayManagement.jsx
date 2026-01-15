@@ -16,7 +16,8 @@ import {
   FaSearch,
 } from "react-icons/fa";
 import { toast } from "../../utils/toast";
-import API, { Api } from "../../api";
+import API, { Api, getCachedData, setCachedData, CACHE_DURATION, clearCache } from "../../api";
+import { storageCache } from "../../utils/storageCache";
 import ConfirmModal from "../../components/shared/ConfirmModal";
 
 const AlipayManagement = () => {
@@ -60,24 +61,67 @@ const AlipayManagement = () => {
     proofOfPaymentPreview: "",
   });
 
-  // Fetch users for dropdown
+  // Fetch users for dropdown - cache for 1 hour (rarely changes)
   const fetchUsers = useCallback(async () => {
+    const cacheKey = 'users-list-all';
+    
+    // Check cache first
+    const cached = getCachedData(cacheKey) || storageCache.get(cacheKey, CACHE_DURATION.VERY_LONG);
+    if (cached) {
+      const usersData = Array.isArray(cached.data)
+        ? cached.data
+        : cached.data?.results || Array.isArray(cached) ? cached : [];
+      setUsers(usersData);
+      return;
+    }
+    
     try {
       const response = await API.get("/buysellapi/users/", {
-        params: { page_size: 1000 }, // Get all users for dropdown
+        params: { page_size: 1000 },
+        cacheDuration: CACHE_DURATION.VERY_LONG, // 1 hour cache
       });
       const usersData = Array.isArray(response.data)
         ? response.data
         : response.data?.results || [];
       setUsers(usersData);
+      
+      // Also store in localStorage for persistence
+      storageCache.set(cacheKey, usersData);
     } catch (error) {
       console.error("Error fetching users:", error);
+      // Try to use cached data if available
+      const fallbackCache = storageCache.get(cacheKey, CACHE_DURATION.VERY_LONG * 2);
+      if (fallbackCache) {
+        const usersData = Array.isArray(fallbackCache) ? fallbackCache : [];
+        setUsers(usersData);
+      }
     }
   }, []);
 
   // Define fetchPayments before useEffect to avoid TDZ errors when referencing in deps
-  // Always fetch fresh data for Alipay payments
-  const fetchPayments = useCallback(async () => {
+  // Now with caching to reduce backend requests
+  const fetchPayments = useCallback(async (forceRefresh = false) => {
+    const cacheKey = `alipay-payments-${currentPage}-${statusFilter || 'all'}`;
+    
+    // Check cache first (5 minute cache for payment list)
+    if (!forceRefresh) {
+      const cached = getCachedData(cacheKey);
+      if (cached && cached.data) {
+        const data = cached.data;
+        if (data.data !== undefined) {
+          setPayments(data.data || []);
+          setTotalPages(data.totalPages || 1);
+          setLoading(false);
+          return;
+        } else if (Array.isArray(data)) {
+          setPayments(data);
+          setTotalPages(1);
+          setLoading(false);
+          return;
+        }
+      }
+    }
+    
     try {
       setLoading(true);
       console.log("Fetching Alipay payments with params:", {
@@ -89,6 +133,8 @@ const AlipayManagement = () => {
         page: currentPage,
         limit: 10,
         ...(statusFilter ? { status: statusFilter } : {}),
+      }, {
+        cacheDuration: CACHE_DURATION.MEDIUM, // 5 minutes
       });
       console.log("Alipay payments response:", response);
       const { data } = response;
@@ -149,10 +195,44 @@ const AlipayManagement = () => {
   }, [currentPage, statusFilter]);
 
   useEffect(() => {
-    fetchPayments();
+    // Only fetch if cache is missing or stale
+    const cacheKey = `alipay-payments-${currentPage}-${statusFilter || 'all'}`;
+    const cached = getCachedData(cacheKey);
+    
+    if (!cached) {
+      fetchPayments();
+    } else {
+      // Use cached data immediately, then refresh in background if stale
+      const data = cached.data;
+      if (data?.data) {
+        setPayments(data.data || []);
+        setTotalPages(data.totalPages || 1);
+      } else if (Array.isArray(data)) {
+        setPayments(data);
+        setTotalPages(1);
+      }
+      setLoading(false);
+      
+      // Refresh in background if cache is older than 2 minutes
+      const cacheAge = Date.now() - cached.timestamp;
+      if (cacheAge > 120000) {
+        fetchPayments(true); // Force refresh
+      }
+    }
+    
     fetchExchangeRate();
-    fetchUsers();
-  }, [fetchPayments, fetchUsers]);
+    
+    // Only fetch users if not cached
+    const usersCache = getCachedData('users-list-all') || storageCache.get('users-list-all', CACHE_DURATION.VERY_LONG);
+    if (!usersCache) {
+      fetchUsers();
+    } else {
+      const usersData = Array.isArray(usersCache.data)
+        ? usersCache.data
+        : usersCache.data?.results || Array.isArray(usersCache) ? usersCache : [];
+      setUsers(usersData);
+    }
+  }, [currentPage, statusFilter]); // Removed fetchPayments, fetchUsers from deps to prevent re-fetching
 
   // Close user dropdown when clicking outside
   useEffect(() => {
@@ -493,7 +573,9 @@ const AlipayManagement = () => {
 
       toast.success("Alipay payment created successfully");
       setShowCreateModal(false);
-      fetchPayments();
+      // Clear cache and refresh
+      clearCache('alipay-payments');
+      fetchPayments(true); // Force refresh
     } catch (error) {
       console.error("Error creating payment:", error);
       const errorMsg = error.response?.data?.error || 

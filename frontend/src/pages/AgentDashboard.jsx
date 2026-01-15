@@ -54,6 +54,11 @@ const AgentDashboard = () => {
         return;
       }
 
+      if (user.agent_type === "local") {
+        navigate("/local-agent-dashboard");
+        return;
+      }
+
       setCurrentUser(user);
       
       // Initialize active section from URL or localStorage

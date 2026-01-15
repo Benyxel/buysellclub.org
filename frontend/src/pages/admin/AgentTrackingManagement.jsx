@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { usePersistedPagination } from "../../hooks/usePersistedPagination";
 import {
   FaSearch,
   FaSortAmountDown,
@@ -54,8 +55,16 @@ const AgentTrackingManagement = () => {
   const [editTracking, setEditTracking] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
   const [viewTracking, setViewTracking] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  // Use persisted pagination to maintain page across refreshes
+  const [currentPage, setCurrentPage] = usePersistedPagination('agent-tracking-management-page', 1);
+  const [pageSize, setPageSize] = useState(() => {
+    try {
+      const saved = localStorage.getItem('agent-tracking-management-page-size');
+      return saved ? parseInt(saved, 10) : 10;
+    } catch {
+      return 10;
+    }
+  });
   const viewContentRef = useRef(null);
   const [loading, setLoading] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -83,8 +92,21 @@ const AgentTrackingManagement = () => {
     fetchContainers();
   }, []);
 
+  // Track previous filter values to detect actual changes
+  const prevFiltersRef = useRef({ filterStatus, searchTerm });
+  
   useEffect(() => {
-    setCurrentPage(1);
+    // Check if filters actually changed
+    const filtersChanged = 
+      prevFiltersRef.current.filterStatus !== filterStatus ||
+      prevFiltersRef.current.searchTerm !== searchTerm;
+    
+    // Only reset to page 1 if filters actually changed
+    if (filtersChanged) {
+      setCurrentPage(1);
+      prevFiltersRef.current = { filterStatus, searchTerm };
+    }
+    
     let result = [...trackings];
     if (filterStatus !== "all") {
       result = result.filter(
@@ -454,7 +476,7 @@ const AgentTrackingManagement = () => {
 
       // Delete from backend using agent endpoint
       const deletePromises = trackingsToDelete.map((tracking) =>
-        API.delete(`/buysellapi/agent/trackings/${tracking.id}/`)
+        API.delete(`/buysellapi/trackings/${tracking.id}/`)
       );
 
       await Promise.all(deletePromises);
@@ -491,7 +513,7 @@ const AgentTrackingManagement = () => {
     setLoading(true);
 
     try {
-      await API.delete(`/buysellapi/agent/trackings/${deleteTarget}/`);
+      await API.delete(`/buysellapi/trackings/${deleteTarget}/`);
 
       toast.success("Tracking record deleted successfully");
 
@@ -993,7 +1015,15 @@ const AgentTrackingManagement = () => {
           <select
             value={pageSize}
             onChange={(e) => {
-              setPageSize(parseInt(e.target.value, 10));
+              const newSize = parseInt(e.target.value, 10);
+              setPageSize(newSize);
+              // Save page size preference
+              try {
+                localStorage.setItem('agent-tracking-management-page-size', newSize.toString());
+              } catch (error) {
+                console.error('Failed to save page size:', error);
+              }
+              // Reset to page 1 when page size changes
               setCurrentPage(1);
             }}
             className="ml-2 px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"

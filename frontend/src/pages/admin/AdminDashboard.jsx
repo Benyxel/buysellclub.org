@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "../../utils/toast";
-import API, { getLiveChatUnreadCount, markAllLiveChatRead } from "../../api";
+import API, { getLiveChatUnreadCount, markAllLiveChatRead, getCachedData, setCachedData, CACHE_DURATION, clearCache } from "../../api";
+import { storageCache } from "../../utils/storageCache";
 
 import {
   FaHome,
@@ -38,6 +39,7 @@ import {
   FaBuilding,
   FaHandshake,
   FaTicketAlt,
+  FaGift,
 } from "react-icons/fa";
 
 import UsersManagement from "./UsersManagement";
@@ -46,6 +48,7 @@ import TrackingManagement from "./TrackingManagement";
 import ShippingMarksAdmin from "./ShippingMarksAdmin";
 import ShippingAddressesAdmin from "./ShippingAddressesAdmin";
 import ShippingRatesManagement from "./ShippingRatesManagement";
+import AdShippingRatesManagement from "./AdShippingRatesManagement";
 import ContainerManagement from "../../components/ContainerManagement";
 import InvoicesManagement from "./InvoicesManagement";
 import Buy4meAdmin from "./Buy4meAdmin";
@@ -72,6 +75,8 @@ import AgentRequestsManagement from "./AgentRequestsManagement";
 import CorporateAgentManagement from "./CorporateAgentManagement";
 import LocalAgentManagement from "./LocalAgentManagement";
 import AffiliateAgentManagement from "./AffiliateAgentManagement";
+import LocalAgentSettingsManagement from "./LocalAgentSettingsManagement";
+import LocalAgentRewardClaims from "./LocalAgentRewardClaims";
 import "react-toastify/dist/ReactToastify.css";
 
 const AdminDashboard = () => {
@@ -149,7 +154,14 @@ const AdminDashboard = () => {
   const [agentSubMenu, setAgentSubMenu] = useState(getInitialAgentSubMenu());
   const [messageSubMenu, setMessageSubMenu] = useState("live-chat");
   const [trainingSubMenu, setTrainingSubMenu] = useState("paidCourses");
-  const [analyticsTab, setAnalyticsTab] = useState("overview");
+  const getInitialAnalyticsTab = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabFromUrl = urlParams.get("analyticsTab");
+    if (tabFromUrl) return tabFromUrl;
+    const savedTab = localStorage.getItem("adminAnalyticsTab");
+    return savedTab || "overview";
+  };
+  const [analyticsTab, setAnalyticsTab] = useState(getInitialAnalyticsTab);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
@@ -160,6 +172,8 @@ const AdminDashboard = () => {
     buy4me: 0,
     orders: 0,
     training: 0,
+    agentRequests: 0,
+    rewardClaims: 0,
   });
   const [dashboardData, setDashboardData] = useState(null);
   const [dashboardLoading, setDashboardLoading] = useState(false);
@@ -184,10 +198,11 @@ const AdminDashboard = () => {
       },
       { icon: <FaHandHoldingUsd />, label: "Buy4me", section: "buy4me" },
       { icon: <FaUserTag />, label: "Agent Management", section: "agents" },
+      { icon: <FaComments />, label: "Messages", section: "messages" },
       { icon: <FaShoppingCart />, label: "Orders", section: "orders" },
+      { icon: <FaGraduationCap />, label: "Training", section: "training" },
       { icon: <FaBox />, label: "Products", section: "products" },
       { icon: <FaStore />, label: "Categories", section: "categories" },
-      { icon: <FaGraduationCap />, label: "Training", section: "training" },
       { icon: <FaYoutube />, label: "YouTube", section: "youtube" },
       { icon: <FaVideo />, label: "Gallery", section: "gallery" },
       {
@@ -195,7 +210,6 @@ const AdminDashboard = () => {
         label: "Quick Orders",
         section: "quick-orders",
       },
-      { icon: <FaComments />, label: "Messages", section: "messages" },
       { icon: <FaChartBar />, label: "Analytics", section: "analytics" },
       { icon: <FaUserCog />, label: "Staff", section: "staff" },
       { icon: <FaCog />, label: "Settings", section: "settings" },
@@ -203,8 +217,18 @@ const AdminDashboard = () => {
     []
   );
 
-  // Fetch admin notifications from backend
+  // Fetch admin notifications from backend - cache for 30 seconds
   const fetchAdminNotifications = async () => {
+    const cacheKey = 'admin-notifications';
+    
+    // Check cache first
+    const cached = getCachedData(cacheKey);
+    if (cached) {
+      setNotifications(cached.notifications || []);
+      setUnreadCount(cached.unreadCount || 0);
+      return;
+    }
+    
     try {
       // Check if admin token exists before fetching
       const adminToken = localStorage.getItem("adminToken");
@@ -214,7 +238,8 @@ const AdminDashboard = () => {
       }
 
       const response = await API.get(
-        "/buysellapi/admin/notifications/me/?limit=20"
+        "/buysellapi/admin/notifications/me/?limit=20",
+        { cacheDuration: CACHE_DURATION.SHORT } // 30 seconds
       );
       const data = response.data;
 
@@ -229,6 +254,12 @@ const AdminDashboard = () => {
 
       setNotifications(transformedNotifications);
       setUnreadCount(data.unread_count || 0);
+      
+      // Cache the result
+      setCachedData(cacheKey, {
+        notifications: transformedNotifications,
+        unreadCount: data.unread_count || 0,
+      }, CACHE_DURATION.SHORT);
     } catch (error) {
       // Don't show error toast for notifications - fail silently
       // Only log if it's not a 401/403 auth error
@@ -242,7 +273,8 @@ const AdminDashboard = () => {
   const markNotificationAsRead = async (id) => {
     try {
       await API.patch(`/buysellapi/notifications/${id}/mark-read/`);
-      // Refresh notifications
+      // Clear cache and refresh notifications
+      clearCache('admin-notifications');
       fetchAdminNotifications();
     } catch (error) {
       console.error("Error marking notification as read:", error);
@@ -253,7 +285,8 @@ const AdminDashboard = () => {
   const markAllAsRead = async () => {
     try {
       await API.post("/buysellapi/notifications/mark-all-read/");
-      // Refresh notifications
+      // Clear cache and refresh notifications
+      clearCache('admin-notifications');
       fetchAdminNotifications();
       toast.success("All notifications marked as read", {
         toastId: "mark-all-read-success",
@@ -266,17 +299,34 @@ const AdminDashboard = () => {
     }
   };
 
-  // Fetch unread counts for tabs
+  // Fetch unread counts for tabs - cache for 30 seconds
   const fetchUnreadCounts = async () => {
+    const cacheKey = 'admin-unread-counts';
+    
+    // Check cache first
+    const cached = getCachedData(cacheKey);
+    if (cached) {
+      setUnreadCounts(cached);
+      return;
+    }
+    
     try {
-      const response = await API.get("/buysellapi/admin/unread-counts/");
+      const response = await API.get("/buysellapi/admin/unread-counts/", {
+        cacheDuration: CACHE_DURATION.SHORT, // 30 seconds
+      });
       if (response?.data) {
-        setUnreadCounts({
+        const counts = {
           alipay: response.data.alipay || 0,
           buy4me: response.data.buy4me || 0,
           orders: response.data.orders || 0,
           training: response.data.training || 0,
-        });
+          agentRequests: response.data.agent_requests || 0,
+          rewardClaims: response.data.reward_claims || 0,
+        };
+        setUnreadCounts(counts);
+        
+        // Cache the result
+        setCachedData(cacheKey, counts, CACHE_DURATION.SHORT);
       }
     } catch (error) {
       // Fail silently - don't show error for counts
@@ -287,9 +337,22 @@ const AdminDashboard = () => {
   };
 
   const fetchLiveChatUnreadCount = async () => {
+    const cacheKey = 'live-chat-unread-count';
+    
+    // Check cache first
+    const cached = getCachedData(cacheKey);
+    if (cached !== null && cached !== undefined) {
+      setChatUnreadCount(cached);
+      return;
+    }
+    
     try {
       const resp = await getLiveChatUnreadCount();
-      setChatUnreadCount(resp.data?.unread_count || 0);
+      const count = resp.data?.unread_count || 0;
+      setChatUnreadCount(count);
+      
+      // Cache the result
+      setCachedData(cacheKey, count, CACHE_DURATION.SHORT);
     } catch (error) {
       console.error("Failed to load chat unread count:", error);
     }
@@ -352,8 +415,15 @@ const AdminDashboard = () => {
       url.searchParams.delete("agentSubMenu");
     }
 
+    // Also persist analytics tab if we're in analytics section
+    if (activeSection === "analytics") {
+      url.searchParams.set("analyticsTab", analyticsTab);
+    } else {
+      url.searchParams.delete("analyticsTab");
+    }
+
     window.history.replaceState({}, "", url);
-  }, [activeSection, shippingSubMenu, agentSubMenu]);
+  }, [activeSection, shippingSubMenu, agentSubMenu, analyticsTab]);
 
   // Persist shippingSubMenu to localStorage
   useEffect(() => {
@@ -365,6 +435,11 @@ const AdminDashboard = () => {
     localStorage.setItem("adminAgentSubMenu", agentSubMenu);
   }, [agentSubMenu]);
 
+  // Persist analyticsTab to localStorage
+  useEffect(() => {
+    localStorage.setItem("adminAnalyticsTab", analyticsTab);
+  }, [analyticsTab]);
+
   useEffect(() => {
     // Only fetch dashboard data the first time we visit the dashboard
     // (or when dashboardData is explicitly cleared). This prevents
@@ -375,17 +450,22 @@ const AdminDashboard = () => {
     }
   }, [activeSection]);
 
-  // Fetch admin notifications on mount and every 30 seconds
+  // Fetch admin notifications on mount and periodically (reduced frequency)
   useEffect(() => {
     fetchAdminNotifications();
     fetchLiveChatUnreadCount();
     fetchUnreadCounts();
 
     const interval = setInterval(() => {
-      fetchAdminNotifications();
-      fetchLiveChatUnreadCount();
-      fetchUnreadCounts();
-    }, 15000); // 15 seconds for faster updates
+      // Only fetch if cache is stale or missing
+      const notificationsCache = getCachedData('admin-notifications');
+      const unreadCache = getCachedData('admin-unread-counts');
+      const chatCache = getCachedData('live-chat-unread-count');
+      
+      if (!notificationsCache) fetchAdminNotifications();
+      if (!unreadCache) fetchUnreadCounts();
+      if (!chatCache) fetchLiveChatUnreadCount();
+    }, 60000); // Changed from 15 seconds to 60 seconds
 
     return () => clearInterval(interval);
   }, []);
@@ -868,7 +948,92 @@ const AdminDashboard = () => {
                   </div>
                 </button>
 
-                {/* 5. Address Management */}
+                {/* 5. Ad Shipping Rates */}
+                <button
+                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
+                    shippingSubMenu === "ad-rates"
+                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                  onClick={() => setShippingSubMenu("ad-rates")}
+                >
+                  <div className="flex items-center gap-2">
+                    <FaDollarSign className="w-4 h-4" />
+                    <span>Ad Shipping Rates</span>
+                  </div>
+                </button>
+
+                {/* 6. Local Agent */}
+                <button
+                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
+                    shippingSubMenu === "local-agent"
+                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                  onClick={() => setShippingSubMenu("local-agent")}
+                >
+                  <div className="flex items-center gap-2">
+                    <FaMapMarkerAlt className="w-4 h-4" />
+                    <span>Local Agent</span>
+                  </div>
+                </button>
+
+                {/* 7. Local Agent Settings */}
+                <button
+                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
+                    shippingSubMenu === "local-agent-settings"
+                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                  onClick={() => setShippingSubMenu("local-agent-settings")}
+                >
+                  <div className="flex items-center gap-2">
+                    <FaCog className="w-4 h-4" />
+                    <span>Local Agent Settings</span>
+                  </div>
+                </button>
+
+                {/* 8. Local Agent Requests */}
+                <button
+                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
+                    shippingSubMenu === "local-agent-requests"
+                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                  onClick={() => setShippingSubMenu("local-agent-requests")}
+                >
+                  <div className="flex items-center gap-2">
+                    <FaUserTag className="w-4 h-4" />
+                    <span>Local Agent Requests</span>
+                    {unreadCounts.agentRequests > 0 && (
+                      <span className="ml-1 inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold rounded-full bg-red-500 text-white">
+                        {unreadCounts.agentRequests}
+                      </span>
+                    )}
+                  </div>
+                </button>
+
+                {/* 9. Reward Claims */}
+                <button
+                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
+                    shippingSubMenu === "local-agent-reward-claims"
+                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                  onClick={() => setShippingSubMenu("local-agent-reward-claims")}
+                >
+                  <div className="flex items-center gap-2">
+                    <FaGift className="w-4 h-4" />
+                    <span>Reward Claims</span>
+                    {unreadCounts.rewardClaims > 0 && (
+                      <span className="ml-1 inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold rounded-full bg-red-500 text-white">
+                        {unreadCounts.rewardClaims}
+                      </span>
+                    )}
+                  </div>
+                </button>
+
+                {/* 10. Address Management */}
                 <button
                   className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
                     shippingSubMenu === "addresses"
@@ -909,6 +1074,20 @@ const AdminDashboard = () => {
               <InvoicesManagement />
             ) : shippingSubMenu === "rates" ? (
               <ShippingRatesManagement />
+            ) : shippingSubMenu === "ad-rates" ? (
+              <AdShippingRatesManagement />
+            ) : shippingSubMenu === "local-agent" ? (
+              <LocalAgentManagement />
+            ) : shippingSubMenu === "local-agent-settings" ? (
+              <LocalAgentSettingsManagement />
+            ) : shippingSubMenu === "local-agent-requests" ? (
+              <AgentRequestsManagement
+                agentTypeFilter="local"
+                title="Local Agent Requests"
+                emptyLabel="No local agent requests found"
+              />
+            ) : shippingSubMenu === "local-agent-reward-claims" ? (
+              <LocalAgentRewardClaims />
             ) : shippingSubMenu === "addresses" ? (
               <ShippingAddressesAdmin />
             ) : (
@@ -1022,6 +1201,11 @@ const AdminDashboard = () => {
                   <div className="flex items-center gap-2">
                     <FaHandHoldingUsd className="w-4 h-4" />
                     <span>Agent Requests</span>
+                    {unreadCounts.agentRequests > 0 && (
+                      <span className="ml-1 inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold rounded-full bg-red-500 text-white">
+                        {unreadCounts.agentRequests}
+                      </span>
+                    )}
                   </div>
                 </button>
 
@@ -1040,22 +1224,7 @@ const AdminDashboard = () => {
                   </div>
                 </button>
 
-                {/* 9. Local Agents */}
-                <button
-                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
-                    agentSubMenu === "local"
-                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
-                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  }`}
-                  onClick={() => setAgentSubMenu("local")}
-                >
-                  <div className="flex items-center gap-2">
-                    <FaMapMarkerAlt className="w-4 h-4" />
-                    <span>Local Agent</span>
-                  </div>
-                </button>
-
-                {/* 10. Affiliate Agents */}
+                {/* 9. Affiliate Agents */}
                 <button
                   className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
                     agentSubMenu === "affiliate"
@@ -1086,11 +1255,13 @@ const AdminDashboard = () => {
             ) : agentSubMenu === "shipping-marks" ? (
               <AgentShippingMarksManagement />
             ) : agentSubMenu === "requests" ? (
-              <AgentRequestsManagement />
+              <AgentRequestsManagement
+                agentTypeFilter="corporate"
+                title="Corporate Agent Requests"
+                emptyLabel="No corporate agent requests found"
+              />
             ) : agentSubMenu === "corporate" ? (
               <CorporateAgentManagement />
-            ) : agentSubMenu === "local" ? (
-              <LocalAgentManagement />
             ) : agentSubMenu === "affiliate" ? (
               <AffiliateAgentManagement />
             ) : (
@@ -1302,6 +1473,10 @@ const AdminDashboard = () => {
                     tabUnreadCount = unreadCounts.orders;
                   } else if (item.section === "training") {
                     tabUnreadCount = unreadCounts.training;
+                  } else if (item.section === "agents") {
+                    tabUnreadCount =
+                      (unreadCounts.agentRequests || 0) +
+                      (unreadCounts.rewardClaims || 0);
                   }
                   
                   const showTabBadge = tabUnreadCount > 0;
@@ -1321,6 +1496,12 @@ const AdminDashboard = () => {
                             setUnreadCounts(prev => ({ ...prev, orders: 0 }));
                           } else if (item.section === "training") {
                             setUnreadCounts(prev => ({ ...prev, training: 0 }));
+                          } else if (item.section === "agents") {
+                            setUnreadCounts(prev => ({
+                              ...prev,
+                              agentRequests: 0,
+                              rewardClaims: 0,
+                            }));
                           }
                         }
                       }}

@@ -1,4 +1,6 @@
 import axios from "axios";
+// Import caching utilities
+import { getCachedData, setCachedData, deduplicateRequest, CACHE_DURATION } from './utils/apiCache';
 
 /**
  * Frontend API client
@@ -7,6 +9,7 @@ import axios from "axios";
  * the backend. Everything goes through the same axios instance so we avoid
  * accidental GET/POST mismatches (which were causing the 405 errors) and we
  * always apply the same auth / CSRF / error handling logic.
+ * Now includes intelligent caching to reduce backend requests.
  *
  * Usage:
  *   import api, { Api } from "@/api";
@@ -151,6 +154,13 @@ api.interceptors.response.use(
     const originalRequest = error.config || {};
     const status = error.response?.status;
     const url = originalRequest.url || "";
+    const isTimeout =
+      error.code === "ECONNABORTED" ||
+      (typeof error.message === "string" &&
+        error.message.toLowerCase().includes("timeout"));
+    if (isTimeout) {
+      error.message = "timeout please try again";
+    }
 
     // Suppress console errors for expected 404s on shipping-marks/me endpoint
     // This is normal when a user doesn't have a shipping mark yet
@@ -204,12 +214,33 @@ api.interceptors.response.use(
 
 
 // Convenience wrapper so every call goes through the same validation.
-// No caching - always fetch fresh data from server
+// Now with intelligent caching to reduce backend requests
 const http = {
   get: async (path, config = {}) => {
     const url = normalizePath(path);
     const params = config.params || null;
+    
+    // Create cache key from URL and params
+    const cacheKey = `${url}${params ? `?${new URLSearchParams(params).toString()}` : ''}`;
+    
+    // Check if caching is disabled for this request
+    const noCache = config.noCache || false;
+    const cacheDuration = config.cacheDuration || CACHE_DURATION.MEDIUM;
+    
+    if (noCache) {
+      // Bypass cache for this request
     return await api.get(url, { params, ...config });
+    }
+    
+    // Use deduplication and caching
+    return deduplicateRequest(cacheKey, async () => {
+      const response = await api.get(url, { params, ...config });
+      // Cache successful responses
+      if (response && response.data) {
+        setCachedData(cacheKey, response, cacheDuration);
+      }
+      return response;
+    });
   },
   delete: async (path, config = {}) => {
     const url = normalizePath(path);
@@ -300,6 +331,8 @@ const Api = {
     marks: (params) => http.get("/buysellapi/shipping-marks/", { params }),
     dashboard: () => http.get("/buysellapi/shipping-dashboard/"),
     rate: () => http.get("/buysellapi/shipping-rates/"),
+    adRate: () => http.get("/buysellapi/ad-shipping-rates/"),
+    adRatesList: () => http.get("/buysellapi/ad-shipping-rates/all/"),
   },
   containers: {
     current: (params) => http.get("/buysellapi/containers/current/", { params }),
@@ -390,6 +423,23 @@ const Api = {
     get: () => http.get("/buysellapi/maintenance-settings/"),
     update: (payload) => http.post("/buysellapi/maintenance-settings/", payload),
   },
+  localAgent: {
+    settings: {
+      get: () => http.get("/buysellapi/local-agent-settings/"),
+      update: (payload) => http.post("/buysellapi/local-agent-settings/", payload),
+    },
+    dashboard: () => http.get("/buysellapi/local-agent/dashboard/"),
+    claimReward: () => http.post("/buysellapi/local-agent/rewards/claim/"),
+    adminClaims: (params, config = {}) =>
+      http.get("/buysellapi/admin/local-agent-reward-claims/", {
+        params,
+        ...config,
+      }),
+    adminApproveClaim: (claimId) =>
+      http.post(`/buysellapi/admin/local-agent-reward-claims/${claimId}/approve/`),
+    adminRejectClaim: (claimId) =>
+      http.post(`/buysellapi/admin/local-agent-reward-claims/${claimId}/reject/`),
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -397,6 +447,10 @@ const Api = {
 // ---------------------------------------------------------------------------
 export default api;
 export { Api, http };
+
+// Export cache utilities for manual cache management
+export { clearCache, invalidateCache, getCachedData, setCachedData, CACHE_DURATION } from './utils/apiCache';
+export { storageCache } from './utils/storageCache';
 
 
 export const getProducts = Api.products.list;
@@ -479,6 +533,12 @@ export const markAllLiveChatRead = Api.liveChat.markAllRead;
 export const endLiveChatSession = Api.liveChat.endSession;
 export const getMaintenanceSettings = Api.maintenance.get;
 export const updateMaintenanceSettings = Api.maintenance.update;
+export const getLocalAgentSettings = Api.localAgent.settings.get;
+export const updateLocalAgentSettings = Api.localAgent.settings.update;
+export const claimLocalAgentRewards = Api.localAgent.claimReward;
+export const getLocalAgentRewardClaims = Api.localAgent.adminClaims;
+export const approveLocalAgentRewardClaim = Api.localAgent.adminApproveClaim;
+export const rejectLocalAgentRewardClaim = Api.localAgent.adminRejectClaim;
 
 export const testConnection = async () => {
   try {

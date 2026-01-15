@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import { FaCheckCircle, FaTimesCircle, FaHourglassHalf, FaDownload, FaPrint, FaEnvelope, FaSpinner } from 'react-icons/fa';
 import { format } from 'date-fns';
 import LogoPlaceholder from '../assets/buysellogo.png';
@@ -6,7 +6,7 @@ import API from '../api';
 import { toast } from '../utils/toast';
 import ConfirmModal from './shared/ConfirmModal';
 
-const Invoice = ({ invoice, request, printable = false, invoiceId, customerEmail, onEmailSent }) => {
+const Invoice = memo(({ invoice, request, printable = false, invoiceId, customerEmail, onEmailSent }) => {
   const [sendingEmail, setSendingEmail] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
   if (!invoice) return null;
@@ -446,6 +446,16 @@ const Invoice = ({ invoice, request, printable = false, invoiceId, customerEmail
       />
     </div>
   );
-};
+}, (prevProps, nextProps) => {
+  // Only re-render if these props change
+  return (
+    prevProps.invoice?.id === nextProps.invoice?.id &&
+    prevProps.invoice?.status === nextProps.invoice?.status &&
+    prevProps.printable === nextProps.printable &&
+    prevProps.invoiceId === nextProps.invoiceId
+  );
+});
+
+Invoice.displayName = 'Invoice';
 
 export default Invoice; 

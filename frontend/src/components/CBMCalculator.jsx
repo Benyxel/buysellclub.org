@@ -15,7 +15,7 @@ const CBMCalculator = () => {
   useEffect(() => {
     const fetchRates = async () => {
       try {
-        const resp = await API.get("/buysellapi/shipping-rates/");
+        const resp = await API.get("/buysellapi/ad-shipping-rates/");
         if (resp?.data) setRates(resp.data);
       } catch (err) {
         // ignore - component will use fallback rates

@@ -16,7 +16,11 @@ import { toast } from "../../utils/toast";
 import API from "../../api";
 import ConfirmModal from "../../components/shared/ConfirmModal";
 
-const AgentRequestsManagement = () => {
+const AgentRequestsManagement = ({
+  agentTypeFilter = null,
+  title = "Agent Requests Management",
+  emptyLabel = "No agent requests found",
+}) => {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
@@ -172,12 +176,16 @@ const AgentRequestsManagement = () => {
     .filter(
       (request) => statusFilter === "all" || request.status === statusFilter
     )
+    .filter((request) =>
+      agentTypeFilter ? request.agentType === agentTypeFilter : true
+    )
     .filter((request) => {
       const searchLower = searchTerm.toLowerCase();
       return (
         (request.userName || "").toLowerCase().includes(searchLower) ||
         (request.userEmail || "").toLowerCase().includes(searchLower) ||
         (request.businessName || "").toLowerCase().includes(searchLower) ||
+        (request.location || "").toLowerCase().includes(searchLower) ||
         getAgentTypeLabel(request.agentType).toLowerCase().includes(searchLower)
       );
     });
@@ -196,7 +204,7 @@ const AgentRequestsManagement = () => {
         <div className="mb-6">
           <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2 flex items-center gap-2">
             <FaUserTag className="text-blue-600" />
-            Agent Requests Management
+            {title}
           </h2>
           <p className="text-gray-600 dark:text-gray-400">
             Review and manage requests from users who want to become agents
@@ -240,7 +248,7 @@ const AgentRequestsManagement = () => {
           <div className="text-center py-12">
             <FaUserTag className="mx-auto text-4xl text-gray-400 mb-4" />
             <p className="text-gray-500 dark:text-gray-400">
-              No agent requests found
+              {emptyLabel}
             </p>
           </div>
         ) : (
@@ -258,7 +266,7 @@ const AgentRequestsManagement = () => {
                     Status
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                    Business Name
+                    {agentTypeFilter === "local" ? "Location" : "Business Name"}
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
                     Created
@@ -302,7 +310,9 @@ const AgentRequestsManagement = () => {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
-                      {request.businessName || "-"}
+                      {request.agentType === "local"
+                        ? request.location || "-"
+                        : request.businessName || "-"}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
                       {request.createdAt
@@ -508,6 +518,25 @@ const AgentRequestsManagement = () => {
                           </div>
                         </div>
                       )}
+                    </div>
+                  )}
+
+                  {/* Local Agent Specific Fields */}
+                  {selectedRequest.agentType === "local" && (
+                    <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                      <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-3">
+                        Local Agent Information
+                      </h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Location
+                          </label>
+                          <p className="mt-1 text-sm text-gray-900 dark:text-white">
+                            {selectedRequest.location || "-"}
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   )}
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { usePersistedPagination } from "../../hooks/usePersistedPagination";
 import {
   FaTruck,
   FaCopy,
@@ -26,9 +27,16 @@ const AgentShippingMarksManagement = () => {
     direction: "desc",
   });
 
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(20);
+  // Pagination state - persisted across refreshes
+  const [currentPage, setCurrentPage] = usePersistedPagination('agent-shipping-marks-page', 1);
+  const [itemsPerPage] = useState(() => {
+    try {
+      const saved = localStorage.getItem('agent-shipping-marks-page-size');
+      return saved ? parseInt(saved, 10) : 20;
+    } catch {
+      return 20;
+    }
+  });
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 

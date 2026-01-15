@@ -46,12 +46,14 @@ const PublicInvoice = () => {
   };
 
   const formatCurrency = (amount, currency = "USD") => {
-    if (!amount) return "$0.00";
+    if (!amount) return currency === "GHS" ? "GH₵0" : "$0";
     const num = parseFloat(amount);
+    // Round up to whole number
+    const rounded = Math.ceil(num);
     if (currency === "GHS") {
-      return `GH₵${num.toFixed(2)}`;
+      return `GH₵${rounded}`;
     }
-    return `$${num.toFixed(2)}`;
+    return `$${rounded}`;
   };
 
   const formatDate = (dateString) => {

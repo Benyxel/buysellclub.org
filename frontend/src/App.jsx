@@ -41,6 +41,7 @@ import ProtectedRoute from "./auth/ProtectedRoute.jsx";
 import AdminRoute from "./auth/AdminRoute.jsx";
 import AgentRoute from "./auth/AgentRoute.jsx";
 import AgentDashboard from "./pages/AgentDashboard";
+import LocalAgentDashboard from "./pages/LocalAgentDashboard";
 import TokenDebugger from "./components/TokenDebugger";
 import OrderManagement from "./pages/admin/OrderManagement";
 import UserOrders from "./pages/UserOrders";
@@ -61,7 +62,9 @@ function App() {
   const isAdminRoute = currentPath.startsWith("/admin-dashboard") || 
                        currentPath.startsWith("/admin/") ||
                        currentPath === "/admin-login";
-  const isAgentRoute = currentPath.startsWith("/agent-dashboard");
+  const isAgentRoute =
+    currentPath.startsWith("/agent-dashboard") ||
+    currentPath.startsWith("/local-agent-dashboard");
   const isAuthRoute = currentPath === "/Login" || 
                       currentPath === "/Signup" || 
                       currentPath === "/admin-login";
@@ -136,6 +139,14 @@ function App() {
           element={
             <AgentRoute>
               <AgentDashboard />
+            </AgentRoute>
+          }
+        />
+        <Route
+          path="/local-agent-dashboard"
+          element={
+            <AgentRoute>
+              <LocalAgentDashboard />
             </AgentRoute>
           }
         />

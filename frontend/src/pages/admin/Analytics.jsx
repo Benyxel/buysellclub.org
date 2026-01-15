@@ -31,29 +31,102 @@ const Analytics = ({ activeTab = "overview" }) => {
   const [analytics, setAnalytics] = useState(null);
   const [error, setError] = useState(null);
   const [selectedPeriod, setSelectedPeriod] = useState("all"); // all, daily, monthly, yearly
+  const [alipayPeriod, setAlipayPeriod] = useState("daily");
+  const [buy4mePeriod, setBuy4mePeriod] = useState("daily");
+  const [ordersPeriod, setOrdersPeriod] = useState("daily");
+  const [trainingPeriod, setTrainingPeriod] = useState("daily");
+  const [alipayPage, setAlipayPage] = useState(1);
+  const [buy4mePage, setBuy4mePage] = useState(1);
+  const [ordersPage, setOrdersPage] = useState(1);
+  const [trainingPage, setTrainingPage] = useState(1);
   const [trends, setTrends] = useState(null);
   const [trendsLoading, setTrendsLoading] = useState(true);
   const [trendsError, setTrendsError] = useState(null);
 
   useEffect(() => {
     fetchAnalytics();
-  }, [selectedPeriod]);
+  }, [selectedPeriod, activeTab, buy4mePeriod, ordersPeriod, trainingPeriod]);
+
+  useEffect(() => {
+    setAlipayPage(1);
+  }, [alipayPeriod]);
+
+  useEffect(() => {
+    setBuy4mePage(1);
+  }, [buy4mePeriod]);
+
+  useEffect(() => {
+    setOrdersPage(1);
+  }, [ordersPeriod]);
+
+  useEffect(() => {
+    setTrainingPage(1);
+  }, [trainingPeriod]);
+
+  const getDateRange = (period) => {
+    if (!period || period === "all") return null;
+    const now = new Date();
+    let startDate = null;
+    switch (period) {
+      case "daily":
+        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        break;
+      case "weekly":
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case "monthly":
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      case "yearly":
+        startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+        break;
+      default:
+        startDate = null;
+    }
+    return startDate ? { startDate, endDate: now } : null;
+  };
+
+  const getOverviewRange = (period) => {
+    if (!period || period === "all") return null;
+    const now = new Date();
+    let startDate = null;
+    if (period === "daily") {
+      startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    } else if (period === "monthly") {
+      startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+    }
+    return startDate ? { startDate, endDate: now } : null;
+  };
 
   const fetchAnalytics = async () => {
     setLoading(true);
     setError(null);
     try {
       const params = {};
-      if (selectedPeriod !== "all") {
-        const now = new Date();
-        if (selectedPeriod === "daily") {
-          const startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-          params.start_date = startDate.toISOString();
-        } else if (selectedPeriod === "monthly") {
-          const startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
-          params.start_date = startDate.toISOString();
+      if (activeTab === "buy4me") {
+        const range = getDateRange(buy4mePeriod);
+        if (range) {
+          params.start_date = range.startDate.toISOString();
+          params.end_date = range.endDate.toISOString();
         }
-        params.end_date = now.toISOString();
+      } else if (activeTab === "orders") {
+        const range = getDateRange(ordersPeriod);
+        if (range) {
+          params.start_date = range.startDate.toISOString();
+          params.end_date = range.endDate.toISOString();
+        }
+      } else if (activeTab === "training") {
+        const range = getDateRange(trainingPeriod);
+        if (range) {
+          params.start_date = range.startDate.toISOString();
+          params.end_date = range.endDate.toISOString();
+        }
+      } else if (activeTab === "overview") {
+        const range = getOverviewRange(selectedPeriod);
+        if (range) {
+          params.start_date = range.startDate.toISOString();
+          params.end_date = range.endDate.toISOString();
+        }
       }
       const response = await getAdminAnalytics(params);
       setAnalytics(response.data);
@@ -64,6 +137,45 @@ const Analytics = ({ activeTab = "overview" }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const pageSize = 5;
+
+  const paginateRows = (rows, page) => {
+    const safeRows = Array.isArray(rows) ? rows : [];
+    const totalPages = Math.max(1, Math.ceil(safeRows.length / pageSize));
+    const clampedPage = Math.min(Math.max(page, 1), totalPages);
+    const start = (clampedPage - 1) * pageSize;
+    return {
+      page: clampedPage,
+      totalPages,
+      rows: safeRows.slice(start, start + pageSize),
+    };
+  };
+
+  const PaginationControls = ({ page, totalPages, onChange }) => {
+    if (totalPages <= 1) return null;
+    return (
+      <div className="mt-3 flex items-center justify-end gap-2 text-sm">
+        <button
+          type="button"
+          onClick={() => onChange(Math.max(1, page - 1))}
+          className="px-3 py-1 rounded-md bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+        >
+          Prev
+        </button>
+        <span className="text-gray-600 dark:text-gray-400">
+          Page {page} of {totalPages}
+        </span>
+        <button
+          type="button"
+          onClick={() => onChange(Math.min(totalPages, page + 1))}
+          className="px-3 py-1 rounded-md bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+        >
+          Next
+        </button>
+      </div>
+    );
   };
 
   const fetchTrends = async () => {
@@ -100,10 +212,10 @@ const Analytics = ({ activeTab = "overview" }) => {
     }).format(amount);
   };
 
-  if (loading) {
+  if (loading && !analytics) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <FaSpinner className="animate-spin text-4xl text-blue-600" />
+      <div className="flex items-center justify-center h-64 text-gray-600 dark:text-gray-400">
+        Loading analytics...
       </div>
     );
   }
@@ -310,6 +422,12 @@ const Analytics = ({ activeTab = "overview" }) => {
               <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                 {formatCurrency(analytics.shipping?.total_to_collect || 0)}
               </p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  ₵{Number(analytics.shipping?.total_to_collect_ghs || 0).toLocaleString("en-US", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </p>
             </div>
             <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
               <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -318,6 +436,12 @@ const Analytics = ({ activeTab = "overview" }) => {
               <p className="text-2xl font-bold text-green-600 dark:text-green-400">
                 {formatCurrency(analytics.shipping?.collected || 0)}
               </p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  ₵{Number(analytics.shipping?.collected_ghs || 0).toLocaleString("en-US", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </p>
             </div>
             <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-4">
               <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -326,6 +450,12 @@ const Analytics = ({ activeTab = "overview" }) => {
               <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
                 {formatCurrency(analytics.shipping?.remaining || 0)}
               </p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  ₵{Number(analytics.shipping?.remaining_ghs || 0).toLocaleString("en-US", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </p>
             </div>
           </div>
 
@@ -347,10 +477,19 @@ const Analytics = ({ activeTab = "overview" }) => {
                           Total Amount
                         </th>
                         <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                          Total (GHS)
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
                           Collected
                         </th>
                         <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                          Collected (GHS)
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
                           Remaining
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                          Remaining (GHS)
                         </th>
                         <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
                           Invoices
@@ -366,11 +505,29 @@ const Analytics = ({ activeTab = "overview" }) => {
                           <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
                             {formatCurrency(container.total_amount)}
                           </td>
+                          <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
+                            ₵{Number(container.total_amount_ghs || 0).toLocaleString("en-US", {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}
+                          </td>
                           <td className="px-4 py-3 text-sm text-right text-green-600 dark:text-green-400">
                             {formatCurrency(container.collected)}
                           </td>
+                          <td className="px-4 py-3 text-sm text-right text-green-600 dark:text-green-400">
+                            ₵{Number(container.collected_ghs || 0).toLocaleString("en-US", {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}
+                          </td>
                           <td className="px-4 py-3 text-sm text-right text-orange-600 dark:text-orange-400">
                             {formatCurrency(container.remaining)}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-right text-orange-600 dark:text-orange-400">
+                            ₵{Number(container.remaining_ghs || 0).toLocaleString("en-US", {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}
                           </td>
                           <td className="px-4 py-3 text-sm text-center text-gray-600 dark:text-gray-400">
                             {container.paid_count}/{container.invoice_count}{" "}
@@ -394,6 +551,49 @@ const Analytics = ({ activeTab = "overview" }) => {
             <h3 className="text-xl font-semibold text-gray-800 dark:text-white">
               Alipay Payments
             </h3>
+          </div>
+
+          <div className="flex flex-wrap gap-2 mb-6">
+            <button
+              onClick={() => setAlipayPeriod("daily")}
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
+                alipayPeriod === "daily"
+                  ? "bg-green-600 text-white"
+                  : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+              }`}
+            >
+              <FaCalendarDay /> Daily
+            </button>
+            <button
+              onClick={() => setAlipayPeriod("weekly")}
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
+                alipayPeriod === "weekly"
+                  ? "bg-green-600 text-white"
+                  : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+              }`}
+            >
+              <FaCalendarWeek /> Weekly
+            </button>
+            <button
+              onClick={() => setAlipayPeriod("monthly")}
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
+                alipayPeriod === "monthly"
+                  ? "bg-green-600 text-white"
+                  : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+              }`}
+            >
+              <FaCalendarAlt /> Monthly
+            </button>
+            <button
+              onClick={() => setAlipayPeriod("yearly")}
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
+                alipayPeriod === "yearly"
+                  ? "bg-green-600 text-white"
+                  : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+              }`}
+            >
+              <FaCalendarAlt /> Yearly
+            </button>
           </div>
 
           {/* Summary */}
@@ -456,14 +656,21 @@ const Analytics = ({ activeTab = "overview" }) => {
             </div>
           )}
 
-          {/* Daily/Monthly/Yearly Breakdown */}
+          {/* Daily/Weekly/Monthly/Yearly Breakdown */}
           <div className="space-y-4">
-            {selectedPeriod === "daily" && analytics.alipay?.daily && (
+            {alipayPeriod === "daily" && analytics.alipay?.daily && (
               <div>
                 <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-3 flex items-center gap-2">
                   <FaCalendarDay /> Daily Payments (Last 30 Days)
                 </h4>
                 <div className="overflow-x-auto">
+                  {(() => {
+                    const { rows, page, totalPages } = paginateRows(
+                      analytics.alipay.daily,
+                      alipayPage
+                    );
+                    return (
+                      <>
                   <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead className="bg-gray-50 dark:bg-gray-700">
                       <tr>
@@ -482,7 +689,7 @@ const Analytics = ({ activeTab = "overview" }) => {
                       </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                      {analytics.alipay.daily.map((item, idx) => (
+                      {rows.map((item, idx) => (
                         <tr key={idx}>
                           <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
                             {new Date(item.date).toLocaleDateString()}
@@ -500,16 +707,92 @@ const Analytics = ({ activeTab = "overview" }) => {
                       ))}
                     </tbody>
                   </table>
+                      <PaginationControls
+                        page={page}
+                        totalPages={totalPages}
+                        onChange={setAlipayPage}
+                      />
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             )}
 
-            {selectedPeriod === "monthly" && analytics.alipay?.monthly && (
+            {alipayPeriod === "weekly" && analytics.alipay?.weekly && (
+              <div>
+                <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-3 flex items-center gap-2">
+                  <FaCalendarWeek /> Weekly Payments (Last 12 Weeks)
+                </h4>
+                <div className="overflow-x-auto">
+                  {(() => {
+                    const { rows, page, totalPages } = paginateRows(
+                      analytics.alipay.weekly,
+                      alipayPage
+                    );
+                    return (
+                      <>
+                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead className="bg-gray-50 dark:bg-gray-700">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                          Week
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                          Count
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                          Revenue (GHS)
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                          Revenue (CNY)
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                      {rows.map((item, idx) => (
+                        <tr key={idx}>
+                          <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                            {new Date(item.week).toLocaleDateString()}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-right text-gray-600 dark:text-gray-400">
+                            {item.count}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
+                            {formatCurrency(item.total_ghs || 0, "GHS")}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
+                            {formatCurrency(item.total_cny || 0, "CNY")}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <PaginationControls
+                    page={page}
+                    totalPages={totalPages}
+                    onChange={setAlipayPage}
+                  />
+                  </>
+                    );
+                  })()}
+                </div>
+              </div>
+            )}
+
+            {alipayPeriod === "monthly" && analytics.alipay?.monthly && (
               <div>
                 <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-3 flex items-center gap-2">
                   <FaCalendarWeek /> Monthly Payments (Last 12 Months)
                 </h4>
                 <div className="overflow-x-auto">
+                  {(() => {
+                    const { rows, page, totalPages } = paginateRows(
+                      analytics.alipay.monthly,
+                      alipayPage
+                    );
+                    return (
+                      <>
                   <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead className="bg-gray-50 dark:bg-gray-700">
                       <tr>
@@ -528,7 +811,7 @@ const Analytics = ({ activeTab = "overview" }) => {
                       </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                      {analytics.alipay.monthly.map((item, idx) => (
+                      {rows.map((item, idx) => (
                         <tr key={idx}>
                           <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
                             {new Date(item.month).toLocaleDateString("en-US", {
@@ -549,16 +832,31 @@ const Analytics = ({ activeTab = "overview" }) => {
                       ))}
                     </tbody>
                   </table>
+                  <PaginationControls
+                    page={page}
+                    totalPages={totalPages}
+                    onChange={setAlipayPage}
+                  />
+                  </>
+                    );
+                  })()}
                 </div>
               </div>
             )}
 
-            {selectedPeriod === "all" && analytics.alipay?.yearly && (
+            {alipayPeriod === "yearly" && analytics.alipay?.yearly && (
               <div>
                 <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-3 flex items-center gap-2">
                   <FaCalendarAlt /> Yearly Payments
                 </h4>
                 <div className="overflow-x-auto">
+                  {(() => {
+                    const { rows, page, totalPages } = paginateRows(
+                      analytics.alipay.yearly,
+                      alipayPage
+                    );
+                    return (
+                      <>
                   <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead className="bg-gray-50 dark:bg-gray-700">
                       <tr>
@@ -577,7 +875,7 @@ const Analytics = ({ activeTab = "overview" }) => {
                       </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                      {analytics.alipay.yearly.map((item, idx) => (
+                      {rows.map((item, idx) => (
                         <tr key={idx}>
                           <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
                             {new Date(item.year).getFullYear()}
@@ -595,6 +893,14 @@ const Analytics = ({ activeTab = "overview" }) => {
                       ))}
                     </tbody>
                   </table>
+                  <PaginationControls
+                    page={page}
+                    totalPages={totalPages}
+                    onChange={setAlipayPage}
+                  />
+                  </>
+                    );
+                  })()}
                 </div>
               </div>
             )}
@@ -610,6 +916,48 @@ const Analytics = ({ activeTab = "overview" }) => {
             <h3 className="text-xl font-semibold text-gray-800 dark:text-white">
               Buy4me Analytics
             </h3>
+          </div>
+          <div className="flex flex-wrap gap-2 mb-6">
+            <button
+              onClick={() => setBuy4mePeriod("daily")}
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
+                buy4mePeriod === "daily"
+                  ? "bg-purple-600 text-white"
+                  : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+              }`}
+            >
+              <FaCalendarDay /> Daily
+            </button>
+            <button
+              onClick={() => setBuy4mePeriod("weekly")}
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
+                buy4mePeriod === "weekly"
+                  ? "bg-purple-600 text-white"
+                  : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+              }`}
+            >
+              <FaCalendarWeek /> Weekly
+            </button>
+            <button
+              onClick={() => setBuy4mePeriod("monthly")}
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
+                buy4mePeriod === "monthly"
+                  ? "bg-purple-600 text-white"
+                  : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+              }`}
+            >
+              <FaCalendarAlt /> Monthly
+            </button>
+            <button
+              onClick={() => setBuy4mePeriod("yearly")}
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
+                buy4mePeriod === "yearly"
+                  ? "bg-purple-600 text-white"
+                  : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+              }`}
+            >
+              <FaCalendarAlt /> Yearly
+            </button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
@@ -658,7 +1006,10 @@ const Analytics = ({ activeTab = "overview" }) => {
                       Total Amount:
                     </span>
                     <span className="font-medium text-gray-900 dark:text-white">
-                      {formatCurrency(analytics.buy4me.invoices.total_amount)}
+                      ₵{Number(analytics.buy4me.invoices.total_amount || 0).toLocaleString("en-US", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -666,7 +1017,10 @@ const Analytics = ({ activeTab = "overview" }) => {
                       Paid:
                     </span>
                     <span className="font-medium text-green-600 dark:text-green-400">
-                      {formatCurrency(analytics.buy4me.invoices.paid_amount)} (
+                      ₵{Number(analytics.buy4me.invoices.paid_amount || 0).toLocaleString("en-US", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })} (
                       {analytics.buy4me.invoices.paid_count})
                     </span>
                   </div>
@@ -675,13 +1029,71 @@ const Analytics = ({ activeTab = "overview" }) => {
                       Pending:
                     </span>
                     <span className="font-medium text-orange-600 dark:text-orange-400">
-                      {formatCurrency(analytics.buy4me.invoices.pending_amount)}
+                      ₵{Number(analytics.buy4me.invoices.pending_amount || 0).toLocaleString("en-US", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
                     </span>
                   </div>
                 </div>
               )}
             </div>
           </div>
+
+          {analytics.buy4me?.time_series && (
+            <div className="mt-6">
+              <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-3">
+                Buy4me Payments
+              </h4>
+              <div className="overflow-x-auto">
+                {(() => {
+                  const { rows, page, totalPages } = paginateRows(
+                    analytics.buy4me.time_series[buy4mePeriod] || [],
+                    buy4mePage
+                  );
+                  return (
+                    <>
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-700">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                        Period
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                        Count
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                        Amount (GHS)
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {rows.map((row, idx) => (
+                      <tr key={idx}>
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                          {new Date(row[buy4mePeriod === "yearly" ? "year" : buy4mePeriod === "monthly" ? "month" : buy4mePeriod === "weekly" ? "week" : "date"]).toLocaleDateString()}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right text-gray-600 dark:text-gray-400">
+                          {row.count}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
+                          ₵{Number(row.total || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <PaginationControls
+                  page={page}
+                  totalPages={totalPages}
+                  onChange={setBuy4mePage}
+                />
+                </>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -693,6 +1105,48 @@ const Analytics = ({ activeTab = "overview" }) => {
             <h3 className="text-xl font-semibold text-gray-800 dark:text-white">
               Shop Orders Analytics
             </h3>
+          </div>
+          <div className="flex flex-wrap gap-2 mb-6">
+            <button
+              onClick={() => setOrdersPeriod("daily")}
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
+                ordersPeriod === "daily"
+                  ? "bg-indigo-600 text-white"
+                  : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+              }`}
+            >
+              <FaCalendarDay /> Daily
+            </button>
+            <button
+              onClick={() => setOrdersPeriod("weekly")}
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
+                ordersPeriod === "weekly"
+                  ? "bg-indigo-600 text-white"
+                  : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+              }`}
+            >
+              <FaCalendarWeek /> Weekly
+            </button>
+            <button
+              onClick={() => setOrdersPeriod("monthly")}
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
+                ordersPeriod === "monthly"
+                  ? "bg-indigo-600 text-white"
+                  : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+              }`}
+            >
+              <FaCalendarAlt /> Monthly
+            </button>
+            <button
+              onClick={() => setOrdersPeriod("yearly")}
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
+                ordersPeriod === "yearly"
+                  ? "bg-indigo-600 text-white"
+                  : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+              }`}
+            >
+              <FaCalendarAlt /> Yearly
+            </button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
@@ -762,10 +1216,65 @@ const Analytics = ({ activeTab = "overview" }) => {
               )}
             </div>
           </div>
+
+          {analytics.orders?.time_series && (
+            <div className="mt-6">
+              <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-3">
+                Orders
+              </h4>
+              <div className="overflow-x-auto">
+                {(() => {
+                  const { rows, page, totalPages } = paginateRows(
+                    analytics.orders.time_series[ordersPeriod] || [],
+                    ordersPage
+                  );
+                  return (
+                    <>
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-700">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                        Period
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                        Count
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                        Revenue (GHS)
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {rows.map((row, idx) => (
+                      <tr key={idx}>
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                          {new Date(row[ordersPeriod === "yearly" ? "year" : ordersPeriod === "monthly" ? "month" : ordersPeriod === "weekly" ? "week" : "date"]).toLocaleDateString()}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right text-gray-600 dark:text-gray-400">
+                          {row.count}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
+                          ₵{Number(row.total || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <PaginationControls
+                  page={page}
+                  totalPages={totalPages}
+                  onChange={setOrdersPage}
+                />
+                </>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Training Analytics (Placeholder) */}
+      {/* Training Analytics */}
       {activeTab === "training" && (
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
           <div className="flex items-center gap-3 mb-4">
@@ -774,10 +1283,202 @@ const Analytics = ({ activeTab = "overview" }) => {
               Training Analytics
             </h3>
           </div>
-          <p className="text-gray-600 dark:text-gray-400">
-            {analytics.training?.message ||
-              "Training analytics will be available soon"}
-          </p>
+
+          <div className="flex flex-wrap gap-2 mb-6">
+            <button
+              onClick={() => setTrainingPeriod("daily")}
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
+                trainingPeriod === "daily"
+                  ? "bg-yellow-600 text-white"
+                  : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+              }`}
+            >
+              <FaCalendarDay /> Daily
+            </button>
+            <button
+              onClick={() => setTrainingPeriod("weekly")}
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
+                trainingPeriod === "weekly"
+                  ? "bg-yellow-600 text-white"
+                  : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+              }`}
+            >
+              <FaCalendarWeek /> Weekly
+            </button>
+            <button
+              onClick={() => setTrainingPeriod("monthly")}
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
+                trainingPeriod === "monthly"
+                  ? "bg-yellow-600 text-white"
+                  : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+              }`}
+            >
+              <FaCalendarAlt /> Monthly
+            </button>
+            <button
+              onClick={() => setTrainingPeriod("yearly")}
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
+                trainingPeriod === "yearly"
+                  ? "bg-yellow-600 text-white"
+                  : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+              }`}
+            >
+              <FaCalendarAlt /> Yearly
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Total Bookings
+              </p>
+              <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
+                {analytics.training?.total_bookings || 0}
+              </p>
+            </div>
+            <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Paid Bookings
+              </p>
+              <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                {analytics.training?.revenue?.paid_count || 0}
+              </p>
+            </div>
+            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Total Revenue (GHS)
+              </p>
+              <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                {formatCurrency(analytics.training?.revenue?.total || 0, "GHS")}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                Booking Status Breakdown
+              </p>
+              {analytics.training?.status_breakdown ? (
+                <div className="space-y-2">
+                  {Object.entries(analytics.training.status_breakdown).map(
+                    ([status, count]) => (
+                      <div
+                        key={status}
+                        className="flex justify-between text-sm"
+                      >
+                        <span className="text-gray-600 dark:text-gray-400 capitalize">
+                          {status}:
+                        </span>
+                        <span className="font-medium text-gray-900 dark:text-white">
+                          {count}
+                        </span>
+                      </div>
+                    )
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  No booking status data available.
+                </p>
+              )}
+            </div>
+
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                Payment Status Breakdown
+              </p>
+              {analytics.training?.payment_status_breakdown ? (
+                <div className="space-y-2">
+                  {Object.entries(analytics.training.payment_status_breakdown).map(
+                    ([status, count]) => (
+                      <div
+                        key={status}
+                        className="flex justify-between text-sm"
+                      >
+                        <span className="text-gray-600 dark:text-gray-400 capitalize">
+                          {status}:
+                        </span>
+                        <span className="font-medium text-gray-900 dark:text-white">
+                          {count}
+                        </span>
+                      </div>
+                    )
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  No payment status data available.
+                </p>
+              )}
+              <div className="mt-4 flex justify-between text-sm">
+                <span className="text-gray-600 dark:text-gray-400">
+                  Pending Amount:
+                </span>
+                <span className="font-medium text-orange-600 dark:text-orange-400">
+                  {formatCurrency(
+                    analytics.training?.revenue?.pending_amount || 0,
+                    "GHS"
+                  )}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {analytics.training?.time_series && (
+            <div className="mt-6">
+              <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-3">
+                Training Bookings
+              </h4>
+              <div className="overflow-x-auto">
+                {(() => {
+                  const { rows, page, totalPages } = paginateRows(
+                    analytics.training.time_series[trainingPeriod] || [],
+                    trainingPage
+                  );
+                  return (
+                    <>
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-700">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                        Period
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                        Count
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                        Revenue (GHS)
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {rows.map((row, idx) => (
+                      <tr key={idx}>
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                          {new Date(row[trainingPeriod === "yearly" ? "year" : trainingPeriod === "monthly" ? "month" : trainingPeriod === "weekly" ? "week" : "date"]).toLocaleDateString()}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right text-gray-600 dark:text-gray-400">
+                          {row.count}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
+                          ₵{Number(row.total || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <PaginationControls
+                  page={page}
+                  totalPages={totalPages}
+                  onChange={setTrainingPage}
+                />
+                </>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -44,7 +44,7 @@ const TrackingSearch = () => {
 
   const fetchActiveRates = async () => {
     try {
-      const resp = await API.get("/buysellapi/shipping-rates/");
+      const resp = await API.get("/buysellapi/ad-shipping-rates/");
       if (resp?.data) {
         setActiveRates(resp.data);
         return resp.data;
@@ -58,9 +58,16 @@ const TrackingSearch = () => {
 
   const fetchContainers = async () => {
     try {
-      const resp = await API.get("/buysellapi/containers/public/");
+      // For Track Your Shipment, get all containers except completed
+      const resp = await API.get("/buysellapi/containers/public/", {
+        params: { for_tracking: true }
+      });
       if (resp?.data && Array.isArray(resp.data)) {
-        setContainers(resp.data);
+        // Filter out completed containers (backend should already exclude, but double-check)
+        const filteredContainers = resp.data.filter(
+          container => container.status !== "completed"
+        );
+        setContainers(filteredContainers);
       }
     } catch (e) {
       console.error("Error fetching containers:", e);
@@ -148,6 +155,8 @@ const TrackingSearch = () => {
           eta: backendData.eta || null,
           action: backendData.action || null,
           containerNumber: backendData.container_number || null,
+          containerStatus: backendData.container_status || null,
+          containerEta: backendData.container_eta || null,
           statusHistory: [
             {
               status: statusLabel,
@@ -403,6 +412,9 @@ const TrackingSearch = () => {
                 <p className="text-gray-600 dark:text-gray-400 text-sm">
                   Mark ID: <span className="font-semibold">{markContainerResult.mark_id}</span> | Container: <span className="font-semibold">{markContainerResult.container.container_number}</span>
                 </p>
+                <p className="text-gray-600 dark:text-gray-400 text-sm">
+                  Status: <span className="font-semibold">{markContainerResult.container.status || "N/A"}</span> | ETA: <span className="font-semibold">{markContainerResult.container.eta ? new Date(markContainerResult.container.eta).toLocaleDateString() : "N/A"}</span>
+                </p>
               </div>
             </div>
 
@@ -434,6 +446,9 @@ const TrackingSearch = () => {
                 </div>
                 <p className="text-3xl font-bold text-green-600 dark:text-green-400">
                   ${markContainerResult.summary.total_shipping_fee_usd}
+                </p>
+                <p className="mt-2 text-xs text-gray-600 dark:text-gray-400">
+                  Note: The shipping fee will increase if any package is flagged as special goods.
                 </p>
               </div>
             </div>
@@ -572,6 +587,9 @@ const TrackingSearch = () => {
                     <p className="font-medium text-green-600 dark:text-green-400 text-lg">
                       ${parseFloat(trackingResult.shippingFee).toFixed(2)}
                     </p>
+                    <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
+                      Note: The shipping fee will increase if any package is flagged as special goods.
+                    </p>
                   </div>
                 </div>
               )}
@@ -642,6 +660,12 @@ const TrackingSearch = () => {
                     </h4>
                     <p className="font-medium text-cyan-600 dark:text-cyan-400">
                       {trackingResult.containerNumber}
+                    </p>
+                    <p className="text-gray-700 dark:text-gray-300 text-sm">
+                      Status: {trackingResult.containerStatus || "N/A"}
+                    </p>
+                    <p className="text-gray-700 dark:text-gray-300 text-sm">
+                      ETA: {trackingResult.containerEta ? new Date(trackingResult.containerEta).toLocaleDateString() : "N/A"}
                     </p>
                   </div>
                 </div>

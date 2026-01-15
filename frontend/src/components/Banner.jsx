@@ -38,9 +38,14 @@ const Banner = ({ data }) => {
               <p className="uppercase tracking-[0.3em] text-xs text-white/70">
                 {rateLabel}
               </p>
-              <p className="text-4xl sm:text-5xl font-black tracking-tight">
+              <p className="text-3xl sm:text-4xl font-black tracking-tight">
                 {data.rate}
               </p>
+              {data.rateSecondary && (
+                <p className="text-lg sm:text-xl font-semibold text-white/85 mt-2">
+                  {data.rateSecondary}
+                </p>
+              )}
               <p className="text-white/70 text-sm">{data.date}</p>
             </div>
             {/* badge removed from rate column; positioned over product image instead */}

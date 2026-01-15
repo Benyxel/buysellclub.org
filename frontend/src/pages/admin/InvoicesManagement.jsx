@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import API from "../../api";
 import { toast } from "../../utils/toast";
+import { FaTrash, FaTimes } from "react-icons/fa";
 
 const statusOptions = [
   { value: "", label: "All" },
@@ -37,6 +38,29 @@ export default function InvoicesManagement() {
   const [newRate, setNewRate] = useState("");
   const [rateNotes, setRateNotes] = useState("");
   const [updatingRate, setUpdatingRate] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingInvoice, setDeletingInvoice] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createFormData, setCreateFormData] = useState({
+    shipping_mark: "",
+    container_id: "",
+    total_cbm: 0,
+    customer_name: "",
+    customer_email: "",
+    total_amount: 0,
+    status: "pending",
+    issue_date: "",
+    due_date: "",
+    payment_method: "",
+    payment_reference: "",
+    notes: "",
+  });
+  const [creating, setCreating] = useState(false);
+  const [containers, setContainers] = useState([]);
+  const [loadingContainers, setLoadingContainers] = useState(false);
+  const [loadingMarkInfo, setLoadingMarkInfo] = useState(false);
+  const markInfoTimeoutRef = useRef(null);
 
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(total / pageSize)),
@@ -100,10 +124,14 @@ export default function InvoicesManagement() {
     if (!invoiceDetails) return;
     setResending(true);
     try {
-      await API.post("/buysellapi/invoices/send/", {
-        mark_id: invoiceDetails.shipping_mark,
-        container_id: invoiceDetails.container,
-      });
+      // Use invoice_id if available, otherwise use mark_id and container_id
+      const payload = invoiceDetails.id
+        ? { invoice_id: invoiceDetails.id }
+        : {
+            mark_id: invoiceDetails.shipping_mark,
+            container_id: invoiceDetails.container,
+          };
+      await API.post("/buysellapi/invoices/send/", payload);
       toast.success("Invoice email resent successfully");
     } catch (err) {
       console.error("Failed to resend invoice", err);
@@ -128,6 +156,100 @@ export default function InvoicesManagement() {
     } catch (err) {
       console.error("Failed to update status", err);
       toast.error(err.response?.data?.detail || "Failed to update status");
+    }
+  };
+
+
+  const handleDeleteClick = (invoice) => {
+    setDeletingInvoice(invoice);
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingInvoice) return;
+    setDeleting(true);
+    try {
+      const response = await API.delete(`/buysellapi/invoices/${deletingInvoice.id}/`);
+      console.log("Invoice delete response:", response);
+      toast.success(`Invoice ${deletingInvoice.invoice_number} deleted successfully`);
+      setShowDeleteModal(false);
+      setDeletingInvoice(null);
+      fetchInvoices();
+    } catch (err) {
+      console.error("Failed to delete invoice", err);
+      console.error("Error details:", err.response?.data);
+      toast.error(
+        err.response?.data?.detail || 
+        err.response?.data?.error || 
+        err.message || 
+        "Failed to delete invoice"
+      );
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleCreateInvoice = async () => {
+    if (!createFormData.shipping_mark || !createFormData.total_amount) {
+      toast.error("Shipping Mark and Total Amount are required");
+      return;
+    }
+
+    setCreating(true);
+    try {
+      // Fetch current exchange rate
+      const rateResp = await API.get("/buysellapi/currency-rate/");
+      const exchangeRate = rateResp.data?.usd_to_ghs || 12.0;
+      const totalAmountGhs = Math.ceil(parseFloat(createFormData.total_amount) * parseFloat(exchangeRate));
+
+      const payload = {
+        shipping_mark: createFormData.shipping_mark,
+        container_id: createFormData.container_id || null,
+        total_cbm: parseFloat(createFormData.total_cbm) || 0,
+        customer_name: createFormData.customer_name || "",
+        customer_email: createFormData.customer_email || "",
+        subtotal: parseFloat(createFormData.total_amount),
+        tax_amount: 0,
+        discount_amount: 0,
+        total_amount: parseFloat(createFormData.total_amount),
+        exchange_rate: exchangeRate,
+        total_amount_ghs: totalAmountGhs,
+        status: createFormData.status || "pending",
+        issue_date: createFormData.issue_date || new Date().toISOString().split('T')[0],
+        due_date: createFormData.due_date || "",
+        payment_method: createFormData.payment_method || "",
+        payment_reference: createFormData.payment_reference || "",
+        notes: createFormData.notes || "",
+      };
+
+      const response = await API.post("/buysellapi/invoices/", payload);
+      toast.success(`Invoice ${response.data?.invoice_number || 'created'} created successfully`);
+      setShowCreateModal(false);
+      setCreateFormData({
+        shipping_mark: "",
+        container_id: "",
+        total_cbm: 0,
+        customer_name: "",
+        customer_email: "",
+        total_amount: 0,
+        status: "pending",
+        issue_date: "",
+        due_date: "",
+        payment_method: "",
+        payment_reference: "",
+        notes: "",
+      });
+      fetchInvoices();
+    } catch (err) {
+      console.error("Failed to create invoice", err);
+      toast.error(
+        err.response?.data?.detail || 
+        err.response?.data?.error || 
+        err.message || 
+        "Failed to create invoice"
+      );
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -166,8 +288,60 @@ export default function InvoicesManagement() {
     }
   };
 
+  const fetchMarkInfo = async (markId) => {
+    if (!markId || markId.trim() === "") {
+      // Clear customer info if mark is cleared
+      setCreateFormData((prev) => ({
+        ...prev,
+        customer_name: "",
+        customer_email: "",
+      }));
+      return;
+    }
+
+    setLoadingMarkInfo(true);
+    try {
+      const response = await API.get(`/buysellapi/users/by-mark/${markId.trim()}/`);
+      if (response.data) {
+        setCreateFormData((prev) => ({
+          ...prev,
+          customer_name: response.data.full_name || "",
+          customer_email: response.data.email || "",
+        }));
+      }
+    } catch (err) {
+      console.error("Failed to fetch mark info", err);
+      // Don't show error toast - just clear the fields if mark not found
+      setCreateFormData((prev) => ({
+        ...prev,
+        customer_name: "",
+        customer_email: "",
+      }));
+    } finally {
+      setLoadingMarkInfo(false);
+    }
+  };
+
+  const fetchContainers = async () => {
+    setLoadingContainers(true);
+    try {
+      // Fetch ALL containers without any filtering (same as container page)
+      const response = await API.get("/buysellapi/containers/public/", {
+        params: { all: true }
+      });
+      const allContainers = response.data || [];
+      setContainers(allContainers);
+    } catch (err) {
+      console.error("Failed to fetch containers", err);
+      toast.error("Failed to load containers");
+    } finally {
+      setLoadingContainers(false);
+    }
+  };
+
   useEffect(() => {
     fetchCurrentRate();
+    fetchContainers();
   }, []);
 
   return (
@@ -187,6 +361,12 @@ export default function InvoicesManagement() {
               </div>
             </div>
           )}
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
+          >
+            Create Invoice
+          </button>
           <button
             onClick={() => setShowRateModal(true)}
             className="px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 text-sm font-medium"
@@ -280,22 +460,13 @@ export default function InvoicesManagement() {
                 Subtotal
               </th>
               <th className="px-6 py-3 text-right text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wider">
-                Tax
-              </th>
-              <th className="px-6 py-3 text-right text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wider">
-                Discount
-              </th>
-              <th className="px-6 py-3 text-right text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wider">
                 Total (USD/GHS)
               </th>
               <th className="px-6 py-3 text-left text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wider">
                 Issue Date
               </th>
-              <th className="px-6 py-3 text-left text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wider">
-                Due Date
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wider">
-                Updated
+              <th className="px-6 py-3 text-center text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wider">
+                Actions
               </th>
             </tr>
           </thead>
@@ -303,7 +474,7 @@ export default function InvoicesManagement() {
             {loading ? (
               <tr>
                 <td
-                  colSpan={11}
+                  colSpan={8}
                   className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400"
                 >
                   Loading...
@@ -312,7 +483,7 @@ export default function InvoicesManagement() {
             ) : invoices.length === 0 ? (
               <tr>
                 <td
-                  colSpan={11}
+                  colSpan={8}
                   className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400"
                 >
                   No invoices found
@@ -322,8 +493,7 @@ export default function InvoicesManagement() {
               invoices.map((inv) => (
                 <tr
                   key={inv.id}
-                  onClick={() => handleViewDetails(inv.id)}
-                  className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 dark:hover:from-gray-700 dark:hover:to-gray-600 transition-all duration-200 border-l-4 border-transparent hover:border-indigo-500"
+                  className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 dark:hover:from-gray-700 dark:hover:to-gray-600 transition-all duration-200 border-l-4 border-transparent hover:border-indigo-500"
                 >
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 px-2 py-1 rounded">
@@ -331,7 +501,7 @@ export default function InvoicesManagement() {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-white font-medium">
-                    {inv.container_number || inv.container}
+                    {inv.container_number || inv.container?.container_number || inv.container || "-"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="text-sm font-medium text-purple-600 dark:text-purple-400">
@@ -358,12 +528,6 @@ export default function InvoicesManagement() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-blue-600 dark:text-blue-400 font-medium">
                     ${Number(inv.subtotal || 0).toFixed(2)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-orange-600 dark:text-orange-400 font-medium">
-                    ${Number(inv.tax_amount || 0).toFixed(2)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-green-600 dark:text-green-400 font-medium">
-                    ${Number(inv.discount_amount || 0).toFixed(2)}
-                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
                     <div className="font-bold text-indigo-700 dark:text-indigo-400">
                       ${Number(inv.total_amount || 0).toFixed(2)}
@@ -377,13 +541,29 @@ export default function InvoicesManagement() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-white">
                     {inv.issue_date || "-"}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-white">
-                    {inv.due_date || "-"}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-white">
-                    {inv.updated_at
-                      ? new Date(inv.updated_at).toLocaleString()
-                      : "-"}
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteClick(inv);
+                        }}
+                        className="text-red-600 hover:text-red-800 dark:text-red-400 p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                        title="Delete Invoice"
+                      >
+                        <FaTrash />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleViewDetails(inv.id);
+                        }}
+                        className="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 p-2 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded"
+                        title="View Details"
+                      >
+                        View
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -788,6 +968,370 @@ export default function InvoicesManagement() {
                     setShowRateModal(false);
                     setNewRate("");
                     setRateNotes("");
+                  }}
+                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Invoice Modal */}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && deletingInvoice && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+                Delete Invoice
+              </h2>
+              <p className="text-gray-700 dark:text-gray-300 mb-6">
+                Are you sure you want to delete invoice{" "}
+                <span className="font-semibold">{deletingInvoice.invoice_number}</span>?
+                This action cannot be undone.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={handleConfirmDelete}
+                  disabled={deleting}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                >
+                  {deleting ? "Deleting..." : "Delete"}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setDeletingInvoice(null);
+                  }}
+                  disabled={deleting}
+                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Invoice Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                  Create New Invoice
+                </h2>
+                <button
+                  onClick={() => {
+                    setShowCreateModal(false);
+                    setCreateFormData({
+                      shipping_mark: "",
+                      container_id: "",
+                      total_cbm: 0,
+                      customer_name: "",
+                      customer_email: "",
+                      total_amount: 0,
+                      status: "pending",
+                      issue_date: "",
+                      due_date: "",
+                      payment_method: "",
+                      payment_reference: "",
+                      notes: "",
+                    });
+                  }}
+                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                >
+                  <FaTimes size={24} />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Shipping Mark <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={createFormData.shipping_mark}
+                    onChange={(e) => {
+                      const markId = e.target.value;
+                      setCreateFormData({ ...createFormData, shipping_mark: markId });
+                      
+                      // Clear previous timeout
+                      if (markInfoTimeoutRef.current) {
+                        clearTimeout(markInfoTimeoutRef.current);
+                      }
+                      
+                      // Auto-populate customer info when mark ID changes (debounced)
+                      if (markId.trim()) {
+                        markInfoTimeoutRef.current = setTimeout(() => {
+                          fetchMarkInfo(markId);
+                        }, 500);
+                      } else {
+                        setCreateFormData((prev) => ({
+                          ...prev,
+                          customer_name: "",
+                          customer_email: "",
+                        }));
+                      }
+                    }}
+                    onBlur={(e) => {
+                      // Also fetch on blur if not already loading
+                      if (e.target.value.trim() && !loadingMarkInfo) {
+                        fetchMarkInfo(e.target.value);
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    placeholder="Enter shipping mark ID"
+                    required
+                  />
+                  {loadingMarkInfo && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Loading customer info...
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Container
+                  </label>
+                  <select
+                    value={createFormData.container_id}
+                    onChange={(e) =>
+                      setCreateFormData({ ...createFormData, container_id: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    disabled={loadingContainers}
+                  >
+                    <option value="">Select Container (Optional)</option>
+                    {containers.map((container) => (
+                      <option key={container.id} value={container.id}>
+                        {container.container_number}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Total CBM
+                  </label>
+                  <input
+                    type="number"
+                    step="0.001"
+                    value={createFormData.total_cbm}
+                    onChange={(e) =>
+                      setCreateFormData({ ...createFormData, total_cbm: parseFloat(e.target.value) || 0 })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    placeholder="0.000"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Status
+                </label>
+                <select
+                  value={createFormData.status}
+                  onChange={(e) =>
+                    setCreateFormData({ ...createFormData, status: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                >
+                  {statusOptions
+                    .filter((opt) => opt.value !== "")
+                    .map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Customer Name
+                  </label>
+                  <input
+                    type="text"
+                    value={createFormData.customer_name}
+                    onChange={(e) =>
+                      setCreateFormData({ ...createFormData, customer_name: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Customer Email
+                  </label>
+                  <input
+                    type="email"
+                    value={createFormData.customer_email}
+                    onChange={(e) =>
+                      setCreateFormData({ ...createFormData, customer_email: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Total Amount (USD) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={createFormData.total_amount}
+                    onChange={(e) => {
+                      const totalAmount = parseFloat(e.target.value) || 0;
+                      setCreateFormData({ ...createFormData, total_amount: totalAmount });
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Exchange Rate (1 USD = ? GHS)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    value={currentRate?.usd_to_ghs || ""}
+                    readOnly
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              {createFormData.total_amount > 0 && currentRate && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Total Amount (GHS)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={Math.ceil(createFormData.total_amount * parseFloat(currentRate.usd_to_ghs))}
+                    readOnly
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 font-semibold"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Automatically calculated using current exchange rate
+                  </p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Issue Date
+                  </label>
+                  <input
+                    type="date"
+                    value={createFormData.issue_date}
+                    onChange={(e) =>
+                      setCreateFormData({ ...createFormData, issue_date: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Due Date
+                  </label>
+                  <input
+                    type="date"
+                    value={createFormData.due_date}
+                    onChange={(e) =>
+                      setCreateFormData({ ...createFormData, due_date: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Payment Method
+                  </label>
+                  <input
+                    type="text"
+                    value={createFormData.payment_method}
+                    onChange={(e) =>
+                      setCreateFormData({ ...createFormData, payment_method: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Payment Reference
+                  </label>
+                  <input
+                    type="text"
+                    value={createFormData.payment_reference}
+                    onChange={(e) =>
+                      setCreateFormData({ ...createFormData, payment_reference: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Notes
+                </label>
+                <textarea
+                  value={createFormData.notes}
+                  onChange={(e) =>
+                    setCreateFormData({ ...createFormData, notes: e.target.value })
+                  }
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none"
+                />
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={handleCreateInvoice}
+                  disabled={creating || !createFormData.shipping_mark || !createFormData.total_amount}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                >
+                  {creating ? "Creating..." : "Create Invoice"}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowCreateModal(false);
+                    setCreateFormData({
+                      shipping_mark: "",
+                      container_id: "",
+                      total_cbm: 0,
+                      customer_name: "",
+                      customer_email: "",
+                      total_amount: 0,
+                      status: "pending",
+                      issue_date: "",
+                      due_date: "",
+                      payment_method: "",
+                      payment_reference: "",
+                      notes: "",
+                    });
                   }}
                   className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
                 >

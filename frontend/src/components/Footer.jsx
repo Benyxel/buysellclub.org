@@ -18,8 +18,8 @@ const Footer = () => {
       <div className="container mx-auto px-4 py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* Company Info */}
-          <div className="space-y-4">
-            <Link to="/" className="inline-block">
+          <div className="space-y-4 text-center md:text-left">
+            <Link to="/" className="inline-block mx-auto md:mx-0">
               {/* Light mode logo */}
               <img
                 src={buysellogod}
@@ -37,7 +37,7 @@ const Footer = () => {
               Your one-stop destination for quality products and exceptional
               service. We bring the best products to your doorstep.
             </p>
-            <div className="flex space-x-4">
+            <div className="flex justify-center md:justify-start space-x-4">
               <a
                 href="#"
                 className="text-gray-400 hover:text-primary transition-colors"
@@ -66,7 +66,7 @@ const Footer = () => {
           </div>
 
           {/* Quick Links */}
-          <div>
+          <div className="text-center md:text-left">
             <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
               Quick Links
             </h3>
@@ -81,10 +81,26 @@ const Footer = () => {
               </li>
               <li>
                 <Link
+                  to="/Signup"
+                  className="text-gray-600 dark:text-gray-400 hover:text-primary transition-colors"
+                >
+                  Sign Up
+                </Link>
+              </li>
+              <li>
+                <Link
                   to="/Services"
                   className="text-gray-600 dark:text-gray-400 hover:text-primary transition-colors"
                 >
                   Services
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/tracking"
+                  className="text-gray-600 dark:text-gray-400 hover:text-primary transition-colors"
+                >
+                  Tracking
                 </Link>
               </li>
               <li>
@@ -115,7 +131,7 @@ const Footer = () => {
           </div>
 
           {/* Customer Service */}
-          <div>
+          <div className="text-center md:text-left">
             <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
               Customer Service
             </h3>
@@ -156,16 +172,28 @@ const Footer = () => {
           </div>
 
           {/* Contact Info */}
-          <div>
+          <div className="text-center md:text-left">
             <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
               Contact Us
             </h3>
             <ul className="space-y-3">
-              <li className="flex items-start gap-3 text-gray-600 dark:text-gray-400">
+              <li className="flex items-start justify-center md:justify-start gap-2 text-gray-600 dark:text-gray-400">
                 <FaPhone className="w-5 h-5 mt-1 text-primary" />
-                <span>+233 53 537 7248/ +233 54 026 6839</span>
+                <a
+                  href="tel:+233535377248"
+                  className="hover:text-primary transition-colors"
+                >
+                  +233 53 537 7248
+                </a>
+                <span>/</span>
+                <a
+                  href="tel:+233540266839"
+                  className="hover:text-primary transition-colors"
+                >
+                  +233 54 026 6839
+                </a>
               </li>
-              <li className="flex items-start gap-3 text-gray-600 dark:text-gray-400">
+              <li className="flex items-start justify-center md:justify-start gap-3 text-gray-600 dark:text-gray-400">
                 <FaEnvelope className="w-5 h-5 mt-1 text-primary" />
                 <a 
                   href="mailto:support@buysellclub.org" 
@@ -174,9 +202,9 @@ const Footer = () => {
                   support@buysellclub.org
                 </a>
               </li>
-              <li className="flex items-start gap-3 text-gray-600 dark:text-gray-400">
-                <FaMapMarkerAlt className="w-5 h-5 mt-1 text-primary" />
-                <span>
+              <li className="flex items-start justify-center md:justify-start gap-1 text-gray-600 dark:text-gray-400">
+                <FaMapMarkerAlt className="w-5 h-5 mt-1 text-primary flex-shrink-0" />
+                <span className="text-center md:text-left max-w-[220px] md:max-w-none">
                   FOFOOFO GROUP, Israel Palm-plaza, Okropom Street(Pazzy's
                   Villa), Accra{" "}
                 </span>
