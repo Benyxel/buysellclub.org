@@ -396,6 +396,9 @@ const AdminDashboard = () => {
 cd D:\Companyprojects\buysellclubproject\frontend
 pwd
 ls
+git statuscd D:\Companyprojects\buysellclubproject\frontend
+pwd
+ls
 git status
   // Persist activeSection to localStorage and URL
   useEffect(() => {
