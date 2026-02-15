@@ -129,3 +129,4 @@ const Banner = ({ data }) => {
 };
 
 export default Banner;
+

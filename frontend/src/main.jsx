@@ -21,6 +21,7 @@ import ShopContextProvider from "./context/ShopContext";
   }
 })();
 
+
 // Determine base path for the router.
 // - In production builds (GitHub Pages) we use `VITE_BASE_PATH` or fallback
 //   to '/buysellclubproject'.
@@ -101,9 +102,9 @@ try {
   }
 }
 
-// Register service worker if supported. The service worker file is placed in
-// the Vite `public/` folder so it will be copied to the site root on build.
-if ("serviceWorker" in navigator) {
+// Register service worker in production only.
+// The service worker file is placed in the Vite `public/` folder so it will be copied to the site root on build.
+if (!import.meta.env.DEV && "serviceWorker" in navigator) {
   try {
     const base = (
       import.meta.env.VITE_BASE_PATH || "/"

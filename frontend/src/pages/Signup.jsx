@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { toast } from "../utils/toast";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import { FcGoogle } from "react-icons/fc";
@@ -7,6 +7,8 @@ import API from "../api";
 
 const Signup = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const redirectTo = location.state?.redirectTo;
   const [form, setForm] = useState({
     username: "",
     full_name: "",
@@ -136,7 +138,9 @@ const Signup = () => {
           for (let i = 0; i < cookies.length; i++) {
             const cookie = cookies[i].trim();
             if (cookie.substring(0, name.length + 1) === name + "=") {
-              cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+              cookieValue = decodeURIComponent(
+                cookie.substring(name.length + 1)
+              );
               break;
             }
           }
@@ -145,26 +149,30 @@ const Signup = () => {
       }
       const csrfToken = getCookie("csrftoken");
       // Call Django registration endpoint with CSRF token
-      const response = await API.post("/buysellapi/user/register/", {
-        username: form.username,
-        full_name: form.full_name,
-        email: form.email,
-        password: form.password,
-        confirm_password: form.confirm_password,
-        contact: form.contact,
-        location: form.location,
-      }, {
-        headers: {
-          "X-CSRFToken": csrfToken,
-          "Content-Type": "application/json",
+      const response = await API.post(
+        "/buysellapi/user/register/",
+        {
+          username: form.username,
+          full_name: form.full_name,
+          email: form.email,
+          password: form.password,
+          confirm_password: form.confirm_password,
+          contact: form.contact,
+          location: form.location,
         },
-      });
+        {
+          headers: {
+            "X-CSRFToken": csrfToken,
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
       // Show success message from backend
       toast.success(response.data.message || "Account created successfully!");
 
-      // Navigate to login page
-      navigate("/Login");
+      // Navigate to login (pass redirect so after login they go to e.g. CommunityPayment)
+      navigate("/Login", { state: redirectTo ? { redirectTo } : undefined });
     } catch (err) {
       console.error("Signup error:", err);
 
@@ -243,11 +251,15 @@ const Signup = () => {
   const handleGoogleCredential = useCallback(
     async (tokenResponse) => {
       console.log("Google credential received:", tokenResponse);
-      
+
       // Handle both CredentialResponse and direct credential string
       const credential = tokenResponse?.credential || tokenResponse;
-      
-      if (!credential || typeof credential !== 'string' || credential.trim() === '') {
+
+      if (
+        !credential ||
+        typeof credential !== "string" ||
+        credential.trim() === ""
+      ) {
         console.error("Invalid credential format:", tokenResponse);
         setGoogleError("Unable to read Google credentials. Please try again.");
         setGoogleLoading(false);
@@ -274,8 +286,14 @@ const Signup = () => {
         const persistedUsername = returnedUsername || "";
         localStorage.setItem("token", access);
         localStorage.setItem("refreshToken", refresh);
-        localStorage.setItem("userData", JSON.stringify({ username: persistedUsername }));
-        localStorage.setItem("loginPrompt", JSON.stringify({ username: persistedUsername }));
+        localStorage.setItem(
+          "userData",
+          JSON.stringify({ username: persistedUsername })
+        );
+        localStorage.setItem(
+          "loginPrompt",
+          JSON.stringify({ username: persistedUsername })
+        );
         window.dispatchEvent(new Event("authChange"));
         setGoogleSignupUsername(persistedUsername);
         setGoogleError("");
@@ -285,7 +303,7 @@ const Signup = () => {
           setShowGoogleContactModal(true);
         } else {
           toast.success("Signed in with Google!");
-          navigate("/");
+          navigate(redirectTo || "/");
         }
       } catch (err) {
         console.error("Google login error:", err);
@@ -308,7 +326,7 @@ const Signup = () => {
         setGoogleLoading(false);
       }
     },
-    [navigate]
+    [navigate, redirectTo]
   );
 
   useEffect(() => {
@@ -334,12 +352,12 @@ const Signup = () => {
         auto_select: false,
         cancel_on_tap_outside: true,
       });
-      
+
       // Render the Google Sign-In button
       const buttonDiv = document.getElementById("google-signin-button");
       if (buttonDiv) {
         // Clear any existing content
-        buttonDiv.innerHTML = '';
+        buttonDiv.innerHTML = "";
         window.google.accounts.id.renderButton(buttonDiv, {
           theme: "outline",
           size: "large",
@@ -348,7 +366,7 @@ const Signup = () => {
           width: "100%",
         });
       }
-      
+
       setGoogleReady(true);
       setGoogleError("");
     };
@@ -387,7 +405,9 @@ const Signup = () => {
     setGoogleError("");
 
     if (!acceptedTerms) {
-      setGoogleError("Please accept the terms and conditions before continuing.");
+      setGoogleError(
+        "Please accept the terms and conditions before continuing."
+      );
       return;
     }
     if (!googleClientId) {
@@ -407,10 +427,14 @@ const Signup = () => {
       if (googleButton) {
         googleButton.click();
       } else {
-        setGoogleError("Google button is not ready. Please wait a moment and try again.");
+        setGoogleError(
+          "Google button is not ready. Please wait a moment and try again."
+        );
       }
     } else {
-      setGoogleError("Google sign-in button not found. Please refresh the page.");
+      setGoogleError(
+        "Google sign-in button not found. Please refresh the page."
+      );
     }
   };
 
@@ -426,10 +450,10 @@ const Signup = () => {
 
     try {
       await API.patch("/buysellapi/users/me/", { contact: trimmedContact });
-      toast.success("Contact saved! Redirecting to your dashboard.");
+      toast.success("Contact saved! Redirecting.");
       setShowGoogleContactModal(false);
       setGoogleContact("");
-      navigate("/");
+      navigate(redirectTo || "/");
     } catch (err) {
       const message =
         err.response?.data?.contact ||
@@ -692,6 +716,40 @@ const Signup = () => {
             </div>
           )}
           <form onSubmit={handleSubmit} className="space-y-3">
+            {/* Sign up with Google at top */}
+            <div className="mb-4 rounded-2xl border border-gray-200/80 dark:border-gray-700 bg-white/80 dark:bg-gray-900/70 p-4 shadow-sm flex flex-col items-center gap-3">
+              <div id="google-signin-button" className="w-full"></div>
+              {!googleReady && (
+                <button
+                  type="button"
+                  onClick={handleGoogleSignup}
+                  disabled={googleLoading || !googleReady || !acceptedTerms}
+                  className={`w-full py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2 ${
+                    googleLoading || !googleReady || !acceptedTerms
+                      ? "bg-gray-200 text-gray-600 cursor-not-allowed"
+                      : "bg-red-500 text-white hover:bg-red-600"
+                  }`}
+                >
+                  <FcGoogle className="w-5 h-5" />
+                  {googleLoading ? "Waiting for Google…" : "Continue with Google"}
+                </button>
+              )}
+              {googleError && (
+                <p className="text-xs text-red-600">{googleError}</p>
+              )}
+              {!googleClientId && (
+                <p className="text-xs text-gray-500">
+                  Google signup is disabled until a Google Client ID is
+                  configured.
+                </p>
+              )}
+              {googleClientId && !googleReady && (
+                <p className="text-xs text-gray-500">
+                  Loading Google login… please wait a moment.
+                </p>
+              )}
+            </div>
+
             {/* Two-column grid for compact layout */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
@@ -784,7 +842,9 @@ const Signup = () => {
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 focus:outline-none"
-                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    aria-label={
+                      showPassword ? "Hide password" : "Show password"
+                    }
                   >
                     {showPassword ? (
                       <FaEyeSlash className="w-4 h-4" />
@@ -820,7 +880,9 @@ const Signup = () => {
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 focus:outline-none"
-                    aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                    aria-label={
+                      showConfirmPassword ? "Hide password" : "Show password"
+                    }
                   >
                     {showConfirmPassword ? (
                       <FaEyeSlash className="w-4 h-4" />
@@ -908,8 +970,8 @@ const Signup = () => {
                     onClick={(e) => e.stopPropagation()}
                   >
                     Terms and Conditions
-                  </Link>
-                  {" "}and{" "}
+                  </Link>{" "}
+                  and{" "}
                   <Link
                     to="/Policies#compliance"
                     target="_blank"
@@ -937,38 +999,6 @@ const Signup = () => {
             </button>
           </form>
 
-          <div className="mt-6 rounded-2xl border border-gray-200/80 dark:border-gray-700 bg-white/80 dark:bg-gray-900/70 p-4 shadow-sm flex flex-col items-center gap-3">
-            <div id="google-signin-button" className="w-full"></div>
-            {!googleReady && (
-              <button
-                type="button"
-                onClick={handleGoogleSignup}
-                disabled={googleLoading || !googleReady || !acceptedTerms}
-                className={`w-full py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2 ${
-                  googleLoading || !googleReady || !acceptedTerms
-                    ? "bg-gray-200 text-gray-600 cursor-not-allowed"
-                    : "bg-red-500 text-white hover:bg-red-600"
-                }`}
-              >
-                <FcGoogle className="w-5 h-5" />
-                {googleLoading ? "Waiting for Google…" : "Continue with Google"}
-              </button>
-            )}
-            {googleError && (
-              <p className="text-xs text-red-600">{googleError}</p>
-            )}
-            {!googleClientId && (
-              <p className="text-xs text-gray-500">
-                Google signup is disabled until a Google Client ID is configured.
-              </p>
-            )}
-            {googleClientId && !googleReady && (
-              <p className="text-xs text-gray-500">
-                Loading Google login… please wait a moment.
-              </p>
-            )}
-          </div>
-
           <div className="mt-4 text-center text-sm text-gray-600 dark:text-gray-300">
             Already have an account?{" "}
             <Link
@@ -988,7 +1018,8 @@ const Signup = () => {
               Almost done, {googleSignupUsername || "friend"}!
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
-              Please add a contact number so we can keep you updated about shipments. This is required to continue.
+              Please add a contact number so we can keep you updated about
+              shipments. This is required to continue.
             </p>
             <label className="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1">
               Contact Number <span className="text-red-500">*</span>

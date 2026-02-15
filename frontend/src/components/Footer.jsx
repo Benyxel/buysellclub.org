@@ -105,6 +105,22 @@ const Footer = () => {
               </li>
               <li>
                 <Link
+                  to="/QuickTracking"
+                  className="text-gray-600 dark:text-gray-400 hover:text-primary transition-colors"
+                >
+                  Quick Tracking
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/OurRates"
+                  className="text-gray-600 dark:text-gray-400 hover:text-primary transition-colors"
+                >
+                  Our Rates
+                </Link>
+              </li>
+              <li>
+                <Link
                   to="/About"
                   className="text-gray-600 dark:text-gray-400 hover:text-primary transition-colors"
                 >
@@ -125,6 +141,14 @@ const Footer = () => {
                   className="text-gray-600 dark:text-gray-400 hover:text-primary transition-colors"
                 >
                   Policies & Compliance
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/Donate"
+                  className="text-gray-600 dark:text-gray-400 hover:text-primary transition-colors"
+                >
+                  Donate
                 </Link>
               </li>
             </ul>
@@ -241,3 +265,4 @@ const Footer = () => {
 };
 
 export default Footer;
+

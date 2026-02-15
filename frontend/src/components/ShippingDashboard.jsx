@@ -1,679 +1,91 @@
 import React, { useState, useEffect } from "react";
-import {
-  FaTruck,
-  FaPlus,
-  FaMapMarkerAlt,
-  FaCalculator,
-  FaTimes,
-} from "react-icons/fa";
+import { FaMapMarkerAlt, FaCalculator } from "react-icons/fa";
 import { Link } from "react-router-dom";
-import { toast } from "../utils/toast";
 import CBMCalculator from "./CBMCalculator";
-import TrackingSearch from "./TrackingSearch";
-import axios from "axios";
-import { API_BASE_URL } from "../config/api";
 import API from "../api";
 
-// Admin class
-class AdminUpdate {
-  constructor() {
-    this.adminTracking = []; // Admin's tracking numbers
-  }
-
-  adminCheck(trackNum) {
-    // Convert to uppercase for case-insensitive comparison
-    const normalizedTrackNum = trackNum.toUpperCase();
-    return this.adminTracking.find(
-      (i) => i.TrackingNum && i.TrackingNum.toUpperCase() === normalizedTrackNum
-    );
-  }
-
-  adminAdd(trackNum, status) {
-    this.adminTracking.push({
-      TrackingNum: trackNum,
-      Status: status,
-      LastUpdated: new Date().toISOString(),
-    });
-    return `Tracking number ${trackNum} has been added successfully by admin`;
-  }
-}
-
-// User class
-class UserAdd extends AdminUpdate {
-  constructor() {
-    super();
-    this.userTracking = new Map(); // Store shipments by user ID
-    this.statusHistory = new Map(); // Store status history for each tracking number
-  }
-
-  // Merge tracking data from admin and user when user adds a tracking
-  // Updated: name/quantity/product are optional; userTrackingNum can be provided
-  userAdd(trackNum, name, quantity, product, userId, userTrackingNum = null) {
-    // Normalize tracking number to uppercase
-    const normalizedTrackNum = trackNum.toUpperCase();
-
-    // Optional: Check if admin has added this tracking number (used only to seed initial status if present)
-    const adminShipment = this.adminCheck(normalizedTrackNum);
-
-    // Get user's shipments
-    const userShipments = this.userTracking.get(userId) || [];
-
-    // Check if user has already added this tracking number
-    const existingUserShipment = userShipments.find(
-      (i) => i.TrackingNum && i.TrackingNum.toUpperCase() === normalizedTrackNum
-    );
-
-    if (existingUserShipment) {
-      return {
-        success: false,
-        message: "You have already added this tracking number.",
-      };
-    }
-
-    // Resolve optional fields
-    const sender = name || "";
-    const qty =
-      Number.isFinite(Number(quantity)) && Number(quantity) > 0
-        ? Number(quantity)
-        : 1;
-    const prod = product || "Package";
-
-    // Add the shipment with initial status (from admin if available, else Pending)
-    userShipments.push({
-      TrackingNum: normalizedTrackNum,
-      Sender: sender,
-      Quantity: qty,
-      Product: prod,
-      UserTrackingNum: userTrackingNum || null,
-      Status: (adminShipment && adminShipment.Status) || "Pending",
-      AddedDate: new Date().toISOString(),
-      LastUpdated: new Date().toISOString(),
-    });
-
-    // Update user's shipments
-    this.userTracking.set(userId, userShipments);
-
-    // Initialize status history if it doesn't exist
-    if (!this.statusHistory.has(normalizedTrackNum)) {
-      this.statusHistory.set(normalizedTrackNum, [
-        {
-          status: (adminShipment && adminShipment.Status) || "Pending",
-          date: new Date().toISOString(),
-          details: adminShipment
-            ? "Initial status from admin"
-            : "User added; awaiting admin to register the tracking",
-        },
-      ]);
-    }
-
-    // Note: Do not remove from admin tracking; keep admin list intact
-
-    // Save to localStorage
-    this.saveToLocalStorage();
-
-    return {
-      success: true,
-      message: `Tracking number ${normalizedTrackNum} has been added successfully with ${quantity} quantity for ${name}. ${
-        adminShipment
-          ? "Initial status seeded from admin."
-          : "Waiting for admin to add it to the system."
-      }`,
-    };
-  }
-
-  // Get all shipments for a specific user
-  getUserShipments(userId) {
-    return this.userTracking.get(userId) || [];
-  }
-
-  // Get a specific shipment for a user
-  getUserShipment(userId, trackNum) {
-    const userShipments = this.userTracking.get(userId) || [];
-    return userShipments.find((shipment) => shipment.TrackingNum === trackNum);
-  }
-
-  // Save data to localStorage
-  saveToLocalStorage() {
-    const data = {
-      userTracking: Array.from(this.userTracking.entries()),
-      statusHistory: Array.from(this.statusHistory.entries()),
-      adminTracking: this.adminTracking,
-    };
-    localStorage.setItem("shippingData", JSON.stringify(data));
-  }
-
-  // Load data from localStorage
-  loadFromLocalStorage() {
-    const data = localStorage.getItem("shippingData");
-    if (data) {
-      try {
-        const parsedData = JSON.parse(data);
-        this.userTracking = new Map(parsedData.userTracking || []);
-        this.statusHistory = new Map(parsedData.statusHistory || []);
-        this.adminTracking = parsedData.adminTracking || [];
-      } catch (error) {
-        console.error("Error loading shipping data:", error);
-        // Reset to default state if there's an error
-        this.userTracking = new Map();
-        this.statusHistory = new Map();
-        this.adminTracking = [];
-      }
-    }
-  }
-
-  userCheck(trackNum, userId) {
-    // First check if user has added this tracking number
-    const userShipment = this.getUserShipment(userId, trackNum);
-
-    if (!userShipment) {
-      // If user hasn't added it, check if admin has
-      const adminShipment = this.adminCheck(trackNum);
-
-      if (adminShipment) {
-        // Show more details about the admin-added tracking including current status
-        return {
-          found: false,
-          message: `
-            ✅ Tracking Number Found in System
-            ===============================
-            
-            Good news! The tracking number ${trackNum} has been added by our admin team.
-            
-            Current Status: ${adminShipment.Status}
-            Last Updated: ${
-              adminShipment.LastUpdated
-                ? new Date(adminShipment.LastUpdated).toLocaleDateString()
-                : "Not available"
-            }
-            
-            To add this to your account and track it:
-            1. Click the "Add This Tracking Number" button below
-            2. Enter your details (name, quantity, product)
-            3. Submit the form
-            
-            After adding the shipment, you'll be able to get detailed tracking updates.
-          `,
-          needsUserAdd: true,
-          adminData: adminShipment,
-        };
-      }
-
-      return {
-        found: false,
-        message: `
-          ❌ Tracking Number Not Found
-          ===========================
-          
-          The tracking number ${trackNum} is not found in our system.
-          
-          Please follow these steps:
-          1. Contact the admin to add this tracking number to the system
-          2. Once added, you can add it to your account
-          3. Then you can track it here
-          
-          Need help? Contact support at support@buysellclub.org
-        `,
-        needsUserAdd: false,
-      };
-    }
-
-    // Get current date for estimated delivery
-    const currentDate = new Date();
-    const estimatedDelivery = new Date(currentDate);
-    estimatedDelivery.setDate(currentDate.getDate() + 60); // Add 60 days for estimated delivery
-
-    // Get status history
-    const history = this.getStatusHistory(trackNum);
-    const historySection =
-      history.length > 1
-        ? `
-      📋 Status History:
-      -----------------
-      ${history
-        .map(
-          (entry) => `
-        ${new Date(entry.date).toLocaleString()}: ${entry.status}
-      `
-        )
-        .join("\n")}
-    `
-        : "";
-
-    // Get status-specific message
-    let statusMessage = "";
-    switch (userShipment.Status) {
-      case "Delivered":
-        statusMessage =
-          "✅ Delivery Status: Your package has been successfully delivered to your address!";
-        break;
-      case "In Transit":
-        statusMessage =
-          "🚚 Delivery Status: Your package is currently in transit and on its way to you.";
-        break;
-      case "Pending":
-        statusMessage =
-          "⏳ Delivery Status: Your package is pending processing at our facility.";
-        break;
-      case "On Return":
-        statusMessage =
-          "⚠️ Delivery Status: Your package is being returned to the sender. Please contact your seller for more information.";
-        break;
-      case "In China Warehouse":
-        statusMessage =
-          "🏭 Delivery Status: Your package is currently in our China warehouse awaiting shipping.";
-        break;
-      case "On Way to Warehouse":
-        statusMessage =
-          "🚛 Delivery Status: Your package is on its way to our warehouse for shipping.";
-        break;
-      default:
-        statusMessage =
-          "ℹ️ Delivery Status: Your package is being received by the warehouse.";
-    }
-
-    // Format the message with better structure and details
-    const message = `
-      📦 Shipment Tracking Information
-      ==============================
-      
-      🔍 Tracking Details:
-      -------------------
-      Tracking Number: ${userShipment.TrackingNum}
-      Customer Name: ${userShipment.Sender}
-      Product: ${userShipment.Product}
-      Quantity: ${userShipment.Quantity}
-      Added to Profile: ${new Date(userShipment.AddedDate).toLocaleDateString()}
-      
-      📊 Status Information:
-      ---------------------
-      Current Status: ${userShipment.Status}
-      Last Updated: ${new Date(userShipment.LastUpdated).toLocaleString()}
-      ${
-        userShipment.Status !== "On Return"
-          ? `Estimated Delivery: ${estimatedDelivery.toLocaleDateString()}`
-          : ""
-      }
-      
-      ${statusMessage}
-      
-      ${historySection}
-      
-      📞 Need Help?
-      -------------
-      If you have any questions about your shipment, please contact our support team at:
-      Email: support@buysellclub.org
-      Phone: 233-540266839
-      
-      Thank you for choosing our shipping service!
-    `;
-
-    return {
-      found: true,
-      message: message,
-      needsUserAdd: false,
-    };
-  }
-
-  getAllShipments() {
-    // Return all shipments for all users (for admin view)
-    const allShipments = [];
-    for (const [userId, userShipments] of this.userTracking) {
-      allShipments.push(...userShipments);
-    }
-    return allShipments;
-  }
-
-  // Get status history for a tracking number
-  getStatusHistory(trackNum) {
-    return this.statusHistory.get(trackNum) || [];
-  }
-
-  // Update status history when admin changes status
-  updateStatusHistory(trackNum, newStatus) {
-    const history = this.statusHistory.get(trackNum) || [];
-    history.push({
-      status: newStatus,
-      date: new Date().toISOString(),
-      details: `Status updated to ${newStatus}`,
-    });
-    this.statusHistory.set(trackNum, history);
-  }
-}
-
-// Create a single instance of the tracking system
-const trackingSystem = new UserAdd();
-
-// Load saved data when the component mounts
-trackingSystem.loadFromLocalStorage();
-
-// Export the tracking system instance
-export { trackingSystem };
+const ACCENT_CLASSES = [
+  "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400",
+  "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400",
+  "bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400",
+  "bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400",
+];
 
 const ShippingDashboard = () => {
-  const [shipments, setShipments] = useState([]);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [message, setMessage] = useState("");
+  const [warehouseAddresses, setWarehouseAddresses] = useState([]);
 
-  const [newShipment, setNewShipment] = useState({
-    trackingNumber: "",
-    userTrackingNumber: "",
-  });
-  const [hasShippingMark, setHasShippingMark] = useState(false);
-
-  // Check if user has a shipping mark
-  const checkShippingMark = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const isAdmin = !!localStorage.getItem("adminToken");
-
-      // Admins don't need shipping marks
-      if (isAdmin) {
-        setHasShippingMark(true);
-        return true;
-      }
-
-      if (token) {
-        try {
-          const resp = await API.get("/buysellapi/shipping-marks/me/");
-          const d = resp?.data;
-          if (d?.markId) {
-            setHasShippingMark(true);
-            return true;
-          }
-        } catch (_) {}
-      }
-
-      // Check localStorage for shipping marks
-      const saved = JSON.parse(localStorage.getItem("shippingMarks") || "[]");
-      if (Array.isArray(saved) && saved.length > 0 && saved[0].id) {
-        setHasShippingMark(true);
-        return true;
-      }
-
-      // Check localStorage for userShippingMark (from FofooAddressGenerator)
-      const userMark = localStorage.getItem("userShippingMark");
-      if (userMark) {
-        try {
-          const parsed = JSON.parse(userMark);
-          if (parsed?.markId) {
-            setHasShippingMark(true);
-            return true;
-          }
-        } catch (_) {}
-      }
-
-      setHasShippingMark(false);
-      return false;
-    } catch (e) {
-      setHasShippingMark(false);
-      return false;
-    }
-  };
-
-  // Load initial data
   useEffect(() => {
-    setShipments(trackingSystem.getUserShipments("default") || []);
-    setDefaultUserTrackingNumber();
-    checkShippingMark();
-  }, []);
-
-  // Determine and set the default user tracking number (from backend mark or local address)
-  const setDefaultUserTrackingNumber = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      if (token) {
-        try {
-          const resp = await API.get("/buysellapi/shipping-marks/me/");
-          const d = resp?.data;
-          if (d?.markId) {
-            setNewShipment((prev) => ({
-              ...prev,
-              userTrackingNumber: d.markId,
-            }));
-            return;
-          }
-        } catch (_) {}
+    const fetchWarehouses = async () => {
+      try {
+        const res = await API.get("/buysellapi/warehouse-addresses/");
+        setWarehouseAddresses(Array.isArray(res.data) ? res.data : []);
+      } catch (_) {
+        setWarehouseAddresses([]);
       }
-    } catch (e) {
-      // ignore
-    }
-  };
-
-  const handleAddShipment = async (e) => {
-    e.preventDefault();
-
-    // Check if user has shipping mark before allowing shipment addition
-    const hasMark = await checkShippingMark();
-    if (!hasMark) {
-      setMessage(
-        "Please generate a shipping mark first before adding shipments. Go to the Address Generator to create one."
-      );
-      toast.error(
-        "You must generate a shipping mark before adding shipments. Please visit the Address Generator first."
-      );
-      return;
-    }
-
-    const result = trackingSystem.userAdd(
-      newShipment.trackingNumber.toUpperCase(),
-      "",
-      1,
-      "Package",
-      "default",
-      newShipment.userTrackingNumber
-    );
-
-    setMessage(result.message);
-
-    if (result.success) {
-      setShipments(trackingSystem.getUserShipments("default"));
-
-      // Best-effort: sync with backend tracking for regular users only
-      (async () => {
-        try {
-          const tn = newShipment.trackingNumber.trim();
-          if (!tn) return;
-
-          // Check if user is admin - admins should not have shipping marks
-          const isAdmin = !!localStorage.getItem("adminToken");
-          if (isAdmin) return; // Skip shipping mark logic for admins
-
-          // Get user's shipping mark from backend (regular users only)
-          let userMarkFormatted = "";
-          try {
-            const markResp = await API.get("/buysellapi/shipping-marks/me/");
-            const markData = markResp?.data;
-            if (markData?.markId && markData?.name) {
-              // Format as "markId:name" (e.g., "FIM123:John Doe")
-              userMarkFormatted = `${markData.markId}:${markData.name}`;
-            }
-          } catch {
-            // No mark yet
-          }
-
-          // Check if tracking exists in backend
-          try {
-            const resp = await API.get(
-              `/buysellapi/trackings/by-number/${encodeURIComponent(tn)}/`
-            );
-
-            const backendTracking = resp?.data;
-            if (backendTracking) {
-              // If backend has a shipping_mark, sync it to local storage
-              const backendMark = backendTracking.shipping_mark;
-              if (backendMark) {
-                const tnUpper = tn.toUpperCase();
-                const list = trackingSystem.getUserShipments("default") || [];
-                const i = list.findIndex(
-                  (s) => (s.TrackingNum || "").toUpperCase() === tnUpper
-                );
-                if (i !== -1) {
-                  list[i].ShippingMark = backendMark;
-                  trackingSystem.userTracking.set("default", list);
-                  trackingSystem.saveToLocalStorage();
-                }
-              } else if (userMarkFormatted) {
-                // Backend tracking exists but has no shipping mark
-                // Update the backend tracking with user's formatted mark
-                try {
-                  await API.patch(
-                    `/buysellapi/trackings/${backendTracking.id}/`,
-                    {
-                      shipping_mark: userMarkFormatted,
-                    }
-                  );
-
-                  // Also update local storage
-                  const tnUpper = tn.toUpperCase();
-                  const list = trackingSystem.getUserShipments("default") || [];
-                  const i = list.findIndex(
-                    (s) => (s.TrackingNum || "").toUpperCase() === tnUpper
-                  );
-                  if (i !== -1) {
-                    list[i].ShippingMark = userMarkFormatted;
-                    trackingSystem.userTracking.set("default", list);
-                    trackingSystem.saveToLocalStorage();
-                  }
-                } catch (updateErr) {
-                  console.warn(
-                    "Failed to update backend tracking with user mark:",
-                    updateErr
-                  );
-                }
-              }
-            }
-          } catch {
-            // Tracking not found in backend - that's OK, user is just adding locally
-          }
-        } catch {
-          // Ignore network issues
-        }
-      })();
-    }
-
-    setShowAddForm(false);
-    setNewShipment((prev) => ({ ...prev, trackingNumber: "" }));
-  };
-
-  const handleDeleteTracking = (trackNum) => {
-    if (
-      window.confirm(
-        "Are you sure you want to delete this tracking data? This action cannot be undone."
-      )
-    ) {
-      // Remove from user tracking
-      const userShipments = trackingSystem.getUserShipments("default");
-      const updatedShipments = userShipments.filter(
-        (shipment) => shipment.TrackingNum !== trackNum
-      );
-      trackingSystem.userTracking.set("default", updatedShipments);
-
-      // Save changes
-      trackingSystem.saveToLocalStorage();
-
-      // Update UI
-      setShipments(trackingSystem.getUserShipments("default"));
-      setMessage("Tracking data deleted successfully");
-    }
-  };
-
-  const getStatusColor = (status) => {
-    switch (status?.toLowerCase()) {
-      case "delivered":
-        return "bg-green-100 text-green-800";
-      case "in transit":
-        return "bg-blue-100 text-blue-800";
-      case "pending":
-        return "bg-yellow-100 text-yellow-800";
-      case "on return":
-        return "bg-red-100 text-red-800";
-      case "in china warehouse":
-        return "bg-purple-100 text-purple-800";
-      case "on way to warehouse":
-        return "bg-indigo-100 text-indigo-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
+    };
+    fetchWarehouses();
+  }, []);
 
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0 mb-8 border-b-2 border-gray-200 pb-4">
-          <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
-            Generate Address
+        {/* Header: Address Generators */}
+        <div className="mb-8 border-b-2 border-gray-200 dark:border-gray-700 pb-8">
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">
+            Shipping Addresses
           </h1>
-          <div className="flex gap-4 w-full sm:w-auto">
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
+            Choose a warehouse region to generate your unique shipping address.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* China Address Generator (fixed – own logic/table) */}
             <Link
               to="/Fofoofo-address-generator"
-              className="group flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
+              className="group flex flex-col p-6 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 hover:shadow-lg hover:border-primary dark:hover:border-primary transition-all duration-300"
             >
-              <div className="relative">
-                <FaMapMarkerAlt className="w-5 h-5" />
-                <div className="absolute -top-1 -right-1 w-2 h-2 bg-white rounded-full animate-pulse"></div>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400">
+                  <FaMapMarkerAlt className="w-5 h-5" />
+                </div>
+                <span className="font-semibold text-gray-800 dark:text-white">
+                  China
+                </span>
               </div>
-              <span className="font-medium">FIMPORT Address Generator</span>
-              <span className="text-sm opacity-75 group-hover:translate-x-1 transition-transform">
-                →
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 flex-grow">
+                FIMPORT China warehouse. Generate your address for shipments from China.
+              </p>
+              <span className="text-sm text-primary font-medium group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
+                Open China generator →
               </span>
             </Link>
-          </div>
-        </div>
 
-        {/* Section 1: Dashboard Header */}
-        <div className="bg-gradient-to-br from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/20 rounded-lg shadow-md p-4 sm:p-6 mb-8">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0">
-            <div className="flex items-center gap-4">
-              <FaTruck className="text-2xl sm:text-3xl text-primary animate-truck" />
-              <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white">
-                  Add and Track Shipment
-                </h1>
-                <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
-                  Track shipments, manage addresses and deliveries
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={async () => {
-                  const hasMark = await checkShippingMark();
-                  if (!hasMark) {
-                    toast.error(
-                      "You must generate a shipping mark before adding shipments. Please visit the Address Generator first."
-                    );
-                    return;
-                  }
-                  setShowAddForm(true);
-                }}
-                className="flex items-center justify-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={!hasShippingMark}
-                title={!hasShippingMark ? "Generate a shipping mark first" : ""}
+            {/* Admin-configured warehouse addresses (USA, Dubai, etc.) */}
+            {warehouseAddresses.map((wa, idx) => (
+              <Link
+                key={wa.id}
+                to={`/address-generator/${encodeURIComponent(wa.code)}`}
+                className="group flex flex-col p-6 bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 hover:shadow-lg hover:border-primary dark:hover:border-primary transition-all duration-300"
               >
-                <FaPlus className="w-4 h-4" />
-                Add New Shipment
-              </button>
-            </div>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className={`p-2 rounded-lg ${ACCENT_CLASSES[idx % ACCENT_CLASSES.length]}`}>
+                    <FaMapMarkerAlt className="w-5 h-5" />
+                  </div>
+                  <span className="font-semibold text-gray-800 dark:text-white">
+                    {wa.display_name}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 flex-grow">
+                  {wa.display_name} warehouse. Generate your address for shipments to this region.
+                </p>
+                <span className="text-sm text-primary font-medium group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
+                  Open {wa.display_name} generator →
+                </span>
+              </Link>
+            ))}
           </div>
         </div>
 
-        {/* Tracking Management */}
-        <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg shadow-md p-6 mb-8">
-          {/* Tracking Search Component */}
-          <div className="mb-8">
-            <TrackingSearch />
-          </div>
-          {/* Info: User-facing shipments list is intentionally hidden here */}
-          <div className="mt-2 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-            <p className="text-sm text-gray-700 dark:text-gray-300">
-              Add shipments here, then view and track them from your Profile →
-              Tracking tab.
-            </p>
-          </div>
-        </div>
-
-        {/* Section 3: CBM Calculator */}
+        {/* CBM Calculator */}
         <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-lg shadow-md p-6">
           <div className="flex items-center gap-4 mb-8">
             <FaCalculator className="text-2xl sm:text-3xl text-primary" />
@@ -689,89 +101,6 @@ const ShippingDashboard = () => {
           <CBMCalculator />
         </div>
       </div>
-
-      {/* Add New Shipment Form Modal */}
-      {showAddForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4 sm:p-6 w-full max-w-md max-h-[90vh] overflow-y-auto chrome-border-animation">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-lg sm:text-xl font-semibold text-gray-800 dark:text-white">
-                Add New Shipment
-              </h2>
-              <button
-                onClick={() => setShowAddForm(false)}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-              >
-                ✕
-              </button>
-            </div>
-            <form onSubmit={handleAddShipment} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Tracking Number
-                </label>
-                <input
-                  type="text"
-                  value={newShipment.trackingNumber}
-                  onChange={(e) =>
-                    setNewShipment({
-                      ...newShipment,
-                      trackingNumber: e.target.value,
-                    })
-                  }
-                  className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  User Shipping Mark ID
-                </label>
-                <input
-                  type="text"
-                  value={newShipment.userTrackingNumber}
-                  readOnly
-                  className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700/50 text-gray-900 dark:text-white focus:ring-0"
-                />
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  This is auto-filled from your shipping mark and cannot be
-                  edited.
-                </p>
-              </div>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
-                >
-                  Add Shipment
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowAddForm(false)}
-                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Message Display */}
-      {message && (
-        <div className="fixed bottom-4 right-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 z-50">
-          <p
-            className={`text-lg ${
-              message.includes("successfully") || message.includes("Copied")
-                ? "text-green-600"
-                : "text-yellow-600"
-            }`}
-          >
-            {message}
-          </p>
-        </div>
-      )}
     </div>
   );
 };

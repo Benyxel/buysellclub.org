@@ -20,10 +20,13 @@ const MenuLinks = [
 
 const Quicklinks = [
   { name: "Buy4Me", href: "/Buy4me" },
-  { name: "Shipping", href: "/Shipping" },
-  { name: "Trending", href: "/Trending" },
+  { name: "Shipping Addresses", href: "/Shipping" },
+  { name: "Tracking", href: "/tracking" },
+  { name: "Quick Tracking", href: "/QuickTracking" },
   { name: "Training", href: "/Training" },
+  { name: "Our Rates", href: "/OurRates" },
   { name: "Alipay Payment", href: "/AlipayPayment" },
+  { name: "Donate", href: "/Donate" },
 ];
 
 // Static links that don't change based on auth status
@@ -154,22 +157,35 @@ export default function Navbar() {
                 {MenuLinks.map((data, index) => (
                   <li key={index}>
                     <NavLink
-                      to={data.href}
+                      to={data.href || "/"}
                       className={({ isActive }) =>
                         isActive
-                          ? "inline-block px-2 font-semibold text-black dark:text-white duration-200"
-                          : "inline-block px-2 font-semibold text-gray-500 hover:text-black dark:hover:text-white duration-200"
+                          ? "inline-block px-2 font-medium text-black dark:text-white duration-200"
+                          : "inline-block px-2 font-medium text-gray-500 hover:text-black dark:hover:text-white duration-200"
                       }
                     >
                       {data.name}
                     </NavLink>
                   </li>
                 ))}
+                {/* Community: link visible to all (public); only logged-in users can view the page */}
+                <li>
+                  <NavLink
+                    to="/Community"
+                    className={({ isActive }) =>
+                      isActive
+                        ? "inline-block px-2 font-medium text-black dark:text-white duration-200"
+                        : "inline-block px-2 font-medium text-gray-500 hover:text-black dark:hover:text-white duration-200"
+                    }
+                  >
+                    Join Community
+                  </NavLink>
+                </li>
                 {/* Dropdown */}
                 <li className="relative cursor-pointer group">
                   <a
                     href="#"
-                    className="flex items-center gap-[2px] font-semibold text-gray-500 dark:hover:text-white hover:text-black"
+                    className="flex items-center gap-[2px] font-medium text-gray-500 dark:hover:text-white hover:text-black"
                   >
                     Quick links
                     <span>
@@ -183,7 +199,7 @@ export default function Navbar() {
                       {Quicklinks.map((data, index) => (
                         <li key={index}>
                           <Link
-                            to={data.href}
+                            to={data.href || "/"}
                             className="text-gray-500 hover:text-black dark:hover:text-white p-1 duration-200 inline-block w-full hover:bg-brandGreen/20 rounded-md"
                           >
                             {data.name}
@@ -338,7 +354,7 @@ export default function Navbar() {
               {MenuLinks.map((data, index) => (
                 <li key={index} className="py-2">
                   <NavLink
-                    to={data.href}
+                    to={data.href || "/"}
                     className={({ isActive }) =>
                       isActive
                         ? "block px-4 font-semibold text-black dark:text-white duration-200"
@@ -350,6 +366,20 @@ export default function Navbar() {
                   </NavLink>
                 </li>
               ))}
+              {/* Community: link visible to all (public); only logged-in users can view the page */}
+              <li className="py-2">
+                <NavLink
+                  to="/Community"
+                  className={({ isActive }) =>
+                    isActive
+                      ? "block px-4 font-semibold text-black dark:text-white duration-200"
+                      : "block px-4 font-semibold text-gray-500 hover:text-black dark:hover:text-white duration-200"
+                  }
+                  onClick={() => setVisible(false)}
+                >
+                  Join Community
+                </NavLink>
+              </li>
             </ul>
 
             {/* Quick Links Section */}
@@ -370,7 +400,7 @@ export default function Navbar() {
                   {Quicklinks.map((data, index) => (
                     <li key={index}>
                       <Link
-                        to={data.href}
+                        to={data.href || "/"}
                         className="block text-gray-500 hover:text-black dark:hover:text-white duration-200 py-1"
                         onClick={() => {
                           setVisible(false);
@@ -404,7 +434,7 @@ export default function Navbar() {
                     <li key={index}>
                       {data.href ? (
                         <Link
-                          to={data.href}
+                          to={data.href || "/"}
                           className="block text-gray-500 hover:text-black dark:hover:text-white duration-200 py-1"
                           onClick={() => {
                             setVisible(false);
@@ -436,3 +466,4 @@ export default function Navbar() {
     </div>
   );
 }
+

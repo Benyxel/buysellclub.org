@@ -7,18 +7,22 @@ import {
   FaTruck,
   FaInfoCircle,
 } from "react-icons/fa";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { toast } from "../utils/toast";
 import "react-toastify/dist/ReactToastify.css";
 import API from "../api";
+import { CHINA_REGION_CODE, getRevealedRegions, setRegionRevealed } from "../utils/addressRevealedRegions";
 
 const FofoofoAddressGenerator = () => {
-  const [username, setUsername] = useState("");
+  const [fullName, setFullName] = useState("");
   const [copied, setCopied] = useState(false);
   const [hasAddress, setHasAddress] = useState(false);
   const [existingAddress, setExistingAddress] = useState(null);
+  const [hasRevealedThisRegion, setHasRevealedThisRegion] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
+  const [hasSyncedName, setHasSyncedName] = useState(false);
 
   const navigate = useNavigate();
 
@@ -32,7 +36,7 @@ const FofoofoAddressGenerator = () => {
       return;
     }
 
-    // Load current user to get username
+      // Load current user to get full name
     loadCurrentUser();
   }, [navigate]);
 
@@ -40,8 +44,8 @@ const FofoofoAddressGenerator = () => {
     try {
       setIsLoadingUser(true);
       const response = await API.get("/buysellapi/users/me/");
-      if (response.data && response.data.username) {
-        setUsername(response.data.username);
+      if (response.data && (response.data.full_name || response.data.username)) {
+        setFullName(response.data.full_name || response.data.username);
       } else {
         toast.error("Unable to load user information. Please try again.");
       }
@@ -87,8 +91,46 @@ const FofoofoAddressGenerator = () => {
     }
   };
 
+  useEffect(() => {
+    setHasRevealedThisRegion(getRevealedRegions().includes(CHINA_REGION_CODE));
+  }, []);
+
+  useEffect(() => {
+    const syncName = async () => {
+      if (!fullName || !existingAddress?.name || hasSyncedName) return;
+      if (existingAddress.name === fullName) {
+        setHasSyncedName(true);
+        return;
+      }
+      try {
+        const resp = await API.put("/buysellapi/shipping-marks/me/", {
+          name: fullName.trim(),
+          updateUserProfile: false,
+        });
+        if (resp?.data?.markId) {
+          setExistingAddress(resp.data);
+          localStorage.setItem("userShippingMark", JSON.stringify(resp.data));
+          setHasSyncedName(true);
+        }
+      } catch (error) {
+        console.error("Failed to sync shipping mark name:", error);
+      }
+    };
+
+    syncName();
+  }, [fullName, existingAddress, hasSyncedName]);
+
+  const showAddressForThisRegion = () => {
+    if (existingAddress) {
+      setRegionRevealed(CHINA_REGION_CODE);
+      setHasRevealedThisRegion(true);
+      return;
+    }
+    generateAddress();
+  };
+
   const generateAddress = async () => {
-    if (!username.trim()) {
+    if (!fullName.trim()) {
       toast.error("Username not found. Please log in again.");
       return;
     }
@@ -106,12 +148,14 @@ const FofoofoAddressGenerator = () => {
     try {
       setIsLoading(true);
       const resp = await API.post("/buysellapi/shipping-marks/me/", {
-        name: username.trim(),
+        name: fullName.trim(),
       });
       const data = resp?.data;
       if (data && data.markId) {
         setExistingAddress(data);
         setHasAddress(true);
+        setRegionRevealed(CHINA_REGION_CODE);
+        setHasRevealedThisRegion(true);
         // Cache for offline fallback
         localStorage.setItem("userShippingMark", JSON.stringify(data));
         toast.success("Shipping address generated successfully!");
@@ -125,6 +169,8 @@ const FofoofoAddressGenerator = () => {
         const data = err.response.data;
         setExistingAddress(data);
         setHasAddress(true);
+        setRegionRevealed(CHINA_REGION_CODE);
+        setHasRevealedThisRegion(true);
         localStorage.setItem("userShippingMark", JSON.stringify(data));
         toast.info(
           "You already have a shipping mark. Showing existing address."
@@ -145,12 +191,14 @@ const FofoofoAddressGenerator = () => {
         try {
           await API.post("/buysellapi/users/ensure-profile/");
           const retry = await API.post("/buysellapi/shipping-marks/me/", {
-            name: username.trim(),
+            name: fullName.trim(),
           });
           const data2 = retry?.data;
-          if (data2 && data2.markId) {
+            if (data2 && data2.markId) {
             setExistingAddress(data2);
             setHasAddress(true);
+            setRegionRevealed(CHINA_REGION_CODE);
+            setHasRevealedThisRegion(true);
             localStorage.setItem("userShippingMark", JSON.stringify(data2));
             toast.success("Shipping address generated successfully!");
             return;
@@ -194,6 +242,42 @@ const FofoofoAddressGenerator = () => {
     }
   };
 
+  const resolvedMarkName =
+    (fullName && fullName.trim()) || existingAddress?.name || "";
+  const displayShippingMark =
+    existingAddress?.markId && resolvedMarkName
+      ? `${existingAddress.markId}:${resolvedMarkName}`
+      : existingAddress?.shippingMark;
+  const defaultFullAddress =
+    existingAddress?.fullAddress ||
+    existingAddress?.full_address ||
+    existingAddress?.fullAddress ||
+    "";
+  const baseChinaAddress =
+    "FOFOOFOIMPORT Phone number :18084390850 Address:广东省深圳市宝安区石岩街道金台路7号伟建产业园B栋106户*";
+  const ghSuffix = " 加纳";
+  const defaultAddressText =
+    displayShippingMark
+      ? `${baseChinaAddress}${displayShippingMark}${ghSuffix}`
+      : defaultFullAddress;
+  // Air address: fixed format for 8302专线 (Guangzhou) — uses full name
+  const airAddressName =
+    (resolvedMarkName && resolvedMarkName.trim()) || existingAddress?.name || "";
+  const airAddressText =
+    existingAddress?.markId && airAddressName
+      ? `FIM-${airAddressName} 18620999572\n广东省广州市越秀区广园西路101号通通商贸城AB110档8302专线\n入仓唛头贴外箱：\nFIM 8302-${airAddressName}`
+      : "";
+  const repackAddressText =
+    displayShippingMark
+      ? `${baseChinaAddress}${displayShippingMark}"REPACK"${ghSuffix}`
+      : "";
+  const repackAddressParts = displayShippingMark
+    ? {
+        prefix: `${baseChinaAddress}${displayShippingMark}"`,
+        suffix: `"${ghSuffix}`,
+      }
+    : null;
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-4xl lg:max-w-5xl xl:max-w-6xl mx-auto">
@@ -203,7 +287,7 @@ const FofoofoAddressGenerator = () => {
           className="inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 mb-6 group border border-gray-200 dark:border-gray-700 hover:border-primary dark:hover:border-primary"
         >
           <FaArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-          <span className="font-medium">Back to Shipping Dashboard</span>
+          <span className="font-medium">Back to Shipping Addresses</span>
         </Link>
 
         {/* Main Card */}
@@ -214,10 +298,10 @@ const FofoofoAddressGenerator = () => {
               <FaTruck className="text-5xl lg:text-6xl text-primary" />
             </div>
             <h1 className="text-3xl lg:text-4xl font-bold text-gray-800 dark:text-white mb-2">
-              Fofoofoimport Shipping Address Generator
+              China Address Generator
             </h1>
             <p className="text-base lg:text-lg text-gray-600 dark:text-gray-400">
-              Generate your unique shipping address for fofoofoimport warehouse
+              Fofoofoimport China warehouse – generate your unique shipping address for shipments from China
             </p>
           </div>
 
@@ -234,27 +318,27 @@ const FofoofoAddressGenerator = () => {
               <div className="mb-8">
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Your Username
+                    Your Full Name
                   </label>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                    Your shipping mark will be generated in FIM000 format (e.g., FIM000, FIM001) using your username
+                    Your shipping mark will be generated in FIM000 format (e.g., FIM000, FIM001) using your full name
                   </p>
                   <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                     <div className="flex-1 w-full sm:w-auto px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white">
                       {isLoadingUser ? (
-                        <span className="text-gray-400">Loading username...</span>
-                      ) : username ? (
-                        <span className="font-medium">{username}</span>
+                        <span className="text-gray-400">Loading name...</span>
+                      ) : fullName ? (
+                        <span className="font-medium">{fullName}</span>
                       ) : (
-                        <span className="text-red-500">Username not found</span>
+                        <span className="text-red-500">Name not found</span>
                       )}
                     </div>
                     <button
                       onClick={generateAddress}
                       className={`w-full sm:w-auto px-6 py-2.5 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors whitespace-nowrap font-medium ${
-                        isLoading || isLoadingUser || !username ? "opacity-70 cursor-not-allowed" : ""
+                        isLoading || isLoadingUser || !fullName ? "opacity-70 cursor-not-allowed" : ""
                       }`}
-                      disabled={isLoading || isLoadingUser || !username}
+                      disabled={isLoading || isLoadingUser || !fullName}
                     >
                       {isLoading ? "Generating..." : "Generate Address"}
                     </button>
@@ -274,6 +358,28 @@ const FofoofoAddressGenerator = () => {
                     </div>
                   </div>
                 </div>
+              </div>
+            ) : !hasRevealedThisRegion && existingAddress ? (
+              <div className="mb-8">
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Your Full Name
+                  </label>
+                  <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                    <div className="flex-1 w-full sm:w-auto px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white">
+                      {fullName ? <span className="font-medium">{fullName}</span> : <span className="text-gray-400">—</span>}
+                    </div>
+                    <button
+                      onClick={showAddressForThisRegion}
+                      className="w-full sm:w-auto px-6 py-2.5 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors whitespace-nowrap font-medium"
+                    >
+                      Generate / Show address
+                    </button>
+                  </div>
+                </div>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                  Click &quot;Generate / Show address&quot; to view your China warehouse address.
+                </p>
               </div>
             ) : existingAddress ? (
               <div className="mb-8">
@@ -307,13 +413,11 @@ const FofoofoAddressGenerator = () => {
                     <div className="relative">
                       <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                         <p className="text-sm text-gray-900 dark:text-white break-all">
-                          {existingAddress?.shippingMark}
+                          {displayShippingMark}
                         </p>
                       </div>
                       <button
-                        onClick={() =>
-                          copyToClipboard(existingAddress?.shippingMark)
-                        }
+                        onClick={() => copyToClipboard(displayShippingMark)}
                         className="absolute top-3 right-3 p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                         disabled={isLoading}
                       >
@@ -333,13 +437,11 @@ const FofoofoAddressGenerator = () => {
                     <div className="relative">
                       <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                         <p className="text-sm text-gray-900 dark:text-white break-all whitespace-pre-line">
-                          {existingAddress?.fullAddress}
+                          {defaultAddressText || defaultFullAddress}
                         </p>
                       </div>
                       <button
-                        onClick={() =>
-                          copyToClipboard(existingAddress?.fullAddress)
-                        }
+                        onClick={() => copyToClipboard(defaultAddressText || defaultFullAddress)}
                         className="absolute top-3 right-3 p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                         disabled={isLoading}
                       >
@@ -351,6 +453,66 @@ const FofoofoAddressGenerator = () => {
                       </button>
                     </div>
                   </div>
+
+                  {repackAddressText && (
+                    <div>
+                      <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+                        Repack Address
+                      </p>
+                      <div className="relative">
+                        <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                          <p className="text-sm text-gray-900 dark:text-white break-all whitespace-pre-line">
+                            {repackAddressParts ? (
+                              <>
+                                {repackAddressParts.prefix}
+                                <span className="font-semibold">REPACK</span>
+                                {repackAddressParts.suffix}
+                              </>
+                            ) : (
+                              repackAddressText
+                            )}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => copyToClipboard(repackAddressText)}
+                          className="absolute top-3 right-3 p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                          disabled={isLoading}
+                        >
+                          {copied ? (
+                            <FaCheck className="w-5 h-5 text-green-500" />
+                          ) : (
+                            <FaCopy className="w-5 h-5" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {airAddressText && (
+                    <div>
+                      <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+                        Air Address
+                      </p>
+                      <div className="relative">
+                        <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                          <p className="text-sm text-gray-900 dark:text-white break-all whitespace-pre-line">
+                            {airAddressText}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => copyToClipboard(airAddressText)}
+                          className="absolute top-3 right-3 p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                          disabled={isLoading}
+                        >
+                          {copied ? (
+                            <FaCheck className="w-5 h-5 text-green-500" />
+                          ) : (
+                            <FaCopy className="w-5 h-5" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   {existingAddress?.markId && (
                     <div>
@@ -398,3 +560,4 @@ const FofoofoAddressGenerator = () => {
 
 // Make sure the export is clear and explicit
 export default FofoofoAddressGenerator;
+

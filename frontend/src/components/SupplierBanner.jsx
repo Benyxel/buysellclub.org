@@ -93,7 +93,7 @@ const SupplierBanner = () => {
             {/* CTA Button */}
             <div className="pt-4">
               <Link
-                to="/Suppliers"
+                to="/Community"
                 className="inline-flex items-center gap-2 bg-pink-500 hover:bg-pink-600 text-white font-semibold px-8 py-4 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
               >
                 Explore Supplier Network

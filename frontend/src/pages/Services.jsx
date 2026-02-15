@@ -93,7 +93,7 @@ const Services = () => {
         "Connect with our network of verified suppliers in China. Access quality products directly from manufacturers.",
       icon: <FaUsers className="w-8 h-8" />,
       image: suppliersImage,
-      link: "/Suppliers",
+      link: "/Community",
       features: [
         "Verified manufacturers",
         "Direct factory access",
@@ -172,7 +172,7 @@ const Services = () => {
                 ))}
               </div>
               <Link
-                to={service.link}
+                to={service.link || "/"}
                 className="inline-flex items-center gap-2 bg-primary text-white px-6 py-3 rounded-lg hover:bg-primary/90 transition-colors"
               >
                 Learn More
@@ -246,3 +246,4 @@ const Services = () => {
 };
 
 export default Services;
+

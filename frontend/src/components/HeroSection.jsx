@@ -43,7 +43,7 @@ const HeroData = [
   },
 ];
 
-function HeroSection({ title, description, image }) {
+export default function HeroSection({ title, description, image }) {
   // Preload first hero image for faster initial render
   useEffect(() => {
     const link = document.createElement("link");
@@ -163,5 +163,3 @@ function HeroSection({ title, description, image }) {
     </div>
   );
 }
-
-export default HeroSection;

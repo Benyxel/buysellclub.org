@@ -179,12 +179,19 @@ const PublicInvoice = () => {
                   </p>
                 )}
                 {invoice.shipping_mark && (
-                  <p className="text-gray-900 dark:text-white">
-                    <span className="font-medium">Shipping Mark:</span>{" "}
-                    <span className="text-blue-600 dark:text-blue-400 font-semibold">
-                      {invoice.shipping_mark}
-                    </span>
-                  </p>
+                  <div className="text-gray-900 dark:text-white">
+                    <p>
+                      <span className="font-medium">Shipping Mark:</span>{" "}
+                      <span className="text-blue-600 dark:text-blue-400 font-semibold">
+                        {invoice.shipping_mark}
+                      </span>
+                    </p>
+                    {(invoice.client_full_name || invoice.client_username || invoice.username) && (
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5">
+                        {invoice.client_full_name || invoice.client_username || invoice.username}
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
@@ -302,9 +309,9 @@ const PublicInvoice = () => {
 
           {/* Payment Information */}
           <div className="mt-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 rounded">
-            <p className="text-sm text-yellow-800 dark:text-yellow-200">
-              <strong>Payment Information:</strong> For payment details, contact{" "}
-              <strong>0540266839</strong>
+            <p className="text-sm text-yellow-800 dark:text-yellow-200 whitespace-pre-line">
+              <strong>Payment Information:</strong> (0248939278)
+              {"\n"}FOFOOFO GROUP PTY
             </p>
           </div>
         </div>

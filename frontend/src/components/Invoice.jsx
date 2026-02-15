@@ -284,7 +284,7 @@ const Invoice = memo(({ invoice, request, printable = false, invoiceId, customer
                     <div className="text-gray-500 dark:text-gray-400 mt-1">{request?.description || 'Service description'}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-white font-medium">
-                    {getCurrencySymbol()}{invoice.amount?.toFixed(2) || '0.00'}
+                    {getCurrencySymbol()}{Number(invoice.amount || 0).toFixed(2)}
                   </td>
                 </tr>
               )}
@@ -327,7 +327,7 @@ const Invoice = memo(({ invoice, request, printable = false, invoiceId, customer
                   Total:
                 </td>
                 <td className="px-6 py-4 text-right text-lg font-bold text-gray-900 dark:text-white">
-                  {getCurrencySymbol()}{calculateTotal().toFixed(2)}
+                  {getCurrencySymbol()}{Number(calculateTotal() || 0).toFixed(2)}
                 </td>
               </tr>
             </tfoot>

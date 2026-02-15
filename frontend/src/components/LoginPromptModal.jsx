@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useInRouterContext, useLocation, useNavigate } from "react-router-dom";
 
-// Lightweight modal prompting user right after login
-const LoginPromptModal = () => {
+const LoginPromptModalInner = () => {
   const [open, setOpen] = useState(false);
   const [username, setUsername] = useState("");
   const navigate = useNavigate();
@@ -110,6 +109,13 @@ const LoginPromptModal = () => {
       </div>
     </div>
   );
+};
+
+// Lightweight modal prompting user right after login
+const LoginPromptModal = () => {
+  const inRouter = useInRouterContext();
+  if (!inRouter) return null;
+  return <LoginPromptModalInner />;
 };
 
 export default LoginPromptModal;

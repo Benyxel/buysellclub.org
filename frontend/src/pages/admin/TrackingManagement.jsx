@@ -51,6 +51,9 @@ const TrackingManagement = () => {
   const [sortDirection, setSortDirection] = useState("desc");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterContainer, setFilterContainer] = useState("all");
+  const [bulkStatus, setBulkStatus] = useState("pending");
+  const [bulkEta, setBulkEta] = useState("");
+  const [bulkUpdating, setBulkUpdating] = useState(false);
   const [selectedTrackings, setSelectedTrackings] = useState([]);
   const [selectAll, setSelectAll] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -386,6 +389,31 @@ const TrackingManagement = () => {
     if (selectedTrackings.length === 0) return;
     setDeleteTarget("selected");
     setShowDeleteModal(true);
+  };
+
+  const handleBulkUpdateByContainer = async () => {
+    if (!filterContainer || filterContainer === "all" || filterContainer === "none") {
+      toast.error("Select a container to bulk update");
+      return;
+    }
+    setBulkUpdating(true);
+    try {
+      const payload = { container_id: filterContainer };
+      if (bulkStatus) payload.status = bulkStatus;
+      if (bulkEta) payload.eta = bulkEta;
+
+      const response = await API.post("/buysellapi/admin/trackings/bulk-update/", payload);
+      const updatedCount = response?.data?.updated || 0;
+      toast.success(`Updated ${updatedCount} tracking(s)`);
+      await fetchTrackings();
+    } catch (error) {
+      console.error("Bulk update failed:", error);
+      toast.error(
+        error?.response?.data?.message || "Failed to bulk update tracking statuses"
+      );
+    } finally {
+      setBulkUpdating(false);
+    }
   };
 
   const confirmDeleteSelected = async () => {
@@ -754,6 +782,32 @@ const TrackingManagement = () => {
           >
             <FaTrash /> Delete Selected
           </button>
+          <div className="flex items-center gap-2">
+            <select
+              value={bulkStatus}
+              onChange={(e) => setBulkStatus(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            >
+              {statusOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            <input
+              type="date"
+              value={bulkEta}
+              onChange={(e) => setBulkEta(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            />
+            <button
+              onClick={handleBulkUpdateByContainer}
+              disabled={bulkUpdating}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+            >
+              {bulkUpdating ? "Updating..." : "Update Container Status/ETA"}
+            </button>
+          </div>
         </div>
       </div>
 

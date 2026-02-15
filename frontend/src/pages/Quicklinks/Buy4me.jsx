@@ -12,18 +12,20 @@ import {
   FaInfoCircle,
   FaChevronLeft,
   FaChevronRight,
+  FaUpload,
+  FaMoneyBillWave,
+  FaAlipay,
 } from "react-icons/fa";
 import { toast } from "../../utils/toast";
 import "react-toastify/dist/ReactToastify.css";
 import buyimg from "../../assets/bm2.jpg";
-import { useNavigate, useLocation } from "react-router-dom";
-import { createBuy4meRequest, createBuy4meRequestWithPayment, updateBuy4meRequest, getQuickOrderProducts, initiateBuy4mePayment, getBuy4meSettings } from "../../api";
+import { useLocation } from "react-router-dom";
+import { createBuy4meRequestWithProof, updateBuy4meRequest, getQuickOrderProducts, getBuy4meSettings } from "../../api";
 
 // Removed placeholder products - only show products from backend API
 
 const Buy4me = () => {
   const location = useLocation();
-  const navigate = useNavigate();
   const [editMode, setEditMode] = useState(false);
   const [editOrderId, setEditOrderId] = useState(null);
   // Separate loading states for independent button operations
@@ -43,11 +45,14 @@ const Buy4me = () => {
     currentIndex: 0,
     productTitle: "",
   });
+  const [proofOfPaymentPreview, setProofOfPaymentPreview] = useState("");
+  const [quickOrderModal, setQuickOrderModal] = useState({ open: false, product: null, proof: null, proofPreview: "" });
 
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     images: ["", "", "", "", ""],
+    shippingMethod: "sea",
     additionalLinks: [
       { url: "", quantity: 0 },
       { url: "", quantity: 0 },
@@ -93,17 +98,21 @@ const Buy4me = () => {
         
         // Handle different response structures
         let products = [];
+        let count = 0;
         if (response.data && typeof response.data === 'object' && 'results' in response.data) {
           // Paginated response
           products = response.data.results || [];
-          setTotal(response.data.count || 0);
+          count = response.data.count || 0;
+          setTotal(count);
         } else if (Array.isArray(response.data)) {
           // Non-paginated array response (fallback)
           products = response.data;
-          setTotal(response.data.length);
+          count = response.data.length;
+          setTotal(count);
         } else if (response.data && typeof response.data === 'object') {
           // If it's a single object, wrap it in an array
           products = [response.data];
+          count = 1;
           setTotal(1);
         } else {
           products = [];
@@ -111,7 +120,7 @@ const Buy4me = () => {
         }
         
         console.log("Extracted products:", products);
-        console.log("Total products from API:", total);
+        console.log("Total products from API:", count);
         console.log("Current page:", currentPage, "Page size:", pageSize);
         
         // Backend already filters active products, so just transform the format
@@ -279,122 +288,71 @@ const Buy4me = () => {
         title: order.title,
         description: order.description,
         images: [...(order.images || []), "", "", "", "", ""].slice(0, 5),
+        shippingMethod: order.invoice_shipping_method || "sea",
         additionalLinks: additionalLinks,
       });
     }
   }, [location.state]);
 
-  const handleQuickOrder = async (product) => {
-    // Set the specific product ID that's being submitted
+  const openQuickOrderModal = (product) => {
+    setQuickOrderModal({ open: true, product, proof: null, proofPreview: "" });
+  };
+
+  const closeQuickOrderModal = () => {
+    setQuickOrderModal({ open: false, product: null, proof: null, proofPreview: "" });
+  };
+
+  const handleQuickOrderProofChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be less than 5MB");
+      return;
+    }
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload an image file");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () =>
+      setQuickOrderModal((prev) => ({ ...prev, proof: file, proofPreview: reader.result || "" }));
+    reader.readAsDataURL(file);
+  };
+
+  const handleQuickOrderSubmit = async () => {
+    const { product, proofPreview } = quickOrderModal;
+    if (!product || !proofPreview) {
+      toast.error("Please upload proof of payment.");
+      return;
+    }
     setSubmittingQuickOrderId(product.id || product._id);
-
     try {
-      // Format links according to the expected schema format
       let validLink = product.link;
-      // Ensure the link has a protocol
-      if (validLink && !validLink.startsWith("http")) {
-        validLink = "https://" + validLink;
-      }
-
-      // Prepare the order data for Django API with payment
-      // Quick orders use the default sourcing payment from backend settings
-      const quickOrderPaymentAmount = defaultSourcingPayment;
-      
-      const orderDataWithPayment = {
+      if (validLink && !validLink.startsWith("http")) validLink = "https://" + validLink;
+      const orderDataWithProof = {
         title: product.title || "Quick Order Product",
         description: product.description || "Ordered from Quick Order Products",
         product_url: validLink,
         additional_links: [],
         images: Array.isArray(product.images) ? product.images : (product.images ? [product.images] : []),
         quantity: product.minQuantity || 20,
-        estimated_amount: quickOrderPaymentAmount,
+        estimated_amount: defaultSourcingPayment,
+        invoice_shipping_method: "sea",
+        proof_of_payment: proofPreview,
       };
-
-      console.log("Submitting quick order with payment:", orderDataWithPayment);
-
-      // Submit the order using createBuy4meRequestWithPayment to require payment first
-      const response = await createBuy4meRequestWithPayment(orderDataWithPayment);
-      const savedRequest = response.data;
-
-      console.log('Quick order request created with payment:', savedRequest);
-      console.log('Payment amount:', savedRequest.estimated_amount || quickOrderPaymentAmount);
-      
-      // If payment URL is returned, redirect to payment gateway
-      if (savedRequest.payment_url) {
-        toast.success('Redirecting to payment gateway...');
-        
-        // Add to updates before redirecting
-      const updates = JSON.parse(localStorage.getItem("updates") || "[]");
-      updates.unshift({
-        id: Date.now().toString(),
-        type: "order",
-          title: "Payment Required",
-          message: `Please complete payment of GHS ${quickOrderPaymentAmount} for your quick order "${savedRequest.title}".`,
-        date: new Date().toISOString(),
-        read: false,
-      });
-      localStorage.setItem("updates", JSON.stringify(updates));
-
-        // Redirect to payment gateway
-        window.location.href = savedRequest.payment_url;
-        return; // Exit early since we're redirecting
-      } else {
-        // Payment URL not returned - this shouldn't happen, but handle gracefully
-        toast.error('Payment gateway did not return a payment URL. Please contact support.');
-        setSubmittingQuickOrderId(null);
-        return;
-      }
+      await createBuy4meRequestWithProof(orderDataWithProof);
+      toast.success("Order submitted. We'll verify your payment and get back to you.");
+      closeQuickOrderModal();
     } catch (error) {
-      console.error("Error submitting quick order:", error);
-      console.error("Error response:", error.response);
-      console.error("Error data:", error.response?.data);
-      
-      // Extract detailed error message
-      let errorMessage = "An error occurred. Please try again.";
-      if (error.response?.data) {
-        const errorData = error.response.data;
-        
-        // Handle validation errors
-        if (typeof errorData === 'object' && !Array.isArray(errorData)) {
-          const errorFields = Object.keys(errorData);
-          if (errorFields.length > 0) {
-            const fieldErrors = errorFields.map(field => {
-              const fieldError = Array.isArray(errorData[field])
-                ? errorData[field].join(', ')
-                : errorData[field];
-              return `${field}: ${fieldError}`;
-            });
-            errorMessage = fieldErrors.join('; ');
-          } else if (errorData.detail) {
-            errorMessage = errorData.detail;
-          } else if (errorData.message) {
-            errorMessage = errorData.message;
-          } else if (errorData.error) {
-            errorMessage = errorData.error;
-          }
-        } else if (typeof errorData === 'string') {
-          errorMessage = errorData;
-        } else if (Array.isArray(errorData)) {
-          errorMessage = errorData.join('; ');
-        }
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      // Handle specific error cases
-      if (error.response?.status === 503) {
-        const errorMsg = error.response?.data?.error || 'Payment gateway is currently unavailable. Please contact support or try again later.';
-        toast.error(errorMsg);
-      } else if (error.response?.status === 400) {
-        const errorMsg = error.response?.data?.error || 'Invalid order data. Please check your inputs.';
-        toast.error(errorMsg);
-      } else {
-      toast.error(errorMessage, { autoClose: 5000 });
-      }
+      const errMsg = error.response?.data?.error || error.response?.data?.detail || "Failed to submit order.";
+      toast.error(errMsg);
     } finally {
-      // Reset the submitting state for this specific product
       setSubmittingQuickOrderId(null);
     }
+  };
+
+  const handleQuickOrder = (product) => {
+    openQuickOrderModal(product);
   };
 
   const handleImageChange = (index, value) => {
@@ -446,16 +404,6 @@ const Buy4me = () => {
         return;
       }
 
-      // Check if at least one link is provided
-      const hasLinks = formData.additionalLinks.some(
-        (link) => link.url && link.url.trim() !== ""
-      );
-      if (!hasLinks) {
-        toast.error("Please provide at least one product link");
-        setIsSubmittingBuy4me(false);
-        return;
-      }
-
       // Filter out empty links and ensure proper format
       const filteredLinks = formData.additionalLinks
         .filter((link) => link.url && link.url.trim() !== "")
@@ -482,6 +430,7 @@ const Buy4me = () => {
         additional_links: restLinks.length > 0 ? restLinks : [],
         images: formData.images.filter((img) => img && img.trim() !== ''),
         quantity: filteredLinks.reduce((sum, link) => sum + (link.quantity || 20), 0),
+        invoice_shipping_method: formData.shippingMethod,
       };
       
       console.log('Submitting buy4me request:', orderData);
@@ -513,6 +462,7 @@ const Buy4me = () => {
           title: "",
           description: "",
           images: ["", "", "", "", ""],
+          shippingMethod: "sea",
           additionalLinks: [
             { url: "", quantity: 0 },
             { url: "", quantity: 0 },
@@ -522,83 +472,43 @@ const Buy4me = () => {
           ],
         });
       } else {
-        // For new orders, use payment-first flow
-        // Use default sourcing payment from settings
-        const estimatedAmount = defaultSourcingPayment;
-        
-        console.log('Using sourcing payment amount:', estimatedAmount, 'GHS');
-        
-        const orderDataWithPayment = {
-          ...orderData,
-          estimated_amount: estimatedAmount,
-        };
-        
-        try {
-          response = await createBuy4meRequestWithPayment(orderDataWithPayment);
-          savedRequest = response.data;
-          
-          console.log('Buy4me request created with payment:', savedRequest);
-          console.log('Payment amount used:', savedRequest.estimated_amount || estimatedAmount);
-          
-          // If payment URL is returned, show success message and redirect to payment gateway
-          if (savedRequest.payment_url) {
-            // Add to updates
-            const updates = JSON.parse(localStorage.getItem("updates") || "[]");
-            updates.unshift({
-              id: Date.now().toString(),
-              type: "order",
-              title: "Payment Required",
-              message: `Please complete payment for your order "${savedRequest.title}".`,
-              date: new Date().toISOString(),
-              read: false,
-            });
-            localStorage.setItem("updates", JSON.stringify(updates));
-            
-            // Show success message and stay on page briefly before redirecting
-            toast.success('Order created successfully! Redirecting to payment gateway...');
-            
-            // Reset form
-            setFormData({
-              title: "",
-              description: "",
-              images: ["", "", "", "", ""],
-              additionalLinks: [
-                { url: "", quantity: 0 },
-                { url: "", quantity: 0 },
-                { url: "", quantity: 0 },
-                { url: "", quantity: 0 },
-                { url: "", quantity: 0 },
-              ],
-            });
-            
-            // Redirect to payment gateway after a short delay to show success message
-            setTimeout(() => {
-            window.location.href = savedRequest.payment_url;
-            }, 1500); // 1.5 second delay to show success message
-            return; // Exit early since we're redirecting
-          } else {
-            // Payment URL not returned - this shouldn't happen, but handle gracefully
-            toast.error('Payment gateway did not return a payment URL. Please contact support.');
-            setIsSubmittingBuy4me(false);
-            return;
-          }
-        } catch (error) {
-          console.error('Error creating buy4me request with payment:', error);
-          console.error('Error response:', error.response);
-          
-          // Handle different error types
-          if (error.response?.status === 503) {
-            const errorMsg = error.response?.data?.error || 'Payment gateway is currently unavailable. Please contact support or try again later.';
-            toast.error(errorMsg);
-          } else if (error.response?.status === 400) {
-            const errorMsg = error.response?.data?.error || 'Invalid order data. Please check your inputs.';
-            toast.error(errorMsg);
-          } else {
-            toast.error('Failed to create order. Please try again later.');
-          }
+        // For new orders, use proof-of-payment flow (like Alipay/Community)
+        if (!proofOfPaymentPreview) {
+          toast.error("Please upload proof of payment (receipt/screenshot).");
           setIsSubmittingBuy4me(false);
           return;
         }
+        const estimatedAmount = defaultSourcingPayment;
+        const orderDataWithProof = {
+          ...orderData,
+          estimated_amount: estimatedAmount,
+          proof_of_payment: proofOfPaymentPreview,
+        };
+        try {
+          response = await createBuy4meRequestWithProof(orderDataWithProof);
+          savedRequest = response.data;
+          toast.success("Order submitted. We'll verify your payment and get back to you.");
+          setProofOfPaymentPreview("");
+          setFormData({
+            title: "",
+            description: "",
+            images: ["", "", "", "", ""],
+            shippingMethod: "sea",
+            additionalLinks: [
+              { url: "", quantity: 0 },
+              { url: "", quantity: 0 },
+              { url: "", quantity: 0 },
+              { url: "", quantity: 0 },
+              { url: "", quantity: 0 },
+            ],
+          });
+        } catch (error) {
+          console.error("Error creating buy4me request with proof:", error);
+          const errMsg = error.response?.data?.error || error.response?.data?.detail || "Failed to submit order. Please try again.";
+          toast.error(errMsg);
+        }
+        setIsSubmittingBuy4me(false);
+        return;
       }
     } catch (error) {
       console.error("Error submitting request:", error);
@@ -682,6 +592,21 @@ const Buy4me = () => {
                     rows="4"
                     placeholder="Enter product description, specifications, or any additional details"
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Shipping Type
+                  </label>
+                  <select
+                    value={formData.shippingMethod}
+                    onChange={(e) =>
+                      setFormData({ ...formData, shippingMethod: e.target.value })
+                    }
+                    className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+                  >
+                    <option value="sea">Sea Shipping</option>
+                    <option value="air">Air Shipping</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -792,33 +717,129 @@ const Buy4me = () => {
 
                 {/* Sourcing Payment Information */}
                 {!editMode && (
-                  <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                    <div className="flex items-start gap-3">
-                      <FaInfoCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
-                      <div>
-                        <p className="text-sm font-medium text-blue-900 dark:text-blue-200 mb-1">
-                          Sourcing Payment Required
-                        </p>
-                        <p className="text-sm text-blue-700 dark:text-blue-300">
-                          You will be required to pay <strong>GHS {defaultSourcingPayment}</strong> for sourcing the product. 
-                          This payment is for sourcing services only, not for purchasing the product itself. 
-                          The product purchase amount will be calculated and invoiced separately after sourcing is complete.
-                        </p>
+                  <div className="space-y-4">
+                    <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                      <div className="flex items-start gap-3">
+                        <FaInfoCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="text-sm font-medium text-blue-900 dark:text-blue-200 mb-1">
+                            Sourcing Payment Required
+                          </p>
+                          <p className="text-sm text-blue-700 dark:text-blue-300">
+                            Pay <strong>GHS {defaultSourcingPayment}</strong> for sourcing using the details below, then upload proof of payment.
+                            The product purchase amount will be invoiced separately after sourcing is complete.
+                          </p>
+                        </div>
                       </div>
+                    </div>
+
+                    <div className="border-2 border-gray-200 dark:border-gray-700 rounded-xl p-4 space-y-3">
+                      <h4 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                        <FaMoneyBillWave className="w-5 h-5 text-green-600" />
+                        Bank Transfer
+                      </h4>
+                      <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-lg space-y-1.5 text-sm">
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600 dark:text-gray-400">Account Name:</span>
+                          <span className="font-semibold text-gray-900 dark:text-white">BUY SELL CLUB LTD</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600 dark:text-gray-400">Bank:</span>
+                          <span className="font-semibold text-gray-900 dark:text-white">ECOBANK (ACHIMOTA)</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600 dark:text-gray-400">Account Number:</span>
+                          <span className="font-mono font-bold text-blue-600 dark:text-blue-400">1441004957068</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="border-2 border-gray-200 dark:border-gray-700 rounded-xl p-4 space-y-3">
+                      <h4 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                        <FaAlipay className="w-5 h-5 text-purple-600" />
+                        Mobile Money (MoMo)
+                      </h4>
+                      <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-lg space-y-1.5 text-sm">
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600 dark:text-gray-400">Name:</span>
+                          <span className="font-semibold text-gray-900 dark:text-white">Buy Sell Club</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600 dark:text-gray-400">Number:</span>
+                          <span className="font-mono font-bold text-blue-600 dark:text-blue-400">054 437 0928</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600 dark:text-gray-400">Merchant ID:</span>
+                          <span className="font-mono font-semibold text-gray-900 dark:text-white">060140</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+                      <p className="text-sm font-medium text-amber-900 dark:text-amber-200">
+                        Amount to pay for sourcing: <span className="text-lg font-bold">GHS {defaultSourcingPayment}</span>
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Proof of payment upload (custom order) */}
+                {!editMode && (
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Proof of payment <span className="text-red-500">*</span>
+                    </label>
+                    <div className="flex flex-col sm:flex-row gap-4 items-start">
+                      <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-600">
+                        <FaUpload className="w-4 h-4" />
+                        <span>Choose image (receipt/screenshot)</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            if (file.size > 5 * 1024 * 1024) {
+                              toast.error("Image must be less than 5MB");
+                              return;
+                            }
+                            if (!file.type.startsWith("image/")) {
+                              toast.error("Please upload an image file");
+                              return;
+                            }
+                            const reader = new FileReader();
+                            reader.onloadend = () => setProofOfPaymentPreview(reader.result || "");
+                            reader.readAsDataURL(file);
+                          }}
+                        />
+                      </label>
+                      {proofOfPaymentPreview && (
+                        <div className="relative">
+                          <img src={proofOfPaymentPreview} alt="Proof" className="h-24 w-auto rounded border object-contain bg-gray-100 dark:bg-gray-700" />
+                          <button
+                            type="button"
+                            onClick={() => setProofOfPaymentPreview("")}
+                            className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center text-sm"
+                          >
+                            <FaTimes />
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
 
                 <button
                   type="submit"
-                  disabled={isSubmittingBuy4me}
+                  disabled={isSubmittingBuy4me || (!editMode && !proofOfPaymentPreview)}
                   className="w-full px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmittingBuy4me
                     ? "Submitting..."
                     : editMode
                     ? "Update Order"
-                    : "Place Order"}
+                    : "Submit order with proof"}
                 </button>
               </form>
             </div>
@@ -940,7 +961,7 @@ const Buy4me = () => {
                             disabled={submittingQuickOrderId === (product.id || product._id)}
                             className="w-full px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           >
-                            {submittingQuickOrderId === (product.id || product._id) ? "Processing..." : "Pay & Place Order"}
+                            {submittingQuickOrderId === (product.id || product._id) ? "Processing..." : "Place order (upload proof)"}
                           </button>
                         </div>
                       </div>
@@ -1002,6 +1023,65 @@ const Buy4me = () => {
           </div>
         </div>
       </div>
+
+      {/* Quick Order – Proof of payment modal */}
+      {quickOrderModal.open && quickOrderModal.product && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={closeQuickOrderModal}>
+          <div
+            className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              Place order: {quickOrderModal.product.title}
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+              Pay <strong>GHS {defaultSourcingPayment}</strong> for sourcing, then upload proof of payment below.
+            </p>
+            <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg text-xs space-y-1">
+              <p className="font-medium text-gray-700 dark:text-gray-200">Pay to:</p>
+              <p className="text-gray-600 dark:text-gray-300">Bank: ECOBANK (ACHIMOTA) — 1441004957068 (BUY SELL CLUB LTD)</p>
+              <p className="text-gray-600 dark:text-gray-300">MoMo: Buy Sell Club — 054 437 0928 (Merchant ID: 060140)</p>
+            </div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Proof of payment *</label>
+            <div className="flex flex-col gap-3 mb-6">
+              <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600">
+                <FaUpload className="w-4 h-4" />
+                <span>Choose image</span>
+                <input type="file" accept="image/*" className="hidden" onChange={handleQuickOrderProofChange} />
+              </label>
+              {quickOrderModal.proofPreview && (
+                <div className="relative inline-block">
+                  <img src={quickOrderModal.proofPreview} alt="Proof" className="h-24 w-auto rounded border object-contain bg-gray-100 dark:bg-gray-700" />
+                  <button
+                    type="button"
+                    onClick={() => setQuickOrderModal((p) => ({ ...p, proof: null, proofPreview: "" }))}
+                    className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center"
+                  >
+                    <FaTimes />
+                  </button>
+                </div>
+              )}
+            </div>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={closeQuickOrderModal}
+                className="flex-1 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleQuickOrderSubmit}
+                disabled={!quickOrderModal.proofPreview || submittingQuickOrderId === (quickOrderModal.product?.id || quickOrderModal.product?._id)}
+                className="flex-1 px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {submittingQuickOrderId === (quickOrderModal.product?.id || quickOrderModal.product?._id) ? "Submitting..." : "Submit order"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Image Preview Modal */}
       {imagePreview.isOpen && imagePreview.images.length > 0 && (

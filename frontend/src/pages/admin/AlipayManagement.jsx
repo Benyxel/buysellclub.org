@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   FaExchangeAlt,
   FaAlipay,
@@ -16,8 +16,7 @@ import {
   FaSearch,
 } from "react-icons/fa";
 import { toast } from "../../utils/toast";
-import API, { Api, getCachedData, setCachedData, CACHE_DURATION, clearCache } from "../../api";
-import { storageCache } from "../../utils/storageCache";
+import API, { Api } from "../../api";
 import ConfirmModal from "../../components/shared/ConfirmModal";
 
 const AlipayManagement = () => {
@@ -31,6 +30,8 @@ const AlipayManagement = () => {
   const [exchangeRate, setExchangeRate] = useState(12.0);
   const [isRateModalOpen, setIsRateModalOpen] = useState(false);
   const [newRate, setNewRate] = useState("");
+  const [rmbUnavailable, setRmbUnavailable] = useState(false);
+  const [rmbUnavailableMessage, setRmbUnavailableMessage] = useState("");
   const [isUpdateStatusOpen, setIsUpdateStatusOpen] = useState(false);
   const [newStatus, setNewStatus] = useState("");
   const [adminNotes, setAdminNotes] = useState("");
@@ -41,6 +42,7 @@ const AlipayManagement = () => {
   const [users, setUsers] = useState([]);
   const [userSearchTerm, setUserSearchTerm] = useState("");
   const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const statusOverridesRef = useRef({});
   const [createForm, setCreateForm] = useState({
     user: "",
     accountType: "personal",
@@ -61,67 +63,25 @@ const AlipayManagement = () => {
     proofOfPaymentPreview: "",
   });
 
-  // Fetch users for dropdown - cache for 1 hour (rarely changes)
+  // Fetch users for dropdown
   const fetchUsers = useCallback(async () => {
-    const cacheKey = 'users-list-all';
-    
-    // Check cache first
-    const cached = getCachedData(cacheKey) || storageCache.get(cacheKey, CACHE_DURATION.VERY_LONG);
-    if (cached) {
-      const usersData = Array.isArray(cached.data)
-        ? cached.data
-        : cached.data?.results || Array.isArray(cached) ? cached : [];
-      setUsers(usersData);
-      return;
-    }
-    
     try {
       const response = await API.get("/buysellapi/users/", {
         params: { page_size: 1000 },
-        cacheDuration: CACHE_DURATION.VERY_LONG, // 1 hour cache
+        noCache: true,
+        cacheDuration: 0,
       });
       const usersData = Array.isArray(response.data)
         ? response.data
         : response.data?.results || [];
       setUsers(usersData);
-      
-      // Also store in localStorage for persistence
-      storageCache.set(cacheKey, usersData);
     } catch (error) {
       console.error("Error fetching users:", error);
-      // Try to use cached data if available
-      const fallbackCache = storageCache.get(cacheKey, CACHE_DURATION.VERY_LONG * 2);
-      if (fallbackCache) {
-        const usersData = Array.isArray(fallbackCache) ? fallbackCache : [];
-        setUsers(usersData);
-      }
     }
   }, []);
 
   // Define fetchPayments before useEffect to avoid TDZ errors when referencing in deps
-  // Now with caching to reduce backend requests
-  const fetchPayments = useCallback(async (forceRefresh = false) => {
-    const cacheKey = `alipay-payments-${currentPage}-${statusFilter || 'all'}`;
-    
-    // Check cache first (5 minute cache for payment list)
-    if (!forceRefresh) {
-      const cached = getCachedData(cacheKey);
-      if (cached && cached.data) {
-        const data = cached.data;
-        if (data.data !== undefined) {
-          setPayments(data.data || []);
-          setTotalPages(data.totalPages || 1);
-          setLoading(false);
-          return;
-        } else if (Array.isArray(data)) {
-          setPayments(data);
-          setTotalPages(1);
-          setLoading(false);
-          return;
-        }
-      }
-    }
-    
+  const fetchPayments = useCallback(async () => {
     try {
       setLoading(true);
       console.log("Fetching Alipay payments with params:", {
@@ -129,29 +89,56 @@ const AlipayManagement = () => {
         limit: 10,
         ...(statusFilter ? { status: statusFilter } : {}),
       });
-      const response = await Api.alipay.payments({
-        page: currentPage,
-        limit: 10,
-        ...(statusFilter ? { status: statusFilter } : {}),
-      }, {
-        cacheDuration: CACHE_DURATION.MEDIUM, // 5 minutes
-      });
+      const response = await Api.alipay.payments(
+        {
+          page: currentPage,
+          limit: 10,
+          ...(statusFilter ? { status: statusFilter } : {}),
+          noCache: true,
+        },
+        {
+          noCache: true,
+          cacheDuration: 0,
+        }
+      );
       console.log("Alipay payments response:", response);
       const { data } = response;
       console.log("Alipay payments data:", data);
       
+      const applyOverrides = (items) => {
+        const now = Date.now();
+        const overrides = statusOverridesRef.current || {};
+        const nextOverrides = {};
+        const mapped = (items || []).map((item) => {
+          const itemId = item?._id || item?.id;
+          const override = overrides[itemId];
+          if (override && override.expiresAt > now) {
+            nextOverrides[itemId] = override;
+            return {
+              ...item,
+              status: override.status || item.status,
+              adminNotes: override.adminNotes ?? item.adminNotes,
+              transactionId: override.transactionId ?? item.transactionId,
+            };
+          }
+          return item;
+        });
+        statusOverridesRef.current = nextOverrides;
+        return mapped;
+      };
+
       // Handle both paginated and non-paginated responses
       if (data.results !== undefined) {
         // Paginated response (Django REST framework style)
-        setPayments(data.results || []);
+        setPayments(applyOverrides(data.results || []));
         setTotalPages(data.total_pages || Math.ceil((data.count || 0) / 10) || 1);
       } else if (Array.isArray(data)) {
         // Direct array response
-        setPayments(data);
+        setPayments(applyOverrides(data));
         setTotalPages(1);
       } else if (data.data) {
         // Backend format: { data: [...], page, limit, total, totalPages }
-        setPayments(data.data || []);
+        setPayments(applyOverrides(data.data || []));
         setTotalPages(data.totalPages || 1);
       } else {
         // Empty or unknown format - set empty array (valid state)
@@ -195,44 +182,14 @@ const AlipayManagement = () => {
   }, [currentPage, statusFilter]);
 
   useEffect(() => {
-    // Only fetch if cache is missing or stale
-    const cacheKey = `alipay-payments-${currentPage}-${statusFilter || 'all'}`;
-    const cached = getCachedData(cacheKey);
-    
-    if (!cached) {
-      fetchPayments();
-    } else {
-      // Use cached data immediately, then refresh in background if stale
-      const data = cached.data;
-      if (data?.data) {
-        setPayments(data.data || []);
-        setTotalPages(data.totalPages || 1);
-      } else if (Array.isArray(data)) {
-        setPayments(data);
-        setTotalPages(1);
-      }
-      setLoading(false);
-      
-      // Refresh in background if cache is older than 2 minutes
-      const cacheAge = Date.now() - cached.timestamp;
-      if (cacheAge > 120000) {
-        fetchPayments(true); // Force refresh
-      }
-    }
+    fetchPayments();
     
     fetchExchangeRate();
     
-    // Only fetch users if not cached
-    const usersCache = getCachedData('users-list-all') || storageCache.get('users-list-all', CACHE_DURATION.VERY_LONG);
-    if (!usersCache) {
-      fetchUsers();
-    } else {
-      const usersData = Array.isArray(usersCache.data)
-        ? usersCache.data
-        : usersCache.data?.results || Array.isArray(usersCache) ? usersCache : [];
-      setUsers(usersData);
-    }
+    fetchUsers();
   }, [currentPage, statusFilter]); // Removed fetchPayments, fetchUsers from deps to prevent re-fetching
+
+  // Auto-refresh removed: keep table stable unless user changes filters/pages.
 
   // Close user dropdown when clicking outside
   useEffect(() => {
@@ -249,9 +206,22 @@ const AlipayManagement = () => {
 
   const fetchExchangeRate = async () => {
     try {
-      const { data } = await API.get("/buysellapi/alipay-exchange-rate/");
+      const { data } = await API.get("/buysellapi/alipay-exchange-rate/", {
+        noCache: true,
+        cacheDuration: 0,
+      });
       if (data && (data.ghs_to_cny !== undefined && data.ghs_to_cny !== null)) {
         setExchangeRate(data.ghs_to_cny);
+      }
+      const note = (data?.notes || "").trim();
+      const marker = "RMB_UNAVAILABLE";
+      if (note.toUpperCase().startsWith(marker)) {
+        const message = note.slice(marker.length).replace(/^[:\-\s]+/, "").trim();
+        setRmbUnavailable(true);
+        setRmbUnavailableMessage(message);
+      } else {
+        setRmbUnavailable(false);
+        setRmbUnavailableMessage("");
       }
       // If no data or no rate, keep the default value (12.0) - this is fine
     } catch (error) {
@@ -267,16 +237,32 @@ const AlipayManagement = () => {
   };
 
   const handleUpdateRate = async () => {
-    if (!newRate || isNaN(newRate) || parseFloat(newRate) <= 0) {
+    const hasNewRate = newRate && !isNaN(newRate) && parseFloat(newRate) > 0;
+    if (newRate && !hasNewRate) {
       toast.error("Please enter a valid exchange rate");
+      return;
+    }
+    if (!hasNewRate && !rmbUnavailable) {
+      toast.error("Please enter a new exchange rate");
       return;
     }
 
     try {
-      const rateValue = parseFloat(newRate);
-      const { data } = await API.post("/buysellapi/alipay-exchange-rate/", {
-        ghs_to_cny: rateValue,
-      });
+      const payload = {};
+      if (hasNewRate) {
+        payload.ghs_to_cny = parseFloat(newRate);
+      }
+      if (rmbUnavailable) {
+        const message = rmbUnavailableMessage.trim();
+        payload.notes = `RMB_UNAVAILABLE${message ? `: ${message}` : ""}`;
+        if (!hasNewRate) {
+          payload.ghs_to_cny = Number(exchangeRate);
+        }
+      } else {
+        payload.notes = "";
+      }
+
+      const { data } = await API.post("/buysellapi/alipay-exchange-rate/", payload);
       setExchangeRate(data.ghs_to_cny);
       toast.success("Exchange rate updated successfully");
       setIsRateModalOpen(false);
@@ -338,29 +324,41 @@ const AlipayManagement = () => {
       console.log("Response data:", response.data);
       
       const updatedPayment = response.data;
-      if (!updatedPayment) {
-        throw new Error("No data returned from server");
-      }
-      
-      // Update the payment in the list immediately with the response data
-      setPayments(prevPayments => {
-        const updated = prevPayments.map((p) => {
-          const pId = p._id || p.id;
-          if (pId === paymentId) {
-            // Merge the updated payment data, ensuring all fields are updated
-            return {
-              ...p,
-              ...updatedPayment,
-              status: updatedPayment.status || newStatus,
-              adminNotes: updatedPayment.adminNotes || adminNotes.trim() || "",
-              transactionId: updatedPayment.transactionId || transactionId.trim() || "",
-            };
-          }
-          return p;
+      if (updatedPayment) {
+        // Update the payment in the list immediately with the response data
+        setPayments((prevPayments) => {
+          const updated = prevPayments.map((p) => {
+            const pId = p._id || p.id;
+            if (String(pId) === String(paymentId)) {
+              return {
+                ...p,
+                ...updatedPayment,
+                status: updatedPayment.status || newStatus,
+                adminNotes: updatedPayment.adminNotes || adminNotes.trim() || "",
+                transactionId: updatedPayment.transactionId || transactionId.trim() || "",
+              };
+            }
+            return p;
+          });
+          console.log("Updated payments list:", updated);
+          return updated;
         });
-        console.log("Updated payments list:", updated);
-        return updated;
-      });
+
+        statusOverridesRef.current = {
+          ...statusOverridesRef.current,
+          [paymentId]: {
+            status: updatedPayment.status || newStatus,
+            adminNotes: updatedPayment.adminNotes || adminNotes.trim() || "",
+            transactionId: updatedPayment.transactionId || transactionId.trim() || "",
+            expiresAt: Date.now() + 60000,
+          },
+        };
+
+        setSelectedPayment((prev) => (prev ? { ...prev, ...updatedPayment } : prev));
+      } else {
+        // Fallback to fetching if no response data returned
+        fetchPayments();
+      }
       
       toast.success(`Payment status updated to ${newStatus}`, {
         toastId: "update-status-success"
@@ -370,11 +368,7 @@ const AlipayManagement = () => {
       setAdminNotes("");
       setTransactionId("");
       
-      // Refresh the list to get updated data from server (skip cache to ensure fresh data)
-      // Use a small delay to ensure backend has processed the update
-      setTimeout(() => {
-        fetchPayments(); // Force fresh data
-      }, 500);
+      // No forced refresh; list is updated from the response like Community table
     } catch (error) {
       console.error("Error updating payment status:", error);
       console.error("Error details:", {
@@ -429,9 +423,26 @@ const AlipayManagement = () => {
     }
   };
 
-  const openPaymentDetails = (payment) => {
+  const openPaymentDetails = async (payment) => {
     setSelectedPayment(payment);
     setIsModalOpen(true);
+
+    const paymentId = payment?._id || payment?.id;
+    if (!paymentId) return;
+
+    try {
+      const response = await Api.alipay.detail(paymentId, { includeMedia: true });
+      const detail = response?.data || {};
+      setSelectedPayment((prev) => ({ ...prev, ...detail }));
+    } catch (error) {
+      console.error("Error fetching Alipay payment details:", error);
+      const errorMsg =
+        error.response?.data?.detail ||
+        error.response?.data?.error ||
+        error.message ||
+        "Failed to load payment details";
+      toast.error(errorMsg, { toastId: "alipay-detail-error" });
+    }
   };
 
   const openStatusUpdate = (payment) => {
@@ -573,9 +584,8 @@ const AlipayManagement = () => {
 
       toast.success("Alipay payment created successfully");
       setShowCreateModal(false);
-      // Clear cache and refresh
-      clearCache('alipay-payments');
-      fetchPayments(true); // Force refresh
+      // Refresh list after creation
+      fetchPayments();
     } catch (error) {
       console.error("Error creating payment:", error);
       const errorMsg = error.response?.data?.error || 
@@ -768,7 +778,7 @@ const AlipayManagement = () => {
                   ) : (
                     payments.map((payment) => (
                       <tr
-                        key={payment._id}
+                        key={payment._id || payment.id}
                         className="odd:bg-white even:bg-gray-50 dark:odd:bg-gray-800 dark:even:bg-gray-700/50"
                       >
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -1185,6 +1195,28 @@ const AlipayManagement = () => {
                     placeholder="Enter new rate"
                   />
                 </div>
+
+                <div className="rounded-md border border-gray-200 dark:border-gray-700 p-3">
+                  <label className="flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300">
+                    <input
+                      type="checkbox"
+                      checked={rmbUnavailable}
+                      onChange={(e) => setRmbUnavailable(e.target.checked)}
+                      className="h-4 w-4 rounded border-gray-300 text-pink-600 focus:ring-pink-500"
+                    />
+                    Show RMB not available page to users
+                  </label>
+                  {rmbUnavailable && (
+                    <textarea
+                      value={rmbUnavailableMessage}
+                      onChange={(e) => setRmbUnavailableMessage(e.target.value)}
+                      rows="2"
+                      className="mt-3 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-pink-500 focus:border-pink-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                      placeholder="Message shown to users (optional)"
+                    />
+                  )}
+                </div>
+
 
                 <div className="flex justify-end mt-6 space-x-3">
                   <button

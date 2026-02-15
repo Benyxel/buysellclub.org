@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import API from "../../api";
 import { toast } from "../../utils/toast";
-import { FaTrash, FaTimes } from "react-icons/fa";
+import { FaTrash, FaTimes, FaExternalLinkAlt } from "react-icons/fa";
 
 const statusOptions = [
   { value: "", label: "All" },
@@ -504,9 +504,16 @@ export default function InvoicesManagement() {
                     {inv.container_number || inv.container?.container_number || inv.container || "-"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-sm font-medium text-purple-600 dark:text-purple-400">
-                      {inv.shipping_mark}
-                    </span>
+                    <div>
+                      <span className="text-sm font-medium text-purple-600 dark:text-purple-400">
+                        {inv.shipping_mark}
+                      </span>
+                      {(inv.client_full_name || inv.client_username || inv.username) && (
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                          {inv.client_full_name || inv.client_username || inv.username}
+                        </div>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span
@@ -543,6 +550,16 @@ export default function InvoicesManagement() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
                     <div className="flex items-center justify-center gap-2">
+                      <a
+                        href={`/invoice?invoice_number=${encodeURIComponent(inv.invoice_number || "")}&mark_id=${encodeURIComponent(inv.shipping_mark || "")}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-green-600 hover:text-green-800 dark:text-green-400 p-2 hover:bg-green-50 dark:hover:bg-green-900/20 rounded inline-flex items-center justify-center"
+                        title="View on site (as customer sees)"
+                      >
+                        <FaExternalLinkAlt />
+                      </a>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -617,15 +634,27 @@ export default function InvoicesManagement() {
               <h3 className="text-xl font-bold text-gray-800 dark:text-white">
                 Invoice Details: {invoiceDetails.invoice_number}
               </h3>
-              <button
-                onClick={() => {
-                  setShowDetailsModal(false);
-                  setInvoiceDetails(null);
-                }}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-              >
-                ✕
-              </button>
+              <div className="flex items-center gap-2">
+                <a
+                  href={`/invoice?invoice_number=${encodeURIComponent(invoiceDetails.invoice_number || "")}&mark_id=${encodeURIComponent(invoiceDetails.shipping_mark || "")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 rounded"
+                  title="View on site (as customer sees)"
+                >
+                  <FaExternalLinkAlt className="text-xs" />
+                  View on site
+                </a>
+                <button
+                  onClick={() => {
+                    setShowDetailsModal(false);
+                    setInvoiceDetails(null);
+                  }}
+                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
             {/* Invoice Header Info */}
@@ -645,6 +674,11 @@ export default function InvoicesManagement() {
                 <div className="font-medium text-gray-900 dark:text-white">
                   {invoiceDetails.shipping_mark}
                 </div>
+                {(invoiceDetails.client_full_name || invoiceDetails.client_username || invoiceDetails.username) && (
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    {invoiceDetails.client_full_name || invoiceDetails.client_username || invoiceDetails.username}
+                  </div>
+                )}
               </div>
               <div>
                 <div className="text-sm text-gray-600 dark:text-gray-400">

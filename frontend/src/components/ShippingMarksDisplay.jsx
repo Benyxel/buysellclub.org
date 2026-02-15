@@ -330,15 +330,19 @@ const ShippingMarksDisplay = () => {
                       {mark.markId}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                      {mark.name}
+                      {mark.ownerFullName && mark.ownerFullName !== "N/A"
+                        ? mark.ownerFullName
+                        : mark.name}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
                       <div>
                         <div className="font-medium text-gray-900 dark:text-white">
-                          {mark.ownerFullName}
+                          {mark.ownerFullName && mark.ownerFullName !== "N/A"
+                            ? mark.ownerFullName
+                            : mark.name}
                         </div>
                         <div className="text-xs text-gray-500 dark:text-gray-400">
-                          {mark.ownerUsername}
+                          Mark ID: {mark.markId}
                         </div>
                       </div>
                     </td>
@@ -492,11 +496,13 @@ const ShippingMarksDisplay = () => {
 
               <div>
                 <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
-                  Name
+                  Full Name
                 </p>
                 <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                   <p className="text-gray-900 dark:text-white">
-                    {selectedMark.name}
+                    {selectedMark.ownerFullName && selectedMark.ownerFullName !== "N/A"
+                      ? selectedMark.ownerFullName
+                      : selectedMark.name}
                   </p>
                 </div>
               </div>
@@ -507,10 +513,12 @@ const ShippingMarksDisplay = () => {
                 </p>
                 <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                   <p className="text-gray-900 dark:text-white font-medium">
-                    {selectedMark.ownerFullName}
+                    {selectedMark.ownerFullName && selectedMark.ownerFullName !== "N/A"
+                      ? selectedMark.ownerFullName
+                      : selectedMark.name}
                   </p>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                    Username: {selectedMark.ownerUsername}
+                    Mark ID: {selectedMark.markId}
                   </p>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     Email: {selectedMark.ownerEmail}

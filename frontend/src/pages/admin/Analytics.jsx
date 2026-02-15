@@ -12,6 +12,7 @@ import {
   FaCalendarDay,
   FaCalendarWeek,
   FaCalendarAlt,
+  FaUsers,
 } from "react-icons/fa";
 import {
   ResponsiveContainer,
@@ -35,17 +36,19 @@ const Analytics = ({ activeTab = "overview" }) => {
   const [buy4mePeriod, setBuy4mePeriod] = useState("daily");
   const [ordersPeriod, setOrdersPeriod] = useState("daily");
   const [trainingPeriod, setTrainingPeriod] = useState("daily");
+  const [communityPeriod, setCommunityPeriod] = useState("daily");
   const [alipayPage, setAlipayPage] = useState(1);
   const [buy4mePage, setBuy4mePage] = useState(1);
   const [ordersPage, setOrdersPage] = useState(1);
   const [trainingPage, setTrainingPage] = useState(1);
+  const [communityPage, setCommunityPage] = useState(1);
   const [trends, setTrends] = useState(null);
   const [trendsLoading, setTrendsLoading] = useState(true);
   const [trendsError, setTrendsError] = useState(null);
 
   useEffect(() => {
     fetchAnalytics();
-  }, [selectedPeriod, activeTab, buy4mePeriod, ordersPeriod, trainingPeriod]);
+  }, [selectedPeriod, activeTab, buy4mePeriod, ordersPeriod, trainingPeriod, communityPeriod]);
 
   useEffect(() => {
     setAlipayPage(1);
@@ -62,6 +65,15 @@ const Analytics = ({ activeTab = "overview" }) => {
   useEffect(() => {
     setTrainingPage(1);
   }, [trainingPeriod]);
+
+  useEffect(() => {
+    setCommunityPage(1);
+  }, [communityPeriod]);
+
+  const toDateParam = (date) => {
+    if (!(date instanceof Date) || Number.isNaN(date.getTime())) return null;
+    return date.toISOString().slice(0, 10);
+  };
 
   const getDateRange = (period) => {
     if (!period || period === "all") return null;
@@ -106,26 +118,46 @@ const Analytics = ({ activeTab = "overview" }) => {
       if (activeTab === "buy4me") {
         const range = getDateRange(buy4mePeriod);
         if (range) {
-          params.start_date = range.startDate.toISOString();
-          params.end_date = range.endDate.toISOString();
+          const startDate = toDateParam(range.startDate);
+          const endDate = toDateParam(range.endDate);
+          if (startDate && endDate) {
+            params.start_date = startDate;
+            params.end_date = endDate;
+          }
         }
       } else if (activeTab === "orders") {
         const range = getDateRange(ordersPeriod);
         if (range) {
-          params.start_date = range.startDate.toISOString();
-          params.end_date = range.endDate.toISOString();
+          const startDate = toDateParam(range.startDate);
+          const endDate = toDateParam(range.endDate);
+          if (startDate && endDate) {
+            params.start_date = startDate;
+            params.end_date = endDate;
+          }
         }
       } else if (activeTab === "training") {
         const range = getDateRange(trainingPeriod);
         if (range) {
-          params.start_date = range.startDate.toISOString();
-          params.end_date = range.endDate.toISOString();
+          const startDate = toDateParam(range.startDate);
+          const endDate = toDateParam(range.endDate);
+          if (startDate && endDate) {
+            params.start_date = startDate;
+            params.end_date = endDate;
+          }
         }
+      } else if (activeTab === "community") {
+        // Do not send date range for community: backend returns all-time totals and
+        // its own ranges for daily/weekly/monthly/yearly series. Otherwise we'd filter
+        // by e.g. last 24h and show zeros when requests are older.
       } else if (activeTab === "overview") {
         const range = getOverviewRange(selectedPeriod);
         if (range) {
-          params.start_date = range.startDate.toISOString();
-          params.end_date = range.endDate.toISOString();
+          const startDate = toDateParam(range.startDate);
+          const endDate = toDateParam(range.endDate);
+          if (startDate && endDate) {
+            params.start_date = startDate;
+            params.end_date = endDate;
+          }
         }
       }
       const response = await getAdminAnalytics(params);
@@ -304,18 +336,24 @@ const Analytics = ({ activeTab = "overview" }) => {
                   </div>
                   <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
                     <p className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
-                      Revenue (USD)
+                      Revenue
                     </p>
-                    <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                      {formatCurrency(trends.overview.total_revenue)}
+                    <p className="text-lg font-bold text-green-600 dark:text-green-400">
+                      {formatCurrency(trends.overview.total_revenue, "USD")}
+                    </p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5">
+                      {formatCurrency(trends.overview.total_revenue_ghs ?? 0, "GHS")}
                     </p>
                   </div>
                   <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
                     <p className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
                       Shipping Collected
                     </p>
-                    <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                      {formatCurrency(trends.overview.shipping_collected)}
+                    <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                      {formatCurrency(trends.overview.shipping_collected, "USD")}
+                    </p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5">
+                      {formatCurrency(trends.overview.shipping_collected_ghs ?? 0, "GHS")}
                     </p>
                   </div>
                   <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
@@ -598,7 +636,7 @@ const Analytics = ({ activeTab = "overview" }) => {
 
           {/* Summary */}
           {analytics.alipay?.summary && (
-            <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
               <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   Total
@@ -631,7 +669,7 @@ const Analytics = ({ activeTab = "overview" }) => {
                   {analytics.alipay.summary.processing}
                 </p>
               </div>
-              <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4">
+              <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-5 lg:col-span-2">
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   Total Revenue (GHS)
                 </p>
@@ -642,13 +680,35 @@ const Analytics = ({ activeTab = "overview" }) => {
                   )}
                 </p>
               </div>
-              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-5 lg:col-span-2">
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   Total Revenue (CNY)
                 </p>
                 <p className="text-xl font-bold text-blue-600 dark:text-blue-400">
                   {formatCurrency(
                     analytics.alipay.summary.total_revenue_cny || 0,
+                    "CNY"
+                  )}
+                </p>
+              </div>
+              <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-5 lg:col-span-2">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Total Profit (GHS)
+                </p>
+                <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
+                  {formatCurrency(
+                    analytics.alipay.summary.total_profit_ghs || 0,
+                    "GHS"
+                  )}
+                </p>
+              </div>
+              <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-5 lg:col-span-2">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Total Profit (CNY)
+                </p>
+                <p className="text-xl font-bold text-indigo-600 dark:text-indigo-400">
+                  {formatCurrency(
+                    analytics.alipay.summary.total_profit_cny || 0,
                     "CNY"
                   )}
                 </p>
@@ -686,6 +746,12 @@ const Analytics = ({ activeTab = "overview" }) => {
                         <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
                           Revenue (CNY)
                         </th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                          Profit (GHS)
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                          Profit (CNY)
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -702,6 +768,12 @@ const Analytics = ({ activeTab = "overview" }) => {
                           </td>
                           <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
                             {formatCurrency(item.total_cny || 0, "CNY")}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
+                            {formatCurrency(item.total_profit_ghs || 0, "GHS")}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
+                            {formatCurrency(item.total_profit_cny || 0, "CNY")}
                           </td>
                         </tr>
                       ))}
@@ -747,6 +819,12 @@ const Analytics = ({ activeTab = "overview" }) => {
                         <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
                           Revenue (CNY)
                         </th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                          Profit (GHS)
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                          Profit (CNY)
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -763,6 +841,12 @@ const Analytics = ({ activeTab = "overview" }) => {
                           </td>
                           <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
                             {formatCurrency(item.total_cny || 0, "CNY")}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
+                            {formatCurrency(item.total_profit_ghs || 0, "GHS")}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
+                            {formatCurrency(item.total_profit_cny || 0, "CNY")}
                           </td>
                         </tr>
                       ))}
@@ -808,6 +892,12 @@ const Analytics = ({ activeTab = "overview" }) => {
                         <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
                           Revenue (CNY)
                         </th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                          Profit (GHS)
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                          Profit (CNY)
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -827,6 +917,12 @@ const Analytics = ({ activeTab = "overview" }) => {
                           </td>
                           <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
                             {formatCurrency(item.total_cny || 0, "CNY")}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
+                            {formatCurrency(item.total_profit_ghs || 0, "GHS")}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
+                            {formatCurrency(item.total_profit_cny || 0, "CNY")}
                           </td>
                         </tr>
                       ))}
@@ -872,6 +968,12 @@ const Analytics = ({ activeTab = "overview" }) => {
                         <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
                           Revenue (CNY)
                         </th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                          Profit (GHS)
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                          Profit (CNY)
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -888,6 +990,12 @@ const Analytics = ({ activeTab = "overview" }) => {
                           </td>
                           <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
                             {formatCurrency(item.total_cny || 0, "CNY")}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
+                            {formatCurrency(item.total_profit_ghs || 0, "GHS")}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
+                            {formatCurrency(item.total_profit_cny || 0, "CNY")}
                           </td>
                         </tr>
                       ))}
@@ -1480,6 +1588,293 @@ const Analytics = ({ activeTab = "overview" }) => {
             </div>
           )}
         </div>
+      )}
+      {activeTab === "community" && (
+        <>
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+            <div className="flex items-center gap-2">
+              <FaUsers className="text-xl text-green-600" />
+              <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
+                Community Analytics
+              </h2>
+            </div>
+            <div className="flex gap-2">
+              {[
+                { key: "daily", label: "Daily" },
+                { key: "weekly", label: "Weekly" },
+                { key: "monthly", label: "Monthly" },
+                { key: "yearly", label: "Yearly" },
+              ].map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setCommunityPeriod(tab.key)}
+                  className={`px-3 py-1 rounded-lg text-sm ${
+                    communityPeriod === tab.key
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
+              <p className="text-xs uppercase text-gray-500 dark:text-gray-400">
+                Total Requests
+              </p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                {analytics.community?.total_requests || 0}
+              </p>
+            </div>
+            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
+              <p className="text-xs uppercase text-gray-500 dark:text-gray-400">
+                Approved
+              </p>
+              <p className="text-2xl font-bold text-emerald-600">
+                {analytics.community?.approved || 0}
+              </p>
+            </div>
+            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
+              <p className="text-xs uppercase text-gray-500 dark:text-gray-400">
+                Pending
+              </p>
+              <p className="text-2xl font-bold text-yellow-600">
+                {analytics.community?.pending || 0}
+              </p>
+            </div>
+            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
+              <p className="text-xs uppercase text-gray-500 dark:text-gray-400">
+                Total Amount (GHS)
+              </p>
+              <p className="text-2xl font-bold text-blue-600">
+                ₵{Number(analytics.community?.total_amount || 0).toFixed(2)}
+              </p>
+            </div>
+          </div>
+          <div className="space-y-4 mt-6">
+            {communityPeriod === "daily" && analytics.community?.daily && (
+              <div>
+                <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-3 flex items-center gap-2">
+                  <FaCalendarDay /> Daily Requests (Last 30 Days)
+                </h4>
+                <div className="overflow-x-auto">
+                  {(() => {
+                    const { rows, page, totalPages } = paginateRows(
+                      analytics.community.daily,
+                      communityPage
+                    );
+                    return (
+                      <>
+                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                          <thead className="bg-gray-50 dark:bg-gray-700">
+                            <tr>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                Date
+                              </th>
+                              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                Requests
+                              </th>
+                              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                Amount (GHS)
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                            {rows.map((item, idx) => (
+                              <tr key={idx}>
+                                <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                                  {new Date(item.date).toLocaleDateString()}
+                                </td>
+                                <td className="px-4 py-3 text-sm text-right text-gray-600 dark:text-gray-400">
+                                  {item.count}
+                                </td>
+                                <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
+                                  {formatCurrency(item.total_amount || 0, "GHS")}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        <PaginationControls
+                          page={page}
+                          totalPages={totalPages}
+                          onChange={setCommunityPage}
+                        />
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+            )}
+
+            {communityPeriod === "weekly" && analytics.community?.weekly && (
+              <div>
+                <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-3 flex items-center gap-2">
+                  <FaCalendarWeek /> Weekly Requests (Last 12 Weeks)
+                </h4>
+                <div className="overflow-x-auto">
+                  {(() => {
+                    const { rows, page, totalPages } = paginateRows(
+                      analytics.community.weekly,
+                      communityPage
+                    );
+                    return (
+                      <>
+                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                          <thead className="bg-gray-50 dark:bg-gray-700">
+                            <tr>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                Week
+                              </th>
+                              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                Requests
+                              </th>
+                              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                Amount (GHS)
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                            {rows.map((item, idx) => (
+                              <tr key={idx}>
+                                <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                                  {new Date(item.week).toLocaleDateString()}
+                                </td>
+                                <td className="px-4 py-3 text-sm text-right text-gray-600 dark:text-gray-400">
+                                  {item.count}
+                                </td>
+                                <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
+                                  {formatCurrency(item.total_amount || 0, "GHS")}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        <PaginationControls
+                          page={page}
+                          totalPages={totalPages}
+                          onChange={setCommunityPage}
+                        />
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+            )}
+
+            {communityPeriod === "monthly" && analytics.community?.monthly && (
+              <div>
+                <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-3 flex items-center gap-2">
+                  <FaCalendarAlt /> Monthly Requests (Last 12 Months)
+                </h4>
+                <div className="overflow-x-auto">
+                  {(() => {
+                    const { rows, page, totalPages } = paginateRows(
+                      analytics.community.monthly,
+                      communityPage
+                    );
+                    return (
+                      <>
+                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                          <thead className="bg-gray-50 dark:bg-gray-700">
+                            <tr>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                Month
+                              </th>
+                              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                Requests
+                              </th>
+                              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                Amount (GHS)
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                            {rows.map((item, idx) => (
+                              <tr key={idx}>
+                                <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                                  {new Date(item.month).toLocaleDateString()}
+                                </td>
+                                <td className="px-4 py-3 text-sm text-right text-gray-600 dark:text-gray-400">
+                                  {item.count}
+                                </td>
+                                <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
+                                  {formatCurrency(item.total_amount || 0, "GHS")}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        <PaginationControls
+                          page={page}
+                          totalPages={totalPages}
+                          onChange={setCommunityPage}
+                        />
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+            )}
+
+            {communityPeriod === "yearly" && analytics.community?.yearly && (
+              <div>
+                <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-3 flex items-center gap-2">
+                  <FaCalendarAlt /> Yearly Requests
+                </h4>
+                <div className="overflow-x-auto">
+                  {(() => {
+                    const { rows, page, totalPages } = paginateRows(
+                      analytics.community.yearly,
+                      communityPage
+                    );
+                    return (
+                      <>
+                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                          <thead className="bg-gray-50 dark:bg-gray-700">
+                            <tr>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                Year
+                              </th>
+                              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                Requests
+                              </th>
+                              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                Amount (GHS)
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                            {rows.map((item, idx) => (
+                              <tr key={idx}>
+                                <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                                  {new Date(item.year).getFullYear()}
+                                </td>
+                                <td className="px-4 py-3 text-sm text-right text-gray-600 dark:text-gray-400">
+                                  {item.count}
+                                </td>
+                                <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
+                                  {formatCurrency(item.total_amount || 0, "GHS")}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        <PaginationControls
+                          page={page}
+                          totalPages={totalPages}
+                          onChange={setCommunityPage}
+                        />
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+            )}
+          </div>
+        </>
       )}
     </div>
   );

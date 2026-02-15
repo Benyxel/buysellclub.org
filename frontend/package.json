@@ -19,7 +19,7 @@
     "boxicons": "^2.1.4",
     "date-fns": "^4.1.0",
     "html2canvas": "^1.4.1",
-    "jspdf": "^3.0.3",
+    "jspdf": "^4.0.0",
     "react": "^19.0.0",
     "react-bootstrap": "^2.10.9",
     "react-dom": "^19.0.0",

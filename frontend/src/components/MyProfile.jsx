@@ -43,8 +43,10 @@ import {
   FaHandshake,
   FaAlipay,
 } from "react-icons/fa";
-import { trackingSystem } from "./ShippingDashboard";
-import { Link, useNavigate } from "react-router-dom";
+import { trackingSystem } from "../utils/trackingSystem";
+import { NOTE_MESSAGE } from "./ShippingTrackingNote";
+import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { toast } from "../utils/toast";
 import "react-toastify/dist/ReactToastify.css";
 import axios from "axios";
@@ -323,6 +325,9 @@ const MyProfile = () => {
     limitReached: false,
     loading: false,
   });
+  const [isCommunityMember, setIsCommunityMember] = useState(false);
+  const [showRejectedBadge, setShowRejectedBadge] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
 
   // Corporate Agent form fields
   const [corporateFormData, setCorporateFormData] = useState({
@@ -370,6 +375,38 @@ const MyProfile = () => {
       isMounted = false;
     };
   }, [showBecomeAgentModal]);
+
+  useEffect(() => {
+    const fetchCommunityStatus = async () => {
+      try {
+        const response = await Api.community.myRequest({ noCache: true });
+        const status = response.data?.request?.status;
+        setIsCommunityMember(status === "approved");
+      } catch (error) {
+        setIsCommunityMember(false);
+      }
+    };
+
+    fetchCommunityStatus();
+  }, []);
+
+  useEffect(() => {
+    if (agentRequestStatus !== "rejected") {
+      setShowRejectedBadge(false);
+      return;
+    }
+    const userKey = currentUser?.id || currentUser?.username || "user";
+    const storageKey = `agentRequestRejectedSeen:${userKey}`;
+    const seen = localStorage.getItem(storageKey);
+    if (!seen) {
+      setShowRejectedBadge(true);
+      const timer = setTimeout(() => {
+        setShowRejectedBadge(false);
+        localStorage.setItem(storageKey, "true");
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [agentRequestStatus, currentUser?.id, currentUser?.username]);
   const trackableBuy4meOrders = buy4meOrders.filter(
     (order) =>
       order.tracking_status ||
@@ -388,7 +425,6 @@ const MyProfile = () => {
   const [notifyEmail, setNotifyEmail] = useState(true);
   const [notifyOrderUpdates, setNotifyOrderUpdates] = useState(true);
   const [notifyPromotions, setNotifyPromotions] = useState(false);
-  const [currentUser, setCurrentUser] = useState(null);
   // Avatar selector state
   const [showAvatarSelector, setShowAvatarSelector] = useState(false);
   const [selectedAvatar, setSelectedAvatar] = useState("");
@@ -2368,6 +2404,12 @@ const MyProfile = () => {
                     currentUser?.full_name ||
                     currentUser?.username ||
                     "User"}
+                {isCommunityMember && (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200">
+                    <FaUsers className="w-3 h-3" />
+                    Community Member
+                  </span>
+                )}
                 {currentUser?.is_agent && (
                   <>
                     <span
@@ -2463,10 +2505,23 @@ const MyProfile = () => {
                       )}
                     </span>
                   )}
-                  {agentRequestStatus === "rejected" && (
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-                      <FaExclamationTriangle className="mr-1" />
-                      Agent Request Rejected
+                  {agentRequestStatus === "rejected" && showRejectedBadge && (
+                    <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                      <span className="inline-flex items-center">
+                        <FaExclamationTriangle className="mr-1" />
+                        Agent Request Rejected
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const userKey = currentUser?.id || currentUser?.username || "user";
+                          localStorage.setItem(`agentRequestRejectedSeen:${userKey}`, "true");
+                          setShowRejectedBadge(false);
+                        }}
+                        className="text-red-700 dark:text-red-200 hover:text-red-900"
+                      >
+                        Close
+                      </button>
                     </span>
                   )}
                 </div>
@@ -2869,7 +2924,42 @@ const MyProfile = () => {
                     </div>
 
                     {/* Display the shipping mark */}
-                    {shippingMarks.map((mark) => (
+                    {shippingMarks.map((mark) => {
+                      const resolvedMarkName =
+                        (userInfo?.name && userInfo.name.trim()) ||
+                        mark.name ||
+                        "";
+                      const displayShippingMark =
+                        mark.markId && resolvedMarkName
+                          ? `${mark.markId}:${resolvedMarkName}`
+                          : mark.shippingMark;
+                      const defaultFullAddress =
+                        mark.fullAddress || mark.full_address || "";
+                      const baseChinaAddress =
+                        "FOFOOFOIMPORT Phone number :18084390850 Address:广东省深圳市宝安区石岩街道金台路7号伟建产业园B栋106户*";
+                      const ghSuffix = " 加纳";
+                      const defaultAddressText =
+                        displayShippingMark
+                          ? `${baseChinaAddress}${displayShippingMark}${ghSuffix}`
+                          : defaultFullAddress;
+                      // Air address: fixed format for 8302专线 (Guangzhou) — uses full name
+                      const airAddressName =
+                        resolvedMarkName?.trim() || mark.name || "";
+                      const airAddressText =
+                        mark.markId && airAddressName
+                          ? `FIM-${airAddressName} 18620999572\n广东省广州市越秀区广园西路101号通通商贸城AB110档8302专线\n入仓唛头贴外箱：\nFIM 8302-${airAddressName}`
+                          : "";
+                      const repackAddressText =
+                        displayShippingMark
+                          ? `${baseChinaAddress}${displayShippingMark}"REPACK"${ghSuffix}`
+                          : "";
+                      const repackAddressParts = displayShippingMark
+                        ? {
+                            prefix: `${baseChinaAddress}${displayShippingMark}"`,
+                            suffix: `"${ghSuffix}`,
+                          }
+                        : null;
+                      return (
                       <div
                         key={mark._id}
                         className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow border-l-4 border-primary"
@@ -2878,7 +2968,7 @@ const MyProfile = () => {
                           <div>
                             <div className="flex items-center mb-2">
                               <h3 className="text-xl font-semibold text-gray-800 dark:text-white">
-                                {mark.name}
+                                {mark.markId}
                               </h3>
                               <span className="ml-2 px-2 py-1 text-xs rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
                                 Permanent
@@ -2890,7 +2980,10 @@ const MyProfile = () => {
                               )}
                             </div>
                             <p className="text-sm text-gray-600 dark:text-gray-400">
-                              Mark ID: {mark.markId}
+                              Mark ID:{" "}
+                              <span className="font-semibold text-gray-800 dark:text-gray-200">
+                                {mark.markId}
+                              </span>
                             </p>
                           </div>
                         </div>
@@ -2903,13 +2996,11 @@ const MyProfile = () => {
                             <div className="relative">
                               <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                                 <p className="text-sm text-gray-900 dark:text-white break-all">
-                                  {mark.shippingMark}
+                                  {displayShippingMark}
                                 </p>
                               </div>
                               <button
-                                onClick={() =>
-                                  copyToClipboard(mark.shippingMark)
-                                }
+                                onClick={() => copyToClipboard(displayShippingMark)}
                                 className="absolute top-3 right-3 p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                               >
                                 {copied ? (
@@ -2928,14 +3019,12 @@ const MyProfile = () => {
                             <div className="relative">
                               <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                                 <p className="text-sm text-gray-900 dark:text-white break-all whitespace-pre-line">
-                                  {mark.fullAddress || mark.address}
+                                  {defaultAddressText || mark.fullAddress || mark.address}
                                 </p>
                               </div>
                               <button
                                 onClick={() =>
-                                  copyToClipboard(
-                                    mark.fullAddress || mark.address
-                                  )
+                                  copyToClipboard(defaultAddressText || mark.fullAddress || mark.address)
                                 }
                                 className="absolute top-3 right-3 p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                               >
@@ -2947,6 +3036,64 @@ const MyProfile = () => {
                               </button>
                             </div>
                           </div>
+
+                          {repackAddressText && (
+                            <div>
+                              <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+                                Repack Address
+                              </p>
+                              <div className="relative">
+                                <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                  <p className="text-sm text-gray-900 dark:text-white break-all whitespace-pre-line">
+                                    {repackAddressParts ? (
+                                      <>
+                                        {repackAddressParts.prefix}
+                                        <span className="font-semibold">REPACK</span>
+                                        {repackAddressParts.suffix}
+                                      </>
+                                    ) : (
+                                      repackAddressText
+                                    )}
+                                  </p>
+                                </div>
+                                <button
+                                  onClick={() => copyToClipboard(repackAddressText)}
+                                  className="absolute top-3 right-3 p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                                >
+                                  {copied ? (
+                                    <FaCheck className="w-5 h-5 text-green-500" />
+                                  ) : (
+                                    <FaCopy className="w-5 h-5" />
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {airAddressText && (
+                            <div>
+                              <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+                                Air Address
+                              </p>
+                              <div className="relative">
+                                <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                  <p className="text-sm text-gray-900 dark:text-white break-all whitespace-pre-line">
+                                    {airAddressText}
+                                  </p>
+                                </div>
+                                <button
+                                  onClick={() => copyToClipboard(airAddressText)}
+                                  className="absolute top-3 right-3 p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                                >
+                                  {copied ? (
+                                    <FaCheck className="w-5 h-5 text-green-500" />
+                                  ) : (
+                                    <FaCopy className="w-5 h-5" />
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+                          )}
 
                           <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
                             <div className="flex items-start gap-2">
@@ -2965,7 +3112,8 @@ const MyProfile = () => {
                           </div>
                         </div>
                       </div>
-                    ))}
+                    );
+                    })}
                   </div>
                 )}
               </div>
@@ -3042,6 +3190,21 @@ const MyProfile = () => {
                     </p>
                   </div>
                 )}
+
+                {/* Pending shipments note */}
+                {userShipments.length > 0 &&
+                  userShipments.some(
+                    (s) => (s.status || "").toLowerCase() === "pending"
+                  ) && (
+                    <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-700">
+                      <div className="flex items-start gap-3">
+                        <FaInfoCircle className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                        <p className="text-sm text-amber-900 dark:text-amber-100 leading-relaxed">
+                          {NOTE_MESSAGE}
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
                 <div className="space-y-4">
                   {userShipments.length === 0 ? (
@@ -5236,3 +5399,4 @@ const MyProfile = () => {
 };
 
 export default MyProfile;
+

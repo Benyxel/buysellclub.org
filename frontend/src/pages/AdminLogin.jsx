@@ -1,11 +1,19 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import API from "../api";
 
 const AdminLogin = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnTo =
+    location.state?.returnTo ??
+    (() => {
+      const q = new URLSearchParams(location.search);
+      const r = q.get("returnTo");
+      return r && r.startsWith("/") ? r : null;
+    })();
   const [formData, setFormData] = useState({
     identifier: "", // username or email
     password: "",
@@ -64,8 +72,9 @@ const AdminLogin = () => {
         return;
       }
 
-      toast.success("Admin login successful!");
-      navigate("/admin-dashboard");
+      toast.success(returnTo === "/clock" ? "You can now clock in or out." : "Admin login successful!");
+      const target = returnTo && returnTo.startsWith("/") ? returnTo : "/admin-dashboard";
+      navigate(target, { replace: true, state: {} });
     } catch (error) {
       console.error("Admin login error:", error);
       const msg =

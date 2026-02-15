@@ -42,6 +42,7 @@ const ContainerManagement = () => {
     status: "preparing",
     departure_date: "",
     arrival_date: "",
+    display_cbm: "",
     notes: "",
   });
 
@@ -202,6 +203,10 @@ const ContainerManagement = () => {
       status: container.status,
       departure_date: container.departure_date || "",
       arrival_date: container.arrival_date || "",
+      display_cbm:
+        container.display_cbm !== null && container.display_cbm !== undefined
+          ? String(container.display_cbm)
+          : "",
       notes: container.notes || "",
     });
     setShowModal(true);
@@ -255,6 +260,7 @@ const ContainerManagement = () => {
       status: "preparing",
       departure_date: "",
       arrival_date: "",
+      display_cbm: "",
       notes: "",
     });
   };
@@ -549,6 +555,22 @@ const ContainerManagement = () => {
                       </option>
                     ))}
                   </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Display CBM (manual)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.001"
+                    min="0"
+                    name="display_cbm"
+                    value={formData.display_cbm}
+                    onChange={handleInputChange}
+                    placeholder="e.g., 12.500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
                 </div>
 
                 <div>
@@ -1027,6 +1049,7 @@ const ContainerManagement = () => {
                                 <thead>
                                   <tr>
                                     <th>Mark ID</th>
+                                    <th>Full name</th>
                                     <th>Packages</th>
                                     <th>Total CBM</th>
                                     <th>Total Fee</th>
@@ -1036,6 +1059,7 @@ const ContainerManagement = () => {
                                   ${containerDetails.mark_id_stats.map((stat, index) => `
                                     <tr>
                                       <td style="font-weight: bold;">${stat.shipping_mark || "-"}</td>
+                                      <td>${stat.full_name || stat.username || stat.client_username || "-"}</td>
                                       <td>${stat.count || 0}</td>
                                       <td>${parseFloat(stat.total_cbm || 0).toFixed(3)}</td>
                                       <td>$${parseFloat(stat.total_fee || 0).toFixed(2)}</td>
@@ -1044,7 +1068,7 @@ const ContainerManagement = () => {
                                 </tbody>
                                 <tfoot>
                                   <tr class="footer-row">
-                                    <td style="text-align: right; font-weight: bold;">Total:</td>
+                                    <td style="text-align: right; font-weight: bold;" colspan="2">Total:</td>
                                     <td style="font-weight: bold;">${totalPackages}</td>
                                     <td style="font-weight: bold;">${totalCbm} m³</td>
                                     <td style="font-weight: bold;">$${totalFee}</td>
@@ -1079,6 +1103,9 @@ const ContainerManagement = () => {
                             Mark ID
                           </th>
                           <th className="px-4 py-2 text-left text-gray-700 dark:text-gray-300">
+                            Full name
+                          </th>
+                          <th className="px-4 py-2 text-left text-gray-700 dark:text-gray-300">
                             Packages
                           </th>
                           <th className="px-4 py-2 text-left text-gray-700 dark:text-gray-300">
@@ -1094,6 +1121,9 @@ const ContainerManagement = () => {
                           <tr key={index}>
                             <td className="px-4 py-2 text-gray-900 dark:text-white font-medium">
                               {stat.shipping_mark}
+                            </td>
+                            <td className="px-4 py-2 text-gray-700 dark:text-gray-300">
+                              {stat.full_name || stat.username || stat.client_username || "-"}
                             </td>
                             <td className="px-4 py-2 text-gray-700 dark:text-gray-300">
                               {stat.count}

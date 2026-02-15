@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { FaEdit, FaTrash, FaPlus, FaVideo, FaEye, FaPlay, FaGraduationCap, FaCalendarAlt, FaClock, FaUser, FaEnvelope, FaPhone, FaCheckCircle, FaTimesCircle, FaDollarSign, FaCreditCard } from 'react-icons/fa';
 import { toast } from '../../utils/toast';
+import ConfirmModal from '../../components/shared/ConfirmModal';
 import {
   getAdminTrainingBookings,
   getAdminTrainingCourses,
@@ -65,6 +66,8 @@ const TrainingManagement = ({ showCoursesTab = true }) => {
   const [currentCourse, setCurrentCourse] = useState(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [bookingToDelete, setBookingToDelete] = useState(null);
   const [bookingFormData, setBookingFormData] = useState({
     trainingCost: '',
     paymentStatus: 'pending',
@@ -131,6 +134,8 @@ const TrainingManagement = ({ showCoursesTab = true }) => {
       fetchCourses();
     }
   }, [activeTab, showCoursesTab]);
+
+  // Auto-refresh disabled by request
 
   useEffect(() => {
     if (!showCoursesTab && activeTab === 'courses') {
@@ -285,6 +290,39 @@ const TrainingManagement = ({ showCoursesTab = true }) => {
         }
       }
       toast.error(errorMessage);
+    }
+  };
+
+  const handleDeleteBooking = (bookingId) => {
+    setBookingToDelete(bookingId);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteBooking = async () => {
+    if (!bookingToDelete) return;
+    setLoading(true);
+    try {
+      await API.delete(`/buysellapi/admin/training-bookings/${bookingToDelete}/`);
+      toast.success("Booking deleted successfully");
+      setBookings((prev) =>
+        prev.filter(
+          (b) => String(b.id || b.booking_id) !== String(bookingToDelete)
+        )
+      );
+      await fetchBookings(true);
+    } catch (error) {
+      console.error("Error deleting booking:", error);
+      const errorMsg =
+        error.response?.data?.detail ||
+        error.response?.data?.error ||
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to delete booking";
+      toast.error(errorMsg);
+    } finally {
+      setLoading(false);
+      setShowDeleteModal(false);
+      setBookingToDelete(null);
     }
   };
 
@@ -514,6 +552,13 @@ const TrainingManagement = ({ showCoursesTab = true }) => {
                             title="Edit"
                           >
                             <FaEdit />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteBooking(booking.id)}
+                            className="text-red-600 hover:text-red-700 text-sm"
+                            title="Delete"
+                          >
+                            <FaTrash />
                           </button>
                           <select
                             value={booking.status}
@@ -1022,6 +1067,20 @@ const TrainingManagement = ({ showCoursesTab = true }) => {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setBookingToDelete(null);
+        }}
+        onConfirm={confirmDeleteBooking}
+        title="Delete Training Booking"
+        message="Are you sure you want to delete this booking? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        type="danger"
+      />
     </div>
   );
 };

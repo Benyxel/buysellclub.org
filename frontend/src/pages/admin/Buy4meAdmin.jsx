@@ -7,6 +7,7 @@ import BulkActions from '../../components/shared/BulkActions';
 import ConfirmModal from '../../components/shared/ConfirmModal';
 import {
   getAdminBuy4meRequests,
+  getAdminBuy4meRequest,
   updateBuy4meRequestStatus,
   updateBuy4meRequestTracking,
   deleteAdminBuy4meRequest,
@@ -21,13 +22,13 @@ const Buy4meAdmin = () => {
   const [loading, setLoading] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [statusFilter, setStatusFilter] = useState('all');
+  const [invoiceFilter, setInvoiceFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [showInvoiceForm, setShowInvoiceForm] = useState(false);
   const [invoiceAmount, setInvoiceAmount] = useState('');
   const [invoiceProductCostsRmb, setInvoiceProductCostsRmb] = useState([]);
   const [invoiceQuantities, setInvoiceQuantities] = useState([]);
   const [invoiceRmbToGhsRate, setInvoiceRmbToGhsRate] = useState('');
-  const [invoiceShippingMethod, setInvoiceShippingMethod] = useState('sea');
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [showPrintableInvoice, setShowPrintableInvoice] = useState(false);
   const [selectedRequests, setSelectedRequests] = useState([]);
@@ -35,6 +36,7 @@ const Buy4meAdmin = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [previewProof, setPreviewProof] = useState('');
   
   // Settings state
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -50,7 +52,7 @@ const Buy4meAdmin = () => {
 
   useEffect(() => {
     fetchBuy4meRequests(currentPage, pageSize);
-  }, [currentPage, pageSize]);
+  }, [currentPage, pageSize, invoiceFilter]);
 
   // Pagination handlers
   const totalPages = Math.ceil(total / pageSize);
@@ -65,11 +67,46 @@ const Buy4meAdmin = () => {
     setCurrentPage(1);
   };
 
+  const transformRequest = (request) => {
+    const invoiceFromList =
+      request.invoice ||
+      (request.invoice_created || request.invoice_number
+        ? {
+            invoiceNumber: request.invoice_number,
+            status: request.invoice_status || "pending",
+            amount: request.invoice_amount || 0,
+            totalGhs: request.invoice_total_ghs || 0,
+          }
+        : null);
+
+    return {
+      _id: request.id,
+      id: request.id,
+      title: request.title,
+      description: request.description,
+      userName: request.user_name || request.user_username || 'Unknown',
+      status: request.status,
+      tracking_status: request.tracking_status,
+      link: request.product_url || '',
+      product_url: request.product_url,
+      additional_links: request.additional_links || [],
+      images: request.images || [],
+      quantity: request.quantity || 1,
+      invoice: invoiceFromList,
+      createdAt: request.created_at,
+      updatedAt: request.updated_at,
+      ...request
+    };
+  };
+
   const fetchBuy4meRequests = async (page = currentPage, size = pageSize) => {
     // Always fetch fresh data from server
     try {
       setLoading(true);
       const params = { page: page || 1, page_size: size || 10 };
+      if (invoiceFilter && invoiceFilter !== 'all') {
+        params.invoice_status = invoiceFilter;
+      }
       const response = await getAdminBuy4meRequests(params);
       
       // Handle both array and paginated response
@@ -88,24 +125,7 @@ const Buy4meAdmin = () => {
       }
       
       // Transform data to match frontend expectations
-      const transformedRequests = requestsData.map(request => ({
-        _id: request.id,
-        id: request.id,
-        title: request.title,
-        description: request.description,
-        userName: request.user_name || request.user_username || 'Unknown',
-        status: request.status,
-        tracking_status: request.tracking_status,
-        link: request.product_url || '',
-        product_url: request.product_url,
-        additional_links: request.additional_links || [],
-        images: request.images || [],
-        quantity: request.quantity || 1,
-        invoice: request.invoice,
-        createdAt: request.created_at,
-        updatedAt: request.updated_at,
-        ...request // Include all other fields
-      }));
+      const transformedRequests = requestsData.map(transformRequest);
       
       setRequests(transformedRequests);
     } catch (error) {
@@ -124,8 +144,28 @@ const Buy4meAdmin = () => {
     }
   };
 
-  const handleViewRequest = (request) => {
+  const handleViewRequest = async (request) => {
     setSelectedRequest(request);
+
+    const requestId = request?.id || request?._id;
+    if (!requestId) return;
+
+    try {
+      const response = await getAdminBuy4meRequest(requestId, {
+        includeMedia: true,
+      });
+      const updatedRequest = response?.data || {};
+      const transformedRequest = transformRequest(updatedRequest);
+      setSelectedRequest(transformedRequest);
+    } catch (error) {
+      console.error('Error fetching Buy4me request details:', error);
+      const errorMessage =
+        error.response?.data?.error ||
+        error.response?.data?.detail ||
+        error.message ||
+        'Failed to load request details';
+      toast.error(errorMessage, { toastId: "buy4me-detail-error" });
+    }
   };
 
   const handleCloseModal = () => {
@@ -138,24 +178,7 @@ const Buy4meAdmin = () => {
       const updatedRequest = response.data;
       
       // Transform response to match frontend expectations
-      const transformedRequest = {
-        _id: updatedRequest.id,
-        id: updatedRequest.id,
-        title: updatedRequest.title,
-        description: updatedRequest.description,
-        userName: updatedRequest.user_name || updatedRequest.user_username || 'Unknown',
-        status: updatedRequest.status,
-        tracking_status: updatedRequest.tracking_status,
-        link: updatedRequest.product_url || '',
-        product_url: updatedRequest.product_url,
-        additional_links: updatedRequest.additional_links || [],
-        images: updatedRequest.images || [],
-        quantity: updatedRequest.quantity || 1,
-        invoice: updatedRequest.invoice,
-        createdAt: updatedRequest.created_at,
-        updatedAt: updatedRequest.updated_at,
-        ...updatedRequest
-      };
+      const transformedRequest = transformRequest(updatedRequest);
       
       // Update local state with the response from server
       setRequests(requests.map(req => 
@@ -189,6 +212,13 @@ const Buy4meAdmin = () => {
       setRequests((prevRequests) => 
         prevRequests.filter(req => (req.id !== deleteTarget && req._id !== deleteTarget))
       );
+      setTotal((prevTotal) => {
+        const nextTotal = Math.max(0, prevTotal - 1);
+        if (currentPage > 1 && nextTotal <= (currentPage - 1) * pageSize) {
+          setCurrentPage(currentPage - 1);
+        }
+        return nextTotal;
+      });
       
       // Refresh data from server to ensure consistency
       fetchBuy4meRequests(currentPage, pageSize);
@@ -245,7 +275,7 @@ const Buy4meAdmin = () => {
         product_costs_rmb: invoiceProductCostsRmb.map(cost => parseFloat(cost)),
         quantities: quantities, // Use quantities from form
         rmb_to_ghs_rate: parseFloat(invoiceRmbToGhsRate),
-        shipping_method: invoiceShippingMethod,
+        shipping_method: selectedRequest?.invoice_shipping_method,
         service_fee_percent: 5.0, // 5% service fee
       };
       const response = await createBuy4meRequestInvoice(requestId, invoiceData);
@@ -418,6 +448,13 @@ const Buy4meAdmin = () => {
       setRequests((prevRequests) => 
         prevRequests.filter((req) => !deletedIds.has(req.id || req._id))
       );
+      setTotal((prevTotal) => {
+        const nextTotal = Math.max(0, prevTotal - selectedRequests.length);
+        if (currentPage > 1 && nextTotal <= (currentPage - 1) * pageSize) {
+          setCurrentPage(currentPage - 1);
+        }
+        return nextTotal;
+      });
       
       // Refresh data from server to ensure consistency
       fetchBuy4meRequests(currentPage, pageSize);
@@ -520,6 +557,21 @@ const Buy4meAdmin = () => {
               <option value="completed">Completed</option>
               <option value="rejected">Rejected</option>
             </select>
+            <select
+              value={invoiceFilter}
+              onChange={(e) => {
+                setInvoiceFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              title="Filter by invoice payment status"
+            >
+              <option value="all">All Invoices</option>
+              <option value="paid">Paid Invoices</option>
+              <option value="pending">Pending Invoices</option>
+              <option value="cancelled">Cancelled Invoices</option>
+              <option value="draft">Draft Invoices</option>
+            </select>
             
             <button
               onClick={fetchBuy4meRequests}
@@ -578,6 +630,9 @@ const Buy4meAdmin = () => {
                   Status
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  Proof
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Tracking
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
@@ -591,7 +646,7 @@ const Buy4meAdmin = () => {
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {loading ? (
                 <tr>
-                  <td colSpan="7" className="px-6 py-4 text-center">
+                  <td colSpan="8" className="px-6 py-4 text-center">
                     <div className="flex justify-center">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                     </div>
@@ -599,7 +654,7 @@ const Buy4meAdmin = () => {
                 </tr>
               ) : filteredRequests.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan="8" className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
                     No Buy4me requests found
                   </td>
                 </tr>
@@ -632,6 +687,26 @@ const Buy4meAdmin = () => {
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(request.status)}`}>
                         {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
                       </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {request.proof_of_payment ? (
+                        <button
+                          type="button"
+                          onClick={() => setPreviewProof(request.proof_of_payment)}
+                          className="inline-flex items-center gap-2"
+                        >
+                          <img
+                            src={request.proof_of_payment}
+                            alt="Proof"
+                            className="h-12 w-12 rounded object-cover border"
+                          />
+                          <span className="text-xs text-blue-600 dark:text-blue-400">
+                            View
+                          </span>
+                        </button>
+                      ) : (
+                        <span className="text-gray-400 text-xs">No proof</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {request.tracking_status ? (
@@ -887,6 +962,31 @@ const Buy4meAdmin = () => {
                     </div>
                   </div>
                 )}
+                {selectedRequest.proof_of_payment && (
+                  <div className="md:col-span-2">
+                    <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Proof of Payment</h4>
+                    <div className="flex items-start gap-3">
+                      <div className="h-24 border dark:border-gray-700 rounded-lg overflow-hidden flex-shrink-0">
+                        <img
+                          src={selectedRequest.proof_of_payment}
+                          alt="Proof of payment"
+                          className="h-full w-auto object-contain bg-gray-100 dark:bg-gray-700"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = 'https://via.placeholder.com/150?text=Image+Not+Found';
+                          }}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setPreviewProof(selectedRequest.proof_of_payment)}
+                        className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                      >
+                        View full size
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
               
               {/* Tracking Status Management */}
@@ -1097,19 +1197,14 @@ const Buy4meAdmin = () => {
                               </p>
                             </div>
                             <div>
-                              <label htmlFor="invoiceShippingMethod" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                Shipping Method <span className="text-red-500">*</span>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Shipping Method
                               </label>
-                              <select
-                                id="invoiceShippingMethod"
-                                value={invoiceShippingMethod}
-                                onChange={(e) => setInvoiceShippingMethod(e.target.value)}
-                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm"
-                                required
-                              >
-                                <option value="sea">Sea Shipping</option>
-                                <option value="air">Air Shipping</option>
-                              </select>
+                              <p className="mt-1 text-sm text-gray-900 dark:text-white">
+                                {selectedRequest?.invoice_shipping_method === "air"
+                                  ? "Air Shipping"
+                                  : "Sea Shipping"}
+                              </p>
                             </div>
                             {invoiceProductCostsRmb.length > 0 && invoiceRmbToGhsRate && (() => {
                               // Calculate total from all product costs multiplied by quantities from form
@@ -1222,7 +1317,7 @@ const Buy4meAdmin = () => {
                         <div>
                           <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Amount</p>
                           <p className="text-sm text-gray-900 dark:text-white font-semibold">
-                            ₵{(selectedRequest.invoice.totalGhs || selectedRequest.invoice.amount || 0).toFixed(2)}
+                            ₵{Number(selectedRequest.invoice.totalGhs || selectedRequest.invoice.amount || 0).toFixed(2)}
                           </p>
                         </div>
                         <div>
@@ -1325,7 +1420,7 @@ const Buy4meAdmin = () => {
                             {/* Total Amount */}
                             <div className="flex justify-between items-center font-bold border-t-2 border-blue-300 dark:border-blue-600 pt-3 mt-3 text-blue-900 dark:text-blue-200">
                               <span className="text-base">Total Amount:</span>
-                              <span className="text-xl">₵{(storedTotal || totalAmountGhs || 0).toFixed(2)}</span>
+                              <span className="text-xl">₵{Number(storedTotal || totalAmountGhs || 0).toFixed(2)}</span>
                             </div>
                           </div>
                         </div>
@@ -1416,6 +1511,32 @@ const Buy4meAdmin = () => {
                   Close
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {previewProof && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-3xl w-full p-4">
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="text-sm font-semibold text-gray-800 dark:text-white">
+                Proof of Payment
+              </h3>
+              <button
+                type="button"
+                onClick={() => setPreviewProof('')}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-300"
+              >
+                Close
+              </button>
+            </div>
+            <div className="flex justify-center">
+              <img
+                src={previewProof}
+                alt="Proof of Payment"
+                className="max-h-[70vh] rounded-lg border"
+              />
             </div>
           </div>
         </div>

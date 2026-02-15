@@ -30,6 +30,8 @@ const AgentRequestsManagement = ({
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [requestToAction, setRequestToAction] = useState(null);
   const [processing, setProcessing] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   useEffect(() => {
     fetchAgentRequests();
@@ -190,6 +192,16 @@ const AgentRequestsManagement = ({
       );
     });
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, searchTerm, agentTypeFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredRequests.length / pageSize));
+  const pagedRequests = filteredRequests.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
+
   if (loading && requests.length === 0) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -277,7 +289,7 @@ const AgentRequestsManagement = ({
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {filteredRequests.map((request) => (
+                {pagedRequests.map((request) => (
                   <tr
                     key={request.id}
                     className="hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -358,6 +370,55 @@ const AgentRequestsManagement = ({
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {filteredRequests.length > 0 && (
+          <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              Showing {(currentPage - 1) * pageSize + 1} to{" "}
+              {Math.min(currentPage * pageSize, filteredRequests.length)} of{" "}
+              {filteredRequests.length} requests
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className={`px-3 py-1.5 rounded-md text-sm ${
+                  currentPage === 1
+                    ? "bg-gray-200 text-gray-400 cursor-not-allowed dark:bg-gray-700 dark:text-gray-500"
+                    : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200"
+                }`}
+              >
+                Prev
+              </button>
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage >= totalPages}
+                className={`px-3 py-1.5 rounded-md text-sm ${
+                  currentPage >= totalPages
+                    ? "bg-gray-200 text-gray-400 cursor-not-allowed dark:bg-gray-700 dark:text-gray-500"
+                    : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200"
+                }`}
+              >
+                Next
+              </button>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(parseInt(e.target.value, 10));
+                  setCurrentPage(1);
+                }}
+                className="ml-2 px-2 py-1.5 border border-gray-300 rounded-md text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+              </select>
+            </div>
           </div>
         )}
       </div>

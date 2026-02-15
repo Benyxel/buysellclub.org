@@ -15,10 +15,14 @@ import Shipping from "./pages/Quicklinks/Shipping";
 import Trending from "./pages/Quicklinks/Trending";
 import Wholesale from "./pages/Quicklinks/Wholesale";
 import Suppliers from "./pages/Quicklinks/Suppliers";
+import QuickTracking from "./pages/Quicklinks/QuickTracking";
 import Contact from "./pages/Contact";
 import PlaceOrder from "./pages/PlaceOrder";
 import Training from "./pages/Quicklinks/Training";
 import AlipayPayment from "./pages/Quicklinks/AlipayPayment";
+import OurRates from "./pages/Quicklinks/OurRates";
+import JoinCommunity from "./pages/Community/JoinCommunity";
+import CommunityPayment from "./pages/Community/CommunityPayment";
 import PaymentCallback from "./pages/PaymentCallback";
 import Favorites from "./pages/Favorites";
 import MyProfile from "./components/MyProfile";
@@ -32,11 +36,14 @@ import SearchBar from "./components/Searchbar";
 import Product from "./components/Product";
 import ShippingDashboard from "./components/ShippingDashboard";
 import FofooAddressGenerator from "./components/FofooAddressGenerator.jsx";
+import RegionAddressGenerator from "./components/RegionAddressGenerator";
 import AdminDashboard from "./pages/admin/AdminDashboard.jsx";
 import Gallery from "./pages/Gallery";
+import Donate from "./pages/Donate";
 import AdminLogin from "./pages/AdminLogin";
 import TrackingPage from "./pages/TrackingPage";
 import PublicInvoice from "./pages/PublicInvoice";
+import StaffClockPage from "./pages/StaffClockPage";
 import ProtectedRoute from "./auth/ProtectedRoute.jsx";
 import AdminRoute from "./auth/AdminRoute.jsx";
 import AgentRoute from "./auth/AgentRoute.jsx";
@@ -56,29 +63,33 @@ function App() {
   const location = useLocation();
   const [maintenance, setMaintenance] = useState(null);
   const [loading, setLoading] = useState(true);
-  
+
   // Check if current route is an admin, agent, or auth route (should bypass maintenance)
   const currentPath = location.pathname;
-  const isAdminRoute = currentPath.startsWith("/admin-dashboard") || 
-                       currentPath.startsWith("/admin/") ||
-                       currentPath === "/admin-login";
+  const isAdminRoute =
+    currentPath.startsWith("/admin-dashboard") ||
+    currentPath.startsWith("/admin/") ||
+    currentPath === "/admin-login";
   const isAgentRoute =
     currentPath.startsWith("/agent-dashboard") ||
     currentPath.startsWith("/local-agent-dashboard");
-  const isAuthRoute = currentPath === "/Login" || 
-                      currentPath === "/Signup" || 
-                      currentPath === "/admin-login";
-  
+  const isAuthRoute =
+    currentPath === "/Login" ||
+    currentPath === "/Signup" ||
+    currentPath === "/admin-login";
+
   // Payment callback should work even during maintenance
-  const isPaymentCallback = currentPath.startsWith("/payment/callback") || 
-                            currentPath === "/payment/callback";
-  
+  const isPaymentCallback =
+    currentPath.startsWith("/payment/callback") ||
+    currentPath === "/payment/callback";
+
   // Routes that should bypass maintenance mode
-  const shouldBypassMaintenance = isAdminRoute || isAgentRoute || isAuthRoute || isPaymentCallback;
-  
+  const shouldBypassMaintenance =
+    isAdminRoute || isAgentRoute || isAuthRoute || isPaymentCallback;
+
   // Debug logging
   if (shouldBypassMaintenance) {
-    console.log('Route bypassing maintenance mode:', currentPath);
+    console.log("Route bypassing maintenance mode:", currentPath);
   }
 
   useEffect(() => {
@@ -118,172 +129,199 @@ function App() {
         <div className="min-h-screen flex flex-col bg-gray-50">
           <ScrollToTop />
           <Routes>
-        {/* Auth pages without Navbar and Footer */}
-        <Route path="/Login" element={<Login />} />
-        <Route path="/Signup" element={<Signup />} />
-        <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
-        <Route path="/admin-login" element={<AdminLogin />} />
+            {/* Auth pages without Navbar and Footer */}
+            <Route path="/Login" element={<Login />} />
+            <Route path="/Signup" element={<Signup />} />
+            <Route
+              path="/terms-and-conditions"
+              element={<TermsAndConditions />}
+            />
+            <Route path="/admin-login" element={<AdminLogin />} />
 
-        {/* Admin routes without Navbar and Footer */}
-        <Route
-          path="/admin-dashboard"
-          element={
-            <AdminRoute>
-              <AdminDashboard />
-            </AdminRoute>
-          }
-        />
-        {/* Agent Dashboard route without Navbar and Footer */}
-        <Route
-          path="/agent-dashboard"
-          element={
-            <AgentRoute>
-              <AgentDashboard />
-            </AgentRoute>
-          }
-        />
-        <Route
-          path="/local-agent-dashboard"
-          element={
-            <AgentRoute>
-              <LocalAgentDashboard />
-            </AgentRoute>
-          }
-        />
-        <Route
-          path="/admin/orders"
-          element={
-            <AdminRoute>
-              <OrderManagement />
-            </AdminRoute>
-          }
-        />
-        <Route
-          path="/admin/user/:markId"
-          element={
-            <AdminRoute>
-              <UserView />
-            </AdminRoute>
-          }
-        />
+            {/* Admin routes without Navbar and Footer */}
+            <Route
+              path="/admin-dashboard"
+              element={
+                <AdminRoute>
+                  <AdminDashboard />
+                </AdminRoute>
+              }
+            />
+            {/* Agent Dashboard route without Navbar and Footer */}
+            <Route
+              path="/agent-dashboard"
+              element={
+                <AgentRoute>
+                  <AgentDashboard />
+                </AgentRoute>
+              }
+            />
+            <Route
+              path="/local-agent-dashboard"
+              element={
+                <AgentRoute>
+                  <LocalAgentDashboard />
+                </AgentRoute>
+              }
+            />
+            <Route
+              path="/admin/orders"
+              element={
+                <AdminRoute>
+                  <OrderManagement />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/user/:markId"
+              element={
+                <AdminRoute>
+                  <UserView />
+                </AdminRoute>
+              }
+            />
 
-        {/* Regular routes with Navbar and Footer */}
-        <Route
-          path="/*"
-          element={
-            <>
-              <Navbar />
-              <SearchBar />
-              <main className="flex-grow bg-gray-50 dark:bg-gray-900 dark:text-white duration-200">
-                <Routes>
-                  {/* Public routes - accessible without login */}
-                  <Route index element={<Home />} />
-                  <Route path="Shop" element={<Shop />} />
-                  <Route path="Services" element={<Services />} />
-                  <Route path="Contact" element={<Contact />} />
-                  <Route path="Policies" element={<Policies />} />
-                  <Route path="About" element={<About />} />
-                  <Route path="product/:productId" element={<Product />} />
-                  <Route path="Trending" element={<Trending />} />
-                  <Route path="Wholesale" element={<Wholesale />} />
-                  <Route path="Suppliers" element={<Suppliers />} />
-                  <Route path="Training" element={<Training />} />
-                  <Route path="Gallery" element={<Gallery />} />
-                  <Route path="tracking" element={<TrackingPage />} />
-                  <Route path="invoice" element={<PublicInvoice />} />
-                  <Route path="payment/callback" element={<PaymentCallback />} />
+            {/* Regular routes with Navbar and Footer */}
+            <Route
+              path="/*"
+              element={
+                <>
+                  <Navbar />
+                  <SearchBar />
+                  <main className="flex-grow bg-gray-50 dark:bg-gray-900 dark:text-white duration-200">
+                    <Routes>
+                      {/* Public routes - accessible without login */}
+                      <Route index element={<Home />} />
+                      <Route path="Shop" element={<Shop />} />
+                      <Route path="Services" element={<Services />} />
+                      <Route path="Contact" element={<Contact />} />
+                      <Route path="Policies" element={<Policies />} />
+                      <Route path="About" element={<About />} />
+                      <Route path="product/:productId" element={<Product />} />
+                      <Route path="Trending" element={<Trending />} />
+                      <Route path="Wholesale" element={<Wholesale />} />
+                      <Route path="Suppliers" element={<Suppliers />} />
+                      <Route path="Training" element={<Training />} />
+                      <Route path="QuickTracking" element={<QuickTracking />} />
+                      <Route path="OurRates" element={<OurRates />} />
+                      <Route path="Gallery" element={<Gallery />} />
+                      <Route path="Donate" element={<Donate />} />
+                      <Route path="tracking" element={<TrackingPage />} />
+                      <Route path="invoice" element={<PublicInvoice />} />
+                      <Route path="clock" element={<StaffClockPage />} />
+                      <Route
+                        path="payment/callback"
+                        element={<PaymentCallback />}
+                      />
 
-                  {/* Protected routes - require login */}
-                  <Route
-                    path="Cart"
-                    element={
-                      <ProtectedRoute>
-                        <Cart />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="Buy4me"
-                    element={
-                      <ProtectedRoute>
-                        <Buy4me />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="Orders"
-                    element={
-                      <ProtectedRoute>
-                        <UserOrders />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="Shipping"
-                    element={
-                      <ProtectedRoute>
-                        <ShippingDashboard />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="checkout"
-                    element={
-                      <ProtectedRoute>
-                        <Checkout />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="PlaceOrder"
-                    element={
-                      <ProtectedRoute>
-                        <PlaceOrder />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="AlipayPayment"
-                    element={
-                      <ProtectedRoute>
-                        <AlipayPayment />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="Favorites"
-                    element={
-                      <ProtectedRoute>
-                        <Favorites />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="Profile"
-                    element={
-                      <ProtectedRoute>
-                        <MyProfile />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="Fofoofo-address-generator"
-                    element={
-                      <ProtectedRoute>
-                        <FofooAddressGenerator />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route path="logout" element={<Logout />} />
-                  <Route path="debug" element={<TokenDebugger />} />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </main>
-              <Footer />
-            </>
-          }
-        />
-      </Routes>
+                      {/* Protected routes - require login */}
+                      <Route
+                        path="Cart"
+                        element={
+                          <ProtectedRoute>
+                            <Cart />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="Buy4me"
+                        element={
+                          <ProtectedRoute>
+                            <Buy4me />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="Orders"
+                        element={
+                          <ProtectedRoute>
+                            <UserOrders />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="Shipping"
+                        element={
+                          <ProtectedRoute>
+                            <ShippingDashboard />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="checkout"
+                        element={
+                          <ProtectedRoute>
+                            <Checkout />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="PlaceOrder"
+                        element={
+                          <ProtectedRoute>
+                            <PlaceOrder />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="AlipayPayment"
+                        element={
+                          <ProtectedRoute>
+                            <AlipayPayment />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route path="Community" element={<JoinCommunity />} />
+                      <Route
+                        path="CommunityPayment"
+                        element={
+                          <ProtectedRoute>
+                            <CommunityPayment />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="Favorites"
+                        element={
+                          <ProtectedRoute>
+                            <Favorites />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="Profile"
+                        element={
+                          <ProtectedRoute>
+                            <MyProfile />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="Fofoofo-address-generator"
+                        element={
+                          <ProtectedRoute>
+                            <FofooAddressGenerator />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="address-generator/:code"
+                        element={
+                          <ProtectedRoute>
+                            <RegionAddressGenerator />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route path="logout" element={<Logout />} />
+                      <Route path="debug" element={<TokenDebugger />} />
+                      <Route path="*" element={<NotFound />} />
+                    </Routes>
+                  </main>
+                  <Footer />
+                </>
+              }
+            />
+          </Routes>
           <LoginPromptModal />
         </div>
       )}

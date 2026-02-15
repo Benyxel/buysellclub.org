@@ -70,7 +70,7 @@ const Category = () => {
                 <p className='mb-[0px] font-bold  text-white'>Need help to order from</p>
                 <p className='text-2xl font-semibold mb-[30px]'>China?</p>
                 <p className='text-4xl xl:text-5xl font-bold opacity-20 mb-10'>Sourcing Sourcing Sourcing</p>
-                <Link to={'/Suppliers'}>
+                <Link to={'/Community'}>
                 
                 <Buy4meB 
                 text='Get New Suppliers'

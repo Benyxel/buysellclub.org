@@ -182,6 +182,192 @@
   animation: ship-sail 20s ease-in-out infinite;
 }
 
+/* Plane fly animation */
+@keyframes plane-fly {
+  0% {
+    transform: translateX(-1200px) translateY(0px);
+  }
+  100% {
+    transform: translateX(calc(100% + 1200px)) translateY(0px);
+  }
+}
+
+.air-plane-area {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.plane-track {
+  position: relative;
+  width: 100%;
+  height: 80px;
+  overflow: visible;
+}
+
+.animate-plane {
+  position: absolute;
+  left: -10%;
+  top: 50%;
+  transform: translateY(-50%);
+  animation: plane-fly 12s linear infinite;
+}
+
+.plane-visual {
+  width: clamp(40px, 8vw, 64px);
+  height: clamp(40px, 8vw, 64px);
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.2));
+}
+
+/* Clouds for air rates */
+.cloud {
+  position: absolute;
+  top: 16%;
+  width: 48px;
+  height: 18px;
+  background: rgba(226, 232, 240, 0.95);
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  border-radius: 9999px;
+  filter: blur(0.2px);
+}
+
+.cloud::before,
+.cloud::after {
+  content: "";
+  position: absolute;
+  background: inherit;
+  border: inherit;
+  border-radius: 9999px;
+}
+
+.cloud::before {
+  width: 20px;
+  height: 20px;
+  left: 6px;
+  top: -8px;
+}
+
+.cloud::after {
+  width: 26px;
+  height: 26px;
+  right: 4px;
+  top: -12px;
+}
+
+.cloud-1 {
+  left: 8%;
+  animation: cloud-drift 20s linear infinite;
+}
+
+.cloud-2 {
+  left: 40%;
+  top: 22%;
+  animation: cloud-drift 28s linear infinite;
+}
+
+.cloud-3 {
+  left: 72%;
+  top: 10%;
+  animation: cloud-drift 24s linear infinite;
+}
+
+.cloud-4 {
+  left: 18%;
+  top: 28%;
+  animation: cloud-drift 26s linear infinite;
+}
+
+.cloud-5 {
+  left: 56%;
+  top: 30%;
+  animation: cloud-drift 30s linear infinite;
+}
+
+@keyframes cloud-drift {
+  0% {
+    transform: translateX(-20%);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.9;
+  }
+  60% {
+    opacity: 0.7;
+  }
+  100% {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+}
+
+@media (min-width: 1024px) {
+  .plane-track {
+    height: 96px;
+  }
+}
+
+
+/* Container animation */
+@keyframes container-sail {
+  0% {
+    transform: translateX(-20%);
+  }
+  50% {
+    transform: translateX(110%);
+  }
+  100% {
+    transform: translateX(-20%);
+  }
+}
+
+.container-track {
+  position: relative;
+  width: 100%;
+  height: 18px;
+  overflow: hidden;
+  background: linear-gradient(90deg, #e0f2fe 0%, #f0f9ff 50%, #dcfce7 100%);
+  border-radius: 9999px;
+}
+
+.dark .container-track {
+  background: linear-gradient(90deg, #1f2937 0%, #111827 50%, #0f172a 100%);
+}
+
+.container-box {
+  width: 42px;
+  height: 14px;
+  border-radius: 4px;
+  background: repeating-linear-gradient(
+    90deg,
+    #3b82f6 0px,
+    #3b82f6 6px,
+    #1d4ed8 6px,
+    #1d4ed8 10px
+  );
+  border: 1px solid #1e40af;
+}
+
+.dark .container-box {
+  background: repeating-linear-gradient(
+    90deg,
+    #60a5fa 0px,
+    #60a5fa 6px,
+    #3b82f6 6px,
+    #3b82f6 10px
+  );
+  border-color: #1e3a8a;
+}
+
+.animate-container {
+  position: absolute;
+  left: 0;
+  animation: container-sail 8s ease-in-out infinite;
+}
+
 /* Fade in animation for status messages */
 @keyframes fade-in {
   from {

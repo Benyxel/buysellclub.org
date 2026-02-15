@@ -73,6 +73,9 @@ const AgentTrackingManagement = () => {
   const [markOptions, setMarkOptions] = useState([]);
   const [markLoading, setMarkLoading] = useState(false);
   const [filterContainer, setFilterContainer] = useState("all");
+  const [bulkStatus, setBulkStatus] = useState("pending");
+  const [bulkEta, setBulkEta] = useState("");
+  const [bulkUpdating, setBulkUpdating] = useState(false);
   const [prefilledMark, setPrefilledMark] = useState("");
   const [activeRates, setActiveRates] = useState(null);
   const [rateSelections, setRateSelections] = useState({}); // { [trackingId]: 'normal' | 'special' }
@@ -553,6 +556,31 @@ const AgentTrackingManagement = () => {
     setShowDeleteModal(true);
   };
 
+  const handleBulkUpdateByContainer = async () => {
+    if (!filterContainer || filterContainer === "all" || filterContainer === "none") {
+      toast.error("Select a container to bulk update");
+      return;
+    }
+    setBulkUpdating(true);
+    try {
+      const payload = { container_id: filterContainer };
+      if (bulkStatus) payload.status = bulkStatus;
+      if (bulkEta) payload.eta = bulkEta;
+
+      const response = await API.post("/buysellapi/admin/trackings/bulk-update/", payload);
+      const updatedCount = response?.data?.updated || 0;
+      toast.success(`Updated ${updatedCount} tracking(s)`);
+      await fetchTrackings();
+    } catch (error) {
+      console.error("Bulk update failed:", error);
+      toast.error(
+        error?.response?.data?.message || "Failed to bulk update tracking statuses"
+      );
+    } finally {
+      setBulkUpdating(false);
+    }
+  };
+
   // Pagination helpers
   const totalPages = Math.max(
     1,
@@ -618,7 +646,7 @@ const AgentTrackingManagement = () => {
       case "arrived_ghana":
         return "bg-teal-100 text-teal-800";
       case "cancelled":
-        return "bg-gray-200 text-gray-700";
+        return "bg-gray-200 text-white";
       case "rejected":
         return "bg-red-100 text-red-800";
       case "not_received":
@@ -639,10 +667,10 @@ const AgentTrackingManagement = () => {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
+        <h2 className="text-2xl font-bold text-white mb-2">
           Agent Tracking Numbers
         </h2>
-        <p className="text-gray-600 dark:text-gray-400">
+        <p className="text-white/80">
           {loading
             ? "Loading..."
             : "Manage and monitor all agent tracking numbers in the system"}
@@ -660,7 +688,7 @@ const AgentTrackingManagement = () => {
               placeholder="Search by tracking number, shipping mark, container, or ETA..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
 
@@ -669,7 +697,7 @@ const AgentTrackingManagement = () => {
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="all">All Statuses</option>
               {statusOptions.map((opt) => (
@@ -685,7 +713,7 @@ const AgentTrackingManagement = () => {
             <select
               value={filterContainer}
               onChange={(e) => setFilterContainer(e.target.value)}
-              className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="all">All Containers</option>
               <option value="none">No Container</option>
@@ -728,18 +756,44 @@ const AgentTrackingManagement = () => {
             className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
               selectedTrackings.length > 0
                 ? "bg-red-600 text-white hover:bg-red-700"
-                : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                : "bg-gray-300 text-white/70 cursor-not-allowed"
             } transition-colors`}
           >
             <FaTrash /> Delete Selected
           </button>
+          <div className="flex items-center gap-2">
+            <select
+              value={bulkStatus}
+              onChange={(e) => setBulkStatus(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-white"
+            >
+              {statusOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            <input
+              type="date"
+              value={bulkEta}
+              onChange={(e) => setBulkEta(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-white"
+            />
+            <button
+              onClick={handleBulkUpdateByContainer}
+              disabled={bulkUpdating}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+            >
+              {bulkUpdating ? "Updating..." : "Update Container Status/ETA"}
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Table */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-white">
             <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
                 <th className="py-3 px-4 text-left">
@@ -750,7 +804,7 @@ const AgentTrackingManagement = () => {
                       onChange={handleSelectAll}
                       className="mr-2 rounded"
                     />
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                    <span className="text-xs text-white/70">
                       Select All
                     </span>
                   </div>
@@ -758,7 +812,7 @@ const AgentTrackingManagement = () => {
                 <th className="py-3 px-4 text-left">
                   <button
                     onClick={() => handleSort("trackingNum")}
-                    className="flex items-center text-gray-700 dark:text-white font-medium text-sm"
+                    className="flex items-center text-white font-medium text-sm"
                   >
                     Tracking Number
                     {sortField === "trackingNum" &&
@@ -772,7 +826,7 @@ const AgentTrackingManagement = () => {
                 <th className="py-3 px-4 text-left">
                   <button
                     onClick={() => handleSort("shippingMark")}
-                    className="flex items-center text-gray-700 dark:text-white font-medium text-sm"
+                    className="flex items-center text-white font-medium text-sm"
                   >
                     Shipping Mark
                     {sortField === "shippingMark" &&
@@ -786,7 +840,7 @@ const AgentTrackingManagement = () => {
                 <th className="py-3 px-4 text-left">
                   <button
                     onClick={() => handleSort("status")}
-                    className="flex items-center text-gray-700 dark:text-white font-medium text-sm"
+                    className="flex items-center text-white font-medium text-sm"
                   >
                     Status
                     {sortField === "status" &&
@@ -800,7 +854,7 @@ const AgentTrackingManagement = () => {
                 <th className="py-3 px-4 text-left">
                   <button
                     onClick={() => handleSort("cbm")}
-                    className="flex items-center text-gray-700 dark:text-white font-medium text-sm"
+                    className="flex items-center text-white font-medium text-sm"
                   >
                     CBM
                     {sortField === "cbm" &&
@@ -811,16 +865,16 @@ const AgentTrackingManagement = () => {
                       ))}
                   </button>
                 </th>
-                <th className="py-3 px-4 text-left text-gray-700 dark:text-white font-medium">Shipping Fee</th>
+                <th className="py-3 px-4 text-left text-white font-medium">Shipping Fee</th>
                 <th className="py-3 px-4 text-left">
-                  <span className="text-gray-700 dark:text-white font-medium text-sm">
+                  <span className="text-white font-medium text-sm">
                     Container
                   </span>
                 </th>
                 <th className="py-3 px-4 text-left">
                   <button
                     onClick={() => handleSort("addedDate")}
-                    className="flex items-center text-gray-700 dark:text-white font-medium text-sm"
+                    className="flex items-center text-white font-medium text-sm"
                   >
                     Added Date
                     {sortField === "addedDate" &&
@@ -831,8 +885,8 @@ const AgentTrackingManagement = () => {
                       ))}
                   </button>
                 </th>
-                <th className="py-3 px-4 text-left text-gray-700 dark:text-white font-medium">ETA</th>
-                <th className="py-3 px-4 text-left text-gray-700 dark:text-white font-medium">Operations</th>
+                <th className="py-3 px-4 text-left text-white font-medium">ETA</th>
+                <th className="py-3 px-4 text-left text-white font-medium">Operations</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -884,8 +938,8 @@ const AgentTrackingManagement = () => {
                         </span>
                       )}
                     </td>
-                    <td className="py-3 px-4 text-gray-900 dark:text-white">{tracking.CBM || "-"}</td>
-                    <td className="py-3 px-4 text-gray-900 dark:text-white">
+                    <td className="py-3 px-4 text-white">{tracking.CBM || "-"}</td>
+                    <td className="py-3 px-4 text-white">
                       {tracking.ShippingFee
                         ? `$${parseFloat(tracking.ShippingFee).toFixed(2)}`
                         : "-"}
@@ -896,7 +950,7 @@ const AgentTrackingManagement = () => {
                           {tracking.ContainerNumber}
                         </span>
                       ) : (
-                        <span className="text-gray-400 text-sm">-</span>
+                        <span className="text-white/70 text-sm">-</span>
                       )}
                     </td>
                     <td className="py-3 px-4">
@@ -968,7 +1022,7 @@ const AgentTrackingManagement = () => {
                 <tr>
                   <td
                     colSpan="10"
-                    className="py-6 text-center text-gray-500 dark:text-gray-400"
+                    className="py-6 text-center text-white/70"
                   >
                     No tracking records found.{" "}
                     {searchTerm && "Try a different search term or filter."}
@@ -982,7 +1036,7 @@ const AgentTrackingManagement = () => {
 
       {/* Pagination */}
       <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div className="text-sm text-gray-600 dark:text-gray-400">
+        <div className="text-sm text-white/80">
           Page {currentPage} of {totalPages} • Showing {pagedItems.length} of{" "}
           {filteredTrackings.length}
         </div>
@@ -993,12 +1047,12 @@ const AgentTrackingManagement = () => {
             className={`px-3 py-1 rounded border ${
               currentPage <= 1
                 ? "text-gray-400 border-gray-300 cursor-not-allowed"
-                : "text-gray-700 border-gray-400 hover:bg-gray-100"
+                : "text-white border-gray-400 hover:bg-gray-100"
             } dark:text-gray-200 dark:border-gray-600`}
           >
             Prev
           </button>
-          <span className="text-sm text-gray-700 dark:text-gray-300">
+          <span className="text-sm text-white/80">
             {currentPage}
           </span>
           <button
@@ -1007,7 +1061,7 @@ const AgentTrackingManagement = () => {
             className={`px-3 py-1 rounded border ${
               currentPage >= totalPages
                 ? "text-gray-400 border-gray-300 cursor-not-allowed"
-                : "text-gray-700 border-gray-400 hover:bg-gray-100"
+                : "text-white border-gray-400 hover:bg-gray-100"
             } dark:text-gray-200 dark:border-gray-600`}
           >
             Next
@@ -1026,7 +1080,7 @@ const AgentTrackingManagement = () => {
               // Reset to page 1 when page size changes
               setCurrentPage(1);
             }}
-            className="ml-2 px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            className="ml-2 px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-white"
           >
             {[10, 20, 50, 100].map((sz) => (
               <option key={sz} value={sz}>
@@ -1038,7 +1092,7 @@ const AgentTrackingManagement = () => {
       </div>
 
       {/* Summary */}
-      <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
+      <div className="mt-4 text-sm text-white/80">
         Showing {filteredTrackings.length} of {trackings.length} tracking
         records
         {selectedTrackings.length > 0 &&
@@ -1050,12 +1104,12 @@ const AgentTrackingManagement = () => {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-2xl my-8">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              <h3 className="text-lg font-semibold text-white">
                 {editTracking ? "Edit Tracking" : "Add New Tracking"}
               </h3>
               <button
                 onClick={() => setShowAddForm(false)}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                className="text-white/80 hover:text-white dark:text-gray-400 dark:hover:text-gray-300"
               >
                 <FaTimesCircle />
               </button>
@@ -1069,7 +1123,7 @@ const AgentTrackingManagement = () => {
                   <div>
                     <label
                       htmlFor="trackingNumber"
-                      className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                      className="block text-sm font-medium text-white/80 mb-1"
                     >
                       Tracking Number*
                     </label>
@@ -1107,7 +1161,7 @@ const AgentTrackingManagement = () => {
                           setPrefilledMark("");
                         }
                       }}
-                      className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       required
                       disabled={editTracking !== null}
                     />
@@ -1116,7 +1170,7 @@ const AgentTrackingManagement = () => {
                   <div>
                     <label
                       htmlFor="status"
-                      className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                      className="block text-sm font-medium text-white/80 mb-1"
                     >
                       Status*
                     </label>
@@ -1129,7 +1183,7 @@ const AgentTrackingManagement = () => {
                           status: e.target.value,
                         })
                       }
-                      className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       required
                     >
                       {statusOptions.map((opt) => (
@@ -1143,7 +1197,7 @@ const AgentTrackingManagement = () => {
                   <div>
                     <label
                       htmlFor="cbm"
-                      className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                      className="block text-sm font-medium text-white/80 mb-1"
                     >
                       CBM (Cubic Meters)
                     </label>
@@ -1159,14 +1213,14 @@ const AgentTrackingManagement = () => {
                           cbm: e.target.value,
                         })
                       }
-                      className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
 
                   <div>
                     <label
                       htmlFor="eta"
-                      className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                      className="block text-sm font-medium text-white/80 mb-1"
                     >
                       ETA
                     </label>
@@ -1180,7 +1234,7 @@ const AgentTrackingManagement = () => {
                           eta: e.target.value,
                         })
                       }
-                      className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
                 </div>
@@ -1190,7 +1244,7 @@ const AgentTrackingManagement = () => {
                   <div>
                     <label
                       htmlFor="shippingMark"
-                      className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                      className="block text-sm font-medium text-white/80 mb-1"
                     >
                       Mark ID{" "}
                       {prefilledMark && (
@@ -1227,13 +1281,13 @@ const AgentTrackingManagement = () => {
                             setMarkLoading(false);
                           }
                         }}
-                        className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                       {(markLoading ||
                         (markOptions && markOptions.length > 0)) && (
                         <div className="absolute z-10 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg max-h-40 overflow-auto">
                           {markLoading && (
-                            <div className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">
+                            <div className="px-3 py-2 text-xs text-white/70">
                               Searching...
                             </div>
                           )}
@@ -1269,7 +1323,7 @@ const AgentTrackingManagement = () => {
                   <div>
                     <label
                       htmlFor="shippingFee"
-                      className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                      className="block text-sm font-medium text-white/80 mb-1"
                     >
                       Shipping Fee
                     </label>
@@ -1285,14 +1339,14 @@ const AgentTrackingManagement = () => {
                           shippingFee: e.target.value,
                         })
                       }
-                      className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
 
                   <div>
                     <label
                       htmlFor="container"
-                      className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                      className="block text-sm font-medium text-white/80 mb-1"
                     >
                       Container
                     </label>
@@ -1305,7 +1359,7 @@ const AgentTrackingManagement = () => {
                           container: e.target.value,
                         })
                       }
-                      className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="">None</option>
                       {containers.map((container) => (
@@ -1343,7 +1397,7 @@ const AgentTrackingManagement = () => {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4 w-full max-w-2xl my-6">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+              <h3 className="text-xl font-bold text-white">
                 Tracking Details
               </h3>
               <button
@@ -1351,7 +1405,7 @@ const AgentTrackingManagement = () => {
                   setShowViewModal(false);
                   setViewTracking(null);
                 }}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                className="text-white/80 hover:text-white dark:text-gray-400 dark:hover:text-gray-300"
               >
                 <FaTimesCircle size={20} />
               </button>
@@ -1360,28 +1414,28 @@ const AgentTrackingManagement = () => {
             <div className="space-y-4" ref={viewContentRef}>
               {/* Tracking Information Section */}
               <div className="border-b border-gray-200 dark:border-gray-700 pb-3">
-                <h4 className="text-base font-semibold text-gray-800 dark:text-white mb-3">
+                <h4 className="text-base font-semibold text-white mb-3">
                   Tracking Information
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
-                    <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                    <label className="text-xs font-medium text-white/80">
                       Tracking Number
                     </label>
-                    <p className="text-base font-semibold text-gray-900 dark:text-white">
+                    <p className="text-base font-semibold text-white">
                       {viewTracking.TrackingNum}
                     </p>
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                    <label className="text-xs font-medium text-white/80">
                       Shipping Mark
                     </label>
-                    <p className="text-sm text-gray-900 dark:text-white">
+                    <p className="text-sm text-white">
                       {viewTracking.ShippingMark || "N/A"}
                     </p>
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                    <label className="text-xs font-medium text-white/80">
                       Status
                     </label>
                     <div className="mt-1">
@@ -1395,15 +1449,15 @@ const AgentTrackingManagement = () => {
                     </div>
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                    <label className="text-xs font-medium text-white/80">
                       CBM (Cubic Meters)
                     </label>
-                    <p className="text-sm text-gray-900 dark:text-white">
+                    <p className="text-sm text-white">
                       {viewTracking.CBM || "N/A"}
                     </p>
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                    <label className="text-xs font-medium text-white/80">
                       Shipping Fee
                     </label>
                     <p className="text-sm font-semibold text-green-600 dark:text-green-400">
@@ -1413,10 +1467,10 @@ const AgentTrackingManagement = () => {
                     </p>
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                    <label className="text-xs font-medium text-white/80">
                       Goods Type
                     </label>
-                    <p className="text-sm text-gray-900 dark:text-white">
+                    <p className="text-sm text-white">
                       {viewTracking.GoodsType
                         ? viewTracking.GoodsType.charAt(0).toUpperCase() +
                           viewTracking.GoodsType.slice(1)
@@ -1424,30 +1478,30 @@ const AgentTrackingManagement = () => {
                     </p>
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                    <label className="text-xs font-medium text-white/80">
                       ETA (Estimated Arrival)
                     </label>
-                    <p className="text-sm text-gray-900 dark:text-white">
+                    <p className="text-sm text-white">
                       {viewTracking.ETA
                         ? new Date(viewTracking.ETA).toLocaleDateString()
                         : "N/A"}
                     </p>
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                    <label className="text-xs font-medium text-white/80">
                       Date Added
                     </label>
-                    <p className="text-sm text-gray-900 dark:text-white">
+                    <p className="text-sm text-white">
                       {viewTracking.AddedDate
                         ? new Date(viewTracking.AddedDate).toLocaleString()
                         : "N/A"}
                     </p>
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                    <label className="text-xs font-medium text-white/80">
                       Last Updated
                     </label>
-                    <p className="text-sm text-gray-900 dark:text-white">
+                    <p className="text-sm text-white">
                       {viewTracking.LastUpdated
                         ? new Date(viewTracking.LastUpdated).toLocaleString()
                         : "N/A"}
@@ -1456,10 +1510,10 @@ const AgentTrackingManagement = () => {
                 </div>
                 {viewTracking.Action && (
                   <div className="mt-3">
-                    <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                    <label className="text-xs font-medium text-white/80">
                       Action/Notes
                     </label>
-                    <p className="text-sm text-gray-900 dark:text-white mt-1 p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <p className="text-sm text-white mt-1 p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
                       {viewTracking.Action}
                     </p>
                   </div>
@@ -1469,12 +1523,12 @@ const AgentTrackingManagement = () => {
               {/* Shipping Rate Details Section */}
               {activeRates && (
                 <div className="border-b border-gray-200 dark:border-gray-700 pb-3">
-                  <h4 className="text-base font-semibold text-gray-800 dark:text-white mb-3">
+                  <h4 className="text-base font-semibold text-white mb-3">
                     Active Agent Shipping Rates
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg">
-                      <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">
+                      <p className="text-xs text-white/80 mb-1">
                         Agent Normal Rate
                       </p>
                       <p className="text-lg font-bold text-green-600 dark:text-green-400">
@@ -1482,7 +1536,7 @@ const AgentTrackingManagement = () => {
                         <span className="text-sm font-normal">per CBM</span>
                       </p>
                       {activeRates.normal_goods_rate_lt1 && (
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        <p className="text-xs text-white/70 mt-1">
                           CBM &lt; 1: $
                           {parseFloat(
                             activeRates.normal_goods_rate_lt1
@@ -1491,7 +1545,7 @@ const AgentTrackingManagement = () => {
                       )}
                     </div>
                     <div className="bg-orange-50 dark:bg-orange-900/20 p-3 rounded-lg">
-                      <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">
+                      <p className="text-xs text-white/80 mb-1">
                         Agent Special Rate
                       </p>
                       <p className="text-lg font-bold text-orange-600 dark:text-orange-400">
@@ -1499,7 +1553,7 @@ const AgentTrackingManagement = () => {
                         <span className="text-sm font-normal">per CBM</span>
                       </p>
                       {activeRates.special_goods_rate_lt1 && (
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        <p className="text-xs text-white/70 mt-1">
                           CBM &lt; 1: $
                           {parseFloat(
                             activeRates.special_goods_rate_lt1
@@ -1614,3 +1668,4 @@ const AgentTrackingManagement = () => {
 };
 
 export default AgentTrackingManagement;
+

@@ -16,6 +16,7 @@ const ContainerInfoWidget = () => {
     shippingRate: null,
     status: null,
     containerId: null,
+    notes: "",
   });
   const [containers, setContainers] = useState([]);
   const [currentContainerIndex, setCurrentContainerIndex] = useState(0);
@@ -141,6 +142,7 @@ const ContainerInfoWidget = () => {
       const totalCbm = containerResponse?.data?.total_cbm || "0.000";
       const containerStatus = containerResponse?.data?.status || null;
       const containerIdFromResponse = containerResponse?.data?.container_id || null;
+      const containerNotes = containerResponse?.data?.notes || "";
 
       // Fetch current RMB rate from Alipay management (set by admin)
       let rmbRate = null;
@@ -172,6 +174,7 @@ const ContainerInfoWidget = () => {
         shippingRate: shippingRate ? shippingRate.toFixed(2) : null,
         status: containerStatus,
         containerId: containerIdFromResponse,
+        notes: containerNotes,
       });
     } catch (error) {
       console.error("Error fetching container info:", error);
@@ -181,6 +184,7 @@ const ContainerInfoWidget = () => {
         rmbRate: null,
         shippingRate: null,
         status: null,
+        notes: "",
       });
     } finally {
       setLoading(false);
@@ -301,24 +305,31 @@ const ContainerInfoWidget = () => {
                <p className="text-2xl font-bold text-blue-900 dark:text-blue-100 relative z-10">
                  CTN NO: {containerInfo.containerNumber || "N/A"}
                </p>
-              {containerInfo.status && (
-                <div className="mt-2 relative z-10">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    containerInfo.status === "loading" 
-                      ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300"
-                      : containerInfo.status === "in_transit"
-                      ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
-                      : containerInfo.status === "arrived"
-                      ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
-                      : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
-                  }`}>
-                    {containerInfo.status.charAt(0).toUpperCase() + containerInfo.status.slice(1).replace("_", " ")}
-                  </span>
+              {(containerInfo.status || containerInfo.notes) && (
+                <div className="mt-2 relative z-10 flex flex-wrap items-center gap-2">
+                  {containerInfo.status && (
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      containerInfo.status === "loading" 
+                        ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300"
+                        : containerInfo.status === "in_transit"
+                        ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
+                        : containerInfo.status === "arrived"
+                        ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                        : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
+                    }`}>
+                      {containerInfo.status.charAt(0).toUpperCase() + containerInfo.status.slice(1).replace("_", " ")}
+                    </span>
+                  )}
+                  {containerInfo.notes && (
+                    <span className="text-xs font-semibold text-red-600 dark:text-red-400 bg-white dark:bg-gray-800 px-2 py-0.5 rounded">
+                      {containerInfo.notes}
+                    </span>
+                  )}
                 </div>
               )}
             </div>
 
-            {/* Total Goods Loaded */}
+            {/* Total CBM */}
             <div className="relative p-4 rounded-xl bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/30 dark:to-emerald-900/30 border-2 border-green-200 dark:border-green-700 shadow-lg hover:shadow-xl transition-shadow">
               <div className="absolute top-2 right-2 w-16 h-16 bg-green-200/30 dark:bg-green-700/30 rounded-full blur-xl"></div>
               <div className="flex items-center gap-3 mb-2 relative z-10">
@@ -326,7 +337,7 @@ const ContainerInfoWidget = () => {
                   <FaBoxes className="text-white text-sm" />
                 </div>
                 <p className="text-xs font-semibold text-green-700 dark:text-green-300 uppercase tracking-wide">
-                  Total Goods Loaded
+                  Total CBM
                 </p>
               </div>
               <p className="text-2xl font-bold text-green-900 dark:text-green-100 relative z-10">
@@ -435,4 +446,5 @@ const ContainerInfoWidget = () => {
 };
 
 export default ContainerInfoWidget;
+
 

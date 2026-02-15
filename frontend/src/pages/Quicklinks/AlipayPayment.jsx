@@ -73,6 +73,8 @@ const AlipayPayment = () => {
   const [amount, setAmount] = useState("");
   const [convertedAmount, setConvertedAmount] = useState(0);
   const [rate, setRate] = useState(0.44);
+  const [rmbUnavailable, setRmbUnavailable] = useState(false);
+  const [rmbUnavailableMessage, setRmbUnavailableMessage] = useState("");
   const [currentStep, setCurrentStep] = useState(1);
   const [alipayAccount, setAlipayAccount] = useState("");
   const [realName, setRealName] = useState("");
@@ -83,18 +85,32 @@ const AlipayPayment = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [rateLastUpdated, setRateLastUpdated] = useState(new Date());
   const [platformSource, setPlatformSource] = useState("Other");
+  const [formError, setFormError] = useState("");
   const navigate = useNavigate();
 
   // Fetch current exchange rate from API
   useEffect(() => {
     const fetchExchangeRate = async () => {
       try {
-        const { data } = await API.get("/buysellapi/alipay-exchange-rate/");
+        const { data } = await API.get("/buysellapi/alipay-exchange-rate/", {
+          noCache: true,
+          cacheDuration: 0,
+        });
         if (data && (data.ghs_to_cny || data.ghs_to_cny === 0)) {
           setRate(data.ghs_to_cny);
           setRateLastUpdated(
             new Date(data.updated_at || data.updatedAt || Date.now())
           );
+        }
+        const note = (data?.notes || "").trim();
+        const marker = "RMB_UNAVAILABLE";
+        if (note.toUpperCase().startsWith(marker)) {
+          const message = note.slice(marker.length).replace(/^[:\-\s]+/, "").trim();
+          setRmbUnavailable(true);
+          setRmbUnavailableMessage(message);
+        } else {
+          setRmbUnavailable(false);
+          setRmbUnavailableMessage("");
         }
       } catch (error) {
         console.error("Error fetching exchange rate:", error);
@@ -120,6 +136,34 @@ const AlipayPayment = () => {
       setConvertedAmount(0);
     }
   }, [amount, rate, currency]);
+
+  useEffect(() => {
+    if (!amount || isNaN(amount)) {
+      setFormError("");
+      return;
+    }
+    const numericAmount = parseFloat(amount);
+    if (Number.isNaN(numericAmount)) {
+      setFormError("");
+      return;
+    }
+    if (currency === "CEDI") {
+      if (numericAmount < 300) {
+        setFormError("Minimum payment is 300 GHS.");
+      } else {
+        setFormError("");
+      }
+    } else if (rate > 0) {
+      const minCny = (300 * rate).toFixed(2);
+      if (numericAmount < parseFloat(minCny)) {
+        setFormError(`Minimum payment is ¥${minCny} (equivalent to 300 GHS).`);
+      } else {
+        setFormError("");
+      }
+    } else {
+      setFormError("");
+    }
+  }, [amount, currency, rate]);
 
   const handleQrCodeChange = (e) => {
     const file = e.target.files[0];
@@ -176,6 +220,9 @@ const AlipayPayment = () => {
 
     if (!amount || isNaN(amount)) {
       toast.error("Please enter a valid amount");
+      return;
+    }
+    if (formError) {
       return;
     }
 
@@ -297,11 +344,7 @@ const AlipayPayment = () => {
       // Move to success step
       setCurrentStep(3);
 
-      // Navigate to AlipayPayment page after 4 seconds to refresh
-      setTimeout(() => {
-        navigate("/AlipayPayment");
-        window.location.reload();
-      }, 4000);
+      // Stay on the success step; no auto refresh
     } catch (error) {
       console.error("Error submitting payment:", error);
       const msg =
@@ -359,6 +402,32 @@ const AlipayPayment = () => {
       </div>
     </div>
   );
+
+  if (rmbUnavailable) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center px-4">
+        <div className="max-w-xl w-full bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 text-center border border-gray-200 dark:border-gray-700">
+          <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center">
+            <FaInfoCircle className="text-2xl" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+            RMB Not Available
+          </h1>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+            {rmbUnavailableMessage ||
+              "RMB is currently unavailable. Please check back later or contact support for updates."}
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate("/")}
+            className="inline-flex items-center justify-center px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+          >
+            Back to Home
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -665,6 +734,7 @@ const AlipayPayment = () => {
                   </div>
                 </div>
 
+
                 <form onSubmit={handleSubmit} className="space-y-6">
                   {/* Account Type Section */}
                   <div className="space-y-3">
@@ -881,6 +951,11 @@ const AlipayPayment = () => {
                       {currency === "CEDI" ? "Cedi Amount" : "CNY Amount"}{" "}
                       <span className="text-red-500">*</span>
                     </label>
+                    {formError && (
+                      <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                        {formError}
+                      </div>
+                    )}
                     <div className="relative">
                       <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
                         <span className="text-xl font-medium text-gray-500">
@@ -929,7 +1004,7 @@ const AlipayPayment = () => {
                   <button
                     type="submit"
                     onClick={proceedToPaymentInstructions}
-                    disabled={isLoading}
+                    disabled={isLoading || !!formError}
                     className="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 rounded-xl text-base font-medium hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                   >
                     {isLoading ? (

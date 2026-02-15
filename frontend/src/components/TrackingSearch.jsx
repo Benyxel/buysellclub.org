@@ -171,7 +171,7 @@ const TrackingSearch = () => {
     } catch (error) {
       console.error("Error searching for tracking:", error);
       if (error.response?.status === 404) {
-        setError("Tracking number not found. Please check and try again.");
+        setError("Tracking not found. It maybe a repack, please track by MARK ID & CONTAINER");
       } else if (error.response?.status === 500) {
         setError("Server error. Please try again later.");
       } else {

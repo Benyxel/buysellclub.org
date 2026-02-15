@@ -25,7 +25,7 @@ const Shipping = () => {
           `NOTE: Please add all your tracking numbers in the "Add a Tracking Number" section.\n` +
           `\n---\n` +
           `Thank you for using our service! If you have any questions, feel free to contact our support team.\n` +
-          `We wish you a smooth and hassle-free shipping experience!`
+          `We wish you a smooth and hassle-free shipping experience!`,
       );
       setCopySuccess(""); // Reset copy success message
     }
@@ -94,7 +94,7 @@ const Shipping = () => {
     try {
       // 1) Check if tracking already exists in backend
       await API.get(
-        `/buysellapi/trackings/by-number/${encodeURIComponent(tn)}/`
+        `/buysellapi/trackings/by-number/${encodeURIComponent(tn)}/`,
       );
       // If we got here with 200, it exists already
       setMessage(`Tracking number ${tn} already exists in the system.`);
@@ -125,7 +125,7 @@ const Shipping = () => {
       } catch (e) {
         if (e?.response?.status === 404) {
           setMessage(
-            "Please generate your shipping address first so we can use your permanent shipping mark."
+            "Please generate your shipping address first so we can use your permanent shipping mark.",
           );
           return;
         }

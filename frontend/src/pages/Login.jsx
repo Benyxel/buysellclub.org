@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { toast } from "../utils/toast";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import { FcGoogle } from "react-icons/fc";
@@ -7,6 +7,14 @@ import API from "../api";
 
 const Login = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const redirectTo =
+    location.state?.redirectTo ??
+    (() => {
+      const q = new URLSearchParams(location.search);
+      const r = q.get("redirectTo");
+      return r && r.startsWith("/") ? r : null;
+    })();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -87,8 +95,8 @@ const Login = () => {
 
       toast.success("Logged in successfully!");
 
-      // Navigate to Profile
-      navigate("/");
+      // Navigate to redirect target (e.g. CommunityPayment) or home
+      navigate(redirectTo || "/");
     } catch (err) {
       console.error("Login error:", err);
       console.error("Error response:", err.response?.data);
@@ -105,10 +113,14 @@ const Login = () => {
           errorMsg = err.response.data.detail;
         } else if (err.response?.data?.username) {
           const usernameErrors = err.response.data.username;
-          errorMsg = Array.isArray(usernameErrors) ? usernameErrors[0] : usernameErrors;
+          errorMsg = Array.isArray(usernameErrors)
+            ? usernameErrors[0]
+            : usernameErrors;
         } else if (err.response?.data?.password) {
           const passwordErrors = err.response.data.password;
-          errorMsg = Array.isArray(passwordErrors) ? passwordErrors[0] : passwordErrors;
+          errorMsg = Array.isArray(passwordErrors)
+            ? passwordErrors[0]
+            : passwordErrors;
         } else if (err.response?.data?.message) {
           errorMsg = err.response.data.message;
         } else {
@@ -116,14 +128,16 @@ const Login = () => {
           const errorKeys = Object.keys(err.response?.data || {});
           if (errorKeys.length > 0) {
             const firstError = err.response.data[errorKeys[0]];
-            errorMsg = Array.isArray(firstError) ? firstError[0] : String(firstError);
+            errorMsg = Array.isArray(firstError)
+              ? firstError[0]
+              : String(firstError);
           }
         }
-      } 
+      }
       // Handle 401 Unauthorized errors
       else if (err.response?.status === 401) {
         errorMsg = "Invalid username or password";
-        
+
         if (err.response?.data?.detail) {
           errorMsg = err.response.data.detail;
         } else if (err.response?.data?.non_field_errors) {
@@ -190,7 +204,7 @@ const Login = () => {
       localStorage.setItem("userData", JSON.stringify({ username: u }));
       window.dispatchEvent(new Event("authChange"));
       toast.success("Logged in with OTP!");
-      navigate("/");
+      navigate(redirectTo || "/");
     } catch (err) {
       const msg =
         err.response?.data?.detail || "Invalid code. Please try again.";
@@ -203,11 +217,15 @@ const Login = () => {
   const handleGoogleCredential = useCallback(
     async (tokenResponse) => {
       console.log("Google credential received:", tokenResponse);
-      
+
       // Handle both CredentialResponse and direct credential string
       const credential = tokenResponse?.credential || tokenResponse;
-      
-      if (!credential || typeof credential !== 'string' || credential.trim() === '') {
+
+      if (
+        !credential ||
+        typeof credential !== "string" ||
+        credential.trim() === ""
+      ) {
         console.error("Invalid credential format:", tokenResponse);
         setGoogleError("Unable to read Google credentials. Please try again.");
         setGoogleLoading(false);
@@ -234,8 +252,14 @@ const Login = () => {
         const persistedUsername = returnedUsername || "";
         localStorage.setItem("token", access);
         localStorage.setItem("refreshToken", refresh);
-        localStorage.setItem("userData", JSON.stringify({ username: persistedUsername }));
-        localStorage.setItem("loginPrompt", JSON.stringify({ username: persistedUsername }));
+        localStorage.setItem(
+          "userData",
+          JSON.stringify({ username: persistedUsername })
+        );
+        localStorage.setItem(
+          "loginPrompt",
+          JSON.stringify({ username: persistedUsername })
+        );
         window.dispatchEvent(new Event("authChange"));
         setGoogleLoginUsername(persistedUsername);
         setGoogleError("");
@@ -245,7 +269,7 @@ const Login = () => {
           setShowGoogleContactModal(true);
         } else {
           toast.success("Logged in with Google!");
-          navigate("/");
+          navigate(redirectTo || "/");
         }
       } catch (err) {
         console.error("Google login error:", err);
@@ -268,7 +292,7 @@ const Login = () => {
         setGoogleLoading(false);
       }
     },
-    [navigate]
+    [navigate, redirectTo]
   );
 
   useEffect(() => {
@@ -294,12 +318,12 @@ const Login = () => {
         auto_select: false,
         cancel_on_tap_outside: true,
       });
-      
+
       // Render the Google Sign-In button
       const buttonDiv = document.getElementById("google-login-button");
       if (buttonDiv) {
         // Clear any existing content
-        buttonDiv.innerHTML = '';
+        buttonDiv.innerHTML = "";
         window.google.accounts.id.renderButton(buttonDiv, {
           theme: "outline",
           size: "large",
@@ -308,7 +332,7 @@ const Login = () => {
           width: "100%",
         });
       }
-      
+
       setGoogleReady(true);
       setGoogleError("");
     };
@@ -363,10 +387,14 @@ const Login = () => {
       if (googleButton) {
         googleButton.click();
       } else {
-        setGoogleError("Google button is not ready. Please wait a moment and try again.");
+        setGoogleError(
+          "Google button is not ready. Please wait a moment and try again."
+        );
       }
     } else {
-      setGoogleError("Google sign-in button not found. Please refresh the page.");
+      setGoogleError(
+        "Google sign-in button not found. Please refresh the page."
+      );
     }
   };
 
@@ -382,10 +410,10 @@ const Login = () => {
 
     try {
       await API.patch("/buysellapi/users/me/", { contact: trimmedContact });
-      toast.success("Contact saved! Redirecting to your dashboard.");
+      toast.success("Contact saved! Redirecting.");
       setShowGoogleContactModal(false);
       setGoogleContact("");
-      navigate("/");
+      navigate(redirectTo || "/");
     } catch (err) {
       const message =
         err.response?.data?.contact ||
@@ -761,9 +789,15 @@ const Login = () => {
                       />
                       <button
                         type="button"
-                        onClick={() => setShowConfirmNewPassword(!showConfirmNewPassword)}
+                        onClick={() =>
+                          setShowConfirmNewPassword(!showConfirmNewPassword)
+                        }
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 focus:outline-none"
-                        aria-label={showConfirmNewPassword ? "Hide password" : "Show password"}
+                        aria-label={
+                          showConfirmNewPassword
+                            ? "Hide password"
+                            : "Show password"
+                        }
                       >
                         {showConfirmNewPassword ? (
                           <FaEyeSlash className="w-5 h-5" />
@@ -937,7 +971,9 @@ const Login = () => {
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 focus:outline-none"
-                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    aria-label={
+                      showPassword ? "Hide password" : "Show password"
+                    }
                   >
                     {showPassword ? (
                       <FaEyeSlash className="w-5 h-5" />
@@ -959,7 +995,7 @@ const Login = () => {
               >
                 {loading ? "Signing in..." : "Sign in"}
               </button>
-              
+
               {/* Google Login Section */}
               {googleClientId && (
                 <div className="mt-4">
@@ -973,22 +1009,24 @@ const Login = () => {
                       </span>
                     </div>
                   </div>
-                  
+
                   {googleError && (
                     <div className="mb-3 p-2 rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-sm">
                       {googleError}
                     </div>
                   )}
-                  
+
                   <div id="google-login-button" className="w-full"></div>
-                  
+
                   {!googleReady && googleClientId && (
                     <button
                       type="button"
                       onClick={handleGoogleLogin}
                       disabled={googleLoading || !googleReady}
                       className={`w-full mt-2 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors flex items-center justify-center gap-2 ${
-                        googleLoading || !googleReady ? "opacity-70 cursor-not-allowed" : ""
+                        googleLoading || !googleReady
+                          ? "opacity-70 cursor-not-allowed"
+                          : ""
                       }`}
                     >
                       {googleLoading ? (
@@ -1008,7 +1046,7 @@ const Login = () => {
               )}
             </form>
           )}
-          
+
           {/* Google Contact Modal */}
           {showGoogleContactModal && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -1017,7 +1055,8 @@ const Login = () => {
                   Complete Your Profile
                 </h2>
                 <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
-                  Please provide your contact number to complete your account setup. This is required to continue.
+                  Please provide your contact number to complete your account
+                  setup. This is required to continue.
                 </p>
                 <div className="mb-4">
                   <label className="block text-sm text-gray-600 dark:text-gray-300 mb-1">
@@ -1050,7 +1089,9 @@ const Login = () => {
                     onClick={handleGoogleContactSave}
                     disabled={googleContactLoading || !googleContact.trim()}
                     className={`flex-1 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors ${
-                      googleContactLoading || !googleContact.trim() ? "opacity-70 cursor-not-allowed" : ""
+                      googleContactLoading || !googleContact.trim()
+                        ? "opacity-70 cursor-not-allowed"
+                        : ""
                     }`}
                   >
                     {googleContactLoading ? "Saving..." : "Save & Continue"}
@@ -1059,7 +1100,7 @@ const Login = () => {
               </div>
             </div>
           )}
-          
+
           <div className="mt-4 text-sm text-gray-600 dark:text-gray-300">
             <span>Don&apos;t have an account? </span>
             <Link to="/Signup" className="text-primary hover:underline">

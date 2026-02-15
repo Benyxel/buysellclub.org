@@ -45,15 +45,19 @@ import {
 import UsersManagement from "./UsersManagement";
 import AdminProducts from "./AdminProducts";
 import TrackingManagement from "./TrackingManagement";
+import QuickTrackingNotesManagement from "./QuickTrackingNotesManagement";
 import ShippingMarksAdmin from "./ShippingMarksAdmin";
 import ShippingAddressesAdmin from "./ShippingAddressesAdmin";
+import WarehouseAddressesManagement from "./WarehouseAddressesManagement";
 import ShippingRatesManagement from "./ShippingRatesManagement";
 import AdShippingRatesManagement from "./AdShippingRatesManagement";
+import AirAdShippingServicesManagement from "./AirAdShippingServicesManagement";
 import ContainerManagement from "../../components/ContainerManagement";
 import InvoicesManagement from "./InvoicesManagement";
 import Buy4meAdmin from "./Buy4meAdmin";
 import QuickOrderProducts from "./QuickOrderProducts";
 import AlipayManagement from "./AlipayManagement";
+import AlipayBuyingRateManagement from "./AlipayBuyingRateManagement";
 import TrainingManagement from "./TrainingManagement";
 import PaidCourseManagement from "./PaidCourseManagement";
 import YouTubeManagement from "./YouTubeManagement";
@@ -77,6 +81,8 @@ import LocalAgentManagement from "./LocalAgentManagement";
 import AffiliateAgentManagement from "./AffiliateAgentManagement";
 import LocalAgentSettingsManagement from "./LocalAgentSettingsManagement";
 import LocalAgentRewardClaims from "./LocalAgentRewardClaims";
+import CommunityManagement from "./CommunityManagement";
+import StaffClockRecords from "./StaffClockRecords";
 import "react-toastify/dist/ReactToastify.css";
 
 const AdminDashboard = () => {
@@ -105,6 +111,16 @@ const AdminDashboard = () => {
 
     const savedSubMenu = localStorage.getItem("adminAgentSubMenu");
     return savedSubMenu || "tracking";
+  };
+
+  // Initialize training submenu from URL or localStorage
+  const getInitialTrainingSubMenu = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const subMenuFromUrl = urlParams.get("trainingSubMenu");
+    if (subMenuFromUrl) return subMenuFromUrl;
+
+    const savedSubMenu = localStorage.getItem("adminTrainingSubMenu");
+    return savedSubMenu || "paidCourses";
   };
 
   const [activeSection, setActiveSection] = useState(getInitialSection);
@@ -153,7 +169,9 @@ const AdminDashboard = () => {
   );
   const [agentSubMenu, setAgentSubMenu] = useState(getInitialAgentSubMenu());
   const [messageSubMenu, setMessageSubMenu] = useState("live-chat");
-  const [trainingSubMenu, setTrainingSubMenu] = useState("paidCourses");
+  const [trainingSubMenu, setTrainingSubMenu] = useState(
+    getInitialTrainingSubMenu()
+  );
   const getInitialAnalyticsTab = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const tabFromUrl = urlParams.get("analyticsTab");
@@ -172,12 +190,15 @@ const AdminDashboard = () => {
     buy4me: 0,
     orders: 0,
     training: 0,
+    community: 0,
     agentRequests: 0,
+    localAgentRequests: 0,
     rewardClaims: 0,
   });
   const [dashboardData, setDashboardData] = useState(null);
   const [dashboardLoading, setDashboardLoading] = useState(false);
   const [dashboardError, setDashboardError] = useState(null);
+  const [flippedCards, setFlippedCards] = useState({});
   const [currentUser, setCurrentUser] = useState(null);
   const [allowedTabs, setAllowedTabs] = useState(null); // null = not loaded, [] = loaded but none
   const [allowedTabsMeta, setAllowedTabsMeta] = useState({});
@@ -196,9 +217,15 @@ const AdminDashboard = () => {
         label: "Alipay Payments",
         section: "alipay-payments",
       },
+      {
+        icon: <FaExchangeAlt />,
+        label: "Alipay Buying Rate",
+        section: "alipay-buying-rate",
+      },
       { icon: <FaHandHoldingUsd />, label: "Buy4me", section: "buy4me" },
       { icon: <FaUserTag />, label: "Agent Management", section: "agents" },
       { icon: <FaComments />, label: "Messages", section: "messages" },
+      { icon: <FaUsers />, label: "Community", section: "community" },
       { icon: <FaShoppingCart />, label: "Orders", section: "orders" },
       { icon: <FaGraduationCap />, label: "Training", section: "training" },
       { icon: <FaBox />, label: "Products", section: "products" },
@@ -320,7 +347,9 @@ const AdminDashboard = () => {
           buy4me: response.data.buy4me || 0,
           orders: response.data.orders || 0,
           training: response.data.training || 0,
+          community: response.data.community_pending || 0,
           agentRequests: response.data.agent_requests || 0,
+          localAgentRequests: response.data.local_agent_requests || 0,
           rewardClaims: response.data.reward_claims || 0,
         };
         setUnreadCounts(counts);
@@ -371,8 +400,8 @@ const AdminDashboard = () => {
       setDashboardData({
         totalUsers: data.totalUsers || 0,
         totalOrders: data.totalOrders || 0,
-        totalAlipayPaymentsGHS: data.totalAlipayPaymentsGHS || 0,
-        totalAlipayPaymentsCNY: data.totalAlipayPaymentsCNY || 0,
+        totalAlipayPaymentsGHS: data.totalAlipayPaymentsGHS ?? 0,
+        totalAlipayPaymentsCNY: data.totalAlipayPaymentsCNY ?? 0,
         totalBuy4meRequests: data.totalBuy4meRequests || 0,
         totalShippingMarks: data.totalShippingMarks || 0,
         totalProducts: data.totalProducts || 0,
@@ -381,6 +410,9 @@ const AdminDashboard = () => {
           data.exchangeRate !== undefined && data.exchangeRate !== null
             ? data.exchangeRate
             : null,
+        totalTrainingBookings: data.totalTrainingBookings ?? 0,
+        communityTotalRegistered: data.communityTotalRegistered ?? 0,
+        communityTotalCash: data.communityTotalCash ?? 0,
       });
     } catch (err) {
       console.error("Dashboard fetch error:", err);
@@ -393,13 +425,7 @@ const AdminDashboard = () => {
       setDashboardLoading(false);
     }
   };
-cd D:\Companyprojects\buysellclubproject\frontend
-pwd
-ls
-git statuscd D:\Companyprojects\buysellclubproject\frontend
-pwd
-ls
-git status
+
   // Persist activeSection to localStorage and URL
   useEffect(() => {
     localStorage.setItem("adminActiveSection", activeSection);
@@ -428,8 +454,15 @@ git status
       url.searchParams.delete("analyticsTab");
     }
 
+    // Also persist training submenu if we're in training section
+    if (activeSection === "training") {
+      url.searchParams.set("trainingSubMenu", trainingSubMenu);
+    } else {
+      url.searchParams.delete("trainingSubMenu");
+    }
+
     window.history.replaceState({}, "", url);
-  }, [activeSection, shippingSubMenu, agentSubMenu, analyticsTab]);
+  }, [activeSection, shippingSubMenu, agentSubMenu, analyticsTab, trainingSubMenu]);
 
   // Persist shippingSubMenu to localStorage
   useEffect(() => {
@@ -440,6 +473,11 @@ git status
   useEffect(() => {
     localStorage.setItem("adminAgentSubMenu", agentSubMenu);
   }, [agentSubMenu]);
+
+  // Persist trainingSubMenu to localStorage
+  useEffect(() => {
+    localStorage.setItem("adminTrainingSubMenu", trainingSubMenu);
+  }, [trainingSubMenu]);
 
   // Persist analyticsTab to localStorage
   useEffect(() => {
@@ -664,12 +702,194 @@ git status
 
   const renderContent = () => {
     switch (activeSection) {
-      case "dashboard":
+      case "dashboard": {
+        const communityRegistered = dashboardData?.communityTotalRegistered ?? 0;
+        const communityTotalCash = dashboardData?.communityTotalCash ?? 0;
+        const overviewCards =
+          dashboardData
+            ? [
+                {
+                  id: "users",
+                  title: "Total Users",
+                  icon: <FaUsers className="text-2xl text-blue-600 dark:text-blue-400" />,
+                  value: (
+                    <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+                      {dashboardData.totalUsers}
+                    </p>
+                  ),
+                  accent: "bg-blue-100 dark:bg-blue-900",
+                },
+                {
+                  id: "orders",
+                  title: "Total Orders",
+                  icon: (
+                    <FaShoppingCart className="text-2xl text-green-600 dark:text-green-400" />
+                  ),
+                  value: (
+                    <p className="text-3xl font-bold text-green-600 dark:text-green-400">
+                      {dashboardData.totalOrders}
+                    </p>
+                  ),
+                  accent: "bg-green-100 dark:bg-green-900",
+                },
+                {
+                  id: "alipay",
+                  title: "Total Alipay Payments",
+                  icon: (
+                    <FaAlipay className="text-2xl text-purple-600 dark:text-purple-400" />
+                  ),
+                  value: (
+                    <div className="space-y-1">
+                      <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                        ₵{dashboardData.totalAlipayPaymentsGHS?.toLocaleString("en-US", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        }) || "0.00"}
+                      </p>
+                      <p className="text-xl font-semibold text-blue-600 dark:text-blue-400">
+                        ¥{dashboardData.totalAlipayPaymentsCNY?.toLocaleString("en-US", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        }) || "0.00"}
+                      </p>
+                    </div>
+                  ),
+                  accent: "bg-purple-100 dark:bg-purple-900",
+                },
+                {
+                  id: "buy4me",
+                  title: "Total Buy4me Requests",
+                  icon: (
+                    <FaHandHoldingUsd className="text-2xl text-yellow-600 dark:text-yellow-400" />
+                  ),
+                  value: (
+                    <p className="text-3xl font-bold text-yellow-600 dark:text-yellow-400">
+                      {dashboardData.totalBuy4meRequests}
+                    </p>
+                  ),
+                  accent: "bg-yellow-100 dark:bg-yellow-900",
+                },
+                {
+                  id: "marks",
+                  title: "Total Shipping Marks",
+                  icon: <FaTag className="text-2xl text-pink-600 dark:text-pink-400" />,
+                  value: (
+                    <p className="text-3xl font-bold text-pink-600 dark:text-pink-400">
+                      {dashboardData.totalShippingMarks}
+                    </p>
+                  ),
+                  accent: "bg-pink-100 dark:bg-pink-900",
+                },
+                {
+                  id: "products",
+                  title: "Total Products",
+                  icon: (
+                    <FaBox className="text-2xl text-orange-600 dark:text-orange-400" />
+                  ),
+                  value: (
+                    <p className="text-3xl font-bold text-orange-600 dark:text-orange-400">
+                      {dashboardData.totalProducts}
+                    </p>
+                  ),
+                  accent: "bg-orange-100 dark:bg-orange-900",
+                },
+                {
+                  id: "agents",
+                  title: "Total Agents",
+                  icon: (
+                    <FaUserTag className="text-2xl text-teal-600 dark:text-teal-400" />
+                  ),
+                  value: (
+                    <p className="text-3xl font-bold text-teal-600 dark:text-teal-400">
+                      {dashboardData.totalAgents}
+                    </p>
+                  ),
+                  accent: "bg-teal-100 dark:bg-teal-900",
+                },
+                {
+                  id: "rate",
+                  title: "Alipay Rate (GHS→CNY)",
+                  icon: (
+                    <FaExchangeAlt className="text-2xl text-indigo-600 dark:text-indigo-400" />
+                  ),
+                  value: (
+                    <p className="text-3xl font-bold text-indigo-600 dark:text-indigo-400">
+                      {dashboardData.exchangeRate ?? "N/A"}
+                    </p>
+                  ),
+                  accent: "bg-indigo-100 dark:bg-indigo-900",
+                },
+                {
+                  id: "training",
+                  title: "Total Training Bookings",
+                  icon: (
+                    <FaGraduationCap className="text-2xl text-emerald-600 dark:text-emerald-400" />
+                  ),
+                  value: (
+                    <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">
+                      {dashboardData.totalTrainingBookings ?? 0}
+                    </p>
+                  ),
+                  accent: "bg-emerald-100 dark:bg-emerald-900",
+                },
+                {
+                  id: "communityRegistered",
+                  title: "Community Registered",
+                  icon: (
+                    <FaBuilding className="text-2xl text-cyan-600 dark:text-cyan-400" />
+                  ),
+                  value: (
+                    <p className="text-3xl font-bold text-cyan-600 dark:text-cyan-400">
+                      {communityRegistered}
+                    </p>
+                  ),
+                  accent: "bg-cyan-100 dark:bg-cyan-900",
+                },
+                {
+                  id: "communityCash",
+                  title: "Community Total Cash",
+                  icon: (
+                    <FaDollarSign className="text-2xl text-lime-600 dark:text-lime-400" />
+                  ),
+                  value: (
+                    <p className="text-3xl font-bold text-lime-600 dark:text-lime-400">
+                      ₵{Number(communityTotalCash).toLocaleString("en-US", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </p>
+                  ),
+                  accent: "bg-lime-100 dark:bg-lime-900",
+                },
+              ]
+            : [];
+
         return (
           <div className="p-6">
             <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">
               Dashboard Overview
             </h2>
+            <style>{`
+              .flip-card { perspective: 1000px; min-height: 170px; position: relative; }
+              .flip-card-inner {
+                position: relative;
+                width: 100%;
+                height: 100%;
+                transform-style: preserve-3d;
+                transition: transform 0.6s;
+              }
+              .flip-card.flipped .flip-card-inner {
+                transform: rotateY(180deg);
+              }
+              .flip-card-face {
+                position: absolute;
+                inset: 0;
+                backface-visibility: hidden;
+              }
+              .flip-card-back {
+                transform: rotateY(180deg);
+              }
+            `}</style>
             {dashboardLoading ? (
               <div className="flex justify-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
@@ -679,149 +899,66 @@ git status
             ) : (
               dashboardData && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
-                    <div className="flex items-center gap-4">
-                      <div className="p-3 bg-blue-100 dark:bg-blue-900 rounded-full">
-                        <FaUsers className="text-2xl text-blue-600 dark:text-blue-400" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
-                          Total Users
-                        </h3>
-                        <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-                          {dashboardData.totalUsers}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
-                    <div className="flex items-center gap-4">
-                      <div className="p-3 bg-green-100 dark:bg-green-900 rounded-full">
-                        <FaShoppingCart className="text-2xl text-green-600 dark:text-green-400" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
-                          Total Orders
-                        </h3>
-                        <p className="text-3xl font-bold text-green-600 dark:text-green-400">
-                          {dashboardData.totalOrders}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
-                    <div className="flex items-center gap-4">
-                      <div className="p-3 bg-purple-100 dark:bg-purple-900 rounded-full">
-                        <FaAlipay className="text-2xl text-purple-600 dark:text-purple-400" />
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
-                          Total Alipay Payments
-                        </h3>
-                        <div className="space-y-1">
-                          <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                            ₵{dashboardData.totalAlipayPaymentsGHS?.toLocaleString("en-US", {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            }) || "0.00"}
-                          </p>
-                          <p className="text-xl font-semibold text-blue-600 dark:text-blue-400">
-                            ¥{dashboardData.totalAlipayPaymentsCNY?.toLocaleString("en-US", {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            }) || "0.00"}
-                          </p>
+                  {overviewCards.map((card) => (
+                    <div
+                      key={card.id}
+                      className={`flip-card ${flippedCards[card.id] ? "flipped" : ""}`}
+                      onClick={() =>
+                        setFlippedCards((prev) => ({
+                          ...prev,
+                          [card.id]: !prev[card.id],
+                        }))
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setFlippedCards((prev) => ({
+                            ...prev,
+                            [card.id]: !prev[card.id],
+                          }));
+                        }
+                      }}
+                      role="button"
+                      tabIndex={0}
+                    >
+                      <div className="flip-card-inner">
+                        <div className="flip-card-face">
+                          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md min-h-[150px]">
+                            <div className="flex items-center gap-4">
+                              <div className={`p-3 rounded-full ${card.accent}`}>
+                                {card.icon}
+                              </div>
+                              <div className="flex-1">
+                                <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
+                                  {card.title}
+                                </h3>
+                                {card.value}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flip-card-face flip-card-back">
+                          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md min-h-[150px] flex flex-col justify-between">
+                            <div>
+                              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                                {card.title}
+                              </h3>
+                              <p className="text-sm text-gray-600 dark:text-gray-300">
+                                Click to flip back.
+                              </p>
+                            </div>
+                            <div>{card.value}</div>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-
-                  <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
-                    <div className="flex items-center gap-4">
-                      <div className="p-3 bg-yellow-100 dark:bg-yellow-900 rounded-full">
-                        <FaHandHoldingUsd className="text-2xl text-yellow-600 dark:text-yellow-400" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
-                          Total Buy4me Requests
-                        </h3>
-                        <p className="text-3xl font-bold text-yellow-600 dark:text-yellow-400">
-                          {dashboardData.totalBuy4meRequests}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
-                    <div className="flex items-center gap-4">
-                      <div className="p-3 bg-pink-100 dark:bg-pink-900 rounded-full">
-                        <FaTag className="text-2xl text-pink-600 dark:text-pink-400" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
-                          Total Shipping Marks
-                        </h3>
-                        <p className="text-3xl font-bold text-pink-600 dark:text-pink-400">
-                          {dashboardData.totalShippingMarks}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
-                    <div className="flex items-center gap-4">
-                      <div className="p-3 bg-orange-100 dark:bg-orange-900 rounded-full">
-                        <FaBox className="text-2xl text-orange-600 dark:text-orange-400" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
-                          Total Products
-                        </h3>
-                        <p className="text-3xl font-bold text-orange-600 dark:text-orange-400">
-                          {dashboardData.totalProducts}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
-                    <div className="flex items-center gap-4">
-                      <div className="p-3 bg-teal-100 dark:bg-teal-900 rounded-full">
-                        <FaUserTag className="text-2xl text-teal-600 dark:text-teal-400" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
-                          Total Agents
-                        </h3>
-                        <p className="text-3xl font-bold text-teal-600 dark:text-teal-400">
-                          {dashboardData.totalAgents}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
-                    <div className="flex items-center gap-4">
-                      <div className="p-3 bg-indigo-100 dark:bg-indigo-900 rounded-full">
-                        <FaExchangeAlt className="text-2xl text-indigo-600 dark:text-indigo-400" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
-                          Alipay Rate (GHS→CNY)
-                        </h3>
-                        <p className="text-3xl font-bold text-indigo-600 dark:text-indigo-400">
-                          {dashboardData.exchangeRate ?? "N/A"}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
+                  ))}
                 </div>
               )
             )}
           </div>
         );
+      }
       case "users":
         return <UsersManagement />;
       case "training":
@@ -909,6 +1046,21 @@ git status
                   </div>
                 </button>
 
+                {/* 1b. Quick Tracking Notes */}
+                <button
+                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
+                    shippingSubMenu === "quick-tracking-notes"
+                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                  onClick={() => setShippingSubMenu("quick-tracking-notes")}
+                >
+                  <div className="flex items-center gap-2">
+                    <FaBookmark className="w-4 h-4" />
+                    <span>Quick Tracking Notes</span>
+                  </div>
+                </button>
+
                 {/* 2. Container */}
                 <button
                   className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
@@ -969,7 +1121,22 @@ git status
                   </div>
                 </button>
 
-                {/* 6. Local Agent */}
+                {/* 6. Air Ad Services */}
+                <button
+                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
+                    shippingSubMenu === "air-ad-services"
+                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                  onClick={() => setShippingSubMenu("air-ad-services")}
+                >
+                  <div className="flex items-center gap-2">
+                    <FaShippingFast className="w-4 h-4" />
+                    <span>Air Ad Services</span>
+                  </div>
+                </button>
+
+                {/* 7. Local Agent */}
                 <button
                   className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
                     shippingSubMenu === "local-agent"
@@ -984,7 +1151,7 @@ git status
                   </div>
                 </button>
 
-                {/* 7. Local Agent Settings */}
+                {/* 8. Local Agent Settings */}
                 <button
                   className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
                     shippingSubMenu === "local-agent-settings"
@@ -1011,9 +1178,9 @@ git status
                   <div className="flex items-center gap-2">
                     <FaUserTag className="w-4 h-4" />
                     <span>Local Agent Requests</span>
-                    {unreadCounts.agentRequests > 0 && (
+                    {unreadCounts.localAgentRequests > 0 && (
                       <span className="ml-1 inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold rounded-full bg-red-500 text-white">
-                        {unreadCounts.agentRequests}
+                        {unreadCounts.localAgentRequests}
                       </span>
                     )}
                   </div>
@@ -1039,7 +1206,7 @@ git status
                   </div>
                 </button>
 
-                {/* 10. Address Management */}
+                {/* 10. China Address Management */}
                 <button
                   className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
                     shippingSubMenu === "addresses"
@@ -1050,7 +1217,22 @@ git status
                 >
                   <div className="flex items-center gap-2">
                     <FaMapMarkerAlt className="w-4 h-4" />
-                    <span>Address Management</span>
+                    <span>China Address Management</span>
+                  </div>
+                </button>
+
+                {/* Address Generators (USA, Dubai, etc.) */}
+                <button
+                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
+                    shippingSubMenu === "warehouse-addresses"
+                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                  onClick={() => setShippingSubMenu("warehouse-addresses")}
+                >
+                  <div className="flex items-center gap-2">
+                    <FaMapMarkerAlt className="w-4 h-4" />
+                    <span>Address Generators</span>
                   </div>
                 </button>
 
@@ -1074,6 +1256,8 @@ git status
             {/* Shipping Content */}
             {shippingSubMenu === "tracking" ? (
               <TrackingManagement />
+            ) : shippingSubMenu === "quick-tracking-notes" ? (
+              <QuickTrackingNotesManagement />
             ) : shippingSubMenu === "containers" ? (
               <ContainerManagement />
             ) : shippingSubMenu === "invoices" ? (
@@ -1082,6 +1266,8 @@ git status
               <ShippingRatesManagement />
             ) : shippingSubMenu === "ad-rates" ? (
               <AdShippingRatesManagement />
+            ) : shippingSubMenu === "air-ad-services" ? (
+              <AirAdShippingServicesManagement />
             ) : shippingSubMenu === "local-agent" ? (
               <LocalAgentManagement />
             ) : shippingSubMenu === "local-agent-settings" ? (
@@ -1096,6 +1282,8 @@ git status
               <LocalAgentRewardClaims />
             ) : shippingSubMenu === "addresses" ? (
               <ShippingAddressesAdmin />
+            ) : shippingSubMenu === "warehouse-addresses" ? (
+              <WarehouseAddressesManagement />
             ) : (
               <ShippingMarksAdmin />
             )}
@@ -1293,6 +1481,15 @@ git status
             <AlipayManagement />
           </div>
         );
+      case "alipay-buying-rate":
+        return (
+          <div className="p-6">
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">
+              Alipay Buying Rate
+            </h2>
+            <AlipayBuyingRateManagement />
+          </div>
+        );
       case "orders":
         return <OrderManagement />;
       case "products":
@@ -1314,6 +1511,7 @@ git status
                   { key: "buy4me", label: "Buy4me" },
                   { key: "orders", label: "Orders" },
                   { key: "training", label: "Training" },
+                  { key: "community", label: "Community" },
                 ].map((tab) => (
                   <button
                     key={tab.key}
@@ -1335,6 +1533,10 @@ git status
             <Analytics activeTab={analyticsTab} />
           </div>
         );
+      case "community":
+        return <CommunityManagement />;
+      case "staff":
+        return <StaffClockRecords />;
       case "messages":
         return (
           <div className="p-6">
@@ -1479,10 +1681,10 @@ git status
                     tabUnreadCount = unreadCounts.orders;
                   } else if (item.section === "training") {
                     tabUnreadCount = unreadCounts.training;
+                  } else if (item.section === "community") {
+                    tabUnreadCount = unreadCounts.community;
                   } else if (item.section === "agents") {
-                    tabUnreadCount =
-                      (unreadCounts.agentRequests || 0) +
-                      (unreadCounts.rewardClaims || 0);
+                    tabUnreadCount = 0;
                   }
                   
                   const showTabBadge = tabUnreadCount > 0;
@@ -1502,6 +1704,8 @@ git status
                             setUnreadCounts(prev => ({ ...prev, orders: 0 }));
                           } else if (item.section === "training") {
                             setUnreadCounts(prev => ({ ...prev, training: 0 }));
+                          } else if (item.section === "community") {
+                            setUnreadCounts(prev => ({ ...prev, community: 0 }));
                           } else if (item.section === "agents") {
                             setUnreadCounts(prev => ({
                               ...prev,
