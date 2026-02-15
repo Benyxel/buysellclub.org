@@ -1,3 +1,6 @@
+# Large archives (GitHub file size limit 100 MB)
+*.rar
+
 # Logs
 logs
 *.log
