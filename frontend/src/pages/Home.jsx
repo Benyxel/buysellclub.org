@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import ValentineWish from "../components/ValentineWish";
 import HeroSection from "../components/HeroSection";
 import Category from "../components/Category";
 import Category2 from "../components/Category2";
@@ -55,7 +54,6 @@ const Home = () => {
 
   return (
     <div>
-      <ValentineWish />
       <HeroSection />
       <Category />
       <Category2 />
