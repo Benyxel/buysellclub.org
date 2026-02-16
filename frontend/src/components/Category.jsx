@@ -48,9 +48,9 @@ const Category = () => {
                 <p className='mb-[0px] font-bold  text-gray-400'>Shipping from china to</p>
                 <p className='text-2xl font-semibold mb-[30px]'>Ghana?</p>
                 <p className='text-4xl xl:text-5xl font-bold opacity-20 mb-10'>Shipping to GH</p>
-                <Link to={'/Shipping'}> 
-                <TrackB 
-                text='Track your Order' 
+                <Link to="/tracking">
+                <TrackB
+                text="Track your Order" 
                 bgColor={"bg-white"}
                 textColor={"text-white"}
                 />

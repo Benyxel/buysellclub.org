@@ -1,10 +1,11 @@
 import React, { useContext, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { ShopContext } from '../context/ShopContext';
 import { IoMdArrowDropdown } from "react-icons/io";
-import { FaFilter, FaTimes, FaSearch } from "react-icons/fa";
+import { FaFilter, FaTimes, FaSearch, FaStore } from "react-icons/fa";
 import Title from '../components/Title';
 import ProductItem from '../components/ProductItem';
-import { getCategories, getProductTypes } from '../api';
+import { getCategories, getProductTypes, Api } from '../api';
 
 const Shop = () => {
 
@@ -20,6 +21,18 @@ const Shop = () => {
   const [productTypes, setProductTypes] = useState([]); // Product types from API
   const [loadingFilters, setLoadingFilters] = useState(true);
   const [localSearch, setLocalSearch] = useState(search || ''); // Local search state
+  const [isVendor, setIsVendor] = useState(false);
+
+  useEffect(() => {
+    const token = typeof window !== 'undefined' && localStorage.getItem('token');
+    if (!token) {
+      setIsVendor(false);
+      return;
+    }
+    Api.vendor.me({ noCache: true })
+      .then((res) => { setIsVendor(res.data?.is_vendor === true); })
+      .catch(() => { setIsVendor(false); });
+  }, []);
 
   const toggleCategory = (e) => {
     if (category.includes(e.target.value)) {
@@ -230,6 +243,21 @@ const Shop = () => {
               </span>
             </label>
           </div>
+
+          {/* Become a Vendor / View Vendor sales */}
+          <div className='pt-4 border-t border-gray-200 dark:border-gray-700'>
+            <Link
+              to={isVendor ? '/vendor-sales' : '/become-a-vendor'}
+              className='flex items-center gap-2 w-full px-4 py-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors text-sm font-medium'
+            >
+              <FaStore className='w-5 h-5 shrink-0' />
+              {isVendor ? 'View Vendor sales' : 'Sell with us? Become a vendor'}
+            </Link>
+            <p className='text-xs text-gray-500 dark:text-gray-400 mt-2'>
+              {isVendor ? 'Track your sales and inventory' : 'Bring products for us to list and sell'}
+            </p>
+          </div>
+
         </div>
 
         {/* Products Section */}

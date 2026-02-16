@@ -42,6 +42,7 @@ import {
   FaBuilding,
   FaHandshake,
   FaAlipay,
+  FaStore,
 } from "react-icons/fa";
 import { trackingSystem } from "../utils/trackingSystem";
 import { NOTE_MESSAGE } from "./ShippingTrackingNote";
@@ -67,6 +68,7 @@ import { getPlaceholderImagePath } from "../utils/paths";
 import ConfirmModal from "./shared/ConfirmModal";
 import AvatarSelector, { AVATARS } from "./AvatarSelector";
 import AvatarSVG from "./AvatarSVG";
+import VendorSales from "../pages/VendorSales";
 
 const MyProfile = () => {
   // Status mapping from backend values to display labels
@@ -288,6 +290,8 @@ const MyProfile = () => {
   };
 
   const [activeTab, setActiveTab] = useState(getInitialTab());
+  const [showTabModal, setShowTabModal] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const [activeSubTab, setActiveSubTab] = useState("orders");
   const [userShipments, setUserShipments] = useState([]);
   const [copied, setCopied] = useState(false);
@@ -319,6 +323,28 @@ const MyProfile = () => {
   const [agentRequestMessage, setAgentRequestMessage] = useState("");
   const [submittingAgentRequest, setSubmittingAgentRequest] = useState(false);
   const [agentRequestStatus, setAgentRequestStatus] = useState(null); // 'pending', 'approved', 'rejected', null
+  const [vendorMe, setVendorMe] = useState(null); // vendor-applications/me/ when seller tab active
+
+  // Fetch vendor status on mount and when seller tab is active (for tab label and content)
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setVendorMe(null);
+      return;
+    }
+    let cancelled = false;
+    Api.vendor
+      .me({ noCache: true })
+      .then((res) => {
+        if (!cancelled) setVendorMe(res.data || null);
+      })
+      .catch(() => {
+        if (!cancelled) setVendorMe(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab]);
   const [localAgentCapacity, setLocalAgentCapacity] = useState({
     max: 0,
     current: 0,
@@ -457,6 +483,15 @@ const MyProfile = () => {
     url.searchParams.set("tab", activeTab);
     window.history.replaceState({}, "", url);
   }, [activeTab]);
+
+  // Detect mobile viewport (below lg = 1024px) for tab modal
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 1023px)");
+    const set = () => setIsMobile(mq.matches);
+    set();
+    mq.addEventListener("change", set);
+    return () => mq.removeEventListener("change", set);
+  }, []);
 
   // Ensure trackings are loaded whenever user opens the Tracking tab
   useEffect(() => {
@@ -2375,8 +2410,13 @@ const MyProfile = () => {
         {/* Profile Header */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-8">
           <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
-            <div className="relative">
-              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setShowAvatarSelector(true)}
+              className="relative group flex flex-col items-center gap-1"
+              aria-label="Change avatar"
+            >
+              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden ring-2 ring-transparent group-hover:ring-primary/50 transition-all">
                 {selectedAvatar && hasAvatar(selectedAvatar) ? (
                   <AvatarSVG
                     avatarId={selectedAvatar}
@@ -2387,15 +2427,10 @@ const MyProfile = () => {
                   <FaUser className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400" />
                 )}
               </div>
-              {isEditing && (
-                <button
-                  onClick={() => setShowAvatarSelector(true)}
-                  className="absolute bottom-0 right-0 bg-primary text-white p-2 rounded-full hover:bg-primary/90 transition-colors shadow-lg"
-                >
-                  <FaEdit className="w-4 h-4" />
-                </button>
-              )}
-            </div>
+              <span className="text-xs sm:text-sm text-primary font-medium opacity-90 group-hover:opacity-100">
+                Change avatar
+              </span>
+            </button>
             <div className="flex-1 text-center sm:text-left">
               <h1 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white mb-2 flex items-center justify-center sm:justify-start gap-2 flex-wrap">
                 {isLoading
@@ -2581,147 +2616,219 @@ const MyProfile = () => {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-8">
           {/* Sidebar Navigation */}
           <div className="lg:col-span-1">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-2 sm:p-4">
-              <nav className="space-y-1 sm:space-y-2">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-1.5 sm:p-4">
+              <nav className="space-y-0.5 sm:space-y-2">
                 <button
-                  onClick={() => setActiveTab("profile")}
-                  className={`w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 rounded-lg transition-colors text-sm sm:text-base ${
+                  onClick={() => {
+                    setActiveTab("profile");
+                    if (isMobile) setShowTabModal(true);
+                  }}
+                  className={`w-full flex items-center gap-1.5 sm:gap-3 px-2.5 sm:px-4 py-1.5 sm:py-3 rounded-lg transition-colors text-xs sm:text-base ${
                     activeTab === "profile"
                       ? "bg-primary text-white"
                       : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
                   }`}
                 >
-                  <FaUser className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <FaUser className="w-3.5 h-3.5 sm:w-5 sm:h-5 shrink-0" />
                   Profile
                 </button>
                 <button
-                  onClick={() => setActiveTab("tracking")}
-                  className={`w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 rounded-lg transition-colors text-sm sm:text-base ${
+                  onClick={() => {
+                    setActiveTab("tracking");
+                    if (isMobile) setShowTabModal(true);
+                  }}
+                  className={`w-full flex items-center gap-1.5 sm:gap-3 px-2.5 sm:px-4 py-1.5 sm:py-3 rounded-lg transition-colors text-xs sm:text-base ${
                     activeTab === "tracking"
                       ? "bg-primary text-white"
                       : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
                   }`}
                 >
                   <FaTruck
-                    className={`w-4 h-4 sm:w-5 sm:h-5 ${
+                    className={`w-3.5 h-3.5 sm:w-5 sm:h-5 shrink-0 ${
                       activeTab === "tracking" ? "animate-truck" : ""
                     }`}
                   />
                   Tracking
                 </button>
                 <button
-                  onClick={() => setActiveTab("alipay")}
-                  className={`w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 rounded-lg transition-colors text-sm sm:text-base ${
+                  onClick={() => {
+                    setActiveTab("alipay");
+                    if (isMobile) setShowTabModal(true);
+                  }}
+                  className={`w-full flex items-center gap-1.5 sm:gap-3 px-2.5 sm:px-4 py-1.5 sm:py-3 rounded-lg transition-colors text-xs sm:text-base ${
                     activeTab === "alipay"
                       ? "bg-primary text-white"
                       : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
                   }`}
                 >
-                  <FaAlipay className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <FaAlipay className="w-3.5 h-3.5 sm:w-5 sm:h-5 shrink-0" />
                   Alipay Payment
                 </button>
                 <button
-                  onClick={() => setActiveTab("buy4me")}
-                  className={`w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 rounded-lg transition-colors text-sm sm:text-base ${
+                  onClick={() => {
+                    setActiveTab("buy4me");
+                    if (isMobile) setShowTabModal(true);
+                  }}
+                  className={`w-full flex items-center gap-1.5 sm:gap-3 px-2.5 sm:px-4 py-1.5 sm:py-3 rounded-lg transition-colors text-xs sm:text-base ${
                     activeTab === "buy4me"
                       ? "bg-primary text-white"
                       : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
                   }`}
                 >
-                  <FaShoppingCart className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <FaShoppingCart className="w-3.5 h-3.5 sm:w-5 sm:h-5 shrink-0" />
                   Buy4Me
                 </button>
                 <button
-                  onClick={() => setActiveTab("orders")}
-                  className={`w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 rounded-lg transition-colors text-sm sm:text-base ${
+                  onClick={() => {
+                    setActiveTab("orders");
+                    if (isMobile) setShowTabModal(true);
+                  }}
+                  className={`w-full flex items-center gap-1.5 sm:gap-3 px-2.5 sm:px-4 py-1.5 sm:py-3 rounded-lg transition-colors text-xs sm:text-base ${
                     activeTab === "orders"
                       ? "bg-primary text-white"
                       : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
                   }`}
                 >
-                  <FaShoppingBag className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <FaShoppingBag className="w-3.5 h-3.5 sm:w-5 sm:h-5 shrink-0" />
                   Orders
                 </button>
                 <button
-                  onClick={() => setActiveTab("updates")}
-                  className={`w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 rounded-lg transition-colors text-sm sm:text-base relative ${
+                  onClick={() => {
+                    setActiveTab("updates");
+                    if (isMobile) setShowTabModal(true);
+                  }}
+                  className={`w-full flex items-center gap-1.5 sm:gap-3 px-2.5 sm:px-4 py-1.5 sm:py-3 rounded-lg transition-colors text-xs sm:text-base relative ${
                     activeTab === "updates"
                       ? "bg-primary text-white"
                       : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
                   }`}
                 >
-                  <FaBell className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <FaBell className="w-3.5 h-3.5 sm:w-5 sm:h-5 shrink-0" />
                   Updates
                   {unreadCount > 0 && (
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 bg-red-500 text-white text-xs font-semibold px-2 py-1 rounded-full min-w-[20px] text-center">
+                    <span className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 bg-red-500 text-white text-[10px] sm:text-xs font-semibold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full min-w-[16px] sm:min-w-[20px] text-center">
                       {unreadCount}
                     </span>
                   )}
                 </button>
                 <button
-                  onClick={() => setActiveTab("settings")}
-                  className={`w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 rounded-lg transition-colors text-sm sm:text-base ${
+                  onClick={() => {
+                    setActiveTab("settings");
+                    if (isMobile) setShowTabModal(true);
+                  }}
+                  className={`w-full flex items-center gap-1.5 sm:gap-3 px-2.5 sm:px-4 py-1.5 sm:py-3 rounded-lg transition-colors text-xs sm:text-base ${
                     activeTab === "settings"
                       ? "bg-primary text-white"
                       : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
                   }`}
                 >
-                  <FaCog className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <FaCog className="w-3.5 h-3.5 sm:w-5 sm:h-5 shrink-0" />
                   Settings
                 </button>
                 <button
-                  onClick={() => setActiveTab("shippingmark")}
-                  className={`w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 rounded-lg transition-colors text-sm sm:text-base ${
+                  onClick={() => {
+                    setActiveTab("shippingmark");
+                    if (isMobile) setShowTabModal(true);
+                  }}
+                  className={`w-full flex items-center gap-1.5 sm:gap-3 px-2.5 sm:px-4 py-1.5 sm:py-3 rounded-lg transition-colors text-xs sm:text-base ${
                     activeTab === "shippingmark"
                       ? "bg-primary text-white"
                       : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
                   }`}
                 >
-                  <FaMapMarkerAlt className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <FaMapMarkerAlt className="w-3.5 h-3.5 sm:w-5 sm:h-5 shrink-0" />
                   Shipping Mark
                 </button>
                 <button
-                  onClick={handleLogout}
-                  className="w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-sm sm:text-base"
+                  onClick={() => {
+                    setActiveTab("seller");
+                    if (isMobile) setShowTabModal(true);
+                  }}
+                  className={`w-full flex items-center gap-1.5 sm:gap-3 px-2.5 sm:px-4 py-1.5 sm:py-3 rounded-lg transition-colors text-xs sm:text-base ${
+                    activeTab === "seller"
+                      ? "bg-primary text-white"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
                 >
-                  <FaSignOutAlt className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <FaStore className="w-3.5 h-3.5 sm:w-5 sm:h-5 shrink-0" />
+                  {vendorMe?.is_vendor ? "View Vendor sales" : "Become a Seller"}
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-1.5 sm:gap-3 px-2.5 sm:px-4 py-1.5 sm:py-3 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-xs sm:text-base"
+                >
+                  <FaSignOutAlt className="w-3.5 h-3.5 sm:w-5 sm:h-5 shrink-0" />
                   Logout
                 </button>
               </nav>
             </div>
           </div>
 
-          {/* Content Area */}
-          <div className="lg:col-span-3">
+          {/* Content Area: on mobile opens in popup overlay, on desktop in grid */}
+          <div
+            className={`lg:col-span-3 ${
+              isMobile
+                ? showTabModal
+                  ? "fixed inset-0 z-50 bg-white dark:bg-gray-900 overflow-y-auto lg:relative lg:inset-auto lg:z-auto"
+                  : "hidden lg:block"
+                : ""
+            }`}
+          >
+            {/* Mobile: sticky close bar for tab popup */}
+            {isMobile && showTabModal && (
+              <div className="sticky top-0 z-10 flex items-center justify-between gap-2 px-3 py-2 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-sm">
+                <span className="text-base font-semibold text-gray-800 dark:text-white truncate">
+                  {{
+                    profile: "Profile",
+                    tracking: "Tracking",
+                    alipay: "Alipay Payment",
+                    buy4me: "Buy4Me",
+                    orders: "Orders",
+                    updates: "Updates",
+                    settings: "Settings",
+                    shippingmark: "Shipping Mark",
+                    seller: vendorMe?.is_vendor ? "View Vendor sales" : "Become a Seller",
+                  }[activeTab] || activeTab}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowTabModal(false)}
+                  className="p-1.5 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 dark:hover:text-gray-200 transition-colors shrink-0"
+                  aria-label="Close"
+                >
+                  <FaTimes className="w-5 h-5" />
+                </button>
+              </div>
+            )}
             {/* Profile Tab */}
             {activeTab === "profile" && (
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
+                <div className="flex flex-wrap justify-between items-center gap-2 mb-4 sm:mb-6">
+                  <h2 className="text-base sm:text-xl font-semibold text-gray-800 dark:text-white">
                     Profile Information
                   </h2>
                   {!isEditing ? (
                     <button
                       onClick={() => setIsEditing(true)}
-                      className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                      className="flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 sm:px-4 sm:py-2 text-sm sm:text-base bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
                     >
-                      <FaEdit className="w-4 h-4" />
+                      <FaEdit className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
                       Edit Profile
                     </button>
                   ) : (
-                    <div className="flex gap-2">
+                    <div className="flex gap-1.5 sm:gap-2">
                       <button
                         onClick={handleSave}
-                        className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                        className="flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 sm:px-4 sm:py-2 text-sm sm:text-base bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
                       >
-                        <FaSave className="w-4 h-4" />
+                        <FaSave className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
                         Save
                       </button>
                       <button
                         onClick={handleCancel}
-                        className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                        className="flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 sm:px-4 sm:py-2 text-sm sm:text-base bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
                       >
-                        <FaTimes className="w-4 h-4" />
+                        <FaTimes className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
                         Cancel
                       </button>
                     </div>
@@ -2816,16 +2923,16 @@ const MyProfile = () => {
             {mpShowAddForm && (
               <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4 sm:p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-                  <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-lg sm:text-xl font-semibold text-gray-800 dark:text-white">
+                  <div className="flex justify-between items-center mb-4 sm:mb-6">
+                    <h2 className="text-base sm:text-xl font-semibold text-gray-800 dark:text-white">
                       Add New Shipment
                     </h2>
                     <button
                       onClick={() => setMpShowAddForm(false)}
-                      className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                      className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                       aria-label="Close add shipment form"
                     >
-                      <FaTimes />
+                      <FaTimes className="w-5 h-5" />
                     </button>
                   </div>
                   <form onSubmit={handleMpAddShipment} className="space-y-4">
@@ -2864,14 +2971,14 @@ const MyProfile = () => {
                     <div className="flex flex-col sm:flex-row gap-2">
                       <button
                         type="submit"
-                        className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                        className="flex-1 px-3 py-1.5 sm:px-4 sm:py-2 text-sm sm:text-base bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
                       >
                         Add Shipment
                       </button>
                       <button
                         type="button"
                         onClick={() => setMpShowAddForm(false)}
-                        className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                        className="flex-1 px-3 py-1.5 sm:px-4 sm:py-2 text-sm sm:text-base bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
                       >
                         Cancel
                       </button>
@@ -2883,9 +2990,9 @@ const MyProfile = () => {
 
             {/* Shipping Mark Tab */}
             {activeTab === "shippingmark" && (
-              <div className="space-y-6">
+              <div className="space-y-4 sm:space-y-6">
                 <div className="flex justify-between items-center">
-                  <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
+                  <h2 className="text-base sm:text-xl font-semibold text-gray-800 dark:text-white">
                     Your Permanent Shipping Mark
                   </h2>
                 </div>
@@ -2962,12 +3069,12 @@ const MyProfile = () => {
                       return (
                       <div
                         key={mark._id}
-                        className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow border-l-4 border-primary"
+                        className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6 hover:shadow-lg transition-shadow border-l-4 border-primary"
                       >
-                        <div className="flex justify-between items-start mb-6">
+                        <div className="flex justify-between items-start mb-4 sm:mb-6">
                           <div>
-                            <div className="flex items-center mb-2">
-                              <h3 className="text-xl font-semibold text-gray-800 dark:text-white">
+                            <div className="flex items-center mb-2 flex-wrap gap-1">
+                              <h3 className="text-base sm:text-xl font-semibold text-gray-800 dark:text-white">
                                 {mark.markId}
                               </h3>
                               <span className="ml-2 px-2 py-1 text-xs rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
@@ -3121,20 +3228,20 @@ const MyProfile = () => {
 
             {/* Tracking Tab */}
             {activeTab === "tracking" && (
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
+                <div className="flex flex-wrap justify-between items-center gap-2 mb-4 sm:mb-6">
+                  <h2 className="text-base sm:text-xl font-semibold text-gray-800 dark:text-white">
                     Shipment Tracking ({userShipments.length})
                   </h2>
-                  <div className="flex gap-2">
+                  <div className="flex gap-1.5 sm:gap-2">
                     <button
                       onClick={() => {
                         fetchUserTrackings();
                         toast.info("Refreshing tracking data...");
                       }}
-                      className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                      className="flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 sm:px-4 sm:py-2 text-sm sm:text-base bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
                     >
-                      <FaSyncAlt className="w-4 h-4" />
+                      <FaSyncAlt className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
                       Refresh
                     </button>
                     <button
@@ -3148,7 +3255,7 @@ const MyProfile = () => {
                         }
                         setMpShowAddForm(true);
                       }}
-                      className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 sm:px-4 sm:py-2 text-sm sm:text-base bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       disabled={!mpHasShippingMark}
                       title={
                         !mpHasShippingMark
@@ -3156,7 +3263,7 @@ const MyProfile = () => {
                           : ""
                       }
                     >
-                      <FaTruck className="w-4 h-4" />
+                      <FaTruck className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
                       Add Shipment
                     </button>
                   </div>
@@ -4111,9 +4218,9 @@ const MyProfile = () => {
 
             {/* Orders Tab */}
             {activeTab === "orders" && (
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
+                <div className="flex justify-between items-center mb-4 sm:mb-6">
+                  <h2 className="text-base sm:text-xl font-semibold text-gray-800 dark:text-white">
                     Order History
                   </h2>
                   {orders.length > 2 && (
@@ -4136,7 +4243,7 @@ const MyProfile = () => {
                     </p>
                     <Link
                       to="/Shop"
-                      className="inline-block mt-4 px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                      className="inline-block mt-4 px-4 py-1.5 sm:px-6 sm:py-2 text-sm sm:text-base bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
                     >
                       Go to Shop
                     </Link>
@@ -4315,12 +4422,12 @@ const MyProfile = () => {
 
             {/* Notifications Tab (formerly Favorites) */}
             {activeTab === "updates" && (
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
+                <div className="flex justify-between items-center mb-4 sm:mb-6">
+                  <h2 className="text-base sm:text-xl font-semibold text-gray-800 dark:text-white">
                     Notifications
                     {notifications.length > 0 && (
-                      <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">
+                      <span className="ml-2 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                         ({notifications.length})
                       </span>
                     )}
@@ -4515,15 +4622,15 @@ const MyProfile = () => {
             {/* Alipay Payment Tab */}
             {activeTab === "alipay" && (
               <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
+                <div className="flex flex-wrap justify-between items-center gap-2 mb-4 sm:mb-6">
+                  <h2 className="text-base sm:text-xl font-semibold text-gray-800 dark:text-white">
                     Alipay Payment Requests
                   </h2>
                   <Link
                     to="/AlipayPayment"
-                    className="text-sm text-primary hover:text-primary/90 flex items-center gap-2"
+                    className="text-xs sm:text-sm text-primary hover:text-primary/90 flex items-center gap-1.5 sm:gap-2"
                   >
-                    <FaPlus className="w-4 h-4" />
+                    <FaPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
                     New Payment Request
                   </Link>
                 </div>
@@ -4550,13 +4657,35 @@ const MyProfile = () => {
                   </div>
                 ) : (
                   <div className="overflow-x-auto max-h-96 overflow-y-auto">
+                    <div className="flex flex-wrap gap-3 gap-y-1 px-1 py-1.5 sm:py-2 text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
+                      <span className="flex items-center gap-1">
+                        <span className="font-medium text-emerald-600 dark:text-emerald-400">₵ Cedis</span>
+                        <span className="text-gray-400 dark:text-gray-500">(Ghana)</span>
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="font-medium text-amber-600 dark:text-amber-400">¥ Yuan</span>
+                        <span className="text-gray-400 dark:text-gray-500">(China)</span>
+                      </span>
+                    </div>
                     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                       <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-10">
                         <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                          <th className="px-2 sm:px-4 py-1.5 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                             Date
                           </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                          <th className="px-2 sm:px-4 py-1.5 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider sm:hidden">
+                            Amount
+                          </th>
+                          <th className="px-2 sm:px-4 py-1.5 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-emerald-700 dark:text-emerald-300 uppercase tracking-wider hidden sm:table-cell">
+                            Amount (₵)
+                          </th>
+                          <th className="px-2 sm:px-4 py-1.5 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-amber-700 dark:text-amber-300 uppercase tracking-wider hidden sm:table-cell">
+                            Amount (¥)
+                          </th>
+                          <th className="px-2 sm:px-4 py-1.5 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            Rate
+                          </th>
+                          <th className="px-2 sm:px-4 py-1.5 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                             Status
                           </th>
                         </tr>
@@ -4576,20 +4705,45 @@ const MyProfile = () => {
                             }
                             return "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300";
                           };
+                          const dateVal = payment.createdAt ?? payment.created_at;
+                          const cedis = payment.convertedAmount ?? payment.converted_amount ?? null;
+                          const cny = payment.originalAmount ?? payment.original_amount ?? null;
+                          const rate = payment.exchangeRate ?? payment.exchange_rate ?? null;
 
                           return (
                             <tr
-                              key={payment.id}
+                              key={payment.id ?? payment._id}
                               className="hover:bg-gray-50 dark:hover:bg-gray-700"
                             >
-                              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                                {payment.created_at
-                                  ? new Date(payment.created_at).toLocaleDateString()
+                              <td className="px-2 sm:px-4 py-1.5 sm:py-3 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-white">
+                                {dateVal
+                                  ? new Date(dateVal).toLocaleDateString()
                                   : "-"}
                               </td>
-                              <td className="px-4 py-3 whitespace-nowrap text-sm">
+                              <td className="px-2 sm:px-4 py-1.5 sm:py-3 text-xs sm:text-sm sm:hidden">
+                                <span className="flex flex-col gap-0.5">
+                                  {cedis != null || cny != null ? (
+                                    <>
+                                      {cedis != null && <span className="font-medium text-emerald-600 dark:text-emerald-400">₵{Number(cedis).toFixed(2)}</span>}
+                                      {cny != null && <span className="font-medium text-amber-600 dark:text-amber-400">¥{Number(cny).toFixed(2)}</span>}
+                                    </>
+                                  ) : (
+                                    <span className="text-gray-500 dark:text-gray-400">-</span>
+                                  )}
+                                </span>
+                              </td>
+                              <td className="px-2 sm:px-4 py-1.5 sm:py-3 whitespace-nowrap text-xs sm:text-sm font-medium text-emerald-600 dark:text-emerald-400 hidden sm:table-cell">
+                                {cedis != null ? Number(cedis).toFixed(2) : "-"}
+                              </td>
+                              <td className="px-2 sm:px-4 py-1.5 sm:py-3 whitespace-nowrap text-xs sm:text-sm font-medium text-amber-600 dark:text-amber-400 hidden sm:table-cell">
+                                {cny != null ? Number(cny).toFixed(2) : "-"}
+                              </td>
+                              <td className="px-2 sm:px-4 py-1.5 sm:py-3 whitespace-nowrap text-xs sm:text-sm text-gray-900 dark:text-white">
+                                {rate != null ? Number(rate).toFixed(3) : "-"}
+                              </td>
+                              <td className="px-2 sm:px-4 py-1.5 sm:py-3 whitespace-nowrap text-xs sm:text-sm">
                                 <span
-                                  className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadge(
+                                  className={`px-1.5 sm:px-2 inline-flex text-[10px] sm:text-xs leading-5 font-semibold rounded-full ${getStatusBadge(
                                     payment.status
                                   )}`}
                                 >
@@ -4607,13 +4761,13 @@ const MyProfile = () => {
             )}
 
             {activeTab === "settings" && (
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-                <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-6">
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
+                <h2 className="text-base sm:text-xl font-semibold text-gray-800 dark:text-white mb-4 sm:mb-6">
                   Account Settings
                 </h2>
-                <div className="space-y-6">
+                <div className="space-y-4 sm:space-y-6">
                   <div>
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                    <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-white mb-3 sm:mb-4">
                       Change Password
                     </h3>
                     <div className="space-y-4">
@@ -4654,7 +4808,7 @@ const MyProfile = () => {
                       </div>
                       <button
                         onClick={handleUpdatePassword}
-                        className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                        className="px-3 py-1.5 sm:px-4 sm:py-2 text-sm sm:text-base bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
                       >
                         Update Password
                       </button>
@@ -4662,7 +4816,7 @@ const MyProfile = () => {
                   </div>
 
                   <div>
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                    <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-white mb-3 sm:mb-4">
                       Notification Settings
                     </h3>
                     <div className="space-y-4">
@@ -4715,6 +4869,38 @@ const MyProfile = () => {
                   </div>
                 </div>
               </div>
+            )}
+
+            {activeTab === "seller" && (
+              <>
+                {vendorMe?.is_vendor === true ? (
+                  <VendorSales embedded />
+                ) : (
+                  <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
+                    <div className="flex items-center gap-3 mb-4">
+                      <FaStore className="w-10 h-10 text-primary" />
+                      <div>
+                        <h2 className="text-base sm:text-xl font-semibold text-gray-800 dark:text-white">
+                          Become a Seller
+                        </h2>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Bring products for us to list and sell on the shop
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-gray-600 dark:text-gray-400 mb-6">
+                      Complete the vendor onboarding to apply. You’ll provide your full name, location, business type, and quantity of products. Admin will review and approve or reject your request.
+                    </p>
+                    <Link
+                      to="/become-a-vendor"
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors font-medium"
+                    >
+                      <FaStore className="w-4 h-4" />
+                      Go to vendor onboarding
+                    </Link>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>

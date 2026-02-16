@@ -6,6 +6,7 @@ import {
   deleteProduct,
   getCategories,
   getProductTypes,
+  Api,
 } from "../../api";
 import { toast } from "../../utils/toast";
 import { FaPlus, FaEdit, FaTrash, FaImage, FaTimes, FaCheck, FaChevronLeft, FaChevronRight } from "react-icons/fa";
@@ -20,6 +21,9 @@ const initialForm = {
   category: "",
   product_type: "",
   inventory: "",
+  vendor: "",
+  admin_charge_type: "",
+  admin_charge_value: "",
   trending: false,
   is_active: true,
 };
@@ -38,6 +42,7 @@ export default function AdminProducts() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [productTypes, setProductTypes] = useState([]);
+  const [vendors, setVendors] = useState([]);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState(initialForm);
   const [editing, setEditing] = useState(null);
@@ -97,6 +102,16 @@ export default function AdminProducts() {
     }
   };
 
+  const loadVendors = async () => {
+    try {
+      const resp = await Api.adminVendorUsers();
+      setVendors(Array.isArray(resp.data) ? resp.data : []);
+    } catch (err) {
+      console.error("Failed to load vendors", err);
+      setVendors([]);
+    }
+  };
+
   const load = async (page = currentPage, size = pageSize) => {
     setLoading(true);
     try {
@@ -136,6 +151,7 @@ export default function AdminProducts() {
     load(currentPage, pageSize);
     loadCategories();
     loadProductTypes();
+    loadVendors();
   }, [currentPage, pageSize]);
 
   // Pagination handlers
@@ -206,6 +222,18 @@ export default function AdminProducts() {
       newErrors.inventory = "Valid inventory count is required";
     }
 
+    if (form.admin_charge_type === "flat" || form.admin_charge_type === "percentage") {
+      const v = Number(form.admin_charge_value);
+      if (form.admin_charge_value === "" || isNaN(v) || v < 0) {
+        newErrors.admin_charge_value = form.admin_charge_type === "flat"
+          ? "Enter a valid flat amount (e.g. 5.00)"
+          : "Enter a valid percentage (e.g. 10)";
+      }
+      if (form.admin_charge_type === "percentage" && v > 100) {
+        newErrors.admin_charge_value = "Percentage cannot exceed 100";
+      }
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -261,6 +289,11 @@ export default function AdminProducts() {
         category: form.category.trim(),
         product_type: form.product_type.trim(),
         inventory: Number(form.inventory || 0),
+        vendor: form.vendor ? Number(form.vendor) : null,
+        admin_charge_type: form.admin_charge_type || null,
+        admin_charge_value: (form.admin_charge_type === "flat" || form.admin_charge_type === "percentage")
+          ? Number(form.admin_charge_value)
+          : null,
         trending: Boolean(form.trending),
         is_active: Boolean(form.is_active),
       };
@@ -349,6 +382,9 @@ export default function AdminProducts() {
       category: p.category || "",
       product_type: p.product_type || "",
       inventory: p.inventory || "",
+      vendor: p.vendor != null ? String(p.vendor) : "",
+      admin_charge_type: p.admin_charge_type || "",
+      admin_charge_value: p.admin_charge_value != null && p.admin_charge_value !== "" ? String(p.admin_charge_value) : "",
       trending: p.trending || false,
       is_active: p.is_active !== undefined ? p.is_active : true,
     });
@@ -501,10 +537,10 @@ export default function AdminProducts() {
                 )}
               </div>
 
-              {/* Price */}
+              {/* Retail price (vendor receives this; customer sees retail + admin charge as selling price) */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Price <span className="text-red-500">*</span>
+                  Retail price <span className="text-red-500">*</span>
                 </label>
                 <input
                   name="price"
@@ -518,9 +554,56 @@ export default function AdminProducts() {
                   }`}
                   placeholder="0.00"
                 />
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  Amount the vendor receives. Selling price in shop = retail price + admin charge.
+                </p>
                 {errors.price && (
                   <p className="mt-1 text-sm text-red-500">{errors.price}</p>
                 )}
+              </div>
+
+              {/* Admin charge (selling fee) */}
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Admin charge (selling fee)
+                </label>
+                <div className="flex flex-wrap gap-4 items-end">
+                  <div className="flex-1 min-w-[140px]">
+                    <select
+                      name="admin_charge_type"
+                      value={form.admin_charge_type}
+                      onChange={onChange}
+                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:text-white dark:border-gray-600 border-gray-300"
+                    >
+                      <option value="">None</option>
+                      <option value="flat">Flat amount (₵)</option>
+                      <option value="percentage">Percentage of price (%)</option>
+                    </select>
+                  </div>
+                  {(form.admin_charge_type === "flat" || form.admin_charge_type === "percentage") && (
+                    <div className="flex-1 min-w-[120px]">
+                      <input
+                        name="admin_charge_value"
+                        type="number"
+                        step={form.admin_charge_type === "percentage" ? "1" : "0.01"}
+                        min="0"
+                        max={form.admin_charge_type === "percentage" ? "100" : undefined}
+                        value={form.admin_charge_value}
+                        onChange={onChange}
+                        className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:text-white dark:border-gray-600 ${
+                          errors.admin_charge_value ? "border-red-500" : "border-gray-300"
+                        }`}
+                        placeholder={form.admin_charge_type === "flat" ? "e.g. 5.00" : "e.g. 10"}
+                      />
+                      {errors.admin_charge_value && (
+                        <p className="mt-1 text-sm text-red-500">{errors.admin_charge_value}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  Added to product price in the shop. Vendor only sees the product price above.
+                </p>
               </div>
 
               {/* Inventory */}
@@ -592,6 +675,29 @@ export default function AdminProducts() {
                 {errors.product_type && (
                   <p className="mt-1 text-sm text-red-500">{errors.product_type}</p>
                 )}
+              </div>
+
+              {/* Vendor (optional - link product to approved vendor) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Vendor
+                </label>
+                <select
+                  name="vendor"
+                  value={form.vendor}
+                  onChange={onChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                >
+                  <option value="">No vendor (admin product)</option>
+                  {vendors.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.full_name || v.username} ({v.username})
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  Assign to an approved vendor so they can see sales for this product
+                </p>
               </div>
             </div>
 
@@ -771,7 +877,13 @@ export default function AdminProducts() {
                     Product
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">
-                    Price
+                    Vendor
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">
+                    Retail price
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">
+                    Selling price
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-300">
                     Inventory
@@ -817,8 +929,14 @@ export default function AdminProducts() {
                         </div>
                       </div>
                     </td>
+                    <td className="px-4 py-4 text-sm text-gray-600 dark:text-gray-300">
+                      {p.vendor_full_name || p.vendor_username || "—"}
+                    </td>
                     <td className="px-4 py-4 text-sm text-gray-900 dark:text-white">
                       ₵{Number(p.price).toFixed(2)}
+                    </td>
+                    <td className="px-4 py-4 text-sm text-gray-900 dark:text-white">
+                      ₵{Number(p.total_price != null ? p.total_price : p.price).toFixed(2)}
                     </td>
                     <td className="px-4 py-4 text-sm text-gray-900 dark:text-white">
                       {p.inventory}

@@ -519,6 +519,35 @@ const Api = {
     adminDelete: (requestId) =>
       http.delete(`/buysellapi/admin/community/requests/${requestId}/`),
   },
+  vendor: {
+    submit: (payload) => http.post("/buysellapi/vendor-applications/", payload),
+    me: (config = {}) => http.get("/buysellapi/vendor-applications/me/", config),
+    adminList: (params = {}, config = {}) =>
+      http.get("/buysellapi/admin/vendor-applications/", { params, ...config }),
+    adminApprove: (applicationId, payload = {}) =>
+      http.post(`/buysellapi/admin/vendor-applications/${applicationId}/approve/`, payload),
+    adminReject: (applicationId, payload = {}) =>
+      http.post(`/buysellapi/admin/vendor-applications/${applicationId}/reject/`, payload),
+    sales: (config = {}) => http.get("/buysellapi/vendor/sales/", config),
+    payoutEligibility: (config = {}) =>
+      http.get("/buysellapi/vendor/payout-eligibility/", config),
+    payoutRequests: {
+      list: (config = {}) => http.get("/buysellapi/vendor/payout-requests/", config),
+      create: (payload) => http.post("/buysellapi/vendor/payout-requests/", payload),
+    },
+  },
+  adminVendorPayoutRequests: {
+    list: (params = {}, config = {}) =>
+      http.get("/buysellapi/admin/vendor-payout-requests/", { params, ...config }),
+    approve: (requestId) =>
+      http.post(`/buysellapi/admin/vendor-payout-requests/${requestId}/approve/`),
+    reject: (requestId, payload = {}) =>
+      http.post(`/buysellapi/admin/vendor-payout-requests/${requestId}/reject/`, payload),
+    markPaid: (requestId) =>
+      http.post(`/buysellapi/admin/vendor-payout-requests/${requestId}/mark-paid/`),
+  },
+  adminVendorUsers: (config = {}) =>
+    http.get("/buysellapi/admin/vendor-users/", config),
   quickTracking: {
     search: (params) =>
       http.get("/buysellapi/quick-tracking-notes/search/", {

@@ -181,7 +181,8 @@ const Product = () => {
             </span>
           </div>
 
-          <p className='mt-5 text-3xl font-medium'>{currency}{productData.price}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">Price</p>
+          <p className='mt-1 text-3xl font-medium'>{currency}{productData.price}</p>
           
           {/* Description preview */}
           {productData.description && (

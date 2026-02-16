@@ -82,6 +82,8 @@ import AffiliateAgentManagement from "./AffiliateAgentManagement";
 import LocalAgentSettingsManagement from "./LocalAgentSettingsManagement";
 import LocalAgentRewardClaims from "./LocalAgentRewardClaims";
 import CommunityManagement from "./CommunityManagement";
+import VendorManagement from "./VendorManagement";
+import AdminVendorPayoutRequests from "./AdminVendorPayoutRequests";
 import StaffClockRecords from "./StaffClockRecords";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -121,6 +123,15 @@ const AdminDashboard = () => {
 
     const savedSubMenu = localStorage.getItem("adminTrainingSubMenu");
     return savedSubMenu || "paidCourses";
+  };
+
+  const getInitialShopSubMenu = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const subMenuFromUrl = urlParams.get("shopSubMenu");
+    if (subMenuFromUrl) return subMenuFromUrl;
+
+    const savedSubMenu = localStorage.getItem("adminShopSubMenu");
+    return savedSubMenu || "products";
   };
 
   const [activeSection, setActiveSection] = useState(getInitialSection);
@@ -172,6 +183,7 @@ const AdminDashboard = () => {
   const [trainingSubMenu, setTrainingSubMenu] = useState(
     getInitialTrainingSubMenu()
   );
+  const [shopSubMenu, setShopSubMenu] = useState(getInitialShopSubMenu());
   const getInitialAnalyticsTab = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const tabFromUrl = urlParams.get("analyticsTab");
@@ -228,8 +240,7 @@ const AdminDashboard = () => {
       { icon: <FaUsers />, label: "Community", section: "community" },
       { icon: <FaShoppingCart />, label: "Orders", section: "orders" },
       { icon: <FaGraduationCap />, label: "Training", section: "training" },
-      { icon: <FaBox />, label: "Products", section: "products" },
-      { icon: <FaStore />, label: "Categories", section: "categories" },
+      { icon: <FaStore />, label: "Shop", section: "shop" },
       { icon: <FaYoutube />, label: "YouTube", section: "youtube" },
       { icon: <FaVideo />, label: "Gallery", section: "gallery" },
       {
@@ -461,8 +472,15 @@ const AdminDashboard = () => {
       url.searchParams.delete("trainingSubMenu");
     }
 
+    // Also persist shop submenu if we're in shop section
+    if (activeSection === "shop") {
+      url.searchParams.set("shopSubMenu", shopSubMenu);
+    } else {
+      url.searchParams.delete("shopSubMenu");
+    }
+
     window.history.replaceState({}, "", url);
-  }, [activeSection, shippingSubMenu, agentSubMenu, analyticsTab, trainingSubMenu]);
+  }, [activeSection, shippingSubMenu, agentSubMenu, analyticsTab, trainingSubMenu, shopSubMenu]);
 
   // Persist shippingSubMenu to localStorage
   useEffect(() => {
@@ -478,6 +496,11 @@ const AdminDashboard = () => {
   useEffect(() => {
     localStorage.setItem("adminTrainingSubMenu", trainingSubMenu);
   }, [trainingSubMenu]);
+
+  // Persist shopSubMenu to localStorage
+  useEffect(() => {
+    localStorage.setItem("adminShopSubMenu", shopSubMenu);
+  }, [shopSubMenu]);
 
   // Persist analyticsTab to localStorage
   useEffect(() => {
@@ -1492,10 +1515,83 @@ const AdminDashboard = () => {
         );
       case "orders":
         return <OrderManagement />;
-      case "products":
-        return <AdminProducts />;
-      case "categories":
-        return <CategoriesTypesManagement />;
+      case "shop":
+        return (
+          <div className="p-6">
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">
+              Shop Management
+            </h2>
+
+            {/* Shop Tabs */}
+            <div className="border-b border-gray-200 dark:border-gray-700 mb-6">
+              <div className="flex flex-wrap">
+                <button
+                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
+                    shopSubMenu === "products"
+                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                  onClick={() => setShopSubMenu("products")}
+                >
+                  <div className="flex items-center gap-2">
+                    <FaBox className="w-4 h-4" />
+                    <span>Products</span>
+                  </div>
+                </button>
+                <button
+                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
+                    shopSubMenu === "vendors"
+                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                  onClick={() => setShopSubMenu("vendors")}
+                >
+                  <div className="flex items-center gap-2">
+                    <FaHandshake className="w-4 h-4" />
+                    <span>Vendors</span>
+                  </div>
+                </button>
+                <button
+                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
+                    shopSubMenu === "categories"
+                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                  onClick={() => setShopSubMenu("categories")}
+                >
+                  <div className="flex items-center gap-2">
+                    <FaTag className="w-4 h-4" />
+                    <span>Categories</span>
+                  </div>
+                </button>
+                <button
+                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
+                    shopSubMenu === "vendor-payout-requests"
+                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                  onClick={() => setShopSubMenu("vendor-payout-requests")}
+                >
+                  <div className="flex items-center gap-2">
+                    <FaHandHoldingUsd className="w-4 h-4" />
+                    <span>Vendor pay requests</span>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* Shop Content */}
+            {shopSubMenu === "products" ? (
+              <AdminProducts />
+            ) : shopSubMenu === "vendors" ? (
+              <VendorManagement />
+            ) : shopSubMenu === "vendor-payout-requests" ? (
+              <AdminVendorPayoutRequests />
+            ) : (
+              <CategoriesTypesManagement />
+            )}
+          </div>
+        );
       case "analytics":
         return (
           <div className="p-6">
@@ -1661,11 +1757,18 @@ const AdminDashboard = () => {
                 const itemsToRender =
                   allowedTabs === null
                     ? menuItems
-                    : menuItems.filter((item) =>
-                        item.section === "dashboard"
-                          ? true
-                          : allowedTabs.includes(item.section)
-                      );
+                    : menuItems.filter((item) => {
+                        if (item.section === "dashboard") return true;
+                        if (item.section === "shop") {
+                          return (
+                            allowedTabs.includes("shop") ||
+                            allowedTabs.includes("products") ||
+                            allowedTabs.includes("vendors") ||
+                            allowedTabs.includes("categories")
+                          );
+                        }
+                        return allowedTabs.includes(item.section);
+                      });
 
                 return itemsToRender.map((item, index) => {
                   const showChatBadge =

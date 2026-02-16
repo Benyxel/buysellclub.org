@@ -274,6 +274,7 @@ const Cart = () => {
                       </p>
                       <div className="flex items-center gap-5 mx-6 mt-2">
                         <p>
+                          <span className="text-xs text-gray-500 dark:text-gray-400 mr-1">Price</span>
                           {currency}{typeof productData.price === 'number' ? productData.price.toFixed(2) : productData.price}
                         </p>
                         {item.size !== 'default' && (

@@ -4,6 +4,8 @@ import { Link } from "react-router-dom";
 import CBMCalculator from "./CBMCalculator";
 import API from "../api";
 
+const WAREHOUSE_ADDRESSES_CACHE_KEY = "shippingWarehouseAddresses";
+
 const ACCENT_CLASSES = [
   "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400",
   "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400",
@@ -11,16 +13,28 @@ const ACCENT_CLASSES = [
   "bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400",
 ];
 
+const getCachedWarehouses = () => {
+  try {
+    const raw = localStorage.getItem(WAREHOUSE_ADDRESSES_CACHE_KEY);
+    const data = raw ? JSON.parse(raw) : null;
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+};
+
 const ShippingDashboard = () => {
-  const [warehouseAddresses, setWarehouseAddresses] = useState([]);
+  const [warehouseAddresses, setWarehouseAddresses] = useState(getCachedWarehouses);
 
   useEffect(() => {
     const fetchWarehouses = async () => {
       try {
         const res = await API.get("/buysellapi/warehouse-addresses/");
-        setWarehouseAddresses(Array.isArray(res.data) ? res.data : []);
+        const list = Array.isArray(res.data) ? res.data : [];
+        setWarehouseAddresses(list);
+        localStorage.setItem(WAREHOUSE_ADDRESSES_CACHE_KEY, JSON.stringify(list));
       } catch (_) {
-        setWarehouseAddresses([]);
+        setWarehouseAddresses((prev) => (prev.length ? prev : []));
       }
     };
     fetchWarehouses();

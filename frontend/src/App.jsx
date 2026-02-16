@@ -22,6 +22,8 @@ import Training from "./pages/Quicklinks/Training";
 import AlipayPayment from "./pages/Quicklinks/AlipayPayment";
 import OurRates from "./pages/Quicklinks/OurRates";
 import JoinCommunity from "./pages/Community/JoinCommunity";
+import VendorOnboarding from "./pages/VendorOnboarding";
+import VendorSales from "./pages/VendorSales";
 import CommunityPayment from "./pages/Community/CommunityPayment";
 import PaymentCallback from "./pages/PaymentCallback";
 import Favorites from "./pages/Favorites";
@@ -272,6 +274,15 @@ function App() {
                         }
                       />
                       <Route path="Community" element={<JoinCommunity />} />
+                      <Route path="become-a-vendor" element={<VendorOnboarding />} />
+                      <Route
+                        path="vendor-sales"
+                        element={
+                          <ProtectedRoute>
+                            <VendorSales />
+                          </ProtectedRoute>
+                        }
+                      />
                       <Route
                         path="CommunityPayment"
                         element={

@@ -337,7 +337,7 @@ const Checkout = () => {
                     <div className="flex-1">
                       <p className="font-medium text-gray-900 dark:text-white">{item.name}</p>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Quantity: {item.quantity} × {currency}{item.price.toFixed(2)}
+                        Quantity: {item.quantity} × <span className="text-gray-500">Price</span> {currency}{item.price.toFixed(2)}
                         {item.size && <span className="ml-2">({item.size})</span>}
                       </p>
                     </div>

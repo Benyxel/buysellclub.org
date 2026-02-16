@@ -53,7 +53,10 @@ const ProductCard = ({ product }) => {
             {product.name}
           </h3>
         </Link>
-        <p className="text-primary font-bold mb-4">₵{product.price}</p>
+        <p className="text-primary font-bold mb-4">
+          <span className="text-xs font-normal text-gray-500 dark:text-gray-400 block">Price</span>
+          ₵{product.price}
+        </p>
         {product.inventory !== undefined && product.inventory <= 0 && (
           <p className="text-red-500 text-sm font-semibold mb-2">Out of Stock</p>
         )}

@@ -238,12 +238,15 @@ const ShopContextProvider = (props) => {
       // Map backend product shape to the shape used by the UI
       const mapped = items.map((p) => {
         const images = Array.isArray(p.images) ? p.images : p.image ? [p.image] : [];
+        // Customer pays total_price (price + admin charge); fallback to price
+        const customerPrice = p.total_price != null && p.total_price !== "" ? p.total_price : p.price;
+        const priceNum = typeof customerPrice === "string" ? parseFloat(customerPrice) : Number(customerPrice) || 0;
         return {
           _id: p._id || p.id,
           name: p.name,
           slug: p.slug,
           description: p.description || "",
-          price: typeof p.price === "string" ? parseFloat(p.price) : Number(p.price) || 0,
+          price: priceNum,
           images: images,
           image: images.length > 0 ? images[0] : null,
           category: p.category || "",

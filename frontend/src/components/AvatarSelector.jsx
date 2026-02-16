@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FaTimes } from 'react-icons/fa';
 import AvatarSVG from './AvatarSVG';
 
@@ -60,6 +60,14 @@ const AVATARS = {
 
 const AvatarSelector = ({ isOpen, onClose, currentAvatar, onSelect }) => {
   const [selectedGender, setSelectedGender] = useState('male');
+
+  // Open on the tab that matches current avatar
+  useEffect(() => {
+    if (isOpen && currentAvatar) {
+      if (String(currentAvatar).startsWith('female')) setSelectedGender('female');
+      else setSelectedGender('male');
+    }
+  }, [isOpen, currentAvatar]);
 
   const handleSelect = (avatarId) => {
     onSelect(avatarId);
