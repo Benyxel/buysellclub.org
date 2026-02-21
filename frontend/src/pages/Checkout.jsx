@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { FaSpinner } from 'react-icons/fa';
 import { ShopContext } from '../context/ShopContext';
 import { toast } from '../utils/toast';
-import { createOrder, initiateOrderPayment } from '../api';
+import api, { createOrder, initiateOrderPayment } from '../api';
 import { getPlaceholderImagePath } from '../utils/paths';
 
 const Checkout = () => {
@@ -20,6 +20,7 @@ const Checkout = () => {
     zipCode: '',
     country: 'Ghana'
   });
+  const [paymentMethod, setPaymentMethod] = useState('expresspay'); // 'expresspay' | 'momo'
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [connectingToPayment, setConnectingToPayment] = useState(false);
@@ -65,6 +66,33 @@ const Checkout = () => {
     return items;
   }, [cartItems, products]);
 
+  // Auto-fill first name, last name, and email from logged-in user profile
+  useEffect(() => {
+    let cancelled = false;
+    const fillFromProfile = async () => {
+      try {
+        const resp = await api.get('/buysellapi/users/me/');
+        const data = resp?.data;
+        if (cancelled || !data) return;
+        const fullName = (data.full_name || data.username || '').trim();
+        const parts = fullName.split(/\s+/, 2);
+        const firstName = parts[0] || '';
+        const lastName = parts[1] || '';
+        const email = (data.email || '').trim();
+        setFormData(prev => ({
+          ...prev,
+          firstName: prev.firstName || firstName,
+          lastName: prev.lastName || lastName,
+          email: prev.email || email,
+        }));
+      } catch {
+        // Not logged in or profile fetch failed; leave form empty
+      }
+    };
+    fillFromProfile();
+    return () => { cancelled = true; };
+  }, []);
+
   // Redirect to cart if cart is empty
   useEffect(() => {
     if (checkoutItems.length === 0) {
@@ -101,11 +129,7 @@ const Checkout = () => {
       newErrors.email = 'Email is invalid';
     }
     if (!formData.phone) newErrors.phone = 'Phone number is required';
-    if (!formData.address) newErrors.address = 'Address is required';
-    if (!formData.city) newErrors.city = 'City is required';
-    if (!formData.state) newErrors.state = 'State is required';
-    if (!formData.zipCode) newErrors.zipCode = 'Zip code is required';
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -162,25 +186,33 @@ const Checkout = () => {
         customer_name: `${formData.firstName} ${formData.lastName}`,
         customer_email: formData.email,
         customer_phone: formData.phone,
-        shipping_address: formData.address,
-        shipping_city: formData.city,
-        shipping_state: formData.state,
-        shipping_zip_code: formData.zipCode,
-        shipping_country: formData.country,
         subtotal: parseFloat(getCartAmount().toFixed(2)),
         tax: 0,
         shipping_cost: 0,
         total: parseFloat(getCartAmount().toFixed(2)),
-        payment_method: 'expresspay', // Always use ExpressPay
+        payment_method: paymentMethod,
         status: 'pending',
         payment_status: 'pending'
       };
+      if (paymentMethod === 'momo') {
+        orderData.momo_phone = formData.phone || orderData.customer_phone;
+      }
 
       // Debug: Log the order data being sent
       console.log('Order data being sent:', JSON.stringify(orderData, null, 2));
       
-      // Create order using API helper
+      // Create order using API helper. For MoMo, backend requests payment first and only creates order after MoMo accepts (202).
       const response = await createOrder(orderData);
+      
+      // MoMo failed: backend did not create order (503)
+      if (response.status === 503) {
+        const errData = response.data || {};
+        const msg = errData.momo_error || errData.detail || errData.error || 'MoMo payment could not be started.';
+        const hint = errData.hint ? ` ${errData.hint}` : '';
+        toast.error(msg + hint);
+        setLoading(false);
+        return;
+      }
       
       // Verify response status
       if (response.status !== 201 && response.status !== 200) {
@@ -201,59 +233,63 @@ const Checkout = () => {
       console.log('Order created successfully:', response.data);
       const data = response.data;
       
-      // Check if payment gateway URL is provided in response
-      if (data.payment_url) {
-        // Redirect to payment gateway
+      // MoMo: order is created only after MoMo accepted the request; no separate payment initiation
+      if (paymentMethod === 'momo') {
+        toast.success('Check your phone to approve the payment.');
+        clearCart();
+        navigate('/Orders');
+        setLoading(false);
+        return;
+      }
+      
+      // ExpressPay (or other): redirect to payment URL if present
+      const shouldRedirectToGateway = data.payment_url && paymentMethod !== 'momo';
+      if (shouldRedirectToGateway) {
         toast.success('Redirecting to payment gateway...');
         window.location.href = data.payment_url;
         return;
       }
       
-      // If no payment URL in response, try to initiate payment separately
+      // If no payment URL in response, initiate payment separately (e.g. ExpressPay)
       if (data.id && data.total > 0) {
-        // Show loading state while connecting to payment gateway
-        setLoading(false); // Allow form to show connecting state
+        setLoading(false);
         setConnectingToPayment(true);
         toast.info("Connecting to payment gateway...");
 
         try {
-          const paymentResponse = await initiateOrderPayment(data.id);
+          const paymentResponse = await initiateOrderPayment(data.id, {});
           
           if (paymentResponse?.data?.payment_url) {
             toast.success('Redirecting to payment gateway...');
             window.location.href = paymentResponse.data.payment_url;
             return;
-          } else {
-            toast.error("Payment gateway not configured. Please contact support.");
+          }
+          if (!paymentResponse?.data?.payment_url) {
+            toast.error(paymentResponse?.data?.error || "Payment gateway not configured. Please contact support.");
             setConnectingToPayment(false);
             setLoading(false);
+            return;
           }
         } catch (paymentError) {
           console.error('Error initiating payment:', paymentError);
-          console.error('Payment error response:', paymentError.response);
-          
           setConnectingToPayment(false);
-          
-          // Handle different error types
+          setLoading(false);
           if (paymentError.response?.status === 503) {
             const errorMsg = paymentError.response?.data?.error || 'Payment gateway is currently unavailable. Please contact support or try again later.';
             toast.error(errorMsg);
           } else if (paymentError.response?.status === 400) {
             const errorMsg = paymentError.response?.data?.error || 'Invalid payment request. Please try again.';
             toast.error(errorMsg);
+          } else {
+            toast.error(paymentError.response?.data?.error || 'Payment could not be started. Please try again.');
           }
-          // Continue to fallback behavior (order created, but payment not initiated)
-          setLoading(false);
+          return;
         }
       }
       
-      // Clear cart
+      // Clear cart and redirect only when we did not need payment initiation, or ExpressPay returned URL
       clearCart();
-      
-      // Show success message
       toast.success(`Order placed successfully! Order ID: ${data.id}`);
-      
-      // Redirect to order confirmation page
       navigate(`/Orders`);
     } catch (error) {
       setConnectingToPayment(false);
@@ -353,10 +389,6 @@ const Checkout = () => {
                   <span className="text-gray-600 dark:text-gray-400">Subtotal</span>
                   <span className="text-gray-900 dark:text-white">{currency}{getCartAmount().toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Shipping</span>
-                  <span className="text-gray-900 dark:text-white">{currency}0.00</span>
-                </div>
                 <div className="flex justify-between font-semibold text-lg pt-2 border-t border-gray-200 dark:border-gray-700">
                   <span className="text-gray-900 dark:text-white">Total</span>
                   <span className="text-gray-900 dark:text-white">{currency}{getCartAmount().toFixed(2)}</span>
@@ -366,7 +398,7 @@ const Checkout = () => {
 
             {/* Checkout Form */}
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Shipping Information</h2>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Contact & Payment</h2>
               
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -434,6 +466,7 @@ const Checkout = () => {
                     name="phone"
                     value={formData.phone}
                     onChange={handleChange}
+                    placeholder={paymentMethod === 'momo' ? 'MoMo number (e.g. 0244123456)' : ''}
                     className={`w-full px-4 py-2 rounded-lg border ${
                       errors.phone ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                     } bg-white dark:bg-gray-700 text-gray-900 dark:text-white`}
@@ -444,92 +477,38 @@ const Checkout = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Address
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Payment method
                   </label>
-                  <input
-                    type="text"
-                    name="address"
-                    value={formData.address}
-                    onChange={handleChange}
-                    className={`w-full px-4 py-2 rounded-lg border ${
-                      errors.address ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                    } bg-white dark:bg-gray-700 text-gray-900 dark:text-white`}
-                  />
-                  {errors.address && (
-                    <p className="mt-1 text-sm text-red-500">{errors.address}</p>
+                  <div className="flex flex-wrap gap-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="paymentMethod"
+                        value="expresspay"
+                        checked={paymentMethod === 'expresspay'}
+                        onChange={() => setPaymentMethod('expresspay')}
+                        className="text-primary focus:ring-primary"
+                      />
+                      <span className="text-gray-700 dark:text-gray-300">ExpressPay (card/redirect)</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="paymentMethod"
+                        value="momo"
+                        checked={paymentMethod === 'momo'}
+                        onChange={() => setPaymentMethod('momo')}
+                        className="text-primary focus:ring-primary"
+                      />
+                      <span className="text-gray-700 dark:text-gray-300">MoMo (pay on your phone)</span>
+                    </label>
+                  </div>
+                  {paymentMethod === 'momo' && (
+                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                      Use the phone number above. You will get a prompt on your phone to approve the payment.
+                    </p>
                   )}
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      City
-                    </label>
-                    <input
-                      type="text"
-                      name="city"
-                      value={formData.city}
-                      onChange={handleChange}
-                      className={`w-full px-4 py-2 rounded-lg border ${
-                        errors.city ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                      } bg-white dark:bg-gray-700 text-gray-900 dark:text-white`}
-                    />
-                    {errors.city && (
-                      <p className="mt-1 text-sm text-red-500">{errors.city}</p>
-                    )}
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      State
-                    </label>
-                    <input
-                      type="text"
-                      name="state"
-                      value={formData.state}
-                      onChange={handleChange}
-                      className={`w-full px-4 py-2 rounded-lg border ${
-                        errors.state ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                      } bg-white dark:bg-gray-700 text-gray-900 dark:text-white`}
-                    />
-                    {errors.state && (
-                      <p className="mt-1 text-sm text-red-500">{errors.state}</p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Zip Code
-                    </label>
-                    <input
-                      type="text"
-                      name="zipCode"
-                      value={formData.zipCode}
-                      onChange={handleChange}
-                      className={`w-full px-4 py-2 rounded-lg border ${
-                        errors.zipCode ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                      } bg-white dark:bg-gray-700 text-gray-900 dark:text-white`}
-                    />
-                    {errors.zipCode && (
-                      <p className="mt-1 text-sm text-red-500">{errors.zipCode}</p>
-                    )}
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Country
-                    </label>
-                    <input
-                      type="text"
-                      name="country"
-                      value={formData.country}
-                      disabled
-                      className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white"
-                    />
-                  </div>
                 </div>
 
                 <button

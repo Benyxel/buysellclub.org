@@ -12,6 +12,19 @@ import { toast } from "../utils/toast";
 import API from "../api";
 import { getRevealedRegions, setRegionRevealed } from "../utils/addressRevealedRegions";
 
+// Same key as China address / profile shipping mark tab – one mark for all regions
+const USER_SHIPPING_MARK_KEY = "userShippingMark";
+
+const getStoredShippingMark = () => {
+  try {
+    const raw = localStorage.getItem(USER_SHIPPING_MARK_KEY);
+    const data = raw ? JSON.parse(raw) : null;
+    return data && data.markId ? data : null;
+  } catch {
+    return null;
+  }
+};
+
 const RegionAddressGenerator = () => {
   const { code } = useParams();
   const [warehouse, setWarehouse] = useState(null);
@@ -42,6 +55,7 @@ const RegionAddressGenerator = () => {
     fetchWarehouse();
   }, [code]);
 
+  // China-address logic: use stored address first; do not fetch from backend on every open
   useEffect(() => {
     if (!warehouse) return;
     const token = localStorage.getItem("token") || localStorage.getItem("adminToken");
@@ -52,10 +66,18 @@ const RegionAddressGenerator = () => {
     }
     const revealed = getRevealedRegions().includes((code || "").toLowerCase());
     setHasRevealedThisRegion(revealed);
-    loadCurrentUser();
+    const stored = getStoredShippingMark();
+    if (stored) {
+      setExistingAddress(stored);
+      setHasAddress(true);
+      setFullName(stored.name || stored.full_name || "");
+      setIsLoadingUser(false);
+      return;
+    }
+    loadCurrentUserForName();
   }, [warehouse, code]);
 
-  const loadCurrentUser = async () => {
+  const loadCurrentUserForName = async () => {
     try {
       setIsLoadingUser(true);
       const response = await API.get("/buysellapi/users/me/");
@@ -64,35 +86,8 @@ const RegionAddressGenerator = () => {
       }
     } catch (error) {
       console.error(error);
-      toast.error("Unable to load user information.");
     } finally {
       setIsLoadingUser(false);
-      checkExistingUserAddress();
-    }
-  };
-
-  const checkExistingUserAddress = async () => {
-    try {
-      const resp = await API.get("/buysellapi/shipping-marks/me/");
-      const data = resp?.data;
-      if (data && data.markId) {
-        setExistingAddress(data);
-        setHasAddress(true);
-        localStorage.setItem("userShippingMark", JSON.stringify(data));
-        return true;
-      }
-      setHasAddress(false);
-      setExistingAddress(null);
-      return false;
-    } catch (err) {
-      if (err?.response?.status === 404) {
-        setHasAddress(false);
-        setExistingAddress(null);
-        return false;
-      }
-      setHasAddress(false);
-      setExistingAddress(null);
-      return false;
     }
   };
 
@@ -121,7 +116,8 @@ const RegionAddressGenerator = () => {
       if (data && data.markId) {
         setExistingAddress(data);
         setHasAddress(true);
-        localStorage.setItem("userShippingMark", JSON.stringify(data));
+        setFullName(data.name || data.full_name || fullName);
+        localStorage.setItem(USER_SHIPPING_MARK_KEY, JSON.stringify(data));
         revealThisRegion();
         toast.success("Shipping address generated successfully!");
       } else {
@@ -132,7 +128,8 @@ const RegionAddressGenerator = () => {
         const data = err.response.data;
         setExistingAddress(data);
         setHasAddress(true);
-        localStorage.setItem("userShippingMark", JSON.stringify(data));
+        setFullName(data.name || data.full_name || fullName);
+        localStorage.setItem(USER_SHIPPING_MARK_KEY, JSON.stringify(data));
         revealThisRegion();
         toast.info("You already have a shipping mark. Showing existing address.");
       } else if (err?.response?.status === 401 || err?.response?.status === 403) {

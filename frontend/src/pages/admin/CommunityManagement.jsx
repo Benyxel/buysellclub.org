@@ -11,6 +11,9 @@ const CommunityManagement = () => {
   const [membershipAmount, setMembershipAmount] = useState(0);
   const [salePrice, setSalePrice] = useState(0);
   const [telegramLink, setTelegramLink] = useState("");
+  const [googleSheetUrl, setGoogleSheetUrl] = useState("");
+  const [sheetOnlyPrice, setSheetOnlyPrice] = useState(0);
+  const [sheetOnlyLabel, setSheetOnlyLabel] = useState("Suppliers only");
   const [requests, setRequests] = useState([]);
   const [previewProof, setPreviewProof] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -25,6 +28,9 @@ const CommunityManagement = () => {
       setMembershipAmount(Number(response.data?.membership_amount || 0));
       setSalePrice(Number(response.data?.sale_price || 0));
       setTelegramLink(response.data?.telegram_link || "");
+      setGoogleSheetUrl(response.data?.google_sheet_url || "");
+      setSheetOnlyPrice(Number(response.data?.sheet_only_price || 0));
+      setSheetOnlyLabel(response.data?.sheet_only_label || "Suppliers only");
     } catch (error) {
       console.error("Failed to fetch community settings:", error);
       toast.error("Failed to load community settings");
@@ -68,6 +74,9 @@ const CommunityManagement = () => {
         membership_amount: membershipAmount,
         sale_price: salePrice,
         telegram_link: telegramLink,
+        google_sheet_url: googleSheetUrl,
+        sheet_only_price: sheetOnlyPrice,
+        sheet_only_label: sheetOnlyLabel,
       });
       localStorage.setItem("communitySettingsUpdatedAt", String(Date.now()));
       toast.success("Community settings updated.");
@@ -190,6 +199,45 @@ const CommunityManagement = () => {
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
             />
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Google Sheet URL
+            </label>
+            <input
+              type="url"
+              value={googleSheetUrl}
+              onChange={(e) => setGoogleSheetUrl(e.target.value)}
+              placeholder="https://docs.google.com/spreadsheets/..."
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Sheet only price (GHS)
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={sheetOnlyPrice}
+              onChange={(e) => setSheetOnlyPrice(parseFloat(e.target.value) || 0)}
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+            />
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">For users who don&apos;t want to become members but want the sheet only.</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Sheet only label
+            </label>
+            <input
+              type="text"
+              value={sheetOnlyLabel}
+              onChange={(e) => setSheetOnlyLabel(e.target.value)}
+              placeholder="Suppliers only"
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+            />
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Display name shown to users (e.g. &quot;Suppliers only&quot;). Members get sheet access too.</p>
+          </div>
           <div className="flex justify-end">
             <button
               onClick={handleSave}
@@ -231,6 +279,9 @@ const CommunityManagement = () => {
                     User
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                    Type
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
                     Amount (GHS)
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
@@ -254,7 +305,7 @@ const CommunityManagement = () => {
                 {requests.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={8}
                       className="px-4 py-6 text-center text-gray-500 dark:text-gray-400"
                     >
                       No community requests yet.
@@ -275,6 +326,9 @@ const CommunityManagement = () => {
                       <div className="text-xs text-gray-500 dark:text-gray-400">
                         {req.user_email || ""}
                       </div>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
+                      {req.request_type === "sheet_only" ? "Sheet only" : "Membership"}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
                       ₵{Number(req.membership_amount || 0).toFixed(2)}

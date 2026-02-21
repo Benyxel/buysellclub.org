@@ -7,6 +7,7 @@ import {
   FaCheck,
   FaShieldAlt,
   FaInfoCircle,
+  FaYoutube,
 } from "react-icons/fa";
 import { toast } from "../utils/toast";
 
@@ -54,12 +55,21 @@ const Donate = () => {
               <FaHeart className="w-8 h-8" />
             </div>
             <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-2">
-              Support Buy Sell Club
+              Support Fofoofo TV
             </h1>
-            <p className="text-gray-600 dark:text-gray-400 text-lg">
+            <p className="text-gray-600 dark:text-gray-400 text-lg mb-4">
               Your donation helps us serve our community better. Thank you for
               giving {displayAmount}.
             </p>
+            <a
+              href="https://www.youtube.com/c/Fofoofotv?sub_confirmation=1"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-medium transition"
+            >
+              <FaYoutube className="w-6 h-6" />
+              Subscribe on YouTube
+            </a>
           </div>
 
           {/* Amount selection (optional) */}

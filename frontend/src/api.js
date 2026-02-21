@@ -40,6 +40,7 @@ const resolveBaseUrl = () => {
   }
 
   // Default to relative paths so Vite proxy (localhost:5173 -> :8000) keeps working.
+  // In production/live, set VITE_API_BASE_URL so requests go to the API server (e.g. https://apibuysellclub.org).
   return "";
 };
 
@@ -160,6 +161,18 @@ api.interceptors.response.use(
         error.message.toLowerCase().includes("timeout"));
     if (isTimeout) {
       error.message = "timeout please try again";
+    }
+
+    // Attach full request URL to error for debugging 404s (e.g. in live/production)
+    const requestUrl = originalRequest.baseURL && originalRequest.url
+      ? `${originalRequest.baseURL.replace(/\/+$/, "")}${originalRequest.url.startsWith("/") ? originalRequest.url : `/${originalRequest.url}`}`
+      : originalRequest.url || url;
+    if (error.response) {
+      error.response.requestUrl = requestUrl;
+    }
+    // Log 404s so you can see which resource failed (helpful in live mode)
+    if (status === 404) {
+      console.warn("[API] 404 Not Found:", requestUrl);
     }
 
     // Suppress console errors for expected 404s on shipping-marks/me endpoint
@@ -294,7 +307,7 @@ const Api = {
     update: (id, payload) => http.put(`/buysellapi/orders/${id}/`, payload),
     remove: (id) => http.delete(`/buysellapi/orders/${id}/`),
     adminList: (params) => http.get("/buysellapi/admin/orders/", { params }),
-    payment: (id) => http.post(`/buysellapi/orders/${id}/payment/`),
+    payment: (id, body) => http.post(`/buysellapi/orders/${id}/payment/`, body || {}),
   },
   buy4me: {
     list: (params) => http.get("/buysellapi/buy4me-requests/", { params }),
@@ -509,6 +522,8 @@ const Api = {
       update: (payload) => http.post("/buysellapi/community/settings/", payload),
     },
     myRequest: (config = {}) => http.get("/buysellapi/community/requests/me/", config),
+    sheetData: (config = {}) =>
+      http.get("/buysellapi/community/sheet-data/", { noCache: true, cacheDuration: 0, ...config }),
     submitRequest: (payload) => http.post("/buysellapi/community/requests/", payload),
     adminRequests: (config = {}) =>
       http.get("/buysellapi/admin/community/requests/", config),

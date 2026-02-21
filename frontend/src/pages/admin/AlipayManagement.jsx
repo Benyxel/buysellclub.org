@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+const SEARCH_DEBOUNCE_MS = 300;
 import {
   FaExchangeAlt,
   FaAlipay,
@@ -41,8 +42,12 @@ const AlipayManagement = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [users, setUsers] = useState([]);
   const [userSearchTerm, setUserSearchTerm] = useState("");
+  const [userSearchResults, setUserSearchResults] = useState([]);
+  const [userSearchLoading, setUserSearchLoading] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [selectedUserForForm, setSelectedUserForForm] = useState(null);
   const statusOverridesRef = useRef({});
+  const searchDebounceRef = useRef(null);
   const [createForm, setCreateForm] = useState({
     user: "",
     accountType: "personal",
@@ -63,11 +68,11 @@ const AlipayManagement = () => {
     proofOfPaymentPreview: "",
   });
 
-  // Fetch users for dropdown
+  // Fetch users for dropdown (initial list when modal opens)
   const fetchUsers = useCallback(async () => {
     try {
       const response = await API.get("/buysellapi/users/", {
-        params: { page_size: 1000 },
+        params: { page_size: 200 },
         noCache: true,
         cacheDuration: 0,
       });
@@ -79,6 +84,49 @@ const AlipayManagement = () => {
       console.error("Error fetching users:", error);
     }
   }, []);
+
+  // Server-side user search (thorough: name, email, username, contact, mark_id)
+  const searchUsers = useCallback(async (query) => {
+    const q = (query || "").trim();
+    if (!q) {
+      setUserSearchResults([]);
+      return;
+    }
+    setUserSearchLoading(true);
+    try {
+      const response = await API.get("/buysellapi/users/", {
+        params: { q, page_size: 50 },
+        noCache: true,
+        cacheDuration: 0,
+      });
+      const data = Array.isArray(response.data)
+        ? response.data
+        : response.data?.results || [];
+      setUserSearchResults(data);
+    } catch (err) {
+      console.error("User search error:", err);
+      setUserSearchResults([]);
+    } finally {
+      setUserSearchLoading(false);
+    }
+  }, []);
+
+  // Debounced search when typing in create-payment user field
+  useEffect(() => {
+    if (!showCreateModal) return;
+    const term = (userSearchTerm || "").trim();
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    if (term.length >= 2) {
+      searchDebounceRef.current = setTimeout(() => {
+        searchUsers(term);
+      }, SEARCH_DEBOUNCE_MS);
+    } else {
+      setUserSearchResults([]);
+    }
+    return () => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    };
+  }, [showCreateModal, userSearchTerm, searchUsers]);
 
   // Define fetchPayments before useEffect to avoid TDZ errors when referencing in deps
   const fetchPayments = useCallback(async () => {
@@ -454,7 +502,6 @@ const AlipayManagement = () => {
   };
 
   const handleCreatePayment = () => {
-    // Reset form and fetch current exchange rate
     setCreateForm({
       user: "",
       accountType: "personal",
@@ -475,6 +522,8 @@ const AlipayManagement = () => {
       proofOfPaymentPreview: "",
     });
     setUserSearchTerm("");
+    setUserSearchResults([]);
+    setSelectedUserForForm(null);
     setShowUserDropdown(false);
     setShowCreateModal(true);
   };
@@ -576,7 +625,7 @@ const AlipayManagement = () => {
         formData.append("proofOfPayment", createForm.proofOfPaymentPreview);
       }
 
-      const response = await API.post("/buysellapi/admin/alipay-payments/create", formData, {
+      await API.post("/buysellapi/admin/alipay-payments/create", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
@@ -1272,7 +1321,7 @@ const AlipayManagement = () => {
                           setShowUserDropdown(true);
                         }}
                         onFocus={() => setShowUserDropdown(true)}
-                        placeholder="Search by name or email..."
+                        placeholder="Search by name, email, username, phone, or mark..."
                         className="mt-1 block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                       />
                       {createForm.user && (
@@ -1281,6 +1330,7 @@ const AlipayManagement = () => {
                           onClick={() => {
                             setCreateForm({ ...createForm, user: "" });
                             setUserSearchTerm("");
+                            setSelectedUserForForm(null);
                           }}
                           className="absolute right-2 top-2.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                         >
@@ -1290,48 +1340,76 @@ const AlipayManagement = () => {
                     </div>
                     {showUserDropdown && userSearchTerm && (
                       <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg max-h-60 overflow-auto">
-                        {users
-                          .filter((user) => {
-                            const searchLower = userSearchTerm.toLowerCase();
-                            const name = (user.full_name || user.username || "").toLowerCase();
-                            const email = (user.email || "").toLowerCase();
-                            return name.includes(searchLower) || email.includes(searchLower);
-                          })
-                          .slice(0, 10)
-                          .map((user) => (
-                            <div
-                              key={user.id}
-                              onClick={() => {
-                                setCreateForm({ ...createForm, user: user.id });
-                                setUserSearchTerm(`${user.full_name || user.username} (${user.email})`);
-                                setShowUserDropdown(false);
-                              }}
-                              className="px-4 py-2 hover:bg-blue-50 dark:hover:bg-gray-700 cursor-pointer border-b border-gray-200 dark:border-gray-700 last:border-b-0"
-                            >
-                              <div className="font-medium text-gray-900 dark:text-white">
-                                {user.full_name || user.username}
-                              </div>
-                              <div className="text-sm text-gray-500 dark:text-gray-400">
-                                {user.email}
-                              </div>
-                            </div>
-                          ))}
-                        {users.filter((user) => {
-                          const searchLower = userSearchTerm.toLowerCase();
-                          const name = (user.full_name || user.username || "").toLowerCase();
-                          const email = (user.email || "").toLowerCase();
-                          return name.includes(searchLower) || email.includes(searchLower);
-                        }).length === 0 && (
-                          <div className="px-4 py-2 text-gray-500 dark:text-gray-400 text-sm">
-                            No users found
+                        {userSearchLoading ? (
+                          <div className="px-4 py-3 text-gray-500 dark:text-gray-400 text-sm flex items-center gap-2">
+                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent" />
+                            Searching...
                           </div>
-                        )}
+                        ) : (() => {
+                          const searchLower = userSearchTerm.trim().toLowerCase();
+                          const useServerResults = searchLower.length >= 2 && userSearchResults.length >= 0;
+                          const list = useServerResults
+                            ? userSearchResults
+                            : users.filter((user) => {
+                                if (!searchLower) return true;
+                                const name = (user.full_name || user.username || "").toLowerCase();
+                                const uname = (user.username || "").toLowerCase();
+                                const email = (user.email || "").toLowerCase();
+                                const contact = (user.contact || "").toLowerCase();
+                                const idStr = String(user.id || "");
+                                return (
+                                  name.includes(searchLower) ||
+                                  uname.includes(searchLower) ||
+                                  email.includes(searchLower) ||
+                                  contact.includes(searchLower) ||
+                                  (idStr && idStr.includes(searchLower))
+                                );
+                              });
+                          const displayList = list.slice(0, 15);
+                          return (
+                            <>
+                              {displayList.map((user) => (
+                                <div
+                                  key={user.id}
+                                  onClick={() => {
+                                    setCreateForm({ ...createForm, user: user.id });
+                                    setUserSearchTerm(`${user.full_name || user.username} (${user.email})`);
+                                    setSelectedUserForForm(user);
+                                    setUserSearchResults([]);
+                                    setShowUserDropdown(false);
+                                  }}
+                                  className="px-4 py-2 hover:bg-blue-50 dark:hover:bg-gray-700 cursor-pointer border-b border-gray-200 dark:border-gray-700 last:border-b-0"
+                                >
+                                  <div className="font-medium text-gray-900 dark:text-white">
+                                    {user.full_name || user.username}
+                                  </div>
+                                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                                    {user.email}
+                                    {user.contact ? ` · ${user.contact}` : ""}
+                                  </div>
+                                </div>
+                              ))}
+                              {displayList.length === 0 && (
+                                <div className="px-4 py-2 text-gray-500 dark:text-gray-400 text-sm">
+                                  {searchLower.length < 2
+                                    ? "Type 2+ characters to search all users"
+                                    : "No users found"}
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
                       </div>
                     )}
                   </div>
                   {createForm.user && (
                     <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                      Selected: {users.find((u) => u.id === parseInt(createForm.user))?.full_name || users.find((u) => u.id === parseInt(createForm.user))?.username} ({users.find((u) => u.id === parseInt(createForm.user))?.email})
+                      Selected: {selectedUserForForm
+                        ? `${selectedUserForForm.full_name || selectedUserForForm.username} (${selectedUserForForm.email})`
+                        : (() => {
+                            const u = users.find((u) => u.id === parseInt(createForm.user, 10));
+                            return u ? `${u.full_name || u.username} (${u.email})` : `User #${createForm.user}`;
+                          })()}
                     </div>
                   )}
                 </div>

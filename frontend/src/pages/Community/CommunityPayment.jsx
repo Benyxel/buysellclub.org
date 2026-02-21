@@ -1,16 +1,21 @@
 import React, { useEffect, useState } from "react";
 import { FaInfoCircle, FaMoneyBillWave, FaAlipay, FaUpload } from "react-icons/fa";
 import { toast } from "../../utils/toast";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Api } from "../../api";
 
 const CommunityPayment = () => {
+  const [searchParams] = useSearchParams();
+  const isSheetOnly = searchParams.get("type") === "sheet_only";
   const [membershipAmount, setMembershipAmount] = useState(0);
   const [salePrice, setSalePrice] = useState(0);
+  const [sheetOnlyPrice, setSheetOnlyPrice] = useState(0);
+  const [sheetOnlyLabel, setSheetOnlyLabel] = useState("Suppliers only");
   const [proofOfPayment, setProofOfPayment] = useState(null);
   const [proofOfPaymentPreview, setProofOfPaymentPreview] = useState("");
   const [loading, setLoading] = useState(false);
   const [requestStatus, setRequestStatus] = useState(null);
+  const [requestType, setRequestType] = useState(null);
 
   const fetchSettingsAndStatus = async () => {
     try {
@@ -20,15 +25,25 @@ const CommunityPayment = () => {
       ]);
       setMembershipAmount(Number(settingsResp.data?.membership_amount || 0));
       setSalePrice(Number(settingsResp.data?.sale_price || 0));
+      setSheetOnlyPrice(Number(settingsResp.data?.sheet_only_price || 0));
+      setSheetOnlyLabel(settingsResp.data?.sheet_only_label || "Suppliers only");
       setRequestStatus(requestResp.data?.request?.status || null);
+      setRequestType(requestResp.data?.request?.request_type || null);
     } catch (error) {
       console.error("Failed to load community payment info:", error);
       toast.error("Failed to load payment information");
     }
   };
 
-  const amountToPay =
-    salePrice > 0 && salePrice < membershipAmount ? salePrice : membershipAmount;
+  const amountToPay = isSheetOnly
+    ? sheetOnlyPrice
+    : (salePrice > 0 && salePrice < membershipAmount ? salePrice : membershipAmount);
+
+  // Block submit only when: pending (any), or approved for *this* flow (same request_type)
+  const isBlockedForThisFlow =
+    requestStatus === "pending" ||
+    (requestStatus === "approved" &&
+      ((isSheetOnly && requestType === "sheet_only") || (!isSheetOnly && requestType === "membership")));
 
   useEffect(() => {
     fetchSettingsAndStatus();
@@ -84,8 +99,9 @@ const CommunityPayment = () => {
       setLoading(true);
       await Api.community.submitRequest({
         proof_of_payment: proofOfPaymentPreview,
+        request_type: isSheetOnly ? "sheet_only" : "membership",
       });
-      toast.success("Community request submitted. Await admin approval.");
+      toast.success(isSheetOnly ? `${sheetOnlyLabel} request submitted. Await admin approval.` : "Community request submitted. Await admin approval.");
       setProofOfPayment(null);
       setProofOfPaymentPreview("");
       await fetchSettingsAndStatus();
@@ -125,24 +141,31 @@ const CommunityPayment = () => {
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Community Payment
+              {isSheetOnly ? `Pay for ${sheetOnlyLabel} only` : "Community Payment"}
             </h1>
             <Link
-              to="/Community"
+              to={isSheetOnly ? "/Community" : "/Community"}
               className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
             >
               Back to Join Community
             </Link>
           </div>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-            Complete payment using the details below and upload your proof.
+            {isSheetOnly
+              ? `Pay the one-time fee and upload proof to get access to the ${sheetOnlyLabel} sheet.`
+              : "Complete payment using the details below and upload your proof."}
           </p>
         </div>
 
-        {requestStatus && requestStatus !== "rejected" && (
+        {isBlockedForThisFlow && (
           <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-2xl p-5 text-sm text-yellow-900 dark:text-yellow-100">
-            You already have a {requestStatus} request. Submit a new proof only if your
+            You already have a {requestStatus} {isSheetOnly ? `${sheetOnlyLabel} ` : "membership "}request. Submit a new proof only if your
             previous request was rejected.
+          </div>
+        )}
+        {isSheetOnly && sheetOnlyPrice <= 0 && (
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-2xl p-5 text-sm text-red-900 dark:text-red-100">
+            {sheetOnlyLabel} purchase is not available at the moment. <Link to="/Community" className="underline">Back to Community</Link>
           </div>
         )}
 
@@ -224,12 +247,12 @@ const CommunityPayment = () => {
               Amount to Pay
             </h4>
             <div className="flex justify-between items-center">
-              <span className="text-gray-700 dark:text-gray-300">Membership Fee:</span>
+              <span className="text-gray-700 dark:text-gray-300">{isSheetOnly ? `${sheetOnlyLabel} (one-time):` : "Membership Fee:"}</span>
               <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                 ₵{amountToPay.toFixed(2)}
               </span>
             </div>
-            {salePrice > 0 && salePrice < membershipAmount && (
+            {!isSheetOnly && salePrice > 0 && salePrice < membershipAmount && (
               <div className="flex justify-between items-center mt-2 text-sm text-gray-600 dark:text-gray-400">
                 <span>Regular Price:</span>
                 <span className="line-through">₵{membershipAmount.toFixed(2)}</span>
@@ -268,7 +291,7 @@ const CommunityPayment = () => {
             </div>
             <button
               type="submit"
-              disabled={loading || (requestStatus && requestStatus !== "rejected")}
+              disabled={loading || isBlockedForThisFlow || (isSheetOnly && sheetOnlyPrice <= 0)}
               className="w-full py-3 rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? "Submitting..." : "Submit Proof"}

@@ -294,7 +294,7 @@ const VendorSales = ({ embedded = false }) => {
         <div>
           <h2 className="text-lg font-semibold text-gray-800 dark:text-white">Request payout</h2>
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            Request to be paid when 70% or more of your inventory (for a product) is sold. Provide Momo or bank details.
+            Request to be paid when 40% or more of your inventory (for a product) is sold. Provide Momo or bank details.
           </p>
         </div>
       </div>
@@ -312,9 +312,9 @@ const VendorSales = ({ embedded = false }) => {
             <strong>Value of inventory left (unsold):</strong> ₵{Number(eligibility.inventory_value_remaining ?? 0).toFixed(2)}
           </p>
           {eligibility.eligible ? (
-            <p className="text-green-600 dark:text-green-400 font-medium">You can request a payout (70%+ of at least one product sold).</p>
+            <p className="text-green-600 dark:text-green-400 font-medium">You can request a payout (40%+ of at least one product sold).</p>
           ) : (
-            <p className="text-amber-600 dark:text-amber-400">Request when at least 70% of a product’s inventory is sold.</p>
+            <p className="text-amber-600 dark:text-amber-400">Request when at least 40% of a product’s inventory is sold.</p>
           )}
         </div>
       )}
@@ -325,7 +325,7 @@ const VendorSales = ({ embedded = false }) => {
               Amount to request: <strong className="text-lg">₵{Number(eligibility.remaining_payable ?? 0).toFixed(2)}</strong>
             </p>
             <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-              This is your total earned from sales (minus any payouts already approved or paid). You can request when 70%+ of a product’s inventory is sold.
+              This is your total earned from sales (minus any payouts already approved or paid). You can request when 40%+ of a product’s inventory is sold.
             </p>
           </div>
         )}

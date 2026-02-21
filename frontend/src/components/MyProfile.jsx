@@ -2616,20 +2616,20 @@ const MyProfile = () => {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-8">
           {/* Sidebar Navigation */}
           <div className="lg:col-span-1">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-1.5 sm:p-4">
-              <nav className="space-y-0.5 sm:space-y-2">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 sm:p-4">
+              <nav className="space-y-1 sm:space-y-2">
                 <button
                   onClick={() => {
                     setActiveTab("profile");
                     if (isMobile) setShowTabModal(true);
                   }}
-                  className={`w-full flex items-center gap-1.5 sm:gap-3 px-2.5 sm:px-4 py-1.5 sm:py-3 rounded-lg transition-colors text-xs sm:text-base ${
+                  className={`w-full flex items-center gap-2.5 sm:gap-3 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-lg transition-colors text-base ${
                     activeTab === "profile"
                       ? "bg-primary text-white"
                       : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
                   }`}
                 >
-                  <FaUser className="w-3.5 h-3.5 sm:w-5 sm:h-5 shrink-0" />
+                  <FaUser className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
                   Profile
                 </button>
                 <button
@@ -2637,14 +2637,14 @@ const MyProfile = () => {
                     setActiveTab("tracking");
                     if (isMobile) setShowTabModal(true);
                   }}
-                  className={`w-full flex items-center gap-1.5 sm:gap-3 px-2.5 sm:px-4 py-1.5 sm:py-3 rounded-lg transition-colors text-xs sm:text-base ${
+                  className={`w-full flex items-center gap-2.5 sm:gap-3 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-lg transition-colors text-base ${
                     activeTab === "tracking"
                       ? "bg-primary text-white"
                       : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
                   }`}
                 >
                   <FaTruck
-                    className={`w-3.5 h-3.5 sm:w-5 sm:h-5 shrink-0 ${
+                    className={`w-4 h-4 sm:w-5 sm:h-5 shrink-0 ${
                       activeTab === "tracking" ? "animate-truck" : ""
                     }`}
                   />
@@ -2655,13 +2655,13 @@ const MyProfile = () => {
                     setActiveTab("alipay");
                     if (isMobile) setShowTabModal(true);
                   }}
-                  className={`w-full flex items-center gap-1.5 sm:gap-3 px-2.5 sm:px-4 py-1.5 sm:py-3 rounded-lg transition-colors text-xs sm:text-base ${
+                  className={`w-full flex items-center gap-2.5 sm:gap-3 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-lg transition-colors text-base ${
                     activeTab === "alipay"
                       ? "bg-primary text-white"
                       : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
                   }`}
                 >
-                  <FaAlipay className="w-3.5 h-3.5 sm:w-5 sm:h-5 shrink-0" />
+                  <FaAlipay className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
                   Alipay Payment
                 </button>
                 <button
@@ -2669,13 +2669,13 @@ const MyProfile = () => {
                     setActiveTab("buy4me");
                     if (isMobile) setShowTabModal(true);
                   }}
-                  className={`w-full flex items-center gap-1.5 sm:gap-3 px-2.5 sm:px-4 py-1.5 sm:py-3 rounded-lg transition-colors text-xs sm:text-base ${
+                  className={`w-full flex items-center gap-2.5 sm:gap-3 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-lg transition-colors text-base ${
                     activeTab === "buy4me"
                       ? "bg-primary text-white"
                       : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
                   }`}
                 >
-                  <FaShoppingCart className="w-3.5 h-3.5 sm:w-5 sm:h-5 shrink-0" />
+                  <FaShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
                   Buy4Me
                 </button>
                 <button
@@ -2683,13 +2683,13 @@ const MyProfile = () => {
                     setActiveTab("orders");
                     if (isMobile) setShowTabModal(true);
                   }}
-                  className={`w-full flex items-center gap-1.5 sm:gap-3 px-2.5 sm:px-4 py-1.5 sm:py-3 rounded-lg transition-colors text-xs sm:text-base ${
+                  className={`w-full flex items-center gap-2.5 sm:gap-3 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-lg transition-colors text-base ${
                     activeTab === "orders"
                       ? "bg-primary text-white"
                       : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
                   }`}
                 >
-                  <FaShoppingBag className="w-3.5 h-3.5 sm:w-5 sm:h-5 shrink-0" />
+                  <FaShoppingBag className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
                   Orders
                 </button>
                 <button
@@ -2697,16 +2697,16 @@ const MyProfile = () => {
                     setActiveTab("updates");
                     if (isMobile) setShowTabModal(true);
                   }}
-                  className={`w-full flex items-center gap-1.5 sm:gap-3 px-2.5 sm:px-4 py-1.5 sm:py-3 rounded-lg transition-colors text-xs sm:text-base relative ${
+                  className={`w-full flex items-center gap-2.5 sm:gap-3 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-lg transition-colors text-base relative ${
                     activeTab === "updates"
                       ? "bg-primary text-white"
                       : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
                   }`}
                 >
-                  <FaBell className="w-3.5 h-3.5 sm:w-5 sm:h-5 shrink-0" />
+                  <FaBell className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
                   Updates
                   {unreadCount > 0 && (
-                    <span className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 bg-red-500 text-white text-[10px] sm:text-xs font-semibold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full min-w-[16px] sm:min-w-[20px] text-center">
+                    <span className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 bg-red-500 text-white text-xs font-semibold px-2 py-1 rounded-full min-w-[20px] text-center">
                       {unreadCount}
                     </span>
                   )}
@@ -2716,13 +2716,13 @@ const MyProfile = () => {
                     setActiveTab("settings");
                     if (isMobile) setShowTabModal(true);
                   }}
-                  className={`w-full flex items-center gap-1.5 sm:gap-3 px-2.5 sm:px-4 py-1.5 sm:py-3 rounded-lg transition-colors text-xs sm:text-base ${
+                  className={`w-full flex items-center gap-2.5 sm:gap-3 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-lg transition-colors text-base ${
                     activeTab === "settings"
                       ? "bg-primary text-white"
                       : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
                   }`}
                 >
-                  <FaCog className="w-3.5 h-3.5 sm:w-5 sm:h-5 shrink-0" />
+                  <FaCog className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
                   Settings
                 </button>
                 <button
@@ -2730,13 +2730,13 @@ const MyProfile = () => {
                     setActiveTab("shippingmark");
                     if (isMobile) setShowTabModal(true);
                   }}
-                  className={`w-full flex items-center gap-1.5 sm:gap-3 px-2.5 sm:px-4 py-1.5 sm:py-3 rounded-lg transition-colors text-xs sm:text-base ${
+                  className={`w-full flex items-center gap-2.5 sm:gap-3 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-lg transition-colors text-base ${
                     activeTab === "shippingmark"
                       ? "bg-primary text-white"
                       : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
                   }`}
                 >
-                  <FaMapMarkerAlt className="w-3.5 h-3.5 sm:w-5 sm:h-5 shrink-0" />
+                  <FaMapMarkerAlt className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
                   Shipping Mark
                 </button>
                 <button
@@ -2744,20 +2744,20 @@ const MyProfile = () => {
                     setActiveTab("seller");
                     if (isMobile) setShowTabModal(true);
                   }}
-                  className={`w-full flex items-center gap-1.5 sm:gap-3 px-2.5 sm:px-4 py-1.5 sm:py-3 rounded-lg transition-colors text-xs sm:text-base ${
+                  className={`w-full flex items-center gap-2.5 sm:gap-3 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-lg transition-colors text-base ${
                     activeTab === "seller"
                       ? "bg-primary text-white"
                       : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
                   }`}
                 >
-                  <FaStore className="w-3.5 h-3.5 sm:w-5 sm:h-5 shrink-0" />
+                  <FaStore className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
                   {vendorMe?.is_vendor ? "View Vendor sales" : "Become a Seller"}
                 </button>
                 <button
                   onClick={handleLogout}
-                  className="w-full flex items-center gap-1.5 sm:gap-3 px-2.5 sm:px-4 py-1.5 sm:py-3 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-xs sm:text-base"
+                  className="w-full flex items-center gap-2.5 sm:gap-3 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-base"
                 >
-                  <FaSignOutAlt className="w-3.5 h-3.5 sm:w-5 sm:h-5 shrink-0" />
+                  <FaSignOutAlt className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
                   Logout
                 </button>
               </nav>

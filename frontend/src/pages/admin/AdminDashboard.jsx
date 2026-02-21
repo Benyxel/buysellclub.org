@@ -53,6 +53,7 @@ import ShippingRatesManagement from "./ShippingRatesManagement";
 import AdShippingRatesManagement from "./AdShippingRatesManagement";
 import AirAdShippingServicesManagement from "./AirAdShippingServicesManagement";
 import ContainerManagement from "../../components/ContainerManagement";
+import ContainerExpensesManagement from "./ContainerExpensesManagement";
 import InvoicesManagement from "./InvoicesManagement";
 import Buy4meAdmin from "./Buy4meAdmin";
 import QuickOrderProducts from "./QuickOrderProducts";
@@ -1099,6 +1100,21 @@ const AdminDashboard = () => {
                   </div>
                 </button>
 
+                {/* 2b. Container Expenses */}
+                <button
+                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
+                    shippingSubMenu === "container-expenses"
+                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                  onClick={() => setShippingSubMenu("container-expenses")}
+                >
+                  <div className="flex items-center gap-2">
+                    <FaDollarSign className="w-4 h-4" />
+                    <span>Container Expenses</span>
+                  </div>
+                </button>
+
                 {/* 3. Invoices */}
                 <button
                   className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
@@ -1283,6 +1299,8 @@ const AdminDashboard = () => {
               <QuickTrackingNotesManagement />
             ) : shippingSubMenu === "containers" ? (
               <ContainerManagement />
+            ) : shippingSubMenu === "container-expenses" ? (
+              <ContainerExpensesManagement />
             ) : shippingSubMenu === "invoices" ? (
               <InvoicesManagement />
             ) : shippingSubMenu === "rates" ? (

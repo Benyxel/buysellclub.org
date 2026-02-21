@@ -11,9 +11,22 @@ import { Link } from "react-router-dom";
 import { toast } from "../utils/toast";
 import API from "../api";
 
+// Same key as China address / profile shipping mark tab – one mark for all regions
+const USER_SHIPPING_MARK_KEY = "userShippingMark";
+
 // Dubai / UAE warehouse base address – update with actual details when available
 const DUBAI_BASE_ADDRESS =
   "BUYSELLCLUB UAE Warehouse, Phone: TBD, Address: [Dubai warehouse address – to be updated] *";
+
+const getStoredShippingMark = () => {
+  try {
+    const raw = localStorage.getItem(USER_SHIPPING_MARK_KEY);
+    const data = raw ? JSON.parse(raw) : null;
+    return data && data.markId ? data : null;
+  } catch {
+    return null;
+  }
+};
 
 const DubaiAddressGenerator = () => {
   const [fullName, setFullName] = useState("");
@@ -23,6 +36,7 @@ const DubaiAddressGenerator = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
 
+  // China-address logic: use stored address first; do not fetch from backend on every open
   useEffect(() => {
     const token =
       localStorage.getItem("token") || localStorage.getItem("adminToken");
@@ -31,55 +45,28 @@ const DubaiAddressGenerator = () => {
       setIsLoadingUser(false);
       return;
     }
-    loadCurrentUser();
+    const stored = getStoredShippingMark();
+    if (stored) {
+      setExistingAddress(stored);
+      setHasAddress(true);
+      setFullName(stored.name || stored.full_name || "");
+      setIsLoadingUser(false);
+      return;
+    }
+    loadCurrentUserForName();
   }, []);
 
-  const loadCurrentUser = async () => {
+  const loadCurrentUserForName = async () => {
     try {
       setIsLoadingUser(true);
       const response = await API.get("/buysellapi/users/me/");
       if (response.data && (response.data.full_name || response.data.username)) {
         setFullName(response.data.full_name || response.data.username);
-      } else {
-        toast.error("Unable to load user information. Please try again.");
       }
     } catch (error) {
       console.error("Error loading current user:", error);
-      toast.error("Unable to load user information. Please try again.");
     } finally {
       setIsLoadingUser(false);
-      checkExistingUserAddress();
-    }
-  };
-
-  const checkExistingUserAddress = async () => {
-    try {
-      const resp = await API.get("/buysellapi/shipping-marks/me/");
-      const data = resp?.data;
-      if (data && data.markId) {
-        setExistingAddress(data);
-        setHasAddress(true);
-        localStorage.setItem("userShippingMark", JSON.stringify(data));
-        return true;
-      }
-      setHasAddress(false);
-      setExistingAddress(null);
-      return false;
-    } catch (err) {
-      if (err?.response?.status === 401 || err?.response?.status === 403) {
-        toast.error("Please log in to view your shipping address.");
-        setHasAddress(false);
-        setExistingAddress(null);
-        return false;
-      }
-      if (err?.response?.status === 404) {
-        setHasAddress(false);
-        setExistingAddress(null);
-        return false;
-      }
-      setHasAddress(false);
-      setExistingAddress(null);
-      return false;
     }
   };
 
@@ -104,7 +91,8 @@ const DubaiAddressGenerator = () => {
       if (data && data.markId) {
         setExistingAddress(data);
         setHasAddress(true);
-        localStorage.setItem("userShippingMark", JSON.stringify(data));
+        setFullName(data.name || data.full_name || fullName);
+        localStorage.setItem(USER_SHIPPING_MARK_KEY, JSON.stringify(data));
         toast.success("Shipping address generated successfully!");
       } else {
         toast.error("Unexpected response. Please try again or contact support.");
@@ -114,7 +102,8 @@ const DubaiAddressGenerator = () => {
         const data = err.response.data;
         setExistingAddress(data);
         setHasAddress(true);
-        localStorage.setItem("userShippingMark", JSON.stringify(data));
+        setFullName(data.name || data.full_name || fullName);
+        localStorage.setItem(USER_SHIPPING_MARK_KEY, JSON.stringify(data));
         toast.info("You already have a shipping mark. Showing existing address.");
       } else if (err?.response?.status === 401 || err?.response?.status === 403) {
         toast.error("Your session has expired. Please log in again.");
@@ -122,6 +111,35 @@ const DubaiAddressGenerator = () => {
       } else {
         const msg = err?.response?.data?.message || err?.response?.data?.error || err?.message || "Failed to create shipping address.";
         toast.error(msg);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadExistingFromServer = async () => {
+    try {
+      setIsLoading(true);
+      const resp = await API.get("/buysellapi/shipping-marks/me/");
+      const data = resp?.data;
+      if (data && data.markId) {
+        setExistingAddress(data);
+        setHasAddress(true);
+        setFullName(data.name || data.full_name || fullName);
+        localStorage.setItem(USER_SHIPPING_MARK_KEY, JSON.stringify(data));
+        toast.success("Address loaded and saved for next time.");
+      } else {
+        setHasAddress(false);
+        setExistingAddress(null);
+      }
+    } catch (err) {
+      if (err?.response?.status === 401 || err?.response?.status === 403) {
+        toast.error("Please log in to view your shipping address.");
+      } else if (err?.response?.status === 404) {
+        setHasAddress(false);
+        setExistingAddress(null);
+      } else {
+        toast.error("Could not load address. You can generate one above.");
       }
     } finally {
       setIsLoading(false);
@@ -256,10 +274,11 @@ const DubaiAddressGenerator = () => {
             ) : (
               <div className="flex justify-center py-8">
                 <button
-                  onClick={checkExistingUserAddress}
-                  className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
+                  onClick={loadExistingFromServer}
+                  disabled={isLoading}
+                  className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-70"
                 >
-                  Check for existing address
+                  {isLoading ? "Loading…" : "Load existing address from server"}
                 </button>
               </div>
             )}

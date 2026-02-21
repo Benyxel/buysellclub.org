@@ -77,6 +77,21 @@ const TrainingManagement = ({ showCoursesTab = true }) => {
     defaultTrainingCost: '',
     notes: '',
   });
+  const [showAddBookingModal, setShowAddBookingModal] = useState(false);
+  const [addBookingForm, setAddBookingForm] = useState({
+    email: '',
+    name: '',
+    phone: '',
+    booking_date: '',
+    booking_time: '09:30',
+    training_cost: '',
+    payment_status: 'pending',
+    status: 'pending',
+    notes: '',
+    has_valid_passport: true,
+  });
+  const [addBookingLookupLoading, setAddBookingLookupLoading] = useState(false);
+  const [addBookingSubmitLoading, setAddBookingSubmitLoading] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -144,7 +159,7 @@ const TrainingManagement = ({ showCoursesTab = true }) => {
     }
   }, [showCoursesTab, activeTab, setSearchParams]);
 
-  const fetchBookings = async (forceRefresh = false) => {
+  const fetchBookings = async () => {
     try {
       setLoading(true);
       // Always fetch fresh data
@@ -258,6 +273,19 @@ const TrainingManagement = ({ showCoursesTab = true }) => {
     setShowModal(true);
   };
 
+  const updateBookingPaymentStatus = async (bookingId, newPaymentStatus) => {
+    try {
+      await API.put(`/buysellapi/admin/training-bookings/${bookingId}/`, {
+        paymentStatus: newPaymentStatus,
+      });
+      toast.success('Payment status updated');
+      fetchBookings();
+    } catch (error) {
+      const errMsg = error.response?.data?.detail || error.response?.data?.error || error.response?.data?.payment_status?.[0] || error.message || 'Failed to update payment status';
+      toast.error(errMsg);
+    }
+  };
+
   const updateBookingStatus = async (bookingId, newStatus) => {
     try {
       console.log('Updating booking status:', bookingId, 'to', newStatus);
@@ -265,7 +293,7 @@ const TrainingManagement = ({ showCoursesTab = true }) => {
       console.log('Status update response:', response);
       toast.success('Booking status updated successfully');
       // Refresh bookings
-      fetchBookings(true);
+      fetchBookings();
     } catch (error) {
       console.error('Error updating booking status:', error);
       console.error('Error response:', error.response?.data);
@@ -309,7 +337,7 @@ const TrainingManagement = ({ showCoursesTab = true }) => {
           (b) => String(b.id || b.booking_id) !== String(bookingToDelete)
         )
       );
-      await fetchBookings(true);
+      await fetchBookings();
     } catch (error) {
       console.error("Error deleting booking:", error);
       const errorMsg =
@@ -422,19 +450,81 @@ const TrainingManagement = ({ showCoursesTab = true }) => {
     }
   };
 
-  const getPaymentStatusBadge = (status) => {
-    const statusConfig = {
-      pending: { color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200', label: 'Pending' },
-      paid: { color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200', label: 'Paid' },
-      failed: { color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200', label: 'Failed' },
-      refunded: { color: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200', label: 'Refunded' },
-    };
-    const config = statusConfig[status] || statusConfig.pending;
-    return (
-      <span className={`px-2 py-1 rounded-full text-xs font-medium ${config.color}`}>
-        {config.label}
-      </span>
-    );
+  const lookupClientByEmail = async () => {
+    const email = (addBookingForm.email || '').trim().toLowerCase();
+    if (!email) {
+      toast.error('Enter client email to look up');
+      return;
+    }
+    setAddBookingLookupLoading(true);
+    try {
+      const res = await API.get('/buysellapi/admin/users/by-email/', { params: { email } });
+      const d = res.data;
+      setAddBookingForm((prev) => ({
+        ...prev,
+        name: d.full_name || prev.name,
+        phone: d.contact || prev.phone,
+        email: d.email || email,
+      }));
+      toast.success('Client details loaded');
+    } catch (err) {
+      if (err.response?.status === 404) {
+        toast.error('No user found with this email. Client must have an account.');
+      } else {
+        toast.error(err.response?.data?.error || 'Failed to look up client');
+      }
+    } finally {
+      setAddBookingLookupLoading(false);
+    }
+  };
+
+  const handleAddBookingSubmit = async (e) => {
+    e.preventDefault();
+    const email = (addBookingForm.email || '').trim().toLowerCase();
+    const name = (addBookingForm.name || '').trim();
+    if (!email && !name) {
+      toast.error('Enter client email (to look up) or name (for unregistered client)');
+      return;
+    }
+    if (!addBookingForm.booking_date) {
+      toast.error('Booking date is required');
+      return;
+    }
+    setAddBookingSubmitLoading(true);
+    try {
+      await API.post('/buysellapi/admin/training-bookings/create/', {
+        email: addBookingForm.email || undefined,
+        name: addBookingForm.name || undefined,
+        phone: addBookingForm.phone || undefined,
+        booking_date: addBookingForm.booking_date,
+        booking_time: addBookingForm.booking_time,
+        training_cost: addBookingForm.training_cost ? parseFloat(addBookingForm.training_cost) : undefined,
+        payment_status: addBookingForm.payment_status,
+        status: addBookingForm.status,
+        notes: addBookingForm.notes,
+        has_valid_passport: addBookingForm.has_valid_passport,
+      });
+      toast.success('Training booking added');
+      setShowAddBookingModal(false);
+      setAddBookingForm({
+        email: '',
+        name: '',
+        phone: '',
+        booking_date: '',
+        booking_time: '09:30',
+        training_cost: '',
+        payment_status: 'pending',
+        status: 'pending',
+        notes: '',
+        has_valid_passport: true,
+      });
+      fetchBookings();
+    } catch (err) {
+      const msg = err.response?.data?.error || err.response?.data?.detail?.[0] || err.message || 'Failed to add booking';
+      toast.error(msg);
+    } finally {
+      setAddBookingSubmitLoading(false);
+    }
   };
 
   const getStatusBadge = (status) => {
@@ -478,16 +568,34 @@ const TrainingManagement = ({ showCoursesTab = true }) => {
         <div>
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold text-gray-800 dark:text-white">Training Bookings</h2>
-            <button
-              onClick={() => {
-                fetchTrainingSettings();
-                setShowSettingsModal(true);
-              }}
-              className="bg-pink-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-2 hover:bg-pink-700 transition-colors text-sm"
-            >
-              <FaDollarSign />
-              Default Cost
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={async () => {
+                  setShowAddBookingModal(true);
+                  try {
+                    const res = await Api.training.settings();
+                    const cost = res.data?.defaultTrainingCost ?? res.data?.default_training_cost;
+                    if (cost != null) setAddBookingForm((prev) => ({ ...prev, training_cost: String(cost) }));
+                  } catch {
+                    // use form default
+                  }
+                }}
+                className="bg-primary text-white px-3 py-1.5 rounded-lg flex items-center gap-2 hover:bg-primary/90 transition-colors text-sm"
+              >
+                <FaPlus />
+                Add Booking
+              </button>
+              <button
+                onClick={() => {
+                  fetchTrainingSettings();
+                  setShowSettingsModal(true);
+                }}
+                className="bg-pink-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-2 hover:bg-pink-700 transition-colors text-sm"
+              >
+                <FaDollarSign />
+                Default Cost
+              </button>
+            </div>
           </div>
 
           {loading ? (
@@ -542,7 +650,18 @@ const TrainingManagement = ({ showCoursesTab = true }) => {
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-3">{getPaymentStatusBadge(booking.paymentStatus || booking.payment_status || 'pending')}</td>
+                      <td className="px-4 py-3">
+                        <select
+                          value={booking.paymentStatus || booking.payment_status || 'pending'}
+                          onChange={(e) => updateBookingPaymentStatus(booking.id, e.target.value)}
+                          className="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        >
+                          <option value="pending">Pending</option>
+                          <option value="paid">Paid</option>
+                          <option value="failed">Failed</option>
+                          <option value="refunded">Refunded</option>
+                        </select>
+                      </td>
                       <td className="px-4 py-3">{getStatusBadge(booking.status)}</td>
                       <td className="px-4 py-3">
                         <div className="flex gap-2">
@@ -1002,6 +1121,180 @@ const TrainingManagement = ({ showCoursesTab = true }) => {
                   className="px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700"
                 >
                   Update
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Training Booking Modal */}
+      {showAddBookingModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-4">
+              Add Training Booking for Client
+            </h3>
+            <form onSubmit={handleAddBookingSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Client email (optional for unregistered)
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="email"
+                    value={addBookingForm.email}
+                    onChange={(e) => setAddBookingForm((prev) => ({ ...prev, email: e.target.value }))}
+                    className="flex-1 p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    placeholder="client@gmail.com"
+                  />
+                  <button
+                    type="button"
+                    onClick={lookupClientByEmail}
+                    disabled={addBookingLookupLoading}
+                    className="px-3 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 text-sm whitespace-nowrap"
+                  >
+                    {addBookingLookupLoading ? 'Loading…' : 'Look up'}
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Registered: enter email and click Look up to auto-fill. Unregistered: leave email empty and enter name below.
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name *</label>
+                <input
+                  type="text"
+                  value={addBookingForm.name}
+                  onChange={(e) => setAddBookingForm((prev) => ({ ...prev, name: e.target.value }))}
+                  className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  placeholder="Full name (required if client is not registered)"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Phone</label>
+                <input
+                  type="text"
+                  value={addBookingForm.phone}
+                  onChange={(e) => setAddBookingForm((prev) => ({ ...prev, phone: e.target.value }))}
+                  className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  placeholder="Phone number"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Booking date *</label>
+                  <input
+                    type="date"
+                    value={addBookingForm.booking_date}
+                    onChange={(e) => setAddBookingForm((prev) => ({ ...prev, booking_date: e.target.value }))}
+                    className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Time</label>
+                  <select
+                    value={addBookingForm.booking_time}
+                    onChange={(e) => setAddBookingForm((prev) => ({ ...prev, booking_time: e.target.value }))}
+                    className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  >
+                    <option value="09:30">9:30 AM</option>
+                    <option value="12:30">12:30 PM</option>
+                    <option value="15:00">3:00 PM</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cost (GHS)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={addBookingForm.training_cost}
+                    onChange={(e) => setAddBookingForm((prev) => ({ ...prev, training_cost: e.target.value }))}
+                    className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    placeholder="Uses default if empty"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Payment status</label>
+                  <select
+                    value={addBookingForm.payment_status}
+                    onChange={(e) => setAddBookingForm((prev) => ({ ...prev, payment_status: e.target.value }))}
+                    className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="paid">Paid</option>
+                    <option value="failed">Failed</option>
+                    <option value="refunded">Refunded</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Booking status</label>
+                <select
+                  value={addBookingForm.status}
+                  onChange={(e) => setAddBookingForm((prev) => ({ ...prev, status: e.target.value }))}
+                  className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                >
+                  <option value="pending">Pending</option>
+                  <option value="confirmed">Confirmed</option>
+                  <option value="completed">Completed</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
+                <textarea
+                  value={addBookingForm.notes}
+                  onChange={(e) => setAddBookingForm((prev) => ({ ...prev, notes: e.target.value }))}
+                  className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  rows={2}
+                  placeholder="Optional notes"
+                />
+              </div>
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="add_booking_passport"
+                  checked={addBookingForm.has_valid_passport}
+                  onChange={(e) => setAddBookingForm((prev) => ({ ...prev, has_valid_passport: e.target.checked }))}
+                  className="h-4 w-4 text-primary border-gray-300 rounded"
+                />
+                <label htmlFor="add_booking_passport" className="ml-2 text-sm text-gray-700 dark:text-gray-300">
+                  Client has valid passport
+                </label>
+              </div>
+              <div className="flex justify-end gap-4 mt-6">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddBookingModal(false);
+                    setAddBookingForm({
+                      email: '',
+                      name: '',
+                      phone: '',
+                      booking_date: '',
+                      booking_time: '09:30',
+                      training_cost: '',
+                      payment_status: 'pending',
+                      status: 'pending',
+                      notes: '',
+                      has_valid_passport: true,
+                    });
+                  }}
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={addBookingSubmitLoading}
+                  className="px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 disabled:opacity-70"
+                >
+                  {addBookingSubmitLoading ? 'Adding…' : 'Add Booking'}
                 </button>
               </div>
             </form>

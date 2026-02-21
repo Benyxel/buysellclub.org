@@ -13,6 +13,7 @@ import {
   FaCalendarWeek,
   FaCalendarAlt,
   FaUsers,
+  FaTimes,
 } from "react-icons/fa";
 import {
   ResponsiveContainer,
@@ -33,9 +34,9 @@ const Analytics = ({ activeTab = "overview" }) => {
   const [error, setError] = useState(null);
   const [selectedPeriod, setSelectedPeriod] = useState("all"); // all, daily, monthly, yearly
   const [alipayPeriod, setAlipayPeriod] = useState("daily");
-  const [buy4mePeriod, setBuy4mePeriod] = useState("daily");
-  const [ordersPeriod, setOrdersPeriod] = useState("daily");
-  const [trainingPeriod, setTrainingPeriod] = useState("daily");
+  const [buy4mePeriod, setBuy4mePeriod] = useState("monthly");
+  const [ordersPeriod, setOrdersPeriod] = useState("monthly");
+  const [trainingPeriod, setTrainingPeriod] = useState("all");
   const [communityPeriod, setCommunityPeriod] = useState("daily");
   const [alipayPage, setAlipayPage] = useState(1);
   const [buy4mePage, setBuy4mePage] = useState(1);
@@ -45,6 +46,9 @@ const Analytics = ({ activeTab = "overview" }) => {
   const [trends, setTrends] = useState(null);
   const [trendsLoading, setTrendsLoading] = useState(true);
   const [trendsError, setTrendsError] = useState(null);
+  const [showAllContainersModal, setShowAllContainersModal] = useState(false);
+  const [showAllMonthlyModal, setShowAllMonthlyModal] = useState(false);
+  const [showAllYearlyModal, setShowAllYearlyModal] = useState(false);
 
   useEffect(() => {
     fetchAnalytics();
@@ -164,7 +168,12 @@ const Analytics = ({ activeTab = "overview" }) => {
       setAnalytics(response.data);
     } catch (err) {
       console.error("Error fetching analytics:", err);
-      setError(err.response?.data?.detail || "Failed to load analytics");
+      const is404 = err.response?.status === 404;
+      const requestUrl = err.response?.requestUrl;
+      const message = is404 && requestUrl
+        ? `Analytics not found (404). Check API URL: ${requestUrl}`
+        : err.response?.data?.detail || "Failed to load analytics";
+      setError(message);
       toast.error("Failed to load analytics data");
     } finally {
       setLoading(false);
@@ -218,9 +227,12 @@ const Analytics = ({ activeTab = "overview" }) => {
       setTrends(response.data);
     } catch (err) {
       console.error("Error fetching analytics trends:", err);
-      setTrendsError(
-        err.response?.data?.detail || "Failed to load analytics trends"
-      );
+      const is404 = err.response?.status === 404;
+      const requestUrl = err.response?.requestUrl;
+      const message = is404 && requestUrl
+        ? `Analytics trends not found (404). Check that the API is reachable at: ${requestUrl}`
+        : err.response?.data?.detail || "Failed to load analytics trends";
+      setTrendsError(message);
       toast.error("Failed to load performance highlights");
     } finally {
       setTrendsLoading(false);
@@ -365,6 +377,77 @@ const Analytics = ({ activeTab = "overview" }) => {
                     </p>
                   </div>
                 </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
+                    <p className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
+                      Sourcing fee (Buy4me)
+                    </p>
+                    <p className="text-xl font-bold text-amber-600 dark:text-amber-400">
+                      ₵{Number(trends.overview.total_sourcing_fee_buy4me ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                      From proof of payment (admin-set fee)
+                    </p>
+                  </div>
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
+                    <p className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
+                      5% charge (Buy4me)
+                    </p>
+                    <p className="text-xl font-bold text-teal-600 dark:text-teal-400">
+                      ₵{Number(trends.overview.total_5_percent_paid_invoices ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                      Service fee on paid Buy4me invoices
+                    </p>
+                  </div>
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
+                    <p className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
+                      Shop profit
+                    </p>
+                    <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
+                      ₵{Number(trends.overview.shop_profit ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                      Admin charge on paid shop orders
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
+                    <p className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
+                      Container total shipping fee
+                    </p>
+                    <p className="text-xl font-bold text-blue-600 dark:text-blue-400">
+                      ₵{Number(trends.overview.container_total_shipping_fee ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                      Total amount from all container invoices (GHS)
+                    </p>
+                  </div>
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
+                    <p className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
+                      Container expenses
+                    </p>
+                    <p className="text-xl font-bold text-amber-600 dark:text-amber-400">
+                      ₵{Number(trends.overview.container_total_expenses ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                      Total expenses recorded for containers
+                    </p>
+                  </div>
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
+                    <p className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
+                      Container profit
+                    </p>
+                    <p className={`text-xl font-bold ${Number(trends.overview.container_profit ?? 0) >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                      ₵{Number(trends.overview.container_profit ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                      Total amount − expenses
+                    </p>
+                  </div>
+                </div>
 
                 <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 shadow-sm">
                   <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-3">
@@ -497,87 +580,498 @@ const Analytics = ({ activeTab = "overview" }) => {
             </div>
           </div>
 
-          {/* Containers Breakdown */}
-          {analytics.shipping?.containers &&
-            analytics.shipping.containers.length > 0 && (
-              <div className="mt-6">
-                <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-3">
-                  By Container
-                </h4>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead className="bg-gray-50 dark:bg-gray-700">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                          Container
-                        </th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                          Total Amount
-                        </th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                          Total (GHS)
-                        </th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                          Collected
-                        </th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                          Collected (GHS)
-                        </th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                          Remaining
-                        </th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                          Remaining (GHS)
-                        </th>
-                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                          Invoices
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                      {analytics.shipping.containers.map((container) => (
-                        <tr key={container.container_id}>
-                          <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
-                            {container.container_number}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
-                            {formatCurrency(container.total_amount)}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
-                            ₵{Number(container.total_amount_ghs || 0).toLocaleString("en-US", {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            })}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-right text-green-600 dark:text-green-400">
-                            {formatCurrency(container.collected)}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-right text-green-600 dark:text-green-400">
-                            ₵{Number(container.collected_ghs || 0).toLocaleString("en-US", {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            })}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-right text-orange-600 dark:text-orange-400">
-                            {formatCurrency(container.remaining)}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-right text-orange-600 dark:text-orange-400">
-                            ₵{Number(container.remaining_ghs || 0).toLocaleString("en-US", {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            })}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-center text-gray-600 dark:text-gray-400">
-                            {container.paid_count}/{container.invoice_count}{" "}
-                            Paid
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+          {/* Container expense & profit summary */}
+          {analytics.container_profit && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400">Container total shipping fee</p>
+                <p className="text-xl font-bold text-gray-800 dark:text-white">
+                  ₵{Number(analytics.container_profit.total_shipping_fee ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
               </div>
-            )}
+              <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400">Container expenses</p>
+                <p className="text-xl font-bold text-amber-600 dark:text-amber-400">
+                  ₵{Number(analytics.container_profit.total_expenses ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+              </div>
+              <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400">Container profit</p>
+                <p className={`text-xl font-bold ${Number(analytics.container_profit.profit ?? 0) >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                  ₵{Number(analytics.container_profit.profit ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Containers Breakdown – first 5 shown; "View all" opens popup */}
+          {analytics.shipping?.containers &&
+            analytics.shipping.containers.length > 0 && (() => {
+              const CONTAINERS_PREVIEW_LIMIT = 5;
+              const containers = analytics.shipping.containers;
+              const previewContainers = containers.slice(0, CONTAINERS_PREVIEW_LIMIT);
+              const hasMore = containers.length > CONTAINERS_PREVIEW_LIMIT;
+              const renderContainerRow = (container) => (
+                <tr key={container.container_id}>
+                  <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
+                    {container.container_number}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
+                    ₵{Number(container.total_amount_ghs || 0).toLocaleString("en-US", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-right text-orange-600 dark:text-orange-400">
+                    ₵{Number(container.remaining_ghs ?? container.remaining ?? 0).toLocaleString("en-US", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-right text-blue-600 dark:text-blue-400">
+                    ₵{Number(container.collected_ghs ?? 0).toLocaleString("en-US", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-right text-amber-600 dark:text-amber-400">
+                    ₵{Number(container.total_expenses ?? 0).toLocaleString("en-US", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-right">
+                    <span
+                      className={
+                        Number(container.profit ?? 0) >= 0
+                          ? "text-green-600 dark:text-green-400"
+                          : "text-red-600 dark:text-red-400"
+                      }
+                    >
+                      ₵{Number(container.profit ?? 0).toLocaleString("en-US", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-sm text-center text-gray-600 dark:text-gray-400">
+                    {container.paid_count}/{container.invoice_count} Paid
+                  </td>
+                </tr>
+              );
+              return (
+                <div className="mt-6">
+                  <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-3">
+                    By Container (invoice remaining, expenses & profit)
+                  </h4>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                      <thead className="bg-gray-50 dark:bg-gray-700">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                            Container
+                          </th>
+                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                            Total Amount
+                          </th>
+                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                            Remaining
+                          </th>
+                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                            Total collected
+                          </th>
+                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                            Expenses
+                          </th>
+                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                            Profit
+                          </th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                            Invoices
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                        {previewContainers.map(renderContainerRow)}
+                      </tbody>
+                    </table>
+                  </div>
+                  {hasMore && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAllContainersModal(true)}
+                      className="mt-3 px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      View all containers ({containers.length})
+                    </button>
+                  )}
+                  {/* Popup: all containers */}
+                  {showAllContainersModal && (
+                    <div
+                      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+                      onClick={() => setShowAllContainersModal(false)}
+                      role="dialog"
+                      aria-modal="true"
+                      aria-label="All containers"
+                    >
+                      <div
+                        className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-6xl w-full max-h-[90vh] flex flex-col"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+                          <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
+                            All containers ({containers.length})
+                          </h3>
+                          <button
+                            type="button"
+                            onClick={() => setShowAllContainersModal(false)}
+                            className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+                            aria-label="Close"
+                          >
+                            <FaTimes className="w-5 h-5" />
+                          </button>
+                        </div>
+                        <div className="overflow-auto flex-1 p-4">
+                          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
+                              <tr>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                  Container
+                                </th>
+                                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                  Total Amount
+                                </th>
+                                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                  Remaining
+                                </th>
+                                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                  Total collected
+                                </th>
+                                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                  Expenses
+                                </th>
+                                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                  Profit
+                                </th>
+                                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                  Invoices
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                              {containers.map(renderContainerRow)}
+                            </tbody>
+                          </table>
+                        </div>
+                        <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+                          <button
+                            type="button"
+                            onClick={() => setShowAllContainersModal(false)}
+                            className="w-full sm:w-auto px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600"
+                          >
+                            Close
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+          {/* Monthly & yearly container expenses and profit */}
+          {analytics.container_profit?.monthly?.length > 0 ||
+            analytics.container_profit?.yearly?.length > 0 ? (
+            <div className="mt-8">
+              <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-3">
+                Container expenses & profit by period
+              </h4>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {analytics.container_profit.monthly?.length > 0 && (() => {
+                  const MONTHLY_PREVIEW_LIMIT = 2;
+                  const monthlyRows = [...(analytics.container_profit.monthly || [])].reverse();
+                  const previewMonthly = monthlyRows.slice(0, MONTHLY_PREVIEW_LIMIT);
+                  const hasMoreMonthly = monthlyRows.length > MONTHLY_PREVIEW_LIMIT;
+                  const renderMonthlyRow = (row, i) => (
+                    <tr key={row.month || i}>
+                      <td className="px-3 py-2 text-gray-900 dark:text-white">
+                        {row.month
+                          ? new Date(row.month).toLocaleDateString("en-US", {
+                              month: "short",
+                              year: "numeric",
+                            })
+                          : "—"}
+                      </td>
+                      <td className="px-3 py-2 text-right text-blue-600 dark:text-blue-400">
+                        ₵{Number(row.total_shipping_fee ?? 0).toLocaleString("en-US", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </td>
+                      <td className="px-3 py-2 text-right text-amber-600 dark:text-amber-400">
+                        ₵{Number(row.total_expenses ?? 0).toLocaleString("en-US", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <span
+                          className={
+                            Number(row.profit ?? 0) >= 0
+                              ? "text-green-600 dark:text-green-400"
+                              : "text-red-600 dark:text-red-400"
+                          }
+                        >
+                          ₵{Number(row.profit ?? 0).toLocaleString("en-US", {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                  return (
+                    <div>
+                      <h5 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+                        Monthly
+                      </h5>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
+                          <thead className="bg-gray-50 dark:bg-gray-700">
+                            <tr>
+                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                Month
+                              </th>
+                              <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                Fee
+                              </th>
+                              <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                Expenses
+                              </th>
+                              <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                Profit
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                            {previewMonthly.map(renderMonthlyRow)}
+                          </tbody>
+                        </table>
+                      </div>
+                      {hasMoreMonthly && (
+                        <button
+                          type="button"
+                          onClick={() => setShowAllMonthlyModal(true)}
+                          className="mt-3 px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          View all months ({monthlyRows.length})
+                        </button>
+                      )}
+                      {showAllMonthlyModal && (
+                        <div
+                          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+                          onClick={() => setShowAllMonthlyModal(false)}
+                          role="dialog"
+                          aria-modal="true"
+                          aria-label="All monthly records"
+                        >
+                          <div
+                            className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+                              <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
+                                All monthly records ({monthlyRows.length})
+                              </h3>
+                              <button
+                                type="button"
+                                onClick={() => setShowAllMonthlyModal(false)}
+                                className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                aria-label="Close"
+                              >
+                                <FaTimes className="w-5 h-5" />
+                              </button>
+                            </div>
+                            <div className="overflow-auto flex-1 p-4">
+                              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
+                                <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
+                                  <tr>
+                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                      Month
+                                    </th>
+                                    <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                      Fee
+                                    </th>
+                                    <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                      Expenses
+                                    </th>
+                                    <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                      Profit
+                                    </th>
+                                  </tr>
+                                </thead>
+                                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                  {monthlyRows.map(renderMonthlyRow)}
+                                </tbody>
+                              </table>
+                            </div>
+                            <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+                              <button
+                                type="button"
+                                onClick={() => setShowAllMonthlyModal(false)}
+                                className="w-full sm:w-auto px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600"
+                              >
+                                Close
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+                {analytics.container_profit.yearly?.length > 0 && (() => {
+                  const YEARLY_PREVIEW_LIMIT = 2;
+                  const yearlyRows = [...(analytics.container_profit.yearly || [])].reverse();
+                  const previewYearly = yearlyRows.slice(0, YEARLY_PREVIEW_LIMIT);
+                  const renderYearlyRow = (row, i) => (
+                    <tr key={row.year || i}>
+                      <td className="px-3 py-2 text-gray-900 dark:text-white">
+                        {row.year
+                          ? new Date(row.year).getFullYear()
+                          : "—"}
+                      </td>
+                      <td className="px-3 py-2 text-right text-blue-600 dark:text-blue-400">
+                        ₵{Number(row.total_shipping_fee ?? 0).toLocaleString("en-US", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </td>
+                      <td className="px-3 py-2 text-right text-amber-600 dark:text-amber-400">
+                        ₵{Number(row.total_expenses ?? 0).toLocaleString("en-US", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <span
+                          className={
+                            Number(row.profit ?? 0) >= 0
+                              ? "text-green-600 dark:text-green-400"
+                              : "text-red-600 dark:text-red-400"
+                          }
+                        >
+                          ₵{Number(row.profit ?? 0).toLocaleString("en-US", {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                  return (
+                    <div>
+                      <h5 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+                        Yearly
+                      </h5>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
+                          <thead className="bg-gray-50 dark:bg-gray-700">
+                            <tr>
+                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                Year
+                              </th>
+                              <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                Fee
+                              </th>
+                              <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                Expenses
+                              </th>
+                              <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                Profit
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                            {previewYearly.map(renderYearlyRow)}
+                          </tbody>
+                        </table>
+                      </div>
+                      {yearlyRows.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setShowAllYearlyModal(true)}
+                          className="mt-3 px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          View all years ({yearlyRows.length})
+                        </button>
+                      )}
+                      {showAllYearlyModal && (
+                        <div
+                          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+                          onClick={() => setShowAllYearlyModal(false)}
+                          role="dialog"
+                          aria-modal="true"
+                          aria-label="All yearly records"
+                        >
+                          <div
+                            className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+                              <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
+                                All yearly records ({yearlyRows.length})
+                              </h3>
+                              <button
+                                type="button"
+                                onClick={() => setShowAllYearlyModal(false)}
+                                className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                aria-label="Close"
+                              >
+                                <FaTimes className="w-5 h-5" />
+                              </button>
+                            </div>
+                            <div className="overflow-auto flex-1 p-4">
+                              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
+                                <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
+                                  <tr>
+                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                      Year
+                                    </th>
+                                    <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                      Fee
+                                    </th>
+                                    <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                      Expenses
+                                    </th>
+                                    <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                                      Profit
+                                    </th>
+                                  </tr>
+                                </thead>
+                                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                  {yearlyRows.map(renderYearlyRow)}
+                                </tbody>
+                              </table>
+                            </div>
+                            <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+                              <button
+                                type="button"
+                                onClick={() => setShowAllYearlyModal(false)}
+                                className="w-full sm:w-auto px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600"
+                              >
+                                Close
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          ) : null}
         </div>
       )}
 
@@ -1027,6 +1521,16 @@ const Analytics = ({ activeTab = "overview" }) => {
           </div>
           <div className="flex flex-wrap gap-2 mb-6">
             <button
+              onClick={() => setBuy4mePeriod("all")}
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
+                buy4mePeriod === "all"
+                  ? "bg-purple-600 text-white"
+                  : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+              }`}
+            >
+              All Time
+            </button>
+            <button
               onClick={() => setBuy4mePeriod("daily")}
               className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
                 buy4mePeriod === "daily"
@@ -1075,6 +1579,22 @@ const Analytics = ({ activeTab = "overview" }) => {
               <p className="text-3xl font-bold text-gray-900 dark:text-white">
                 {analytics.buy4me?.total_requests || 0}
               </p>
+              {(analytics.buy4me?.total_sourcing_fee != null || analytics.buy4me?.total_5_percent_paid_invoices != null) && (
+                <div className="mt-4 space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600 dark:text-gray-400">Sourcing fee (from proof):</span>
+                    <span className="font-medium text-amber-600 dark:text-amber-400">
+                      ₵{Number(analytics.buy4me.total_sourcing_fee ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600 dark:text-gray-400">5% charge (paid invoices):</span>
+                    <span className="font-medium text-teal-600 dark:text-teal-400">
+                      ₵{Number(analytics.buy4me.total_5_percent_paid_invoices ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+              )}
               {analytics.buy4me?.status_breakdown && (
                 <div className="mt-4 space-y-2">
                   {Object.entries(analytics.buy4me.status_breakdown).map(
@@ -1148,7 +1668,7 @@ const Analytics = ({ activeTab = "overview" }) => {
             </div>
           </div>
 
-          {analytics.buy4me?.time_series && (
+          {analytics.buy4me?.time_series && buy4mePeriod !== "all" && (
             <div className="mt-6">
               <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-3">
                 Buy4me Payments
@@ -1173,6 +1693,12 @@ const Analytics = ({ activeTab = "overview" }) => {
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
                         Amount (GHS)
                       </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                        Sourcing fee (GHS)
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                        5% charge (GHS)
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -1186,6 +1712,12 @@ const Analytics = ({ activeTab = "overview" }) => {
                         </td>
                         <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
                           ₵{Number(row.total || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right text-amber-600 dark:text-amber-400 font-medium">
+                          ₵{Number(row.sourcing_fee ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right text-teal-600 dark:text-teal-400 font-medium">
+                          ₵{Number(row.five_percent ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                       </tr>
                     ))}
@@ -1215,6 +1747,16 @@ const Analytics = ({ activeTab = "overview" }) => {
             </h3>
           </div>
           <div className="flex flex-wrap gap-2 mb-6">
+            <button
+              onClick={() => setOrdersPeriod("all")}
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
+                ordersPeriod === "all"
+                  ? "bg-indigo-600 text-white"
+                  : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+              }`}
+            >
+              All Time
+            </button>
             <button
               onClick={() => setOrdersPeriod("daily")}
               className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
@@ -1320,12 +1862,22 @@ const Analytics = ({ activeTab = "overview" }) => {
                       )}
                     </span>
                   </div>
+                  {analytics.orders?.shop_profit != null && (
+                    <div className="flex justify-between text-sm pt-2 border-t border-gray-200 dark:border-gray-600">
+                      <span className="text-gray-600 dark:text-gray-400">
+                        Shop profit (admin charge):
+                      </span>
+                      <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                        ₵{Number(analytics.orders.shop_profit).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           </div>
 
-          {analytics.orders?.time_series && (
+          {analytics.orders?.time_series && ordersPeriod !== "all" && (
             <div className="mt-6">
               <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-3">
                 Orders
@@ -1350,6 +1902,9 @@ const Analytics = ({ activeTab = "overview" }) => {
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
                         Revenue (GHS)
                       </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                        Admin charge profit (GHS)
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -1363,6 +1918,9 @@ const Analytics = ({ activeTab = "overview" }) => {
                         </td>
                         <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
                           ₵{Number(row.total || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right text-emerald-600 dark:text-emerald-400 font-medium">
+                          ₵{Number(row.profit ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                       </tr>
                     ))}
@@ -1393,6 +1951,16 @@ const Analytics = ({ activeTab = "overview" }) => {
           </div>
 
           <div className="flex flex-wrap gap-2 mb-6">
+            <button
+              onClick={() => setTrainingPeriod("all")}
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
+                trainingPeriod === "all"
+                  ? "bg-yellow-600 text-white"
+                  : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+              }`}
+            >
+              <FaChartLine /> All
+            </button>
             <button
               onClick={() => setTrainingPeriod("daily")}
               className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
@@ -1533,7 +2101,7 @@ const Analytics = ({ activeTab = "overview" }) => {
             </div>
           </div>
 
-          {analytics.training?.time_series && (
+          {analytics.training?.time_series && trainingPeriod !== "all" && (
             <div className="mt-6">
               <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-3">
                 Training Bookings

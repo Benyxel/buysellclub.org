@@ -36,9 +36,12 @@ const JoinCommunity = () => {
   const [settings, setSettings] = useState({
     membership_amount: 0,
     sale_price: 0,
+    sheet_only_price: 0,
+    has_sheet_product: false,
   });
   const [requestInfo, setRequestInfo] = useState(null);
   const [telegramLink, setTelegramLink] = useState("");
+  const [sheetAccessType, setSheetAccessType] = useState(null);
   const [memberName, setMemberName] = useState("");
   const [previewImage, setPreviewImage] = useState(null);
   const isLoggedIn = !!(
@@ -56,9 +59,14 @@ const JoinCommunity = () => {
         const settingsResp = await Api.community.settings.get({
           noCache: true,
         });
-        setSettings(
-          settingsResp.data || { membership_amount: 0, sale_price: 0 }
-        );
+        const d = settingsResp.data || {};
+        setSettings({
+          membership_amount: d.membership_amount ?? 0,
+          sale_price: d.sale_price ?? 0,
+          sheet_only_price: d.sheet_only_price ?? 0,
+          sheet_only_label: d.sheet_only_label || "Suppliers only",
+          has_sheet_product: !!d.has_sheet_product,
+        });
       } catch (e) {
         console.warn("Community settings not loaded (guest or error):", e);
       }
@@ -68,14 +76,17 @@ const JoinCommunity = () => {
           const requestResp = await Api.community.myRequest({ noCache: true });
           setRequestInfo(requestResp.data?.request || null);
           setTelegramLink(requestResp.data?.telegram_link || "");
+          setSheetAccessType(requestResp.data?.sheet_access_type || null);
         } catch (e) {
           console.warn("Community request not loaded:", e);
           setRequestInfo(null);
           setTelegramLink("");
+          setSheetAccessType(null);
         }
       } else {
         setRequestInfo(null);
         setTelegramLink("");
+        setSheetAccessType(null);
       }
     } catch (error) {
       console.error("Failed to load community info:", error);
@@ -125,6 +136,10 @@ const JoinCommunity = () => {
   const basePrice = Number(settings.membership_amount || 0);
   const displayPrice =
     salePrice > 0 && salePrice < basePrice ? salePrice : basePrice;
+  const sheetOnlyPrice = Number(settings.sheet_only_price || 0);
+  const sheetOnlyLabel = settings.sheet_only_label || "Suppliers only";
+  const _hasSheetProduct = settings.has_sheet_product;
+  const hasSheetAccess = sheetAccessType === "member" || sheetAccessType === "sheet_only";
   const expiresAt = requestInfo?.expires_at
     ? new Date(requestInfo.expires_at).toLocaleDateString()
     : "";
@@ -260,8 +275,10 @@ const JoinCommunity = () => {
           </div>
         </div>
 
-        {currentStatus === "approved" && telegramLink ? (
+        {(currentStatus === "approved" && telegramLink) || hasSheetAccess ? (
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-green-200 dark:border-green-700">
+            {currentStatus === "approved" && telegramLink ? (
+              <>
             <div className="flex flex-wrap items-center gap-2 mb-2">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
                 You’re approved 🎉
@@ -294,6 +311,39 @@ const JoinCommunity = () => {
             >
               Join Telegram Group
             </a>
+              </>
+            ) : null}
+            {hasSheetAccess ? (
+              <div className={currentStatus === "approved" && telegramLink ? "mt-6 pt-4 border-t border-gray-200 dark:border-gray-600" : ""}>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                  Suppliers Contacts
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                  {sheetAccessType === "sheet_only"
+                    ? "You have access to the suppliers contacts."
+                    : "As a member, you also have access to the suppliers contacts."}
+                </p>
+                <Link
+                  to="/Community/Suppliers"
+                  className="inline-flex items-center px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+                >
+                  View Suppliers Contacts
+                </Link>
+              </div>
+            ) : null}
+            {sheetAccessType === "sheet_only" && isLoggedIn && (
+              <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-600">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                  Want to join the full community? Become a member and get Telegram access too.
+                </p>
+                <Link
+                  to="/CommunityPayment"
+                  className="inline-flex items-center px-5 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-semibold"
+                >
+                  Become a member (₵{displayPrice.toFixed(2)} yearly)
+                </Link>
+              </div>
+            )}
           </div>
         ) : (
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
@@ -307,26 +357,58 @@ const JoinCommunity = () => {
               Membership is billed yearly. Your expiration date will be shown
               after approval.
             </p>
+            {sheetOnlyPrice > 0 && (
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                Or get the <strong>{sheetOnlyLabel}</strong> sheet only (one-time ₵{sheetOnlyPrice.toFixed(2)}) — no membership required.
+              </p>
+            )}
+            <div className="flex flex-wrap gap-3 items-center">
             {isLoggedIn ? (
+              <>
               <Link
                 to="/CommunityPayment"
                 className="inline-flex items-center px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold"
               >
                 Pay & Submit Proof
               </Link>
+              {sheetOnlyPrice > 0 && (
+                <Link
+                  to="/CommunityPayment?type=sheet_only"
+                  className="inline-flex items-center px-5 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold"
+                >
+                  Purchase {sheetOnlyLabel} (₵{sheetOnlyPrice.toFixed(2)})
+                </Link>
+              )}
+              </>
             ) : (
-              <button
-                type="button"
-                onClick={() =>
-                  navigate("/Signup", {
-                    state: { redirectTo: "/CommunityPayment" },
-                  })
-                }
-                className="inline-flex items-center px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold"
-              >
-                Register to join
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate("/Signup", {
+                      state: { redirectTo: "/CommunityPayment" },
+                    })
+                  }
+                  className="inline-flex items-center px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+                >
+                  Register to join
+                </button>
+                {sheetOnlyPrice > 0 && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate("/Signup", {
+                        state: { redirectTo: "/CommunityPayment?type=sheet_only" },
+                      })
+                    }
+                    className="inline-flex items-center px-5 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold"
+                  >
+                    Sign in to purchase {sheetOnlyLabel}
+                  </button>
+                )}
+              </>
             )}
+            </div>
           </div>
         )}
       </div>
