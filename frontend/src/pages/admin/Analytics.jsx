@@ -604,13 +604,11 @@ const Analytics = ({ activeTab = "overview" }) => {
             </div>
           )}
 
-          {/* Containers Breakdown – first 5 shown; "View all" opens popup */}
-          {analytics.shipping?.containers &&
-            analytics.shipping.containers.length > 0 && (() => {
+          {/* Containers Breakdown – first 5 shown in table; "View all" always available to open popup */}
+          {analytics.shipping && (() => {
+              const containers = Array.isArray(analytics.shipping.containers) ? analytics.shipping.containers : [];
               const CONTAINERS_PREVIEW_LIMIT = 5;
-              const containers = analytics.shipping.containers;
               const previewContainers = containers.slice(0, CONTAINERS_PREVIEW_LIMIT);
-              const hasMore = containers.length > CONTAINERS_PREVIEW_LIMIT;
               const renderContainerRow = (container) => (
                 <tr key={container.container_id}>
                   <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
@@ -692,19 +690,23 @@ const Analytics = ({ activeTab = "overview" }) => {
                         </tr>
                       </thead>
                       <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                        {previewContainers.map(renderContainerRow)}
+                        {previewContainers.length > 0 ? previewContainers.map(renderContainerRow) : (
+                          <tr>
+                            <td colSpan={7} className="px-4 py-6 text-center text-gray-500 dark:text-gray-400">
+                              No containers yet. Create containers under Shipping → Containers.
+                            </td>
+                          </tr>
+                        )}
                       </tbody>
                     </table>
                   </div>
-                  {hasMore && (
-                    <button
-                      type="button"
-                      onClick={() => setShowAllContainersModal(true)}
-                      className="mt-3 px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      View all containers ({containers.length})
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowAllContainersModal(true)}
+                    className="mt-3 px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    View all containers ({containers.length})
+                  </button>
                   {/* Popup: all containers */}
                   {showAllContainersModal && (
                     <div
@@ -759,7 +761,13 @@ const Analytics = ({ activeTab = "overview" }) => {
                               </tr>
                             </thead>
                             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                              {containers.map(renderContainerRow)}
+                              {containers.length > 0 ? containers.map(renderContainerRow) : (
+                                <tr>
+                                  <td colSpan={7} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                                    No containers yet. Create containers under Shipping → Containers.
+                                  </td>
+                                </tr>
+                              )}
                             </tbody>
                           </table>
                         </div>

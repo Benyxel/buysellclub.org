@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import HeroSection from "../components/HeroSection";
+import Event from "../components/Event";
 import Category from "../components/Category";
 import Category2 from "../components/Category2";
 import LastestProducts from "../components/LastestProducts";
@@ -55,6 +56,7 @@ const Home = () => {
   return (
     <div>
       <HeroSection />
+      <Event />
       <Category />
       <Category2 />
       <ServicesC />

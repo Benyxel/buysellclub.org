@@ -171,7 +171,13 @@ api.interceptors.response.use(
       error.response.requestUrl = requestUrl;
     }
     // Log 404s so you can see which resource failed (helpful in live mode)
-    if (status === 404) {
+    // Skip logging for optional endpoints that may not exist on all deployments
+    const isOptional404 =
+      requestUrl.includes("/api/admin/container-expenses") ||
+      (status === 404 &&
+        url.includes("/buysellapi/shipping-marks/me/") &&
+        error.response?.data?.message?.includes("No shipping mark"));
+    if (status === 404 && !isOptional404) {
       console.warn("[API] 404 Not Found:", requestUrl);
     }
 

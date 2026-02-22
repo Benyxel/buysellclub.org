@@ -294,7 +294,7 @@ const MyProfile = () => {
   const [isMobile, setIsMobile] = useState(false);
   const [activeSubTab, setActiveSubTab] = useState("orders");
   const [userShipments, setUserShipments] = useState([]);
-  const [copied, setCopied] = useState(false);
+  const [copiedId, setCopiedId] = useState(null);
   const [shippingMarks, setShippingMarks] = useState([]);
   const [favorites, setFavorites] = useState([]);
   const [orders, setOrders] = useState([]);
@@ -352,6 +352,8 @@ const MyProfile = () => {
     loading: false,
   });
   const [isCommunityMember, setIsCommunityMember] = useState(false);
+  const [communityTelegramLink, setCommunityTelegramLink] = useState("");
+  const [communityHasSheetAccess, setCommunityHasSheetAccess] = useState(false);
   const [showRejectedBadge, setShowRejectedBadge] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
 
@@ -407,9 +409,15 @@ const MyProfile = () => {
       try {
         const response = await Api.community.myRequest({ noCache: true });
         const status = response.data?.request?.status;
-        setIsCommunityMember(status === "approved");
-      } catch (error) {
+        const approved = status === "approved";
+        setIsCommunityMember(approved);
+        setCommunityTelegramLink(response.data?.telegram_link || "");
+        const sheetType = response.data?.sheet_access_type;
+        setCommunityHasSheetAccess(sheetType === "member" || sheetType === "sheet_only");
+      } catch {
         setIsCommunityMember(false);
+        setCommunityTelegramLink("");
+        setCommunityHasSheetAccess(false);
       }
     };
 
@@ -1146,10 +1154,10 @@ const MyProfile = () => {
     setUserInfo({ ...originalUserInfo });
   };
 
-  const copyToClipboard = (text) => {
+  const copyToClipboard = (text, id) => {
     navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setCopiedId(id ?? null);
+    setTimeout(() => setCopiedId(null), 2000);
   };
 
   const clearAddress = (markId) => {
@@ -2727,6 +2735,24 @@ const MyProfile = () => {
                 </button>
                 <button
                   onClick={() => {
+                    if (isCommunityMember) {
+                      setActiveTab("community");
+                      if (isMobile) setShowTabModal(true);
+                    } else {
+                      navigate("/Community");
+                    }
+                  }}
+                  className={`w-full flex items-center gap-2.5 sm:gap-3 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-lg transition-colors text-base ${
+                    activeTab === "community"
+                      ? "bg-primary text-white"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                >
+                  <FaUsers className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+                  Community
+                </button>
+                <button
+                  onClick={() => {
                     setActiveTab("shippingmark");
                     if (isMobile) setShowTabModal(true);
                   }}
@@ -2737,7 +2763,7 @@ const MyProfile = () => {
                   }`}
                 >
                   <FaMapMarkerAlt className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
-                  Shipping Mark
+                  Shipping addresses
                 </button>
                 <button
                   onClick={() => {
@@ -2786,7 +2812,8 @@ const MyProfile = () => {
                     orders: "Orders",
                     updates: "Updates",
                     settings: "Settings",
-                    shippingmark: "Shipping Mark",
+                    shippingmark: "Shipping addresses",
+                    community: "Community",
                     seller: vendorMe?.is_vendor ? "View Vendor sales" : "Become a Seller",
                   }[activeTab] || activeTab}
                 </span>
@@ -2988,12 +3015,70 @@ const MyProfile = () => {
               </div>
             )}
 
-            {/* Shipping Mark Tab */}
+            {/* Community Tab – member card when approved; otherwise prompt to join */}
+            {activeTab === "community" && (
+              <>
+                {isCommunityMember ? (
+                  <div className="space-y-4 sm:space-y-6">
+                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-green-200 dark:border-green-700 overflow-hidden">
+                      <div className="p-4 sm:p-6">
+                        <div className="flex flex-wrap items-center gap-2 mb-3">
+                          <h2 className="text-lg font-semibold text-gray-800 dark:text-white">
+                            You&apos;re approved
+                          </h2>
+                          <span className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200">
+                            Community Member
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                          You have access to supplier contacts and the community Telegram group.
+                        </p>
+                        <div className="flex flex-wrap gap-3">
+                          {communityHasSheetAccess && (
+                            <Link
+                              to="/Community/Suppliers"
+                              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm"
+                            >
+                              View supplier contact
+                            </Link>
+                          )}
+                          {communityTelegramLink && (
+                            <a
+                              href={communityTelegramLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-green-600 hover:bg-green-700 text-white font-medium text-sm"
+                            >
+                              Join Telegram
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-600 p-6 text-center">
+                    <p className="text-gray-600 dark:text-gray-400 mb-4">
+                      You&apos;re not a community member yet. Join to get supplier contacts and access the Telegram group.
+                    </p>
+                    <Link
+                      to="/Community"
+                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-white font-medium hover:opacity-90"
+                    >
+                      <FaUsers className="w-4 h-4" />
+                      Go to Community page
+                    </Link>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Shipping addresses Tab */}
             {activeTab === "shippingmark" && (
               <div className="space-y-4 sm:space-y-6">
                 <div className="flex justify-between items-center">
                   <h2 className="text-base sm:text-xl font-semibold text-gray-800 dark:text-white">
-                    Your Permanent Shipping Mark
+                    Your Shipping Addresses
                   </h2>
                 </div>
 
@@ -3001,37 +3086,35 @@ const MyProfile = () => {
                   <div className="text-center py-8">
                     <FaMapMarkerAlt className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                     <p className="text-gray-600 dark:text-gray-400">
-                      No shipping marks found
+                      No shipping addresses found
                     </p>
                     <Link
                       to="/Fofoofo-address-generator"
                       className="inline-block mt-4 text-primary hover:text-primary/90"
                     >
-                      Generate your permanent shipping mark →
+                      Generate your permanent shipping address →
                     </Link>
                   </div>
                 ) : (
-                  <div>
+                  <div className="space-y-4">
                     {/* Information banner */}
-                    <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg mb-6">
+                    <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
                       <div className="flex items-start gap-2">
                         <FaInfoCircle className="text-blue-500 mt-1" />
                         <div>
                           <p className="text-blue-800 dark:text-blue-200 font-medium mb-1">
-                            Permanent Shipping Address
+                            Permanent Shipping Addresses
                           </p>
                           <p className="text-blue-800 dark:text-blue-200 text-sm">
-                            This is your permanent shipping address for all your
-                            shipments to the fofoofoimport warehouse. Each user
-                            is assigned one shipping mark for easy
-                            identification of your packages.
+                            These are your shipping addresses for shipments to the warehouse. Each address is used for easy identification of your packages.
                           </p>
                         </div>
                       </div>
                     </div>
 
-                    {/* Display the shipping mark */}
-                    {shippingMarks.map((mark) => {
+                    {/* Address cards */}
+                    {shippingMarks.map((mark, markIdx) => {
+                      const copyId = mark._id ?? `m${markIdx}`;
                       const resolvedMarkName =
                         (userInfo?.name && userInfo.name.trim()) ||
                         mark.name ||
@@ -3066,10 +3149,15 @@ const MyProfile = () => {
                             suffix: `"${ghSuffix}`,
                           }
                         : null;
+                      // Dubai / UAE and USA warehouse addresses (same mark, different warehouse formats)
+                      const dubaiBase = "BUYSELLCLUB UAE Warehouse, Phone: TBD, Address: [Dubai warehouse address – to be updated]";
+                      const usaBase = "BUYSELLCLUB USA Warehouse, Phone: TBD, Address: [USA warehouse address – to be updated]";
+                      const dubaiAddressText = displayShippingMark ? `${dubaiBase} ${displayShippingMark}` : "";
+                      const usaAddressText = displayShippingMark ? `${usaBase} ${displayShippingMark}` : "";
                       return (
                       <div
                         key={mark._id}
-                        className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6 hover:shadow-lg transition-shadow border-l-4 border-primary"
+                        className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-600 overflow-hidden"
                       >
                         <div className="flex justify-between items-start mb-4 sm:mb-6">
                           <div>
@@ -3086,19 +3174,12 @@ const MyProfile = () => {
                                 </span>
                               )}
                             </div>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">
-                              Mark ID:{" "}
-                              <span className="font-semibold text-gray-800 dark:text-gray-200">
-                                {mark.markId}
-                              </span>
-                            </p>
                           </div>
                         </div>
-
-                        <div className="space-y-6">
+                        <div className="p-4 sm:p-6 space-y-4">
                           <div>
                             <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
-                              Shipping Mark
+                              Shipping mark (ID)
                             </p>
                             <div className="relative">
                               <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
@@ -3107,10 +3188,10 @@ const MyProfile = () => {
                                 </p>
                               </div>
                               <button
-                                onClick={() => copyToClipboard(displayShippingMark)}
+                                onClick={() => copyToClipboard(displayShippingMark, `${copyId}-mark`)}
                                 className="absolute top-3 right-3 p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                               >
-                                {copied ? (
+                                {copiedId === `${copyId}-mark` ? (
                                   <FaCheck className="w-5 h-5 text-green-500" />
                                 ) : (
                                   <FaCopy className="w-5 h-5" />
@@ -3121,7 +3202,7 @@ const MyProfile = () => {
 
                           <div>
                             <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
-                              Full Address
+                              Full shipping address (China)
                             </p>
                             <div className="relative">
                               <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
@@ -3131,11 +3212,11 @@ const MyProfile = () => {
                               </div>
                               <button
                                 onClick={() =>
-                                  copyToClipboard(defaultAddressText || mark.fullAddress || mark.address)
+                                  copyToClipboard(defaultAddressText || mark.fullAddress || mark.address, `${copyId}-full`)
                                 }
                                 className="absolute top-3 right-3 p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                               >
-                                {copied ? (
+                                {copiedId === `${copyId}-full` ? (
                                   <FaCheck className="w-5 h-5 text-green-500" />
                                 ) : (
                                   <FaCopy className="w-5 h-5" />
@@ -3147,7 +3228,7 @@ const MyProfile = () => {
                           {repackAddressText && (
                             <div>
                               <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
-                                Repack Address
+                                Repack address (China)
                               </p>
                               <div className="relative">
                                 <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
@@ -3164,10 +3245,10 @@ const MyProfile = () => {
                                   </p>
                                 </div>
                                 <button
-                                  onClick={() => copyToClipboard(repackAddressText)}
+                                  onClick={() => copyToClipboard(repackAddressText, `${copyId}-repack`)}
                                   className="absolute top-3 right-3 p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                                 >
-                                  {copied ? (
+                                  {copiedId === `${copyId}-repack` ? (
                                     <FaCheck className="w-5 h-5 text-green-500" />
                                   ) : (
                                     <FaCopy className="w-5 h-5" />
@@ -3180,7 +3261,7 @@ const MyProfile = () => {
                           {airAddressText && (
                             <div>
                               <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
-                                Air Address
+                                Air shipping address (China)
                               </p>
                               <div className="relative">
                                 <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
@@ -3189,10 +3270,60 @@ const MyProfile = () => {
                                   </p>
                                 </div>
                                 <button
-                                  onClick={() => copyToClipboard(airAddressText)}
+                                  onClick={() => copyToClipboard(airAddressText, `${copyId}-air`)}
                                   className="absolute top-3 right-3 p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                                 >
-                                  {copied ? (
+                                  {copiedId === `${copyId}-air` ? (
+                                    <FaCheck className="w-5 h-5 text-green-500" />
+                                  ) : (
+                                    <FaCopy className="w-5 h-5" />
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {dubaiAddressText && (
+                            <div>
+                              <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+                                Dubai / UAE address
+                              </p>
+                              <div className="relative">
+                                <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                  <p className="text-sm text-gray-900 dark:text-white break-all whitespace-pre-line">
+                                    {dubaiAddressText}
+                                  </p>
+                                </div>
+                                <button
+                                  onClick={() => copyToClipboard(dubaiAddressText, `${copyId}-dubai`)}
+                                  className="absolute top-3 right-3 p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                                >
+                                  {copiedId === `${copyId}-dubai` ? (
+                                    <FaCheck className="w-5 h-5 text-green-500" />
+                                  ) : (
+                                    <FaCopy className="w-5 h-5" />
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {usaAddressText && (
+                            <div>
+                              <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+                                USA address
+                              </p>
+                              <div className="relative">
+                                <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                  <p className="text-sm text-gray-900 dark:text-white break-all whitespace-pre-line">
+                                    {usaAddressText}
+                                  </p>
+                                </div>
+                                <button
+                                  onClick={() => copyToClipboard(usaAddressText, `${copyId}-usa`)}
+                                  className="absolute top-3 right-3 p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                                >
+                                  {copiedId === `${copyId}-usa` ? (
                                     <FaCheck className="w-5 h-5 text-green-500" />
                                   ) : (
                                     <FaCopy className="w-5 h-5" />
@@ -3210,9 +3341,7 @@ const MyProfile = () => {
                                   Important Note
                                 </p>
                                 <p className="text-yellow-800 dark:text-yellow-200 text-sm">
-                                  This is your permanent shipping mark. Use it
-                                  for all your packages to ensure they are
-                                  correctly identified as yours.
+                                  Use these addresses for all your packages so they are correctly identified as yours.
                                 </p>
                               </div>
                             </div>

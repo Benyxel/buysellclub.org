@@ -30,7 +30,7 @@ const getStoredShippingMark = () => {
 
 const USAAddressGenerator = () => {
   const [fullName, setFullName] = useState("");
-  const [copied, setCopied] = useState(false);
+  const [copiedId, setCopiedId] = useState(null);
   const [hasAddress, setHasAddress] = useState(false);
   const [existingAddress, setExistingAddress] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -146,12 +146,12 @@ const USAAddressGenerator = () => {
     }
   };
 
-  const copyToClipboard = async (text) => {
+  const copyToClipboard = async (id, text) => {
     try {
       await navigator.clipboard.writeText(text);
-      setCopied(true);
+      setCopiedId(id);
       toast.success("Copied to clipboard!");
-      setTimeout(() => setCopied(false), 2000);
+      setTimeout(() => setCopiedId(null), 2000);
     } catch (err) {
       toast.error("Failed to copy to clipboard. Please try manually.");
     }
@@ -242,31 +242,44 @@ const USAAddressGenerator = () => {
                   </div>
                 </div>
 
-                <div className="space-y-6">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Shipping Mark</p>
-                    <div className="relative p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                      <p className="text-sm text-gray-900 dark:text-white break-all pr-10">{displayShippingMark}</p>
-                      <button
-                        onClick={() => copyToClipboard(displayShippingMark)}
-                        className="absolute top-3 right-3 p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-200"
-                      >
-                        {copied ? <FaCheck className="w-5 h-5 text-green-500" /> : <FaCopy className="w-5 h-5" />}
-                      </button>
-                    </div>
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-600 overflow-hidden">
+                  <div className="flex justify-between items-start mb-4 sm:mb-6 px-4 sm:px-6 pt-4 sm:pt-6">
+                    <h2 className="text-base sm:text-xl font-semibold text-gray-800 dark:text-white flex items-center gap-2">
+                      <FaMapMarkerAlt className="text-primary" />
+                      USA Address
+                    </h2>
+                    <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">Permanent</span>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Full USA Address</p>
-                    <div className="relative p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                      <p className="text-sm text-gray-900 dark:text-white break-all whitespace-pre-line pr-10">
-                        {fullAddressUSA}
-                      </p>
-                      <button
-                        onClick={() => copyToClipboard(fullAddressUSA)}
-                        className="absolute top-3 right-3 p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-200"
-                      >
-                        {copied ? <FaCheck className="w-5 h-5 text-green-500" /> : <FaCopy className="w-5 h-5" />}
-                      </button>
+                  <div className="p-4 sm:p-6 space-y-4">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Shipping mark (ID)</p>
+                      <div className="relative">
+                        <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                          <p className="text-sm text-gray-900 dark:text-white break-all">{displayShippingMark}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboard("mark", displayShippingMark)}
+                          className="absolute top-3 right-3 p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                        >
+                          {copiedId === "mark" ? <FaCheck className="w-5 h-5 text-green-500" /> : <FaCopy className="w-5 h-5" />}
+                        </button>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Full USA address</p>
+                      <div className="relative">
+                        <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                          <p className="text-sm text-gray-900 dark:text-white break-all whitespace-pre-line">{fullAddressUSA}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboard("full", fullAddressUSA)}
+                          className="absolute top-3 right-3 p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                        >
+                          {copiedId === "full" ? <FaCheck className="w-5 h-5 text-green-500" /> : <FaCopy className="w-5 h-5" />}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>

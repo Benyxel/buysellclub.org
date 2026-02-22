@@ -544,12 +544,14 @@ const FofooAddressGenerator = () => {
                         <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                           <p className="text-sm text-gray-900 dark:text-white">
                             {new Date(existingAddress.createdAt).toLocaleString()}
-                          </p>
-                        </div>
+                        </p>
                       </div>
-                    )}
+                    </div>
+                  )}
                 </div>
+            </div>
               </div>
+            </div>
             </div>
             ) : (
               <div className="flex justify-center py-8">

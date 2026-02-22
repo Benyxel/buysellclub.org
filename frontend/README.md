@@ -13,7 +13,7 @@ If you see **"Failed to load resource: the server responded with a status of 404
 
 1. **Set the API base URL** – In `.env.production` set `VITE_API_BASE_URL` to your backend URL (e.g. `VITE_API_BASE_URL=https://apibuysellclub.org`). Rebuild after changing.
 2. **See which URL failed** – Open the browser console (F12 → Console). On 404 the app logs `[API] 404 Not Found: <full URL>`. The Analytics page also shows this URL when trends or analytics fail.
-3. **Backend routes** – Ensure the deployed backend serves `/buysellapi/` and `/api/` (e.g. `/buysellapi/admin/analytics/trends/`, `/api/admin/containers`). A 404 usually means that path is not registered or not proxied to the Django app.
+3. **Backend routes** – Ensure the deployed backend serves `/buysellapi/` and `/api/` (e.g. `/buysellapi/admin/analytics/trends/`, `/api/admin/containers`, `/api/admin/container-expenses`). The container-expenses API is implemented in the backend (buysellclub-backend: `buysellapi.views.AdminContainerExpenseListView` / `AdminContainerExpenseDetailView`, `bsbackend.urls`).
 
 ## Expanding the ESLint configuration
 

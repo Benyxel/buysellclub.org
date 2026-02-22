@@ -244,8 +244,8 @@ const Shop = () => {
             </label>
           </div>
 
-          {/* Become a Vendor / View Vendor sales */}
-          <div className='pt-4 border-t border-gray-200 dark:border-gray-700'>
+          {/* Become a Vendor / View Vendor sales - also shown in main bar on mobile (lg: hidden here = shown in bar) */}
+          <div className='pt-4 border-t border-gray-200 dark:border-gray-700 hidden lg:block'>
             <Link
               to={isVendor ? '/vendor-sales' : '/become-a-vendor'}
               className='flex items-center gap-2 w-full px-4 py-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors text-sm font-medium'
@@ -303,7 +303,7 @@ const Shop = () => {
               <Title text1={'ALL'} text2={'PRODUCTS'} />
             </div>
 
-            <div className='flex items-center gap-4'>
+            <div className='flex flex-wrap items-center gap-2 sm:gap-4'>
               <select
                 className='px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm focus:ring-primary focus:border-primary'
                 value={sortType}
@@ -321,6 +321,15 @@ const Shop = () => {
                 <FaFilter className='text-primary' />
                 Filters
               </button>
+
+              {/* View Vendor sales / Become a vendor - visible on mobile (filter card is hidden); on lg+ also in sidebar */}
+              <Link
+                to={isVendor ? '/vendor-sales' : '/become-a-vendor'}
+                className='lg:hidden flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-sm font-medium border border-emerald-200 dark:border-emerald-800'
+              >
+                <FaStore className='w-4 h-4 shrink-0' />
+                {isVendor ? 'View Vendor sales' : 'Become a vendor'}
+              </Link>
             </div>
           </div>
 

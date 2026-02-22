@@ -33,7 +33,7 @@ const TABLE_HEADINGS = [
   "Location (City, Country)",
   "Contact Person",
   "Wechat / WhatsApp",
-  "Email",
+  "Email/Website",
 ];
 
 function isColumnHidden(header) {
@@ -78,7 +78,7 @@ function getVisibleColumns(headers) {
 
     if (contactIndices.includes(dataIdx)) {
       if (!addedContact) {
-        result.push({ header: "Wechat / WhatsApp / Email", dataIndices: [...contactIndices], combined: true });
+        result.push({ header: "Wechat / WhatsApp / Email/Website", dataIndices: [...contactIndices], combined: true });
         addedContact = true;
       }
       return;

@@ -22,8 +22,7 @@ const ContainerExpensesManagement = () => {
   const [editingExpense, setEditingExpense] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
-  // Load containers from the same API as the Containers tab (works in live mode),
-  // then merge expense data from container-expenses so we still show containers if that endpoint fails.
+  // Load containers from admin API, then merge expense data from /api/admin/container-expenses (backend: buysellclub-backend buysellapi.views).
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -43,28 +42,29 @@ const ContainerExpensesManagement = () => {
         page += 1;
       } while (page <= totalPages && containerList.length < totalCount);
 
-      // 2. Fetch expense data (optional; if it fails we still show containers with zero expenses)
+      // 2. Fetch expense data from same backend (bsbackend urls.py → AdminContainerExpenseListView)
       let expenseByContainerId = {};
       try {
         const expRes = await api.get("/api/admin/container-expenses");
         const expenseContainers = expRes.data?.containers || [];
         expenseContainers.forEach((c) => {
           expenseByContainerId[c.id] = {
-            total_shipping_fee: c.total_shipping_fee ?? 0,
+            total_amount_ghs: c.total_amount_ghs ?? c.total_shipping_fee ?? 0,
             total_expenses: c.total_expenses ?? 0,
             gain: c.gain ?? 0,
             expenses: c.expenses || [],
           };
         });
       } catch (expErr) {
-        console.warn("Container expense totals could not be loaded:", expErr);
-        // Continue with containers only; expense fields will be 0 / []
+        if (import.meta.env?.DEV) {
+          console.warn("Container expense totals could not be loaded:", expErr?.response?.status ?? expErr);
+        }
       }
 
       // 3. Merge: each container gets expense fields from expense API or defaults
       const merged = containerList.map((c) => {
         const exp = expenseByContainerId[c.id] || {
-          total_shipping_fee: 0,
+          total_amount_ghs: 0,
           total_expenses: 0,
           gain: 0,
           expenses: [],
@@ -73,7 +73,7 @@ const ContainerExpensesManagement = () => {
           id: c.id,
           container_number: c.container_number,
           status: c.status,
-          total_shipping_fee: exp.total_shipping_fee,
+          total_amount_ghs: exp.total_amount_ghs,
           total_expenses: exp.total_expenses,
           gain: exp.gain,
           expenses: exp.expenses,
@@ -168,6 +168,7 @@ const ContainerExpensesManagement = () => {
     const x = Number(n);
     return isNaN(x) ? "0.00" : x.toFixed(2);
   };
+  const formatCedis = (n) => `₵${formatMoney(n)}`;
 
   return (
     <div className="rounded-lg bg-white dark:bg-gray-800 shadow p-4 md:p-6">
@@ -177,7 +178,7 @@ const ContainerExpensesManagement = () => {
           Container Expenses
         </h2>
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          Add expenses per container to see gain (total shipping fee − expenses).
+          All amounts in cedis (₵). Add expenses per container to see gain (total amount − expenses).
         </p>
       </div>
 
@@ -191,9 +192,9 @@ const ContainerExpensesManagement = () => {
             <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Container</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Total shipping fee</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Total expenses</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Gain</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Total amount (₵)</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Total expenses (₵)</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Gain (₵)</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Actions</th>
               </tr>
             </thead>
@@ -212,11 +213,11 @@ const ContainerExpensesManagement = () => {
                         <span className="font-medium text-gray-900 dark:text-gray-100">{c.container_number}</span>
                         <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">({c.status})</span>
                       </td>
-                      <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">{formatMoney(c.total_shipping_fee)}</td>
-                      <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">{formatMoney(c.total_expenses)}</td>
+                      <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">{formatCedis(c.total_amount_ghs)}</td>
+                      <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">{formatCedis(c.total_expenses)}</td>
                       <td className="px-4 py-3 text-right">
                         <span className={c.gain >= 0 ? "text-green-600 dark:text-green-400 font-medium" : "text-red-600 dark:text-red-400 font-medium"}>
-                          {formatMoney(c.gain)}
+                          {formatCedis(c.gain)}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right">
@@ -239,7 +240,7 @@ const ContainerExpensesManagement = () => {
                                 key={ex.id}
                                 className="inline-flex items-center gap-1 px-2 py-1 rounded bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200"
                               >
-                                {ex.description || "Expense"} – {formatMoney(ex.amount)}
+                                {ex.description || "Expense"} – {formatCedis(ex.amount)}
                                 {ex.expense_date && ` (${ex.expense_date})`}
                                 <button
                                   type="button"
@@ -296,12 +297,13 @@ const ContainerExpensesManagement = () => {
                 </div>
               )}
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Amount</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Amount (₵)</label>
                 <input
                   type="number"
                   step="0.01"
                   min="0"
                   value={expenseForm.amount}
+                  placeholder="Cedis"
                   onChange={(e) => setExpenseForm((f) => ({ ...f, amount: e.target.value }))}
                   className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                   required
