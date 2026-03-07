@@ -13,10 +13,37 @@ const AgentShippingRatesManagement = () => {
   const [loading, setLoading] = useState(false);
   const [rateHistory, setRateHistory] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [containers, setContainers] = useState([]);
+  const [containerRates, setContainerRates] = useState([]);
+  const [showContainerModal, setShowContainerModal] = useState(false);
+  const [selectedContainer, setSelectedContainer] = useState(null);
+  const [containerRateForm, setContainerRateForm] = useState({
+    normal_goods_rate: "",
+    special_goods_rate: "",
+    normal_goods_rate_lt1: "",
+    special_goods_rate_lt1: "",
+  });
+  const [savingContainerRate, setSavingContainerRate] = useState(false);
 
   useEffect(() => {
     fetchCurrentRate();
   }, []);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [contResp, ratesResp] = await Promise.all([
+          API.get("/buysellapi/containers/public/", { params: { all: true } }).catch(() => ({ data: [] })),
+          API.get("/buysellapi/container-shipping-rates/").catch(() => ({ data: [] })),
+        ]);
+        setContainers(Array.isArray(contResp.data) ? contResp.data : contResp.data?.results || []);
+        setContainerRates(Array.isArray(ratesResp.data) ? ratesResp.data : []);
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    load();
+  }, [showContainerModal]);
 
   const fetchCurrentRate = async () => {
     try {
@@ -102,6 +129,72 @@ const AgentShippingRatesManagement = () => {
     }
   };
 
+  const openContainerRateModal = (container, existing) => {
+    setSelectedContainer(container);
+    if (existing) {
+      setContainerRateForm({
+        normal_goods_rate: String(existing.normal_goods_rate ?? ""),
+        special_goods_rate: String(existing.special_goods_rate ?? ""),
+        normal_goods_rate_lt1: String(existing.normal_goods_rate_lt1 ?? existing.normal_goods_rate ?? ""),
+        special_goods_rate_lt1: String(existing.special_goods_rate_lt1 ?? existing.special_goods_rate ?? ""),
+      });
+    } else {
+      setContainerRateForm({
+        normal_goods_rate: rates.normal_goods_rate || "",
+        special_goods_rate: rates.special_goods_rate || "",
+        normal_goods_rate_lt1: rates.normal_goods_rate_lt1 || "",
+        special_goods_rate_lt1: rates.special_goods_rate_lt1 || "",
+      });
+    }
+    setShowContainerModal(true);
+  };
+
+  const handleSaveContainerRate = async (e) => {
+    e.preventDefault();
+    if (!selectedContainer) return;
+    const id = selectedContainer.id ?? selectedContainer;
+    if (!containerRateForm.normal_goods_rate || !containerRateForm.special_goods_rate ||
+        !containerRateForm.normal_goods_rate_lt1 || !containerRateForm.special_goods_rate_lt1) {
+      toast.error("Please fill all rate fields");
+      return;
+    }
+    setSavingContainerRate(true);
+    try {
+      await API.post("/buysellapi/container-shipping-rates/", {
+        container_id: id,
+        is_agent_rate: true,
+        normal_goods_rate: parseFloat(containerRateForm.normal_goods_rate),
+        special_goods_rate: parseFloat(containerRateForm.special_goods_rate),
+        normal_goods_rate_lt1: parseFloat(containerRateForm.normal_goods_rate_lt1),
+        special_goods_rate_lt1: parseFloat(containerRateForm.special_goods_rate_lt1),
+      });
+      toast.success("Container agent rate saved");
+      setShowContainerModal(false);
+      setSelectedContainer(null);
+      const ratesResp = await API.get("/buysellapi/container-shipping-rates/");
+      setContainerRates(Array.isArray(ratesResp.data) ? ratesResp.data : []);
+    } catch (err) {
+      toast.error(err?.response?.data?.container_id?.[0] || err?.response?.data?.detail || "Failed to save");
+    } finally {
+      setSavingContainerRate(false);
+    }
+  };
+
+  const handleClearContainerRate = async (container) => {
+    const id = container.id ?? container;
+    if (!window.confirm("Remove agent rate for this container? It will use the global agent rate.")) return;
+    try {
+      await API.delete("/buysellapi/container-shipping-rates/", {
+        params: { container_id: id, is_agent_rate: "true" },
+      });
+      toast.success("Container agent rate cleared");
+      const ratesResp = await API.get("/buysellapi/container-shipping-rates/");
+      setContainerRates(Array.isArray(ratesResp.data) ? ratesResp.data : []);
+    } catch (err) {
+      toast.error("Failed to clear");
+    }
+  };
+
   if (loading && !rates.normal_goods_rate) {
     return (
       <div className="p-6 flex items-center justify-center min-h-[400px]">
@@ -124,11 +217,11 @@ const AgentShippingRatesManagement = () => {
         </p>
       </div>
 
-      {/* Current Rates Form */}
+      {/* Global agent rate */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
-            Current Agent Shipping Rates
+            Global Agent Shipping Rate (default for all containers)
           </h3>
           <button
             onClick={fetchRateHistory}
@@ -360,6 +453,70 @@ const AgentShippingRatesManagement = () => {
             </div>
           )}
       </div>
+
+      {/* Per-container agent rates */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
+        <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">
+          Per-container agent rates
+        </h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+          Set an agent shipping rate for a specific container. Agent trackings and invoices for that container will use this rate instead of the global agent rate.
+        </p>
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead className="bg-gray-50 dark:bg-gray-700">
+              <tr>
+                <th className="px-4 py-2 text-left text-gray-700 dark:text-gray-200">Container</th>
+                <th className="px-4 py-2 text-left text-gray-700 dark:text-gray-200">Agent rate</th>
+                <th className="px-4 py-2 text-right text-gray-700 dark:text-gray-200">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+              {containers.length === 0 ? (
+                <tr><td colSpan={3} className="px-4 py-4 text-gray-500 dark:text-gray-400">No containers found.</td></tr>
+              ) : (
+                containers.map((c) => {
+                  const containerId = c.id ?? c;
+                  const containerNumber = c.container_number ?? `#${containerId}`;
+                  const existing = containerRates.find((r) => Number(r.container) === Number(containerId) && r.is_agent_rate);
+                  return (
+                    <tr key={containerId}>
+                      <td className="px-4 py-2 font-medium text-gray-900 dark:text-white">{containerNumber}</td>
+                      <td className="px-4 py-2 text-gray-600 dark:text-gray-300">
+                        {existing ? `$${Number(existing.normal_goods_rate).toFixed(2)} / $${Number(existing.special_goods_rate).toFixed(2)}` : "Use global"}
+                      </td>
+                      <td className="px-4 py-2 text-right">
+                        <button type="button" onClick={() => openContainerRateModal(c, existing)} className="text-pink-600 dark:text-pink-400 hover:underline mr-2">{existing ? "Edit" : "Set rate"}</button>
+                        {existing && <button type="button" onClick={() => handleClearContainerRate(c)} className="text-gray-500 dark:text-gray-400 hover:underline">Clear</button>}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {showContainerModal && selectedContainer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Agent rate for {selectedContainer.container_number ?? selectedContainer.id ?? "container"}</h3>
+            <form onSubmit={handleSaveContainerRate}>
+              <div className="space-y-4">
+                <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Normal (per CBM) $</label><input type="number" step="0.01" min="0" required value={containerRateForm.normal_goods_rate} onChange={(e) => setContainerRateForm((f) => ({ ...f, normal_goods_rate: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white" /></div>
+                <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Special (per CBM) $</label><input type="number" step="0.01" min="0" required value={containerRateForm.special_goods_rate} onChange={(e) => setContainerRateForm((f) => ({ ...f, special_goods_rate: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white" /></div>
+                <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Normal (CBM &lt; 1) $</label><input type="number" step="0.01" min="0" required value={containerRateForm.normal_goods_rate_lt1} onChange={(e) => setContainerRateForm((f) => ({ ...f, normal_goods_rate_lt1: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white" /></div>
+                <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Special (CBM &lt; 1) $</label><input type="number" step="0.01" min="0" required value={containerRateForm.special_goods_rate_lt1} onChange={(e) => setContainerRateForm((f) => ({ ...f, special_goods_rate_lt1: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white" /></div>
+              </div>
+              <div className="flex justify-end gap-2 mt-6">
+                <button type="button" onClick={() => { setShowContainerModal(false); setSelectedContainer(null); }} className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">Cancel</button>
+                <button type="submit" disabled={savingContainerRate} className="px-4 py-2 bg-pink-600 text-white rounded hover:bg-pink-700 disabled:opacity-50">{savingContainerRate ? "Saving..." : "Save"}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Rate History Modal */}
       {showHistory && (

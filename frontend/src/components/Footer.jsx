@@ -143,14 +143,6 @@ const Footer = () => {
                   Policies & Compliance
                 </Link>
               </li>
-              <li>
-                <Link
-                  to="/Donate"
-                  className="text-gray-600 dark:text-gray-400 hover:text-primary transition-colors"
-                >
-                  Donate
-                </Link>
-              </li>
             </ul>
           </div>
 

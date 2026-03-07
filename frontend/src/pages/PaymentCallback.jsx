@@ -8,92 +8,95 @@ const PaymentCallback = () => {
   const navigate = useNavigate();
   const [status, setStatus] = useState('verifying'); // verifying, success, failed, pending
   const [message, setMessage] = useState('Verifying your payment...');
+  const [verifiedOrderId, setVerifiedOrderId] = useState(null);
+  const [paymentType, setPaymentType] = useState(null); // 'order' | 'training'
 
   useEffect(() => {
     const verifyPayment = async () => {
+      // Paystack redirect may use ?reference= or ?trxref= (transaction reference)
+      const reference = searchParams.get('reference') || searchParams.get('trxref');
       const orderId = searchParams.get('order-id') || searchParams.get('order_id');
       const token = searchParams.get('token');
 
-      if (!orderId || !token) {
-        setStatus('failed');
-        setMessage('Missing payment information. Please contact support.');
-        toast.error('Invalid payment callback - missing information');
-        setTimeout(() => navigate('/'), 5000);
+      if (reference) {
+        const doVerify = async (attempt = 1, maxAttempts = 4) => {
+          try {
+            const response = await api.get('/buysellapi/payment/verify-paystack/', {
+              params: { reference },
+            });
+            if (response.data && response.data.success) {
+              const payType = response.data.type;
+              const isTraining = payType === 'training';
+              const isCommunity = payType === 'community';
+              const isBuy4me = payType === 'buy4me';
+              const isDonation = payType === 'donation';
+              const bookingId = response.data.booking_id;
+              const orderId = response.data.order_id;
+              const requestId = response.data.request_id || response.data.community_request_id;
+              setVerifiedOrderId(orderId || bookingId || requestId);
+              setPaymentType(payType || (isTraining ? 'training' : 'order'));
+              setStatus('success');
+              if (isDonation) {
+                setMessage('Thank you for your donation!');
+                toast.success('Donation received. Thank you!');
+                setTimeout(() => navigate('/'), 2000);
+              } else if (isCommunity) {
+                setMessage('Payment successful! Your community request has been submitted for review.');
+                toast.success('Community payment confirmed! Awaiting admin approval.');
+                setTimeout(() => navigate('/Profile?tab=community'), 2000);
+              } else if (isBuy4me && requestId) {
+                setMessage(`Sourcing fee paid! You can now submit your Buy4me order on the next page.`);
+                toast.success(`Sourcing fee paid! Submit your order details.`);
+                setTimeout(() => navigate('/Buy4me'), 2000);
+              } else if (isTraining && bookingId) {
+                setMessage(`Payment successful! Your training booking #${bookingId} has been confirmed.`);
+                toast.success(`Training booking #${bookingId} confirmed!`);
+                setTimeout(() => navigate('/Training'), 2000);
+              } else if (orderId) {
+                setMessage(`Payment successful! Your order #${orderId} has been confirmed and is being processed.`);
+                toast.success(`Order #${orderId} payment confirmed!`);
+                setTimeout(() => navigate(`/Orders?order=${orderId}`), 2000);
+              } else {
+                setMessage('Payment successful!');
+                setTimeout(() => navigate('/'), 2000);
+              }
+              return;
+            }
+            const errText = (response.data?.error || '').toLowerCase();
+            // Paystack may return "pending" briefly in test mode; retry after 2s
+            if (attempt < maxAttempts && (errText.includes('pending') || errText.includes('not completed'))) {
+              setMessage(`Verifying payment... (attempt ${attempt + 1}/${maxAttempts})`);
+              setTimeout(() => doVerify(attempt + 1, maxAttempts), 2000);
+              return;
+            }
+            setStatus('failed');
+            setMessage(response.data?.error || 'Payment verification failed. Please contact support.');
+            toast.error(response.data?.error || 'Payment verification failed');
+            setTimeout(() => navigate('/'), 5000);
+          } catch (err) {
+            console.error('Paystack verify error:', err);
+            const errMsg = err.response?.data?.error || '';
+            const errText = (errMsg || err.message || '').toLowerCase();
+            if (attempt < maxAttempts && (errText.includes('pending') || errText.includes('not completed'))) {
+              setMessage(`Verifying payment... (attempt ${attempt + 1}/${maxAttempts})`);
+              setTimeout(() => doVerify(attempt + 1, maxAttempts), 2000);
+              return;
+            }
+            setStatus('failed');
+            const msg = errMsg || 'Failed to verify payment. Please contact support.';
+            setMessage(msg);
+            toast.error(msg);
+            setTimeout(() => navigate('/'), 5000);
+          }
+        };
+        doVerify();
         return;
       }
 
-      try {
-        // Query payment status using the token via our backend
-        const response = await api.post('/buysellapi/payment/verify-expresspay/', {
-          'order-id': orderId,
-          token: token,
-        });
-
-        if (response.data && response.data.success) {
-          const paymentData = response.data;
-          const result = paymentData.result;
-
-          if (result === 1) {
-            // Payment approved
-            setStatus('success');
-
-            // Determine redirect based on order type
-            if (orderId.startsWith('training_')) {
-              const bookingId = orderId.replace('training_', '');
-              setMessage(`Payment successful! Your training booking #${bookingId} is confirmed.`);
-              toast.success('Training booking payment confirmed!');
-              setTimeout(() => navigate('/Profile'), 2000);
-            } else if (orderId.startsWith('buy4me_') || orderId.startsWith('quickorder_')) {
-              const requestId = orderId.replace('buy4me_', '').replace('quickorder_', '');
-              setMessage(`Payment successful! Your order #${requestId} is being processed.`);
-              toast.success('Order payment confirmed!');
-              setTimeout(() => navigate('/Profile'), 2000);
-            } else if (orderId.startsWith('course_')) {
-              const courseId = orderId.replace('course_', '');
-              setMessage(`Payment successful! Your course purchase is confirmed.`);
-              toast.success('Course payment confirmed!');
-              setTimeout(() => navigate('/Profile'), 2000);
-            } else {
-              // Regular shop order or numeric order ID - show order ID and redirect to Orders page
-              const shopOrderId = orderId;
-              setMessage(`Payment successful! Your order #${shopOrderId} has been confirmed and is being processed.`);
-              toast.success(`Order #${shopOrderId} payment confirmed!`);
-              // Redirect to Orders page with order ID as query param to potentially highlight it
-              setTimeout(() => navigate(`/Orders?order=${shopOrderId}`), 2000);
-            }
-          } else if (result === 2) {
-            // Payment declined
-            setStatus('failed');
-            setMessage('Payment was declined. Please try again or contact support.');
-            toast.error('Payment declined');
-            setTimeout(() => navigate('/'), 5000);
-          } else if (result === 4) {
-            // Payment pending
-            setStatus('pending');
-            setMessage('Your payment is pending. We will notify you once it is confirmed.');
-            toast.info('Payment is pending confirmation');
-            setTimeout(() => navigate('/Profile'), 5000);
-          } else {
-            // Error
-            setStatus('failed');
-            setMessage('Payment verification failed. Please contact support.');
-            toast.error('Payment verification failed');
-            setTimeout(() => navigate('/'), 5000);
-          }
-        } else {
-          setStatus('failed');
-          setMessage('Failed to verify payment. Please contact support.');
-          toast.error('Payment verification failed');
-          setTimeout(() => navigate('/'), 5000);
-        }
-      } catch (error) {
-        console.error('Payment verification error:', error);
-        setStatus('failed');
-        const errorMsg = error.response?.data?.error || error.response?.data?.message || 'Failed to verify payment';
-        setMessage(errorMsg);
-        toast.error(errorMsg);
-        setTimeout(() => navigate('/'), 5000);
-      }
+      setStatus('failed');
+      setMessage('Missing payment information. Please contact support.');
+      toast.error('Invalid payment callback - missing information');
+      setTimeout(() => navigate('/'), 5000);
     };
 
     verifyPayment();
@@ -136,10 +139,26 @@ const PaymentCallback = () => {
             <div className="flex flex-col sm:flex-row gap-3 mt-6">
               <button
                 onClick={() => {
-                  const orderId = searchParams.get('order-id') || searchParams.get('order_id');
-                  if (orderId && !orderId.startsWith('training_') && !orderId.startsWith('buy4me_') && !orderId.startsWith('course_')) {
+                  if (paymentType === 'training') {
+                    navigate('/Training');
+                    return;
+                  }
+                  if (paymentType === 'community') {
+                    navigate('/Profile?tab=community');
+                    return;
+                  }
+                  if (paymentType === 'buy4me') {
+                    navigate('/Buy4me');
+                    return;
+                  }
+                  if (paymentType === 'donation') {
+                    navigate('/');
+                    return;
+                  }
+                  const orderId = verifiedOrderId || searchParams.get('order-id') || searchParams.get('order_id');
+                  if (orderId && !String(orderId).startsWith('training_') && !String(orderId).startsWith('buy4me_') && !String(orderId).startsWith('course_')) {
                     navigate(`/Orders?order=${orderId}`);
-                  } else if (orderId && (orderId.startsWith('training_') || orderId.startsWith('buy4me_') || orderId.startsWith('course_'))) {
+                  } else if (orderId && (String(orderId).startsWith('training_') || String(orderId).startsWith('buy4me_') || String(orderId).startsWith('course_'))) {
                     navigate('/Profile');
                   } else {
                     navigate('/Orders');
@@ -147,13 +166,7 @@ const PaymentCallback = () => {
                 }}
                 className="flex-1 px-6 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors font-medium"
               >
-                View {(() => {
-                  const orderId = searchParams.get('order-id') || searchParams.get('order_id');
-                  if (orderId && !orderId.startsWith('training_') && !orderId.startsWith('buy4me_') && !orderId.startsWith('course_')) {
-                    return 'Order';
-                  }
-                  return 'Details';
-                })()}
+                View {paymentType === 'training' ? 'Training' : paymentType === 'community' ? 'Profile' : paymentType === 'buy4me' ? 'Buy4me' : paymentType === 'donation' ? 'Home' : (verifiedOrderId ? 'Order' : 'Details')}
               </button>
               <button
                 onClick={() => navigate('/')}

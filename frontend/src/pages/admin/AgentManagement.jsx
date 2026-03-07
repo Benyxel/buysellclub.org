@@ -41,21 +41,17 @@ export default function AgentManagement() {
 
   const loadUsers = async () => {
     try {
-      const resp = await API.get("/buysellapi/users/");
-      const allUsers = Array.isArray(resp.data) ? resp.data : [];
-      // Filter out users who are already agents
+      const resp = await API.get("/buysellapi/users/", {
+        params: { page_size: 100 },
+      });
+      // API returns paginated { results: [...], count }
+      const allUsers = resp.data?.results ?? (Array.isArray(resp.data) ? resp.data : []);
       const nonAgentUsers = allUsers.filter(
         (user) => !user.is_agent && user.role !== "admin"
       );
       setUsers(nonAgentUsers);
     } catch (err) {
       console.error("Failed to load users", err);
-      // Only show error for actual failures (4xx/5xx), not for empty data
-      const status = err.response?.status;
-      if (status && status >= 400) {
-        // Don't show toast for user loading errors as it's less critical
-        // Just log it and set empty array
-      }
       setUsers([]);
     }
   };

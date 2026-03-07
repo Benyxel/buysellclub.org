@@ -8,7 +8,7 @@ import { toast } from "../utils/toast";
 
 const Cart = () => {
   const location = useLocation();
-  const { products, currency, cartItems, updateQuantity } =
+  const { products, currency, cartItems, cartItemOptions = {}, updateQuantity } =
     useContext(ShopContext);
   const [cartData, setCartData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -25,7 +25,11 @@ const Cart = () => {
           // Dispatch event to trigger cart reload in context
           window.dispatchEvent(new CustomEvent("cartUpdate"));
           
-          // Process cart data directly from localStorage
+          let optionsParsed = {};
+          try {
+            const savedOpt = localStorage.getItem("cartItemOptions");
+            if (savedOpt) optionsParsed = JSON.parse(savedOpt) || {};
+          } catch (_) {}
           const tempDataFromStorage = [];
           for (const items in parsed) {
             for (const item in parsed[items]) {
@@ -34,6 +38,7 @@ const Cart = () => {
                   _id: items,
                   size: item,
                   quantity: parsed[items][item],
+                  color: optionsParsed[items]?.[item]?.color,
                 });
               }
             }
@@ -139,7 +144,11 @@ const Cart = () => {
             window.dispatchEvent(new CustomEvent("cartUpdate"));
             console.log("Cart page: Triggered cart reload from localStorage");
             
-            // Process cart data directly from localStorage for immediate display
+            let optionsParsedNav = {};
+            try {
+              const savedOptNav = localStorage.getItem("cartItemOptions");
+              if (savedOptNav) optionsParsedNav = JSON.parse(savedOptNav) || {};
+            } catch (_) {}
             const tempDataFromStorage = [];
             for (const items in parsed) {
               for (const item in parsed[items]) {
@@ -148,6 +157,7 @@ const Cart = () => {
                     _id: items,
                     size: item,
                     quantity: parsed[items][item],
+                    color: optionsParsedNav[items]?.[item]?.color,
                   });
                 }
               }
@@ -190,6 +200,7 @@ const Cart = () => {
               _id: items,
               size: item,
               quantity: cartItems[items][item],
+              color: cartItemOptions[items]?.[item]?.color,
             });
           }
         }
@@ -203,7 +214,7 @@ const Cart = () => {
       setIsLoading(false);
       console.log("Cart page: Processed cart data from context", tempData, "from cartItems:", cartItems);
     }
-  }, [cartItems, location.pathname]);
+  }, [cartItems, cartItemOptions, location.pathname]);
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -238,23 +249,27 @@ const Cart = () => {
               ? productData.image[0]
               : productData.image || (productData.images && productData.images[0]) || '';
             
-            // Calculate available inventory for this product
-            const availableInventory = productData.inventory !== undefined ? productData.inventory : null;
-            
-            // Calculate current cart quantity for this product (across all sizes)
-            let currentCartQuantity = 0;
-            const itemIdKey = String(item._id);
-            if (cartItems[itemIdKey]) {
-              Object.values(cartItems[itemIdKey]).forEach(qty => {
-                currentCartQuantity += qty;
-              });
-            }
-            
-            // Calculate max quantity that can be set for this size
-            const currentSizeQuantity = cartItems[itemIdKey]?.[item.size] || 0;
-            const maxQuantity = availableInventory !== null 
-              ? availableInventory - (currentCartQuantity - currentSizeQuantity)
+            // Cart key can include color: "Size:M|Color:Red". Parse for size (variant stock) and display.
+            const cartKey = item.size || "default";
+            const sizeKey = cartKey.includes("|Color:") ? cartKey.split("|Color:")[0] : cartKey;
+            const vi = productData.variant_inventory && typeof productData.variant_inventory === "object" && Object.keys(productData.variant_inventory).length > 0
+              ? productData.variant_inventory
               : null;
+            const availableInventory = vi
+              ? (sizeKey in vi ? (Number(vi[sizeKey]) ?? null) : null)
+              : (productData.inventory !== undefined ? productData.inventory : null);
+            const itemIdKey = String(item._id);
+            const currentSizeQuantity = cartItems[itemIdKey]?.[cartKey] || 0;
+            let currentCartQuantity = 0;
+            if (cartItems[itemIdKey]) {
+              Object.values(cartItems[itemIdKey]).forEach(qty => { currentCartQuantity += qty; });
+            }
+            const maxQuantity = availableInventory !== null
+              ? (vi ? availableInventory : availableInventory - (currentCartQuantity - currentSizeQuantity))
+              : null;
+            const displayColor = (item.color && String(item.color).trim()) || (cartItemOptions[itemIdKey]?.[cartKey]?.color && String(cartItemOptions[itemIdKey][cartKey].color).trim()) || (cartKey.includes("|Color:") ? cartKey.split("|Color:")[1] : null) || null;
+            const displaySize = sizeKey && sizeKey !== 'default' ? sizeKey.replace(/\|/g, ' • ').replace(/:/g, ': ') : null;
+            const hasOptions = displayColor || displaySize;
             
             return (
               <div
@@ -277,9 +292,9 @@ const Cart = () => {
                           <span className="text-xs text-gray-500 dark:text-gray-400 mr-1">Price</span>
                           {currency}{typeof productData.price === 'number' ? productData.price.toFixed(2) : productData.price}
                         </p>
-                        {item.size !== 'default' && (
-                          <p className="px-2 sm:px-3 sm:py-1 border bg-slate-50">
-                            {item.size}
+                        {hasOptions && (
+                          <p className="px-2 sm:px-3 sm:py-1 border bg-slate-50 dark:bg-gray-700 dark:border-gray-600 rounded text-sm">
+                            {[displayColor && `Color: ${displayColor}`, displaySize].filter(Boolean).join(' • ')}
                           </p>
                         )}
                       </div>

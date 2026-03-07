@@ -46,11 +46,11 @@ const LocalAgentDashboard = () => {
       const status = error.response?.status;
       if (status === 403) {
         toast.error("Local agent access required.");
-        navigate("/agent-dashboard");
+        navigate("/Profile", { replace: true });
         return;
       }
       if (status === 401) {
-        navigate("/Login");
+        navigate("/Login", { replace: true });
         return;
       }
       toast.error("Failed to load local agent dashboard.");

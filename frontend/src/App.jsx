@@ -23,10 +23,14 @@ import AlipayPayment from "./pages/Quicklinks/AlipayPayment";
 import OurRates from "./pages/Quicklinks/OurRates";
 import JoinCommunity from "./pages/Community/JoinCommunity";
 import CommunitySheet from "./pages/Community/CommunitySheet";
+import WinningProducts from "./pages/Community/WinningProducts";
+import VideoTutorials from "./pages/Community/VideoTutorials";
+import ToolsDownloads from "./pages/Community/ToolsDownloads";
 import VendorOnboarding from "./pages/VendorOnboarding";
 import VendorSales from "./pages/VendorSales";
 import CommunityPayment from "./pages/Community/CommunityPayment";
 import PaymentCallback from "./pages/PaymentCallback";
+import Donation from "./pages/Donation";
 import Favorites from "./pages/Favorites";
 import MyProfile from "./components/MyProfile";
 import Login from "./pages/Login";
@@ -42,7 +46,6 @@ import FofooAddressGenerator from "./components/FofooAddressGenerator.jsx";
 import RegionAddressGenerator from "./components/RegionAddressGenerator";
 import AdminDashboard from "./pages/admin/AdminDashboard.jsx";
 import Gallery from "./pages/Gallery";
-import Donate from "./pages/Donate";
 import AdminLogin from "./pages/AdminLogin";
 import TrackingPage from "./pages/TrackingPage";
 import PublicInvoice from "./pages/PublicInvoice";
@@ -208,7 +211,6 @@ function App() {
                       <Route path="QuickTracking" element={<QuickTracking />} />
                       <Route path="OurRates" element={<OurRates />} />
                       <Route path="Gallery" element={<Gallery />} />
-                      <Route path="Donate" element={<Donate />} />
                       <Route path="tracking" element={<TrackingPage />} />
                       <Route path="invoice" element={<PublicInvoice />} />
                       <Route path="clock" element={<StaffClockPage />} />
@@ -216,6 +218,8 @@ function App() {
                         path="payment/callback"
                         element={<PaymentCallback />}
                       />
+                      {/* Donation: Paystack; not linked in nav */}
+                      <Route path="donation" element={<Donation />} />
 
                       {/* Protected routes - require login */}
                       <Route
@@ -280,6 +284,30 @@ function App() {
                         element={
                           <ProtectedRoute>
                             <CommunitySheet />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="Community/WinningProducts"
+                        element={
+                          <ProtectedRoute>
+                            <WinningProducts />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="Community/VideoTutorials"
+                        element={
+                          <ProtectedRoute>
+                            <VideoTutorials />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="Community/ToolsDownloads"
+                        element={
+                          <ProtectedRoute>
+                            <ToolsDownloads />
                           </ProtectedRoute>
                         }
                       />

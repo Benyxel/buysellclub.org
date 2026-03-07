@@ -160,16 +160,17 @@ const TrackingManagement = () => {
     }
   };
 
-  const fetchActiveRates = async () => {
-    if (activeRates) return activeRates;
+  const fetchActiveRates = async (containerId) => {
+    const cacheKey = containerId ?? "global";
+    if (activeRates && !containerId) return activeRates;
     try {
-      const resp = await API.get("/buysellapi/shipping-rates/");
+      const params = containerId ? { container_id: containerId } : {};
+      const resp = await API.get("/buysellapi/shipping-rates/", { params });
       if (resp?.data) {
-        setActiveRates(resp.data);
+        if (!containerId) setActiveRates(resp.data);
         return resp.data;
       }
     } catch (e) {
-      // ignore 404; otherwise log
       if (e?.response?.status !== 404)
         console.error("fetchActiveRates error", e);
     }
@@ -217,7 +218,10 @@ const TrackingManagement = () => {
 
   const handleApplyRate = async (row) => {
     const goodsType = rateSelections[row.id] || row.GoodsType || "normal";
-    const rates = await fetchActiveRates();
+    // Use the tracking's container ID so we apply that container's rate (not global)
+    const raw = row.container_id ?? row.container ?? row.Container;
+    const containerId = raw != null && raw !== "" ? Number(raw) : null;
+    const rates = await fetchActiveRates(containerId);
     if (!rates) {
       toast.error("No active shipping rates found. Set rates first.");
       return;

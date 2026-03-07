@@ -12,15 +12,20 @@ import {
   FaInfoCircle,
   FaChevronLeft,
   FaChevronRight,
-  FaUpload,
-  FaMoneyBillWave,
-  FaAlipay,
 } from "react-icons/fa";
 import { toast } from "../../utils/toast";
 import "react-toastify/dist/ReactToastify.css";
 import buyimg from "../../assets/bm2.jpg";
 import { useLocation } from "react-router-dom";
-import { createBuy4meRequestWithProof, updateBuy4meRequest, getQuickOrderProducts, getBuy4meSettings } from "../../api";
+import {
+  createBuy4meRequestWithPayment,
+  updateBuy4meRequest,
+  getQuickOrderProducts,
+  getBuy4meSettings,
+  getBuy4meAwaitingSubmission,
+  initiateBuy4meSourcingFee,
+  submitBuy4meDetails,
+} from "../../api";
 
 // Removed placeholder products - only show products from backend API
 
@@ -28,12 +33,14 @@ const Buy4me = () => {
   const location = useLocation();
   const [editMode, setEditMode] = useState(false);
   const [editOrderId, setEditOrderId] = useState(null);
-  // Separate loading states for independent button operations
+  const [awaitingSlot, setAwaitingSlot] = useState(null);
+  const [loadingAwaiting, setLoadingAwaiting] = useState(true);
+  const [payingSourcingFee, setPayingSourcingFee] = useState(false);
   const [isSubmittingBuy4me, setIsSubmittingBuy4me] = useState(false);
   const [submittingQuickOrderId, setSubmittingQuickOrderId] = useState(null); // Track which quick order product is being submitted
   const [isLoading, setIsLoading] = useState(true);
   const [quickOrderProducts, setQuickOrderProducts] = useState([]);
-  const [defaultSourcingPayment, setDefaultSourcingPayment] = useState(100);
+  const [defaultSourcingPayment, setDefaultSourcingPayment] = useState(0);
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -45,26 +52,25 @@ const Buy4me = () => {
     currentIndex: 0,
     productTitle: "",
   });
-  const [proofOfPaymentPreview, setProofOfPaymentPreview] = useState("");
-  const [quickOrderModal, setQuickOrderModal] = useState({ open: false, product: null, proof: null, proofPreview: "" });
+  const [quickOrderModal, setQuickOrderModal] = useState({ open: false, product: null });
 
+  // Each product row: link, image, quantity together (no grouping)
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    images: ["", "", "", "", ""],
     shippingMethod: "sea",
-    additionalLinks: [
-      { url: "", quantity: 0 },
-      { url: "", quantity: 0 },
-      { url: "", quantity: 0 },
-      { url: "", quantity: 0 },
-      { url: "", quantity: 0 },
+    products: [
+      { url: "", quantity: 0, image: "" },
+      { url: "", quantity: 0, image: "" },
+      { url: "", quantity: 0, image: "" },
+      { url: "", quantity: 0, image: "" },
+      { url: "", quantity: 0, image: "" },
     ],
   });
 
-  // Calculate total quantity
-  const totalQuantity = formData.additionalLinks.reduce(
-    (sum, link) => sum + (link.quantity || 0),
+  // Total quantity = sum of all product quantities (not the first product only)
+  const totalQuantity = formData.products.reduce(
+    (sum, p) => sum + (Number(p.quantity) || 0),
     0
   );
 
@@ -73,17 +79,29 @@ const Buy4me = () => {
     const fetchSettings = async () => {
       try {
         const response = await getBuy4meSettings();
-        console.log("Buy4me settings response:", response);
         if (response.data?.defaultSourcingPayment) {
           setDefaultSourcingPayment(response.data.defaultSourcingPayment);
-          console.log("Default sourcing payment set to:", response.data.defaultSourcingPayment);
         }
       } catch (error) {
         console.error("Failed to fetch buy4me settings:", error);
-        // Use default value if fetch fails
       }
     };
     fetchSettings();
+  }, []);
+
+  useEffect(() => {
+    const fetchAwaiting = async () => {
+      try {
+        setLoadingAwaiting(true);
+        const res = await getBuy4meAwaitingSubmission();
+        setAwaitingSlot(res.data?.awaiting_submission ?? null);
+      } catch (err) {
+        setAwaitingSlot(null);
+      } finally {
+        setLoadingAwaiting(false);
+      }
+    };
+    fetchAwaiting();
   }, []);
 
   // Fetch quick order products from the API
@@ -240,108 +258,84 @@ const Buy4me = () => {
       setEditMode(true);
       setEditOrderId(order.id || order._id);
 
-      // Process existing links, ensuring compatibility with old format
-      let additionalLinks = [];
+      const rawLinks = order.additional_links || order.additionalLinks || [];
+      const images = [...(order.images || []), "", "", "", "", ""].slice(0, 5);
+      const mainUrl = (order.product_url || order.link || "").trim();
+      const totalQty = Number(order.quantity) || 0;
 
-      // Handle backwards compatibility with old format and Django API format
-      if (order.product_url) {
-        // Django API format: product_url is the main link
-        additionalLinks.push({
-          url: order.product_url,
-          quantity: order.quantity || 20,
-        });
-      } else if (order.link) {
-        // Old format: link field
-        additionalLinks.push({
-          url: order.link,
-          quantity: order.quantity || 20,
-        });
+      let products = [];
+      const hasObjectLinks = Array.isArray(rawLinks) && rawLinks.length > 0 && typeof rawLinks[0] === "object" && rawLinks[0].url != null;
+      const allInAdditional = hasObjectLinks && (rawLinks.length >= 5 || (mainUrl && rawLinks[0].url === mainUrl));
+
+      if (allInAdditional) {
+        products = rawLinks.slice(0, 5).map((link, i) => ({
+          url: link.url || "",
+          quantity: Number(link.quantity) || 0,
+          image: images[i] || "",
+        }));
+      } else if (mainUrl && hasObjectLinks) {
+        const restSum = rawLinks.reduce((s, l) => s + (Number(l.quantity) || 0), 0);
+        products = [
+          { url: mainUrl, quantity: Math.max(0, totalQty - restSum), image: images[0] || "" },
+          ...rawLinks.slice(0, 4).map((l, i) => ({ url: l.url || "", quantity: Number(l.quantity) || 0, image: images[i + 1] || "" })),
+        ];
+      } else if (mainUrl) {
+        const linkStrings = Array.isArray(rawLinks) && typeof rawLinks[0] === "string"
+          ? rawLinks.map((url) => ({ url, quantity: 20 }))
+          : [];
+        const restSum = linkStrings.reduce((s, l) => s + (Number(l.quantity) || 20), 0);
+        products = [
+          { url: mainUrl, quantity: Math.max(0, totalQty - restSum), image: images[0] || "" },
+          ...linkStrings.map((l, i) => ({ url: l.url, quantity: Number(l.quantity) || 20, image: images[i + 1] || "" })),
+        ];
+      } else {
+        const linkStrings = Array.isArray(rawLinks) && typeof rawLinks[0] === "string"
+          ? rawLinks.map((url) => ({ url, quantity: 20 }))
+          : [];
+        products = linkStrings.map((l, i) => ({ url: l.url || "", quantity: Number(l.quantity) || 20, image: images[i] || "" }));
       }
-
-      // Handle additional_links (Django API format) or additionalLinks (old format)
-      const linksToProcess = order.additional_links || order.additionalLinks;
-      if (linksToProcess) {
-        if (
-          Array.isArray(linksToProcess) &&
-          typeof linksToProcess[0] === "string"
-        ) {
-          // Old format: array of strings
-          additionalLinks = [
-            ...additionalLinks,
-            ...linksToProcess.map((url) => ({ url, quantity: 20 })),
-          ];
-        } else {
-          // New format: array of objects with url and quantity
-          additionalLinks = [...additionalLinks, ...linksToProcess];
-        }
-      }
-
-      // Ensure we have exactly 5 items
-      while (additionalLinks.length < 5) {
-        additionalLinks.push({ url: "", quantity: 20 });
-      }
-
-      // If we have more than 5 items, keep only the first 5
-      additionalLinks = additionalLinks.slice(0, 5);
+      while (products.length < 5) products.push({ url: "", quantity: 0, image: "" });
+      products = products.slice(0, 5);
 
       setFormData({
         title: order.title,
         description: order.description,
-        images: [...(order.images || []), "", "", "", "", ""].slice(0, 5),
         shippingMethod: order.invoice_shipping_method || "sea",
-        additionalLinks: additionalLinks,
+        products,
       });
     }
   }, [location.state]);
 
   const openQuickOrderModal = (product) => {
-    setQuickOrderModal({ open: true, product, proof: null, proofPreview: "" });
+    setQuickOrderModal({ open: true, product });
   };
 
   const closeQuickOrderModal = () => {
-    setQuickOrderModal({ open: false, product: null, proof: null, proofPreview: "" });
-  };
-
-  const handleQuickOrderProofChange = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Image must be less than 5MB");
-      return;
-    }
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please upload an image file");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onloadend = () =>
-      setQuickOrderModal((prev) => ({ ...prev, proof: file, proofPreview: reader.result || "" }));
-    reader.readAsDataURL(file);
+    setQuickOrderModal({ open: false, product: null });
   };
 
   const handleQuickOrderSubmit = async () => {
-    const { product, proofPreview } = quickOrderModal;
-    if (!product || !proofPreview) {
-      toast.error("Please upload proof of payment.");
+    const { product } = quickOrderModal;
+    if (!product) return;
+    if (!awaitingSlot?.id) {
+      toast.error("Pay the sourcing fee first to place this order.");
       return;
     }
     setSubmittingQuickOrderId(product.id || product._id);
     try {
       let validLink = product.link;
       if (validLink && !validLink.startsWith("http")) validLink = "https://" + validLink;
-      const orderDataWithProof = {
+      const orderData = {
         title: product.title || "Quick Order Product",
         description: product.description || "Ordered from Quick Order Products",
         product_url: validLink,
-        additional_links: [],
+        additional_links: [{ url: validLink, quantity: product.minQuantity || 20 }],
         images: Array.isArray(product.images) ? product.images : (product.images ? [product.images] : []),
         quantity: product.minQuantity || 20,
-        estimated_amount: defaultSourcingPayment,
-        invoice_shipping_method: "sea",
-        proof_of_payment: proofPreview,
       };
-      await createBuy4meRequestWithProof(orderDataWithProof);
-      toast.success("Order submitted. We'll verify your payment and get back to you.");
+      await submitBuy4meDetails(awaitingSlot.id, orderData);
+      toast.success("Order submitted. Pay again to place another order.");
+      setAwaitingSlot(null);
       closeQuickOrderModal();
     } catch (error) {
       const errMsg = error.response?.data?.error || error.response?.data?.detail || "Failed to submit order.";
@@ -351,46 +345,48 @@ const Buy4me = () => {
     }
   };
 
-  const handleQuickOrder = (product) => {
-    openQuickOrderModal(product);
-  };
+  const handleQuickOrder = (product) => openQuickOrderModal(product);
 
-  const handleImageChange = (index, value) => {
-    const newImages = [...formData.images];
-    newImages[index] = value;
-    setFormData({ ...formData, images: newImages });
-  };
-
-  const handleImageUpload = (index, event) => {
-    const file = event.target.files[0];
-    if (file) {
-      if (!file.type.startsWith("image/")) {
-        toast.error("Please upload a valid image file");
+  const handlePaySourcingFee = async () => {
+    setPayingSourcingFee(true);
+    try {
+      const baseUrl = import.meta.env?.VITE_APP_URL || (typeof window !== "undefined" ? window.location.origin : "");
+      const res = await initiateBuy4meSourcingFee({ callback_url: baseUrl ? `${String(baseUrl).replace(/\/$/, "")}/payment/callback` : undefined });
+      if (res.data?.payment_url) {
+        toast.success("Redirecting to payment...");
+        window.location.href = res.data.payment_url;
         return;
       }
-
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error("Image size should be less than 5MB");
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const newImages = [...formData.images];
-        newImages[index] = reader.result;
-        setFormData({ ...formData, images: newImages });
-      };
-      reader.readAsDataURL(file);
+      toast.error("Could not start payment. Please try again.");
+    } catch (err) {
+      toast.error(err.response?.data?.error || err.response?.data?.detail || err.message || "Failed to start payment.");
+    } finally {
+      setPayingSourcingFee(false);
     }
   };
 
-  const handleAdditionalLinkChange = (index, field, value) => {
-    const newAdditionalLinks = [...formData.additionalLinks];
-    newAdditionalLinks[index] = {
-      ...newAdditionalLinks[index],
-      [field]: value,
+  const handleProductChange = (index, field, value) => {
+    const newProducts = [...formData.products];
+    newProducts[index] = { ...newProducts[index], [field]: value };
+    setFormData({ ...formData, products: newProducts });
+  };
+
+  const handleProductImageUpload = (index, event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload a valid image file");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image size should be less than 5MB");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      handleProductChange(index, "image", reader.result || "");
     };
-    setFormData({ ...formData, additionalLinks: newAdditionalLinks });
+    reader.readAsDataURL(file);
   };
 
   const handleSubmit = async (e) => {
@@ -404,32 +400,27 @@ const Buy4me = () => {
         return;
       }
 
-      // Filter out empty links and ensure proper format
-      const filteredLinks = formData.additionalLinks
-        .filter((link) => link.url && link.url.trim() !== "")
-        .map((link) => ({
-          url: link.url.trim(),
-          quantity: link.quantity || 20
+      // Build from products: each row has link, image, quantity. Links are optional.
+      const filteredProducts = formData.products
+        .filter((p) => p.url && p.url.trim() !== "")
+        .map((p) => ({
+          url: p.url.trim(),
+          quantity: Math.max(0, Number(p.quantity) || 0),
         }));
 
-      // Prepare order data for Django API
-      // Get the first link as product_url and rest as additional_links
-      const firstLink = filteredLinks[0];
-      const restLinks = filteredLinks.slice(1);
-      
-      // Ensure product_url is a valid URL or null
-      let productUrl = firstLink?.url || null;
-      if (productUrl && !productUrl.startsWith('http://') && !productUrl.startsWith('https://')) {
-        productUrl = 'https://' + productUrl;
+      const totalQty = filteredProducts.reduce((sum, p) => sum + p.quantity, 0);
+      let productUrl = filteredProducts[0]?.url ?? "";
+      if (productUrl && !productUrl.startsWith("http://") && !productUrl.startsWith("https://")) {
+        productUrl = "https://" + productUrl;
       }
-      
+
       const orderData = {
         title: formData.title.trim(),
         description: formData.description.trim(),
         product_url: productUrl,
-        additional_links: restLinks.length > 0 ? restLinks : [],
-        images: formData.images.filter((img) => img && img.trim() !== ''),
-        quantity: filteredLinks.reduce((sum, link) => sum + (link.quantity || 20), 0),
+        additional_links: filteredProducts,
+        images: formData.products.map((p) => p.image).filter((img) => img && img.trim() !== ""),
+        quantity: totalQty,
         invoice_shipping_method: formData.shippingMethod,
       };
       
@@ -461,49 +452,39 @@ const Buy4me = () => {
         setFormData({
           title: "",
           description: "",
-          images: ["", "", "", "", ""],
           shippingMethod: "sea",
-          additionalLinks: [
-            { url: "", quantity: 0 },
-            { url: "", quantity: 0 },
-            { url: "", quantity: 0 },
-            { url: "", quantity: 0 },
-            { url: "", quantity: 0 },
+          products: [
+            { url: "", quantity: 0, image: "" },
+            { url: "", quantity: 0, image: "" },
+            { url: "", quantity: 0, image: "" },
+            { url: "", quantity: 0, image: "" },
+            { url: "", quantity: 0, image: "" },
           ],
         });
       } else {
-        // For new orders, use proof-of-payment flow (like Alipay/Community)
-        if (!proofOfPaymentPreview) {
-          toast.error("Please upload proof of payment (receipt/screenshot).");
+        if (!awaitingSlot?.id) {
+          toast.error("No paid slot. Please pay the sourcing fee first.");
           setIsSubmittingBuy4me(false);
           return;
         }
-        const estimatedAmount = defaultSourcingPayment;
-        const orderDataWithProof = {
-          ...orderData,
-          estimated_amount: estimatedAmount,
-          proof_of_payment: proofOfPaymentPreview,
-        };
         try {
-          response = await createBuy4meRequestWithProof(orderDataWithProof);
+          response = await submitBuy4meDetails(awaitingSlot.id, orderData);
           savedRequest = response.data;
-          toast.success("Order submitted. We'll verify your payment and get back to you.");
-          setProofOfPaymentPreview("");
+          toast.success("Order submitted. You can pay again to place another order.");
+          setAwaitingSlot(null);
           setFormData({
             title: "",
             description: "",
-            images: ["", "", "", "", ""],
             shippingMethod: "sea",
-            additionalLinks: [
-              { url: "", quantity: 0 },
-              { url: "", quantity: 0 },
-              { url: "", quantity: 0 },
-              { url: "", quantity: 0 },
-              { url: "", quantity: 0 },
+            products: [
+              { url: "", quantity: 0, image: "" },
+              { url: "", quantity: 0, image: "" },
+              { url: "", quantity: 0, image: "" },
+              { url: "", quantity: 0, image: "" },
+              { url: "", quantity: 0, image: "" },
             ],
           });
         } catch (error) {
-          console.error("Error creating buy4me request with proof:", error);
           const errMsg = error.response?.data?.error || error.response?.data?.detail || "Failed to submit order. Please try again.";
           toast.error(errMsg);
         }
@@ -561,9 +542,31 @@ const Buy4me = () => {
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 h-[600px] overflow-y-auto">
               <div className="mb-6">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {editMode ? "Edit Order" : "Place Your Order"}
+                  {editMode ? "Edit Order" : awaitingSlot ? "Place Your Order" : "Buy4me"}
                 </h2>
               </div>
+              {loadingAwaiting && !editMode ? (
+                <div className="flex items-center justify-center py-12">
+                  <span className="text-gray-500 dark:text-gray-400">Checking access...</span>
+                </div>
+              ) : !editMode && !awaitingSlot ? (
+                <div className="space-y-6">
+                  <p className="text-gray-600 dark:text-gray-300">
+                    Pay the sourcing fee first to get access to place one Buy4me order. After you submit that order, pay again to place another.
+                  </p>
+                  <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-4">
+                    <p className="text-sm font-medium text-amber-800 dark:text-amber-200 mb-2">Sourcing fee: GHS {defaultSourcingPayment || "—"}</p>
+                    <button
+                      type="button"
+                      onClick={handlePaySourcingFee}
+                      disabled={payingSourcingFee || !defaultSourcingPayment || defaultSourcingPayment <= 0}
+                      className="w-full px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {payingSourcingFee ? "Redirecting to payment..." : "Pay sourcing fee to place order"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -610,93 +613,83 @@ const Buy4me = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Product Images (up to 5)
+                    Products (link, image, and quantity per row)
                   </label>
-                  <div className="space-y-3">
-                    {formData.images.map((image, index) => (
-                      <div key={index} className="flex items-center gap-3">
-                        <FaImage className="w-5 h-5 text-gray-400" />
-                        <div className="flex-1 flex gap-2">
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => handleImageUpload(index, e)}
-                            className="flex-1 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
-                          />
-                        </div>
-                        {image && (
-                          <button
-                            type="button"
-                            onClick={() => handleImageChange(index, "")}
-                            className="p-2 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-                          >
-                            <FaTimes className="w-5 h-5" />
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  {formData.images.some((img) => img) && (
-                    <div className="mt-4 flex gap-2 overflow-x-auto pb-2">
-                      {formData.images.map(
-                        (image, index) =>
-                          image && (
-                            <div key={index} className="relative group">
-                              <img
-                                src={image}
-                                alt={`Preview ${index + 1}`}
-                                className="w-20 h-20 object-cover rounded-lg"
+                  <div className="space-y-4">
+                    {formData.products.map((product, index) => (
+                      <div
+                        key={index}
+                        className="p-4 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-700/30 space-y-3"
+                      >
+                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                          Product {index + 1}
+                        </p>
+                        <div className="flex flex-wrap items-start gap-3">
+                          <div className="flex-1 min-w-[180px] flex items-center gap-2">
+                            <FaLink className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                            <input
+                              type="url"
+                              value={product.url}
+                              onChange={(e) =>
+                                handleProductChange(index, "url", e.target.value)
+                              }
+                              className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                              placeholder="Product link"
+                            />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <FaImage className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                            <label className="cursor-pointer">
+                              <span className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm hover:bg-gray-50 dark:hover:bg-gray-600">
+                                {product.image ? "Change image" : "Add image"}
+                              </span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) =>
+                                  handleProductImageUpload(index, e)
+                                }
                               />
-                              <button
-                                type="button"
-                                onClick={() => handleImageChange(index, "")}
-                                className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                              >
-                                <FaTimes className="w-3 h-3" />
-                              </button>
-                            </div>
-                          )
-                      )}
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Product Links with Quantities
-                  </label>
-                  <div className="space-y-3">
-                    {formData.additionalLinks.map((link, index) => (
-                      <div key={index} className="flex items-center gap-3">
-                        <FaLink className="w-5 h-5 text-gray-400" />
-                        <input
-                          type="url"
-                          value={link.url}
-                          onChange={(e) =>
-                            handleAdditionalLinkChange(
-                              index,
-                              "url",
-                              e.target.value
-                            )
-                          }
-                          className="flex-1 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
-                          placeholder="Enter product link"
-                        />
-                        <div className="flex items-center">
-                          <label className="sr-only">Quantity</label>
-                          <input
-                            type="number"
-                            min="0"
-                            value={link.quantity}
-                            onChange={(e) =>
-                              handleAdditionalLinkChange(
-                                index,
-                                "quantity",
-                                parseInt(e.target.value) || 0
-                              )
-                            }
-                            className="w-20 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
-                            placeholder="Qty"
-                          />
+                            </label>
+                            {product.image && (
+                              <div className="relative">
+                                <img
+                                  src={product.image}
+                                  alt=""
+                                  className="w-12 h-12 object-cover rounded border"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleProductChange(index, "image", "")
+                                  }
+                                  className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center text-xs"
+                                >
+                                  <FaTimes />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <label className="text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                              Qty
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              value={product.quantity || ""}
+                              onChange={(e) =>
+                                handleProductChange(
+                                  index,
+                                  "quantity",
+                                  parseInt(e.target.value, 10) || 0
+                                )
+                              }
+                              className="w-20 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                              placeholder="0"
+                            />
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -715,133 +708,23 @@ const Buy4me = () => {
                   </div>
                 </div>
 
-                {/* Sourcing Payment Information */}
-                {!editMode && (
-                  <div className="space-y-4">
-                    <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                      <div className="flex items-start gap-3">
-                        <FaInfoCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
-                        <div>
-                          <p className="text-sm font-medium text-blue-900 dark:text-blue-200 mb-1">
-                            Sourcing Payment Required
-                          </p>
-                          <p className="text-sm text-blue-700 dark:text-blue-300">
-                            Pay <strong>GHS {defaultSourcingPayment}</strong> for sourcing using the details below, then upload proof of payment.
-                            The product purchase amount will be invoiced separately after sourcing is complete.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="border-2 border-gray-200 dark:border-gray-700 rounded-xl p-4 space-y-3">
-                      <h4 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                        <FaMoneyBillWave className="w-5 h-5 text-green-600" />
-                        Bank Transfer
-                      </h4>
-                      <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-lg space-y-1.5 text-sm">
-                        <div className="flex justify-between items-center">
-                          <span className="text-gray-600 dark:text-gray-400">Account Name:</span>
-                          <span className="font-semibold text-gray-900 dark:text-white">BUY SELL CLUB LTD</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-gray-600 dark:text-gray-400">Bank:</span>
-                          <span className="font-semibold text-gray-900 dark:text-white">ECOBANK (ACHIMOTA)</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-gray-600 dark:text-gray-400">Account Number:</span>
-                          <span className="font-mono font-bold text-blue-600 dark:text-blue-400">1441004957068</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="border-2 border-gray-200 dark:border-gray-700 rounded-xl p-4 space-y-3">
-                      <h4 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                        <FaAlipay className="w-5 h-5 text-purple-600" />
-                        Mobile Money (MoMo)
-                      </h4>
-                      <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-lg space-y-1.5 text-sm">
-                        <div className="flex justify-between items-center">
-                          <span className="text-gray-600 dark:text-gray-400">Name:</span>
-                          <span className="font-semibold text-gray-900 dark:text-white">Buy Sell Club</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-gray-600 dark:text-gray-400">Number:</span>
-                          <span className="font-mono font-bold text-blue-600 dark:text-blue-400">054 437 0928</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-gray-600 dark:text-gray-400">Merchant ID:</span>
-                          <span className="font-mono font-semibold text-gray-900 dark:text-white">060140</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
-                      <p className="text-sm font-medium text-amber-900 dark:text-amber-200">
-                        Amount to pay for sourcing: <span className="text-lg font-bold">GHS {defaultSourcingPayment}</span>
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Proof of payment upload (custom order) */}
-                {!editMode && (
-                  <div className="mt-4">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Proof of payment <span className="text-red-500">*</span>
-                    </label>
-                    <div className="flex flex-col sm:flex-row gap-4 items-start">
-                      <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-600">
-                        <FaUpload className="w-4 h-4" />
-                        <span>Choose image (receipt/screenshot)</span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (!file) return;
-                            if (file.size > 5 * 1024 * 1024) {
-                              toast.error("Image must be less than 5MB");
-                              return;
-                            }
-                            if (!file.type.startsWith("image/")) {
-                              toast.error("Please upload an image file");
-                              return;
-                            }
-                            const reader = new FileReader();
-                            reader.onloadend = () => setProofOfPaymentPreview(reader.result || "");
-                            reader.readAsDataURL(file);
-                          }}
-                        />
-                      </label>
-                      {proofOfPaymentPreview && (
-                        <div className="relative">
-                          <img src={proofOfPaymentPreview} alt="Proof" className="h-24 w-auto rounded border object-contain bg-gray-100 dark:bg-gray-700" />
-                          <button
-                            type="button"
-                            onClick={() => setProofOfPaymentPreview("")}
-                            className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center text-sm"
-                          >
-                            <FaTimes />
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                {!editMode && awaitingSlot && (
+                  <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                    <p className="text-sm text-green-800 dark:text-green-200">
+                      Sourcing fee paid. Submit your order details below. After this submission you will need to pay again to place another order.
+                    </p>
                   </div>
                 )}
 
                 <button
                   type="submit"
-                  disabled={isSubmittingBuy4me || (!editMode && !proofOfPaymentPreview)}
+                  disabled={isSubmittingBuy4me}
                   className="w-full px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isSubmittingBuy4me
-                    ? "Submitting..."
-                    : editMode
-                    ? "Update Order"
-                    : "Submit order with proof"}
+                  {isSubmittingBuy4me ? "Submitting..." : editMode ? "Update Order" : "Place Order"}
                 </button>
               </form>
+              )}
             </div>
             <div className="relative rounded-lg overflow-hidden shadow-lg h-[600px]">
               <img
@@ -889,7 +772,16 @@ const Buy4me = () => {
                 Quick Order Products
               </h2>
 
-              {isLoading ? (
+              {!awaitingSlot ? (
+                <div className="text-center p-8 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10">
+                  <p className="text-gray-600 dark:text-gray-300 mb-2">
+                    Pay the sourcing fee above to see and order from Quick Order products.
+                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    One payment gives you access to the order form and Quick Order products.
+                  </p>
+                </div>
+              ) : isLoading ? (
                 <div className="flex justify-center items-center p-8">
                   <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
                 </div>
@@ -948,20 +840,20 @@ const Buy4me = () => {
                           </p>
                           <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-800 mb-2">
                             <p className="text-xs font-medium text-blue-900 dark:text-blue-200">
-                              Payment Required: GHS {defaultSourcingPayment}
+                              Sourcing fee: GHS {defaultSourcingPayment || "—"}
                             </p>
                             <p className="text-xs text-blue-700 dark:text-blue-300">
-                              Pay before order placement
-                          </p>
-                        </div>
+                              Pay first to get one order slot (form or quick order)
+                            </p>
+                          </div>
                         </div>
                         <div className="mt-3">
                           <button
                             onClick={() => handleQuickOrder(product)}
-                            disabled={submittingQuickOrderId === (product.id || product._id)}
+                            disabled={submittingQuickOrderId === (product.id || product._id) || !defaultSourcingPayment || defaultSourcingPayment <= 0}
                             className="w-full px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           >
-                            {submittingQuickOrderId === (product.id || product._id) ? "Processing..." : "Place order (upload proof)"}
+                            {submittingQuickOrderId === (product.id || product._id) ? "Submitting..." : (!defaultSourcingPayment || defaultSourcingPayment <= 0) ? "Sourcing fee not set" : "Place order"}
                           </button>
                         </div>
                       </div>
@@ -1024,7 +916,7 @@ const Buy4me = () => {
         </div>
       </div>
 
-      {/* Quick Order – Proof of payment modal */}
+      {/* Quick Order modal: has slot = place order (submit details); no slot = pay sourcing fee */}
       {quickOrderModal.open && quickOrderModal.product && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={closeQuickOrderModal}>
           <div
@@ -1032,53 +924,43 @@ const Buy4me = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              Place order: {quickOrderModal.product.title}
+              {awaitingSlot ? "Place order" : "Quick order"}: {quickOrderModal.product.title}
             </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-              Pay <strong>GHS {defaultSourcingPayment}</strong> for sourcing, then upload proof of payment below.
-            </p>
-            <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg text-xs space-y-1">
-              <p className="font-medium text-gray-700 dark:text-gray-200">Pay to:</p>
-              <p className="text-gray-600 dark:text-gray-300">Bank: ECOBANK (ACHIMOTA) — 1441004957068 (BUY SELL CLUB LTD)</p>
-              <p className="text-gray-600 dark:text-gray-300">MoMo: Buy Sell Club — 054 437 0928 (Merchant ID: 060140)</p>
-            </div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Proof of payment *</label>
-            <div className="flex flex-col gap-3 mb-6">
-              <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600">
-                <FaUpload className="w-4 h-4" />
-                <span>Choose image</span>
-                <input type="file" accept="image/*" className="hidden" onChange={handleQuickOrderProofChange} />
-              </label>
-              {quickOrderModal.proofPreview && (
-                <div className="relative inline-block">
-                  <img src={quickOrderModal.proofPreview} alt="Proof" className="h-24 w-auto rounded border object-contain bg-gray-100 dark:bg-gray-700" />
+            {awaitingSlot ? (
+              <>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                  This uses your paid slot. One submission per payment. After this order you will need to pay the sourcing fee again to place another.
+                </p>
+                <div className="flex gap-3">
+                  <button type="button" onClick={closeQuickOrderModal} className="flex-1 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">Cancel</button>
                   <button
                     type="button"
-                    onClick={() => setQuickOrderModal((p) => ({ ...p, proof: null, proofPreview: "" }))}
-                    className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center"
+                    onClick={handleQuickOrderSubmit}
+                    disabled={submittingQuickOrderId === (quickOrderModal.product?.id || quickOrderModal.product?._id)}
+                    className="flex-1 px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <FaTimes />
+                    {submittingQuickOrderId === (quickOrderModal.product?.id || quickOrderModal.product?._id) ? "Submitting..." : "Place order"}
                   </button>
                 </div>
-              )}
-            </div>
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={closeQuickOrderModal}
-                className="flex-1 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleQuickOrderSubmit}
-                disabled={!quickOrderModal.proofPreview || submittingQuickOrderId === (quickOrderModal.product?.id || quickOrderModal.product?._id)}
-                className="flex-1 px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {submittingQuickOrderId === (quickOrderModal.product?.id || quickOrderModal.product?._id) ? "Submitting..." : "Submit order"}
-              </button>
-            </div>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                  Pay the sourcing fee first to get access to place this order (GHS {defaultSourcingPayment}). Same fee gives you access to the Buy4me form or one quick order.
+                </p>
+                <div className="flex gap-3">
+                  <button type="button" onClick={closeQuickOrderModal} className="flex-1 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">Cancel</button>
+                  <button
+                    type="button"
+                    onClick={() => { handlePaySourcingFee(); closeQuickOrderModal(); }}
+                    disabled={payingSourcingFee || !defaultSourcingPayment || defaultSourcingPayment <= 0}
+                    className="flex-1 px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {payingSourcingFee ? "Redirecting..." : "Pay sourcing fee"}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

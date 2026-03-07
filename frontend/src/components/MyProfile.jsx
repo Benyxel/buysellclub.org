@@ -46,7 +46,7 @@ import {
 } from "react-icons/fa";
 import { trackingSystem } from "../utils/trackingSystem";
 import { NOTE_MESSAGE } from "./ShippingTrackingNote";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Link } from "react-router-dom";
 import { toast } from "../utils/toast";
 import "react-toastify/dist/ReactToastify.css";
@@ -59,7 +59,6 @@ import API, {
   setCachedData,
   CACHE_DURATION,
   clearCache,
-  getLocalAgentSettings,
 } from "../api";
 import { storageCache } from "../utils/storageCache";
 import Invoice from "./Invoice";
@@ -121,155 +120,6 @@ const MyProfile = () => {
     }
   };
 
-  // Function to handle agent request submission
-  const handleSubmitAgentRequest = async () => {
-    // Check if user already has a pending request
-    if (agentRequestStatus === "pending") {
-      toast.warning(
-        "You already have a pending agent request. Please wait for admin review."
-      );
-      return;
-    }
-
-    // Check if user is already an agent
-    if (currentUser?.is_agent) {
-      toast.warning("You are already an agent.");
-      return;
-    }
-
-    if (!selectedAgentType) {
-      toast.error("Please select an agent type");
-      return;
-    }
-
-    // Validate corporate agent form
-    if (selectedAgentType === "corporate") {
-      if (!corporateFormData.businessName.trim()) {
-        toast.error("Business Name is required");
-        return;
-      }
-      if (!corporateFormData.location.trim()) {
-        toast.error("Location is required");
-        return;
-      }
-      if (!corporateFormData.phoneNumber.trim()) {
-        toast.error("Phone Number is required");
-        return;
-      }
-      if (!corporateFormData.businessCert) {
-        toast.error("Business Certificate is required");
-        return;
-      }
-      if (!corporateFormData.ghanaCard) {
-        toast.error("Ghana Card is required");
-        return;
-      }
-    }
-    if (selectedAgentType === "local" && !localAgentLocation.trim()) {
-      toast.error("Location is required");
-      return;
-    }
-
-    try {
-      setSubmittingAgentRequest(true);
-
-      // Prepare form data
-      const formData = new FormData();
-      formData.append("agent_type", selectedAgentType);
-      if (agentRequestMessage) {
-        formData.append("message", agentRequestMessage);
-      }
-
-      // Add corporate agent specific fields
-      if (selectedAgentType === "corporate") {
-        formData.append("business_name", corporateFormData.businessName);
-        formData.append("location", corporateFormData.location);
-        formData.append("phone_number", corporateFormData.phoneNumber);
-        if (corporateFormData.businessCert) {
-          formData.append("business_cert", corporateFormData.businessCert);
-        }
-        if (corporateFormData.ghanaCard) {
-          formData.append("ghana_card", corporateFormData.ghanaCard);
-        }
-      }
-      if (selectedAgentType === "local") {
-        formData.append("location", localAgentLocation);
-      }
-
-      // Don't set Content-Type header - let axios handle it automatically for FormData
-      // Try the endpoint - if it doesn't exist, we'll show a helpful error
-      const response = await API.post("/buysellapi/agent-requests/", formData);
-
-      toast.success(
-        "Agent request submitted successfully! We will review your request."
-      );
-      setShowBecomeAgentModal(false);
-      setSelectedAgentType("");
-      setAgentRequestMessage("");
-      setLocalAgentLocation("");
-      setCorporateFormData({
-        businessName: "",
-        businessCert: null,
-        location: "",
-        ghanaCard: null,
-        phoneNumber: "",
-      });
-      setAgentRequestStatus("pending");
-
-      // Refresh user profile to get updated status
-      await fetchUserProfile();
-    } catch (error) {
-      console.error("Failed to submit agent request:", error);
-      console.error("Error details:", {
-        status: error.response?.status,
-        data: error.response?.data,
-        message: error.message,
-      });
-
-      let errorMsg = "Failed to submit agent request. Please try again.";
-
-      if (error.response) {
-        // Server responded with error
-        if (error.response.status === 404) {
-          errorMsg =
-            "Agent request endpoint not found. Please contact the administrator. The backend endpoint '/buysellapi/agent-requests/' needs to be implemented.";
-        } else {
-          errorMsg =
-            error.response.data?.detail ||
-            error.response.data?.error ||
-            error.response.data?.message ||
-            `Server error: ${error.response.status}`;
-        }
-      } else if (error.request) {
-        // Request made but no response
-        errorMsg = "No response from server. Please check your connection.";
-      } else {
-        // Something else happened
-        errorMsg = error.message || "An unexpected error occurred";
-      }
-
-      // Log full error details for debugging
-      console.error("Full error object:", {
-        message: error.message,
-        response: error.response,
-        request: error.request,
-        config: error.config,
-      });
-
-      toast.error(errorMsg);
-    } finally {
-      setSubmittingAgentRequest(false);
-    }
-  };
-
-  // Handle file input changes
-  const handleFileChange = (field, file) => {
-    setCorporateFormData((prev) => ({
-      ...prev,
-      [field]: file,
-    }));
-  };
-
   const [isEditing, setIsEditing] = useState(false);
   const [userInfo, setUserInfo] = useState({
     name: "",
@@ -290,12 +140,24 @@ const MyProfile = () => {
   };
 
   const [activeTab, setActiveTab] = useState(getInitialTab());
+  const location = useLocation();
+
+  // When navigating to Profile with ?tab=... (e.g. back from Community pages), open that tab
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tabFromUrl = params.get("tab");
+    if (tabFromUrl && tabFromUrl !== activeTab) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [location.search]);
+
   const [showTabModal, setShowTabModal] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [activeSubTab, setActiveSubTab] = useState("orders");
   const [userShipments, setUserShipments] = useState([]);
   const [copiedId, setCopiedId] = useState(null);
   const [shippingMarks, setShippingMarks] = useState([]);
+  const [warehouseAddresses, setWarehouseAddresses] = useState([]);
   const [favorites, setFavorites] = useState([]);
   const [orders, setOrders] = useState([]);
   const [notifications, setNotifications] = useState([]);
@@ -318,11 +180,6 @@ const MyProfile = () => {
   const [selectedBuy4meTrackingOrder, setSelectedBuy4meTrackingOrder] =
     useState(null);
   const [showBuy4meTrackingModal, setShowBuy4meTrackingModal] = useState(false);
-  const [showBecomeAgentModal, setShowBecomeAgentModal] = useState(false);
-  const [selectedAgentType, setSelectedAgentType] = useState("");
-  const [agentRequestMessage, setAgentRequestMessage] = useState("");
-  const [submittingAgentRequest, setSubmittingAgentRequest] = useState(false);
-  const [agentRequestStatus, setAgentRequestStatus] = useState(null); // 'pending', 'approved', 'rejected', null
   const [vendorMe, setVendorMe] = useState(null); // vendor-applications/me/ when seller tab active
 
   // Fetch vendor status on mount and when seller tab is active (for tab label and content)
@@ -345,74 +202,22 @@ const MyProfile = () => {
       cancelled = true;
     };
   }, [activeTab]);
-  const [localAgentCapacity, setLocalAgentCapacity] = useState({
-    max: 0,
-    current: 0,
-    limitReached: false,
-    loading: false,
-  });
   const [isCommunityMember, setIsCommunityMember] = useState(false);
   const [communityTelegramLink, setCommunityTelegramLink] = useState("");
   const [communityHasSheetAccess, setCommunityHasSheetAccess] = useState(false);
-  const [showRejectedBadge, setShowRejectedBadge] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
-
-  // Corporate Agent form fields
-  const [corporateFormData, setCorporateFormData] = useState({
-    businessName: "",
-    businessCert: null,
-    location: "",
-    ghanaCard: null,
-    phoneNumber: "",
-  });
-  const [localAgentLocation, setLocalAgentLocation] = useState("");
-
-  useEffect(() => {
-    if (!showBecomeAgentModal) return;
-
-    let isMounted = true;
-    const loadCapacity = async () => {
-      try {
-        setLocalAgentCapacity((prev) => ({ ...prev, loading: true }));
-        const response = await getLocalAgentSettings();
-        const data = response.data || {};
-        const max = Number(data.max_local_agents || 0);
-        const current = Number(data.current_local_agents || 0);
-        const limitReached =
-          typeof data.limit_reached === "boolean"
-            ? data.limit_reached
-            : max > 0 && current >= max;
-        if (isMounted) {
-          setLocalAgentCapacity({
-            max,
-            current,
-            limitReached,
-            loading: false,
-          });
-        }
-      } catch (error) {
-        if (isMounted) {
-          setLocalAgentCapacity((prev) => ({ ...prev, loading: false }));
-        }
-      }
-    };
-
-    loadCapacity();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [showBecomeAgentModal]);
 
   useEffect(() => {
     const fetchCommunityStatus = async () => {
       try {
         const response = await Api.community.myRequest({ noCache: true });
         const status = response.data?.request?.status;
-        const approved = status === "approved";
-        setIsCommunityMember(approved);
-        setCommunityTelegramLink(response.data?.telegram_link || "");
         const sheetType = response.data?.sheet_access_type;
+        const telegramLink = response.data?.telegram_link || "";
+        // Approved if they have an approved request, or superadmin (backend returns sheet_access_type "member" + telegram_link)
+        const approved = status === "approved" || (sheetType === "member" && !!telegramLink);
+        setIsCommunityMember(approved);
+        setCommunityTelegramLink(telegramLink);
         setCommunityHasSheetAccess(sheetType === "member" || sheetType === "sheet_only");
       } catch {
         setIsCommunityMember(false);
@@ -424,23 +229,6 @@ const MyProfile = () => {
     fetchCommunityStatus();
   }, []);
 
-  useEffect(() => {
-    if (agentRequestStatus !== "rejected") {
-      setShowRejectedBadge(false);
-      return;
-    }
-    const userKey = currentUser?.id || currentUser?.username || "user";
-    const storageKey = `agentRequestRejectedSeen:${userKey}`;
-    const seen = localStorage.getItem(storageKey);
-    if (!seen) {
-      setShowRejectedBadge(true);
-      const timer = setTimeout(() => {
-        setShowRejectedBadge(false);
-        localStorage.setItem(storageKey, "true");
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [agentRequestStatus, currentUser?.id, currentUser?.username]);
   const trackableBuy4meOrders = buy4meOrders.filter(
     (order) =>
       order.tracking_status ||
@@ -559,8 +347,12 @@ const MyProfile = () => {
         setBuy4meOrders(orders);
       }
 
-      // Refresh profile and shipping marks in parallel for faster loading
-      await Promise.all([fetchUserProfile(), fetchUserShippingMarks()]);
+      // Refresh profile, shipping marks, and warehouse addresses in parallel
+      await Promise.all([
+        fetchUserProfile(),
+        fetchUserShippingMarks(),
+        fetchWarehouseAddresses(),
+      ]);
 
       if (showToast) {
         toast.success("Profile data refreshed successfully");
@@ -621,8 +413,12 @@ const MyProfile = () => {
           return;
         }
 
-        // Fetch profile and shipping mark data in parallel for faster loading
-        await Promise.all([fetchUserProfile(), fetchUserShippingMarks()]);
+        // Fetch profile, shipping marks, and warehouse addresses in parallel
+        await Promise.all([
+          fetchUserProfile(),
+          fetchUserShippingMarks(),
+          fetchWarehouseAddresses(),
+        ]);
       } catch (error) {
         console.error("Error in initial data fetch:", error);
         setError("Could not load profile data. Please try refreshing.");
@@ -791,12 +587,6 @@ const MyProfile = () => {
       setNotifyPromotions(
         u.notify_promotions !== undefined ? !!u.notify_promotions : false
       );
-      // Check agent request status
-      if (u.agent_request_status) {
-        setAgentRequestStatus(u.agent_request_status);
-      } else {
-        setAgentRequestStatus(null);
-      }
     } catch (error) {
       // Check if the error is due to being offline
       if (!checkOnlineStatus()) {
@@ -979,6 +769,16 @@ const MyProfile = () => {
       console.error("Error fetching user shipping mark:", error);
       setShippingMarks([]);
       return false;
+    }
+  };
+
+  const fetchWarehouseAddresses = async () => {
+    try {
+      const res = await API.get("/buysellapi/warehouse-addresses/");
+      const list = Array.isArray(res.data) ? res.data : [];
+      setWarehouseAddresses(list);
+    } catch (_) {
+      setWarehouseAddresses([]);
     }
   };
 
@@ -2505,71 +2305,6 @@ const MyProfile = () => {
                   : userInfo.email || currentUser?.email || "No email"}
               </p>
 
-              {/* Become Agent Button - Only show if user is not already an agent and no pending request */}
-              {!isLoading &&
-                !currentUser?.is_agent &&
-                agentRequestStatus !== "pending" && (
-                  <div className="mt-4">
-                    <button
-                      onClick={() => setShowBecomeAgentModal(true)}
-                      className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all shadow-md hover:shadow-lg"
-                    >
-                      <FaUserTag className="mr-2" />
-                      Become An Agent
-                    </button>
-                  </div>
-                )}
-
-              {/* Agent Request Status */}
-              {agentRequestStatus && !currentUser?.is_agent && (
-                <div className="mt-3">
-                  {agentRequestStatus === "pending" && (
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
-                      <FaRegClock className="mr-1" />
-                      Agent Request Pending
-                    </span>
-                  )}
-                  {agentRequestStatus === "approved" && (
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                      <FaCheckCircle className="mr-1" />
-                      Agent Request Approved
-                      {currentUser?.agent_type && (
-                        <span className="ml-2 font-semibold">
-                          (
-                          {currentUser?.agent_type === "corporate"
-                            ? "Corporate"
-                            : currentUser?.agent_type === "local"
-                            ? "Local"
-                            : currentUser?.agent_type === "affiliate"
-                            ? "Affiliate"
-                            : ""}{" "}
-                          Agent)
-                        </span>
-                      )}
-                    </span>
-                  )}
-                  {agentRequestStatus === "rejected" && showRejectedBadge && (
-                    <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-                      <span className="inline-flex items-center">
-                        <FaExclamationTriangle className="mr-1" />
-                        Agent Request Rejected
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const userKey = currentUser?.id || currentUser?.username || "user";
-                          localStorage.setItem(`agentRequestRejectedSeen:${userKey}`, "true");
-                          setShowRejectedBadge(false);
-                        }}
-                        className="text-red-700 dark:text-red-200 hover:text-red-900"
-                      >
-                        Close
-                      </button>
-                    </span>
-                  )}
-                </div>
-              )}
-
               {/* Add refresh button and status indicators */}
               <div className="mt-2 min-h-[32px] flex items-center justify-center sm:justify-start gap-2">
                 {isLoading && (
@@ -3031,7 +2766,7 @@ const MyProfile = () => {
                           </span>
                         </div>
                         <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                          You have access to supplier contacts and the community Telegram group.
+                          You have access to supplier contacts, exclusive content and the community Telegram group.
                         </p>
                         <div className="flex flex-wrap gap-3">
                           {communityHasSheetAccess && (
@@ -3052,6 +2787,24 @@ const MyProfile = () => {
                               Join Telegram
                             </a>
                           )}
+                          <Link
+                            to="/Community/WinningProducts"
+                            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-medium text-sm"
+                          >
+                            Winning products
+                          </Link>
+                          <Link
+                            to="/Community/VideoTutorials"
+                            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-medium text-sm"
+                          >
+                            Video tutorials
+                          </Link>
+                          <Link
+                            to="/Community/ToolsDownloads"
+                            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm"
+                          >
+                            Tools &amp; downloads
+                          </Link>
                         </div>
                       </div>
                     </div>
@@ -3149,11 +2902,37 @@ const MyProfile = () => {
                             suffix: `"${ghSuffix}`,
                           }
                         : null;
-                      // Dubai / UAE and USA warehouse addresses (same mark, different warehouse formats)
-                      const dubaiBase = "BUYSELLCLUB UAE Warehouse, Phone: TBD, Address: [Dubai warehouse address – to be updated]";
-                      const usaBase = "BUYSELLCLUB USA Warehouse, Phone: TBD, Address: [USA warehouse address – to be updated]";
-                      const dubaiAddressText = displayShippingMark ? `${dubaiBase} ${displayShippingMark}` : "";
-                      const usaAddressText = displayShippingMark ? `${usaBase} ${displayShippingMark}` : "";
+                      // Build address text for a warehouse (from backend warehouse-addresses), same logic as RegionAddressGenerator
+                      const getWarehouseAddressText = (wa) => {
+                        if (!displayShippingMark || !wa) return "";
+                        const base = (wa.baseAddress ?? wa.base_address ?? "").trim();
+                        const phone = (wa.phone ?? "").trim();
+                        const addressLine = (wa.address_line ?? "").trim();
+                        const city = (wa.city ?? "").trim();
+                        const state = (wa.state ?? "").trim();
+                        const stateFull = (wa.state_full ?? "").trim();
+                        const zipcode = (wa.zipcode ?? "").trim();
+                        const country = (wa.country ?? "").trim();
+                        const useUsaFormat = Boolean(addressLine);
+                        if (useUsaFormat) {
+                          const recipient = `${mark.markId ?? ""} ${resolvedMarkName}`.trim();
+                          const lines = [
+                            { label: "Recipient / Name", value: `${recipient} (FOFOOFO)` },
+                            addressLine ? { label: "Address Line", value: addressLine } : null,
+                            city ? { label: "City", value: city } : null,
+                            state ? { label: "State / Province", value: stateFull ? `${state} (${stateFull})` : state } : null,
+                            zipcode ? { label: "Zipcode", value: zipcode } : null,
+                            country ? { label: "Country", value: country } : null,
+                            phone ? { label: "Phone", value: phone } : null,
+                          ].filter(Boolean);
+                          return lines.map(({ label, value }) => `${label}: ${value}`).join("\n");
+                        }
+                        const baseTrimmed = base.replace(/\s*\*\s*$/, "").trim();
+                        const parts = [baseTrimmed];
+                        if (phone) parts.push(`Phone: ${phone}`);
+                        const body = parts.filter(Boolean).join("\n");
+                        return `${displayShippingMark}\n${body}`;
+                      };
                       return (
                       <div
                         key={mark._id}
@@ -3283,55 +3062,35 @@ const MyProfile = () => {
                             </div>
                           )}
 
-                          {dubaiAddressText && (
-                            <div>
-                              <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
-                                Dubai / UAE address
-                              </p>
-                              <div className="relative">
-                                <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                                  <p className="text-sm text-gray-900 dark:text-white break-all whitespace-pre-line">
-                                    {dubaiAddressText}
-                                  </p>
+                          {warehouseAddresses.map((wa) => {
+                            const whAddressText = getWarehouseAddressText(wa);
+                            if (!whAddressText) return null;
+                            const whCopyId = `${copyId}-wh-${wa.code ?? wa.id}`;
+                            return (
+                              <div key={wa.id ?? wa.code}>
+                                <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+                                  {wa.display_name ?? wa.code} address
+                                </p>
+                                <div className="relative">
+                                  <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                    <p className="text-sm text-gray-900 dark:text-white break-all whitespace-pre-line">
+                                      {whAddressText}
+                                    </p>
+                                  </div>
+                                  <button
+                                    onClick={() => copyToClipboard(whAddressText, whCopyId)}
+                                    className="absolute top-3 right-3 p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                                  >
+                                    {copiedId === whCopyId ? (
+                                      <FaCheck className="w-5 h-5 text-green-500" />
+                                    ) : (
+                                      <FaCopy className="w-5 h-5" />
+                                    )}
+                                  </button>
                                 </div>
-                                <button
-                                  onClick={() => copyToClipboard(dubaiAddressText, `${copyId}-dubai`)}
-                                  className="absolute top-3 right-3 p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                                >
-                                  {copiedId === `${copyId}-dubai` ? (
-                                    <FaCheck className="w-5 h-5 text-green-500" />
-                                  ) : (
-                                    <FaCopy className="w-5 h-5" />
-                                  )}
-                                </button>
                               </div>
-                            </div>
-                          )}
-
-                          {usaAddressText && (
-                            <div>
-                              <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
-                                USA address
-                              </p>
-                              <div className="relative">
-                                <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                                  <p className="text-sm text-gray-900 dark:text-white break-all whitespace-pre-line">
-                                    {usaAddressText}
-                                  </p>
-                                </div>
-                                <button
-                                  onClick={() => copyToClipboard(usaAddressText, `${copyId}-usa`)}
-                                  className="absolute top-3 right-3 p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                                >
-                                  {copiedId === `${copyId}-usa` ? (
-                                    <FaCheck className="w-5 h-5 text-green-500" />
-                                  ) : (
-                                    <FaCopy className="w-5 h-5" />
-                                  )}
-                                </button>
-                              </div>
-                            </div>
-                          )}
+                            );
+                          })}
 
                           <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
                             <div className="flex items-start gap-2">
@@ -4487,11 +4246,12 @@ const MyProfile = () => {
                                       <p className="text-sm text-gray-500 dark:text-gray-400">
                                         Quantity: {itemQuantity} × ₵
                                         {itemPrice.toFixed(2)}
-                                        {item.size &&
-                                          item.size !== "default" &&
-                                          item.size !== "null" &&
-                                          item.size !== null &&
-                                          ` • Size: ${item.size}`}
+                                        {(() => {
+                                          const sizeVal = item.size && item.size !== "default" && item.size !== "null" && item.size !== null ? item.size : null;
+                                          const colorVal = item.color && String(item.color).trim() ? item.color : null;
+                                          const opts = [colorVal, sizeVal].filter(Boolean);
+                                          return opts.length > 0 ? ` • ${opts.join(" • ")}` : "";
+                                        })()}
                                       </p>
                                     </div>
                                   </div>
@@ -5301,414 +5061,6 @@ const MyProfile = () => {
         currentAvatar={selectedAvatar}
         onSelect={handleAvatarSelect}
       />
-
-      {/* Become Agent Modal */}
-      {showBecomeAgentModal && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div
-              className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
-              onClick={() => {
-                setShowBecomeAgentModal(false);
-                setSelectedAgentType("");
-                setAgentRequestMessage("");
-                setLocalAgentLocation("");
-                setCorporateFormData({
-                  businessName: "",
-                  businessCert: null,
-                  location: "",
-                  ghanaCard: null,
-                  phoneNumber: "",
-                });
-              }}
-            ></div>
-
-            <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full max-h-[90vh] overflow-y-auto">
-              <div className="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white flex items-center gap-2">
-                    <FaUserTag className="text-blue-600" />
-                    Become an Agent
-                  </h3>
-                  <button
-                    onClick={() => {
-                      setShowBecomeAgentModal(false);
-                      setSelectedAgentType("");
-                      setAgentRequestMessage("");
-                      setLocalAgentLocation("");
-                      setCorporateFormData({
-                        businessName: "",
-                        businessCert: null,
-                        location: "",
-                        ghanaCard: null,
-                        phoneNumber: "",
-                      });
-                    }}
-                    className="text-gray-400 hover:text-gray-500"
-                  >
-                    <FaTimes />
-                  </button>
-                </div>
-
-                <div className="space-y-4">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Select the type of agent you want to become. Our team will
-                    review your request and get back to you.
-                  </p>
-
-                  {/* Agent Type Selection */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                      Select Agent Type *
-                    </label>
-                    <div className="space-y-3">
-                      {/* Corporate Agent */}
-                      <button
-                        type="button"
-                        onClick={() => setSelectedAgentType("corporate")}
-                        className={`w-full p-4 border-2 rounded-lg transition-all text-left ${
-                          selectedAgentType === "corporate"
-                            ? "border-blue-600 bg-blue-50 dark:bg-blue-900/20"
-                            : "border-gray-300 dark:border-gray-600 hover:border-gray-400"
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`p-2 rounded-lg ${
-                              selectedAgentType === "corporate"
-                                ? "bg-blue-600 text-white"
-                                : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
-                            }`}
-                          >
-                            <FaBuilding className="w-5 h-5" />
-                          </div>
-                          <div className="flex-1">
-                            <h4 className="font-semibold text-gray-900 dark:text-white">
-                              Corporate Agent
-                            </h4>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">
-                              For companies that partner with us. We handle the
-                              shipping; you manage your own clients.
-                            </p>
-                          </div>
-                          {selectedAgentType === "corporate" && (
-                            <FaCheckCircle className="text-blue-600 w-5 h-5" />
-                          )}
-                        </div>
-                      </button>
-
-                      {/* Local Agent */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (localAgentCapacity.limitReached) return;
-                          setSelectedAgentType("local");
-                        }}
-                        className={`w-full p-4 border-2 rounded-lg transition-all text-left ${
-                          selectedAgentType === "local"
-                            ? "border-green-600 bg-green-50 dark:bg-green-900/20"
-                            : "border-gray-300 dark:border-gray-600 hover:border-gray-400"
-                        } ${
-                          localAgentCapacity.limitReached
-                            ? "opacity-60 cursor-not-allowed"
-                            : ""
-                        }`}
-                        disabled={localAgentCapacity.limitReached}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`p-2 rounded-lg ${
-                              selectedAgentType === "local"
-                                ? "bg-green-600 text-white"
-                                : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
-                            }`}
-                          >
-                            <FaMapMarkerAlt className="w-5 h-5" />
-                          </div>
-                          <div className="flex-1">
-                            <h4 className="font-semibold text-gray-900 dark:text-white">
-                              Local Agent
-                            </h4>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">
-                              Represent us in your area or community and earn
-                              commissions on completed services.
-                            </p>
-                            {localAgentCapacity.limitReached && (
-                              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                Currently full. Requests are still accepted.
-                              </p>
-                            )}
-                          </div>
-                          {selectedAgentType === "local" && (
-                            <FaCheckCircle className="text-green-600 w-5 h-5" />
-                          )}
-                        </div>
-                      </button>
-
-                      {/* Affiliate Agent */}
-                      <button
-                        type="button"
-                        onClick={() => setSelectedAgentType("affiliate")}
-                        className={`w-full p-4 border-2 rounded-lg transition-all text-left ${
-                          selectedAgentType === "affiliate"
-                            ? "border-purple-600 bg-purple-50 dark:bg-purple-900/20"
-                            : "border-gray-300 dark:border-gray-600 hover:border-gray-400"
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`p-2 rounded-lg ${
-                              selectedAgentType === "affiliate"
-                                ? "bg-purple-600 text-white"
-                                : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
-                            }`}
-                          >
-                            <FaHandshake className="w-5 h-5" />
-                          </div>
-                          <div className="flex-1">
-                            <h4 className="font-semibold text-gray-900 dark:text-white">
-                              Affiliate Agent
-                            </h4>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">
-                              For promoters who refer customers and earn rewards
-                              once the customer uses our services.
-                            </p>
-                          </div>
-                          {selectedAgentType === "affiliate" && (
-                            <FaCheckCircle className="text-purple-600 w-5 h-5" />
-                          )}
-                        </div>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Local Agent Location - Show only when Local is selected */}
-                  {selectedAgentType === "local" && (
-                    <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700 space-y-4">
-                      <h4 className="text-md font-semibold text-gray-900 dark:text-white">
-                        Local Agent Information
-                      </h4>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          Location *
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={localAgentLocation}
-                          onChange={(e) => setLocalAgentLocation(e.target.value)}
-                          placeholder="Enter your location"
-                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Corporate Agent Form - Show only when Corporate is selected */}
-                  {selectedAgentType === "corporate" && (
-                    <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700 space-y-4">
-                      <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-4">
-                        Corporate Agent Information
-                      </h4>
-
-                      {/* Business Name */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          Business Name *
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={corporateFormData.businessName}
-                          onChange={(e) =>
-                            setCorporateFormData({
-                              ...corporateFormData,
-                              businessName: e.target.value,
-                            })
-                          }
-                          placeholder="Enter your business name"
-                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                      </div>
-
-                      {/* Location */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          Location *
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={corporateFormData.location}
-                          onChange={(e) =>
-                            setCorporateFormData({
-                              ...corporateFormData,
-                              location: e.target.value,
-                            })
-                          }
-                          placeholder="Enter business location"
-                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                      </div>
-
-                      {/* Phone Number */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          Phone Number *
-                        </label>
-                        <input
-                          type="tel"
-                          required
-                          value={corporateFormData.phoneNumber}
-                          onChange={(e) =>
-                            setCorporateFormData({
-                              ...corporateFormData,
-                              phoneNumber: e.target.value,
-                            })
-                          }
-                          placeholder="Enter phone number"
-                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                      </div>
-
-                      {/* Business Certificate */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          Business Certificate *
-                        </label>
-                        <div className="mt-1">
-                          <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-lg cursor-pointer bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600">
-                            <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                              <FaImage className="w-8 h-8 mb-2 text-gray-400" />
-                              <p className="mb-2 text-sm text-gray-500 dark:text-gray-400">
-                                <span className="font-semibold">
-                                  Click to upload
-                                </span>{" "}
-                                or drag and drop
-                              </p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">
-                                PDF, PNG, JPG (MAX. 10MB)
-                              </p>
-                              {corporateFormData.businessCert && (
-                                <p className="mt-2 text-sm text-green-600 dark:text-green-400">
-                                  {corporateFormData.businessCert.name}
-                                </p>
-                              )}
-                            </div>
-                            <input
-                              type="file"
-                              accept=".pdf,.png,.jpg,.jpeg"
-                              className="hidden"
-                              onChange={(e) =>
-                                handleFileChange(
-                                  "businessCert",
-                                  e.target.files[0]
-                                )
-                              }
-                            />
-                          </label>
-                        </div>
-                      </div>
-
-                      {/* Ghana Card */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          Ghana Card *
-                        </label>
-                        <div className="mt-1">
-                          <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-lg cursor-pointer bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600">
-                            <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                              <FaImage className="w-8 h-8 mb-2 text-gray-400" />
-                              <p className="mb-2 text-sm text-gray-500 dark:text-gray-400">
-                                <span className="font-semibold">
-                                  Click to upload
-                                </span>{" "}
-                                or drag and drop
-                              </p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">
-                                PDF, PNG, JPG (MAX. 10MB)
-                              </p>
-                              {corporateFormData.ghanaCard && (
-                                <p className="mt-2 text-sm text-green-600 dark:text-green-400">
-                                  {corporateFormData.ghanaCard.name}
-                                </p>
-                              )}
-                            </div>
-                            <input
-                              type="file"
-                              accept=".pdf,.png,.jpg,.jpeg"
-                              className="hidden"
-                              onChange={(e) =>
-                                handleFileChange("ghanaCard", e.target.files[0])
-                              }
-                            />
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Optional Message - Show for non-corporate agents */}
-                  {selectedAgentType && selectedAgentType !== "corporate" && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Additional Message (Optional)
-                      </label>
-                      <textarea
-                        value={agentRequestMessage}
-                        onChange={(e) => setAgentRequestMessage(e.target.value)}
-                        placeholder="Tell us why you want to become an agent..."
-                        rows="4"
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                <button
-                  type="button"
-                  onClick={handleSubmitAgentRequest}
-                  disabled={
-                    !selectedAgentType ||
-                    submittingAgentRequest ||
-                    (selectedAgentType === "local" && !localAgentLocation) ||
-                    (selectedAgentType === "corporate" &&
-                      (!corporateFormData.businessName ||
-                        !corporateFormData.location ||
-                        !corporateFormData.phoneNumber ||
-                        !corporateFormData.businessCert ||
-                        !corporateFormData.ghanaCard))
-                  }
-                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {submittingAgentRequest ? "Submitting..." : "Submit Request"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowBecomeAgentModal(false);
-                    setSelectedAgentType("");
-                    setAgentRequestMessage("");
-                  setLocalAgentLocation("");
-                    setCorporateFormData({
-                      businessName: "",
-                      businessCert: null,
-                      location: "",
-                      ghanaCard: null,
-                      phoneNumber: "",
-                    });
-                  }}
-                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

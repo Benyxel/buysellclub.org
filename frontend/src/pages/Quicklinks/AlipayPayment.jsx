@@ -15,6 +15,7 @@ import {
 import { toast } from "../../utils/toast";
 import { useNavigate } from "react-router-dom";
 import API from "../../api";
+import WhatsAppWidget from "../../components/WhatsAppWidget";
 
 // Add platform logos import
 import platform1688 from "../../assets/platforms/1688.png";
@@ -72,7 +73,7 @@ const AlipayPayment = () => {
   const [currency, setCurrency] = useState("CEDI");
   const [amount, setAmount] = useState("");
   const [convertedAmount, setConvertedAmount] = useState(0);
-  const [rate, setRate] = useState(0.44);
+  const [rate, setRate] = useState(null);
   const [rmbUnavailable, setRmbUnavailable] = useState(false);
   const [rmbUnavailableMessage, setRmbUnavailableMessage] = useState("");
   const [currentStep, setCurrentStep] = useState(1);
@@ -120,16 +121,15 @@ const AlipayPayment = () => {
     fetchExchangeRate();
   }, []);
 
-  // Calculate converted amount when currency, amount or rate changes
+  // Calculate converted amount when currency, amount or rate changes (rate from API only, no static default)
   useEffect(() => {
-    if (amount && !isNaN(amount)) {
+    const numRate = rate != null && rate !== "" ? Number(rate) : NaN;
+    if (amount && !isNaN(amount) && !isNaN(numRate) && numRate > 0) {
       if (currency === "CEDI") {
-        // Convert CEDI to CNY (label only; math stays the same)
-        const cny = (parseFloat(amount) * rate).toFixed(2);
+        const cny = (parseFloat(amount) * numRate).toFixed(2);
         setConvertedAmount(cny);
       } else {
-        // Convert CNY to CEDI
-        const cedi = (parseFloat(amount) / rate).toFixed(2);
+        const cedi = (parseFloat(amount) / numRate).toFixed(2);
         setConvertedAmount(cedi);
       }
     } else {
@@ -153,8 +153,8 @@ const AlipayPayment = () => {
       } else {
         setFormError("");
       }
-    } else if (rate > 0) {
-      const minCny = (300 * rate).toFixed(2);
+    } else if (rate != null && rate !== "" && Number(rate) > 0) {
+      const minCny = (300 * Number(rate)).toFixed(2);
       if (numericAmount < parseFloat(minCny)) {
         setFormError(`Minimum payment is ¥${minCny} (equivalent to 300 GHS).`);
       } else {
@@ -431,7 +431,10 @@ const AlipayPayment = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-
+      <WhatsAppWidget
+        phone="+233535377248"
+        label="WhatsApp (Alipay Support)"
+      />
       <div className="container mx-auto px-4 py-6">
         <div className="max-w-3xl mx-auto">
           {/* Payment Steps */}
@@ -631,7 +634,7 @@ const AlipayPayment = () => {
                   <button
                     type="button"
                     onClick={handleSubmit}
-                    disabled={isLoading || !proofOfPayment}
+                    disabled={isLoading || !proofOfPayment || rate == null || rate === ""}
                     className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-medium hover:from-blue-600 hover:to-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     {isLoading ? (
@@ -715,13 +718,13 @@ const AlipayPayment = () => {
                           <p className="text-sm text-white/80">
                             Current Exchange Rate
                           </p>
-                          <p className="text-2xl font-bold">{rate}</p>
+                          <p className="text-2xl font-bold">{rate != null && rate !== "" ? rate : "—"}</p>
                         </div>
                       </div>
                       <div className="text-right">
                         <p className="text-sm text-white/80">Last Updated</p>
                         <p className="text-sm font-medium">
-                          {rateLastUpdated.toLocaleDateString()}
+                          {rate != null && rate !== "" ? rateLastUpdated.toLocaleDateString() : "—"}
                         </p>
                       </div>
                     </div>

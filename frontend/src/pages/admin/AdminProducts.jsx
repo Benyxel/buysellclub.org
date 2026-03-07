@@ -9,7 +9,7 @@ import {
   Api,
 } from "../../api";
 import { toast } from "../../utils/toast";
-import { FaPlus, FaEdit, FaTrash, FaImage, FaTimes, FaCheck, FaChevronLeft, FaChevronRight } from "react-icons/fa";
+import { FaPlus, FaEdit, FaTrash, FaImage, FaTimes, FaCheck, FaChevronLeft, FaChevronRight, FaUpload } from "react-icons/fa";
 import BulkActions from "../../components/shared/BulkActions";
 
 const initialForm = {
@@ -26,7 +26,49 @@ const initialForm = {
   admin_charge_value: "",
   trending: false,
   is_active: true,
+  features: {}, // e.g. { Size: ["S","M","L"], Color: ["Red","Blue"] }
+  variant_inventory: {}, // e.g. { "Size:S|Color:Red": 10, "Size:M|Color:Blue": 5 } - quantity per variant
 };
+
+// Build variant key from feature name + value (e.g. "Size:S")
+const featurePart = (name, val) => `${name}:${val}`;
+
+// Generate all variant keys from features (Cartesian product), sorted for consistency
+function getVariantKeysFromFeatures(features) {
+  if (!features || typeof features !== "object") return [];
+  const entries = Object.entries(features)
+    .filter(([, vals]) => Array.isArray(vals) && vals.length > 0)
+    .map(([name, vals]) => [name, vals.map((v) => String(v).trim()).filter(Boolean)]);
+  if (entries.length === 0) return [];
+  const names = entries.map(([n]) => n).sort();
+  const valueLists = names.map((n) => (entries.find(([k]) => k === n) || [null, []])[1]);
+  const result = [];
+  function recurse(idx, parts) {
+    if (idx === names.length) {
+      result.push(parts.join("|"));
+      return;
+    }
+    for (const v of valueLists[idx]) {
+      recurse(idx + 1, [...parts, featurePart(names[idx], v)]);
+    }
+  }
+  recurse(0, []);
+  return result;
+}
+
+// Build a single variant key from selected values { Color: "Red", Size: "M" } -> "Color:Red|Size:M" (sorted names)
+function buildVariantKeyFromSelections(selections) {
+  if (!selections || typeof selections !== "object") return "";
+  const parts = Object.entries(selections)
+    .filter(([, val]) => val != null && String(val).trim() !== "")
+    .map(([name, val]) => featurePart(name, String(val).trim()));
+  if (parts.length === 0) return "";
+  return Object.keys(selections)
+    .filter((k) => selections[k] != null && String(selections[k]).trim() !== "")
+    .sort()
+    .map((n) => featurePart(n, String(selections[n]).trim()))
+    .join("|");
+}
 
 // Helper function to generate slug from name
 const generateSlug = (name) => {
@@ -50,9 +92,16 @@ export default function AdminProducts() {
   const [submitting, setSubmitting] = useState(false);
   const [imageInput, setImageInput] = useState(""); // For adding new image URLs
   const [showForm, setShowForm] = useState(false);
+  const [productNewColorInput, setProductNewColorInput] = useState("");
+  const [productNewSizeInput, setProductNewSizeInput] = useState("");
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [selectAll, setSelectAll] = useState(false);
-  
+  // Add-variant form: one selection per feature (e.g. { Color: "", Size: "" }) and quantity
+  const [addVariantSelections, setAddVariantSelections] = useState({});
+  const [addVariantQuantity, setAddVariantQuantity] = useState(0);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const imageFileInputRef = React.useRef(null);
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -250,11 +299,20 @@ export default function AdminProducts() {
     }
   };
 
+  const normalizeImageUrl = (url) => {
+    if (!url || typeof url !== "string") return url;
+    const u = url.trim();
+    if (!u) return u;
+    if (u.startsWith("http://") || u.startsWith("https://")) return u;
+    return `https://${u}`;
+  };
+
   const addImage = () => {
     if (imageInput.trim()) {
+      const url = normalizeImageUrl(imageInput.trim());
       setForm((prev) => ({
         ...prev,
-        images: [...prev.images, imageInput.trim()],
+        images: [...prev.images, url],
       }));
       setImageInput("");
       if (errors.images) {
@@ -268,6 +326,70 @@ export default function AdminProducts() {
       ...prev,
       images: prev.images.filter((_, i) => i !== index),
     }));
+  };
+
+  const handleUploadImage = async (e, uploadType = "product") => {
+    const file = e?.target?.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file (e.g. JPG, PNG)");
+      return;
+    }
+    try {
+      setUploadingImage(true);
+      const response = await Api.uploadFile(file, uploadType);
+      const url = response?.data?.url || response?.data?.filePath;
+      if (url) {
+        setForm((prev) => ({
+          ...prev,
+          images: [...prev.images, url],
+        }));
+        if (errors.images) setErrors((prev) => ({ ...prev, images: "" }));
+        toast.success("Image uploaded");
+      } else {
+        toast.error("Upload succeeded but no URL returned");
+      }
+    } catch (err) {
+      const msg = err?.response?.data?.error || err?.message || "Upload failed";
+      toast.error(msg);
+    } finally {
+      setUploadingImage(false);
+      if (imageFileInputRef.current) imageFileInputRef.current.value = "";
+    }
+  };
+
+  const clearProductFeature = (featureName) => {
+    setForm((prev) => {
+      const next = { ...(prev.features || {}) };
+      delete next[featureName];
+      return { ...prev, features: next };
+    });
+  };
+
+  const addProductFeature = (featureName, valueOrList) => {
+    const toAdd = Array.isArray(valueOrList)
+      ? valueOrList.map((v) => String(v).trim()).filter(Boolean)
+      : [String(valueOrList).trim()].filter(Boolean);
+    if (toAdd.length === 0) return;
+    setForm((prev) => {
+      const current = prev.features?.[featureName] ?? [];
+      const arr = Array.isArray(current) ? [...current] : [];
+      const set = new Set(arr);
+      toAdd.forEach((v) => set.add(v));
+      const next = { ...(prev.features || {}), [featureName]: [...set] };
+      return { ...prev, features: next };
+    });
+  };
+
+  const removeProductFeature = (featureName, value) => {
+    setForm((prev) => {
+      const current = prev.features?.[featureName] ?? [];
+      const arr = Array.isArray(current) ? current.filter((v) => v !== value) : [];
+      const next = { ...(prev.features || {}) };
+      if (arr.length === 0) delete next[featureName];
+      else next[featureName] = arr;
+      return { ...prev, features: next };
+    });
   };
 
   const onSubmit = async (e) => {
@@ -285,7 +407,7 @@ export default function AdminProducts() {
         slug: form.slug.trim(),
         description: form.description.trim() || "",
         price: Number(form.price),
-        images: form.images.filter((img) => img.trim() !== ""),
+        images: form.images.map(normalizeImageUrl).filter((img) => img && img.trim() !== ""),
         category: form.category.trim(),
         product_type: form.product_type.trim(),
         inventory: Number(form.inventory || 0),
@@ -296,6 +418,13 @@ export default function AdminProducts() {
           : null,
         trending: Boolean(form.trending),
         is_active: Boolean(form.is_active),
+        features: form.features && typeof form.features === "object" ? form.features : {},
+        variant_inventory: (() => {
+          const vi = form.variant_inventory && typeof form.variant_inventory === "object" ? form.variant_inventory : {};
+          return Object.fromEntries(
+            Object.entries(vi).map(([k, v]) => [k, v === "" || v == null ? 0 : Math.max(0, parseInt(v, 10) || 0)])
+          );
+        })(),
       };
 
       // Debug: Log the payload
@@ -369,16 +498,29 @@ export default function AdminProducts() {
     setErrors({});
     setImageInput("");
     setShowForm(false);
+    setAddVariantSelections({});
+    setAddVariantQuantity(0);
+    setProductNewColorInput("");
+    setProductNewSizeInput("");
   };
 
   const onEdit = (p) => {
     setEditing(p.slug);
+    const features = p.features && typeof p.features === "object" ? { ...p.features } : {};
+    const variant_inventory =
+      p.variant_inventory && typeof p.variant_inventory === "object"
+        ? Object.fromEntries(
+            Object.entries(p.variant_inventory).map(([k, v]) => [k, v == null || v === "" ? 0 : Number(v) || 0])
+          )
+        : {};
+    const rawImages = Array.isArray(p.images) ? p.images : (p.image ? [p.image] : []);
+    const images = rawImages.map((img) => (img && typeof img === "string" ? normalizeImageUrl(img) : String(img || "")).trim()).filter(Boolean);
     setForm({
       name: p.name || "",
       slug: p.slug || "",
       description: p.description || "",
       price: p.price || "",
-      images: Array.isArray(p.images) ? [...p.images] : [],
+      images: images.length ? images : [],
       category: p.category || "",
       product_type: p.product_type || "",
       inventory: p.inventory || "",
@@ -387,9 +529,15 @@ export default function AdminProducts() {
       admin_charge_value: p.admin_charge_value != null && p.admin_charge_value !== "" ? String(p.admin_charge_value) : "",
       trending: p.trending || false,
       is_active: p.is_active !== undefined ? p.is_active : true,
+      features,
+      variant_inventory,
     });
     setShowForm(true);
     setErrors({});
+    setAddVariantSelections({});
+    setAddVariantQuantity(0);
+    setProductNewColorInput("");
+    setProductNewSizeInput("");
   };
 
   const onDelete = async (slug) => {
@@ -701,6 +849,264 @@ export default function AdminProducts() {
               </div>
             </div>
 
+            {/* Per-product colors and sizes (no global list) */}
+            <div className="md:col-span-2 space-y-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Colors for this product
+              </label>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                Add the colors this product is available in (e.g. Red, Blue). Leave empty if the product has no color option.
+              </p>
+              <div className="flex flex-wrap gap-2 items-center mb-2">
+                {(Array.isArray(form.features?.Color) ? form.features.Color : []).map((c) => (
+                  <span
+                    key={c}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-sm"
+                  >
+                    {c}
+                    <button
+                      type="button"
+                      onClick={() => removeProductFeature("Color", c)}
+                      className="text-red-600 hover:text-red-800 dark:text-red-400"
+                      aria-label={`Remove ${c}`}
+                    >
+                      <FaTimes className="text-xs" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={productNewColorInput}
+                  onChange={(e) => setProductNewColorInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      const toAdd = (productNewColorInput || "").split(",").map((s) => s.trim()).filter(Boolean);
+                      if (toAdd.length) addProductFeature("Color", toAdd);
+                      setProductNewColorInput("");
+                    }
+                  }}
+                  placeholder="Add color (or several: Red, Blue, Green)"
+                  className="flex-1 min-w-[180px] px-3 py-2 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const toAdd = (productNewColorInput || "").split(",").map((s) => s.trim()).filter(Boolean);
+                    if (toAdd.length) addProductFeature("Color", toAdd);
+                    setProductNewColorInput("");
+                  }}
+                  className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg hover:opacity-90"
+                >
+                  <FaPlus /> Add
+                </button>
+                {(form.features?.Color?.length > 0) && (
+                  <button type="button" onClick={() => clearProductFeature("Color")} className="px-4 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">
+                    Clear all
+                  </button>
+                )}
+              </div>
+
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 mt-6">
+                Sizes for this product
+              </label>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                Add the sizes this product is available in (e.g. S, M, L). Leave empty if the product has no size option.
+              </p>
+              <div className="flex flex-wrap gap-2 items-center mb-2">
+                {(Array.isArray(form.features?.Size) ? form.features.Size : []).map((s) => (
+                  <span
+                    key={s}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-sm"
+                  >
+                    {s}
+                    <button
+                      type="button"
+                      onClick={() => removeProductFeature("Size", s)}
+                      className="text-red-600 hover:text-red-800 dark:text-red-400"
+                      aria-label={`Remove ${s}`}
+                    >
+                      <FaTimes className="text-xs" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={productNewSizeInput}
+                  onChange={(e) => setProductNewSizeInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      const toAdd = (productNewSizeInput || "").split(",").map((s) => s.trim()).filter(Boolean);
+                      if (toAdd.length) addProductFeature("Size", toAdd);
+                      setProductNewSizeInput("");
+                    }
+                  }}
+                  placeholder="Add size (or several: S, M, L, XL)"
+                  className="flex-1 min-w-[180px] px-3 py-2 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const toAdd = (productNewSizeInput || "").split(",").map((s) => s.trim()).filter(Boolean);
+                    if (toAdd.length) addProductFeature("Size", toAdd);
+                    setProductNewSizeInput("");
+                  }}
+                  className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg hover:opacity-90"
+                >
+                  <FaPlus /> Add
+                </button>
+                {(form.features?.Size?.length > 0) && (
+                  <button type="button" onClick={() => clearProductFeature("Size")} className="px-4 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">
+                    Clear all
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Variant inventory: size only (exclude Color). Set quantity per size. */}
+            {(() => {
+              const featureEntries = form.features && typeof form.features === "object"
+                ? Object.entries(form.features)
+                    .filter(([name]) => name === "Size")
+                    .filter(([, vals]) => Array.isArray(vals) && vals.length > 0)
+                    .map(([name, vals]) => [name, vals.map((v) => String(v).trim()).filter(Boolean)])
+                    .filter(([, vals]) => vals.length > 0)
+                : [];
+              const featureNames = featureEntries.map(([n]) => n).sort();
+              const hasFeatures = featureNames.length > 0;
+              const currentVariants = form.variant_inventory && typeof form.variant_inventory === "object"
+                ? Object.entries(form.variant_inventory)
+                : [];
+
+              const addVariant = () => {
+                const selections = { ...addVariantSelections };
+                const key = buildVariantKeyFromSelections(selections);
+                if (!key) return;
+                const qty = Math.max(0, parseInt(addVariantQuantity, 10) || 0);
+                setForm((prev) => ({
+                  ...prev,
+                  variant_inventory: {
+                    ...(prev.variant_inventory || {}),
+                    [key]: qty,
+                  },
+                }));
+                setAddVariantSelections(featureNames.reduce((acc, n) => ({ ...acc, [n]: "" }), {}));
+                setAddVariantQuantity(0);
+              };
+
+              const removeVariant = (key) => {
+                setForm((prev) => {
+                  const next = { ...(prev.variant_inventory || {}) };
+                  delete next[key];
+                  return { ...prev, variant_inventory: next };
+                });
+              };
+
+              if (!hasFeatures) return null;
+              return (
+                <div className="md:col-span-2 space-y-3">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Variant inventory
+                  </label>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                    Set quantity per size. Sizes not listed are unavailable (0 stock) on the storefront. Color is shown to customers but does not affect stock.
+                  </p>
+                  {/* List of added variants */}
+                  {currentVariants.length > 0 && (
+                    <div className="overflow-x-auto border border-gray-200 dark:border-gray-600 rounded-lg mb-3">
+                      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-600">
+                        <thead className="bg-gray-50 dark:bg-gray-700">
+                          <tr>
+                            <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-300">Variant</th>
+                            <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-300 w-28">Quantity</th>
+                            <th className="px-4 py-2 w-20"></th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-600">
+                          {currentVariants.map(([key, qty]) => (
+                            <tr key={key}>
+                              <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100">
+                                {key.replace(/\|/g, " • ").replace(/:/g, ": ")}
+                              </td>
+                              <td className="px-4 py-2">
+                                <input
+                                  type="number"
+                                  min={0}
+                                  value={qty}
+                                  onChange={(e) => {
+                                    const v = e.target.value === "" ? "" : Math.max(0, parseInt(e.target.value, 10) || 0);
+                                    setForm((prev) => ({
+                                      ...prev,
+                                      variant_inventory: { ...(prev.variant_inventory || {}), [key]: v },
+                                    }));
+                                  }}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                                />
+                              </td>
+                              <td className="px-4 py-2">
+                                <button
+                                  type="button"
+                                  onClick={() => removeVariant(key)}
+                                  className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                                  title="Remove variant"
+                                >
+                                  <FaTimes className="w-4 h-4" />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                  {/* Add variant row */}
+                  <div className="flex flex-wrap items-end gap-2 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+                    {featureNames.map((name) => {
+                      const options = (featureEntries.find(([n]) => n === name) || [null, []])[1];
+                      return (
+                        <div key={name} className="flex flex-col gap-1">
+                          <label className="text-xs font-medium text-gray-600 dark:text-gray-400">{name}</label>
+                          <select
+                            value={addVariantSelections[name] ?? ""}
+                            onChange={(e) => setAddVariantSelections((prev) => ({ ...prev, [name]: e.target.value }))}
+                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:text-white dark:border-gray-600 min-w-[100px]"
+                          >
+                            <option value="">Select {name}</option>
+                            {options.map((opt) => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                          </select>
+                        </div>
+                      );
+                    })}
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Qty</label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={addVariantQuantity}
+                        onChange={(e) => setAddVariantQuantity(e.target.value === "" ? "" : Math.max(0, parseInt(e.target.value, 10) || 0))}
+                        className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={addVariant}
+                      disabled={!buildVariantKeyFromSelections(addVariantSelections)}
+                      className="flex items-center gap-1 px-3 py-2 bg-primary text-white rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <FaPlus className="w-4 h-4" /> Add variant
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Description */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -724,9 +1130,9 @@ export default function AdminProducts() {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Product Images <span className="text-red-500">*</span>
               </label>
-              <div className="flex gap-2 mb-3">
+              <div className="flex flex-wrap gap-2 mb-3">
                 <input
-                  type="url"
+                  type="text"
                   value={imageInput}
                   onChange={(e) => setImageInput(e.target.value)}
                   onKeyPress={(e) => {
@@ -735,15 +1141,31 @@ export default function AdminProducts() {
                       addImage();
                     }
                   }}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:text-white dark:border-gray-600"
-                  placeholder="Enter image URL and press Enter or click Add"
+                  className="flex-1 min-w-[200px] px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                  placeholder="Enter image URL or upload below"
                 />
                 <button
                   type="button"
                   onClick={addImage}
                   className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors dark:bg-gray-700 dark:hover:bg-gray-600"
                 >
-                  Add
+                  Add URL
+                </button>
+                <input
+                  ref={imageFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => handleUploadImage(e, "image")}
+                />
+                <button
+                  type="button"
+                  onClick={() => imageFileInputRef.current?.click()}
+                  disabled={uploadingImage}
+                  className="px-4 py-2 bg-primary text-white hover:bg-primary-dark rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                  <FaUpload className="text-sm" />
+                  {uploadingImage ? "Uploading..." : "Upload product image"}
                 </button>
               </div>
               {errors.images && (
@@ -756,7 +1178,7 @@ export default function AdminProducts() {
                   {form.images.map((img, index) => (
                     <div key={index} className="relative group">
                       <img
-                        src={img}
+                        src={normalizeImageUrl(img)}
                         alt={`Preview ${index + 1}`}
                         className="w-full h-32 object-cover rounded-lg border border-gray-300"
                         onError={(e) => {
@@ -909,9 +1331,9 @@ export default function AdminProducts() {
                     </td>
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-3">
-                        {p.images && p.images.length > 0 && (
+                        {((p.images && p.images.length > 0) || p.image) && (
                           <img
-                            src={p.images[0]}
+                            src={normalizeImageUrl((p.images && p.images[0]) || p.image)}
                             alt={p.name}
                             className="w-12 h-12 object-cover rounded"
                             onError={(e) => {

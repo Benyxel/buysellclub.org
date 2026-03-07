@@ -45,8 +45,11 @@ export default function LocalAgentManagement() {
 
   const loadUsers = async () => {
     try {
-      const resp = await API.get("/buysellapi/users/");
-      const allUsers = Array.isArray(resp.data) ? resp.data : [];
+      const resp = await API.get("/buysellapi/users/", {
+        params: { page_size: 100 },
+      });
+      // API returns paginated { results: [...], count }
+      const allUsers = resp.data?.results ?? (Array.isArray(resp.data) ? resp.data : []);
       const nonAgentUsers = allUsers.filter(
         (user) => !user.is_agent && user.role !== "admin"
       );

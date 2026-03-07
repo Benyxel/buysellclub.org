@@ -162,8 +162,12 @@ const Invoice = memo(({ invoice, request, printable = false, invoiceId, customer
       <div className="grid grid-cols-2 gap-6 mb-8">
         <div>
           <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Invoice To:</h3>
-          <p className="font-medium text-gray-900 dark:text-white">{request?.userName || 'Customer'}</p>
+          <p className="font-medium text-gray-900 dark:text-white">{request?.userName || request?.user_name || 'Customer'}</p>
           {request?.userEmail && <p className="text-gray-700 dark:text-gray-300">{request.userEmail}</p>}
+          {request?.user_email && !request?.userEmail && <p className="text-gray-700 dark:text-gray-300">{request.user_email}</p>}
+          {(request?.user_contact || request?.userContact) && (
+            <p className="text-gray-700 dark:text-gray-300">{request.user_contact || request.userContact}</p>
+          )}
           {request?.userAddress && (
             <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
               <p>{request.userAddress}</p>

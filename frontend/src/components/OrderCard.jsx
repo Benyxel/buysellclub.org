@@ -70,7 +70,10 @@ const OrderCard = ({ order }) => {
               />
               <div>
                 <h3 className="font-medium text-gray-900 dark:text-white">{item.name}</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Quantity: {item.quantity}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Quantity: {item.quantity}
+                  {([item.color, item.size && item.size !== 'default' ? item.size : null].filter(Boolean).length > 0) && ` • ${[item.color, item.size && item.size !== 'default' ? item.size : null].filter(Boolean).join(' • ')}`}
+                </p>
               </div>
             </div>
             <p className="font-semibold text-gray-900 dark:text-white">₵{item.price}</p>

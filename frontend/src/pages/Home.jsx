@@ -10,8 +10,8 @@ import SupplierBanner from "../components/SupplierBanner";
 import bimg1 from "../assets/bimg1.png";
 import TrendingP from "../components/TrendingP";
 import LatestYouTubeVideos from "../components/LatestYouTubeVideos";
-import LiveChatWidget from "../components/LiveChatWidget";
 import ContainerInfoWidget from "../components/ContainerInfoWidget";
+import SupportWidget from "../components/SupportWidget";
 import { Api } from "../api";
 
 const Home = () => {
@@ -65,8 +65,12 @@ const Home = () => {
       <TrendingP />
       <LatestYouTubeVideos />
       <SupplierBanner />
-      <LiveChatWidget />
       <ContainerInfoWidget />
+      <SupportWidget
+        whatsappPhone="+233540266839"
+        whatsappLabel="WhatsApp"
+        chatLabel="Chat with us"
+      />
     </div>
   );
 };

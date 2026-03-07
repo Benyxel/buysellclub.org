@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import API from "../../api";
 import { toast } from "../../utils/toast";
-import { FaTrash, FaTimes, FaExternalLinkAlt } from "react-icons/fa";
+import { FaTrash, FaTimes, FaExternalLinkAlt, FaPlus, FaEdit, FaSpinner } from "react-icons/fa";
 
 const statusOptions = [
   { value: "", label: "All" },
@@ -61,6 +61,23 @@ export default function InvoicesManagement() {
   const [loadingContainers, setLoadingContainers] = useState(false);
   const [loadingMarkInfo, setLoadingMarkInfo] = useState(false);
   const markInfoTimeoutRef = useRef(null);
+  const [showAddItemModal, setShowAddItemModal] = useState(false);
+  const [availableTrackings, setAvailableTrackings] = useState([]);
+  const [loadingAvailableTrackings, setLoadingAvailableTrackings] = useState(false);
+  const [addItemMode, setAddItemMode] = useState("tracking");
+  const [addItemTrackingId, setAddItemTrackingId] = useState("");
+  const [addItemManual, setAddItemManual] = useState({
+    description: "",
+    tracking_number: "",
+    cbm: "",
+    rate_per_cbm: "",
+    total_amount: "",
+  });
+  const [addingItem, setAddingItem] = useState(false);
+  const [editingItemId, setEditingItemId] = useState(null);
+  const [editItemForm, setEditItemForm] = useState({ description: "", cbm: "", rate_per_cbm: "", total_amount: "" });
+  const [savingItemId, setSavingItemId] = useState(null);
+  const [removingItemId, setRemovingItemId] = useState(null);
 
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(total / pageSize)),
@@ -117,6 +134,121 @@ export default function InvoicesManagement() {
       toast.error(
         err.response?.data?.detail || "Failed to load invoice details"
       );
+    }
+  };
+
+  const refetchInvoiceDetails = async () => {
+    if (!invoiceDetails?.id) return;
+    try {
+      const resp = await API.get(`/buysellapi/invoices/${invoiceDetails.id}/`, {
+        params: { _t: Date.now() },
+      });
+      setInvoiceDetails(resp.data);
+      fetchInvoices();
+    } catch (err) {
+      console.error("Failed to refetch invoice details", err);
+    }
+  };
+
+  const handleOpenAddItem = async () => {
+    setShowAddItemModal(true);
+    setAddItemMode("tracking");
+    setAddItemTrackingId("");
+    setAddItemManual({ description: "", tracking_number: "", cbm: "", rate_per_cbm: "", total_amount: "" });
+    if (invoiceDetails?.container_id || invoiceDetails?.container) {
+      setLoadingAvailableTrackings(true);
+      try {
+        const resp = await API.get(`/buysellapi/invoices/${invoiceDetails.id}/available-trackings/`);
+        setAvailableTrackings(resp.data?.results || []);
+      } catch (err) {
+        toast.error(err.response?.data?.detail || "Failed to load trackings");
+        setAvailableTrackings([]);
+      } finally {
+        setLoadingAvailableTrackings(false);
+      }
+    } else {
+      setAvailableTrackings([]);
+    }
+  };
+
+  const handleAddItem = async () => {
+    if (!invoiceDetails?.id) return;
+    setAddingItem(true);
+    try {
+      if (addItemMode === "tracking" && addItemTrackingId) {
+        await API.post(`/buysellapi/invoices/${invoiceDetails.id}/items/`, { tracking_id: parseInt(addItemTrackingId, 10) });
+        toast.success("Item added from tracking");
+      } else if (addItemMode === "manual") {
+        const desc = (addItemManual.description || "").trim();
+        const amount = parseFloat(addItemManual.total_amount);
+        if (!desc || isNaN(amount)) {
+          toast.error("Description and total amount are required for manual items");
+          return;
+        }
+        await API.post(`/buysellapi/invoices/${invoiceDetails.id}/items/`, {
+          description: desc,
+          tracking_number: (addItemManual.tracking_number || "").trim() || undefined,
+          cbm: addItemManual.cbm ? parseFloat(addItemManual.cbm) : undefined,
+          rate_per_cbm: addItemManual.rate_per_cbm ? parseFloat(addItemManual.rate_per_cbm) : undefined,
+          total_amount: amount,
+        });
+        toast.success("Manual item added");
+      } else {
+        toast.error("Select a tracking or fill manual item details");
+        return;
+      }
+      setShowAddItemModal(false);
+      await refetchInvoiceDetails();
+    } catch (err) {
+      const msg = err.response?.data?.description || err.response?.data?.tracking_id || err.response?.data?.detail || "Failed to add item";
+      toast.error(Array.isArray(msg) ? msg[0] : msg);
+    } finally {
+      setAddingItem(false);
+    }
+  };
+
+  const handleStartEditItem = (item) => {
+    setEditingItemId(item.id);
+    setEditItemForm({
+      description: item.description || "",
+      cbm: item.cbm != null ? String(item.cbm) : "",
+      rate_per_cbm: item.rate_per_cbm != null ? String(item.rate_per_cbm) : "",
+      total_amount: item.total_amount != null ? String(item.total_amount) : "",
+    });
+  };
+
+  const handleSaveEditItem = async () => {
+    if (!invoiceDetails?.id || !editingItemId) return;
+    setSavingItemId(editingItemId);
+    try {
+      const payload = {
+        description: editItemForm.description || "",
+        cbm: editItemForm.cbm === "" ? 0 : parseFloat(editItemForm.cbm) || 0,
+        rate_per_cbm: editItemForm.rate_per_cbm === "" ? 0 : parseFloat(editItemForm.rate_per_cbm) || 0,
+        total_amount: editItemForm.total_amount === "" ? 0 : parseFloat(editItemForm.total_amount) || 0,
+      };
+      await API.patch(`/buysellapi/invoices/${invoiceDetails.id}/items/${editingItemId}/`, payload);
+      toast.success("Item updated");
+      setEditingItemId(null);
+      await refetchInvoiceDetails();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Failed to update item");
+    } finally {
+      setSavingItemId(null);
+    }
+  };
+
+  const handleRemoveItem = async (item) => {
+    if (!invoiceDetails?.id || !window.confirm(`Remove item "${(item.description || item.tracking_number || "Item").substring(0, 40)}" from invoice?`)) return;
+    setRemovingItemId(item.id);
+    try {
+      await API.delete(`/buysellapi/invoices/${invoiceDetails.id}/items/${item.id}/`);
+      toast.success("Item removed");
+      await refetchInvoiceDetails();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Failed to remove item");
+    } finally {
+      setRemovingItemId(null);
     }
   };
 
@@ -766,11 +898,22 @@ export default function InvoicesManagement() {
             </div>
 
             {/* Invoice Items */}
-            {invoiceDetails.items && invoiceDetails.items.length > 0 && (
-              <div className="mb-6">
-                <h4 className="font-semibold text-gray-800 dark:text-white mb-3">
-                  Invoice Items ({invoiceDetails.items.length})
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-semibold text-gray-800 dark:text-white">
+                  Invoice Items ({invoiceDetails.items?.length ?? 0})
                 </h4>
+                {(invoiceDetails.container_id || invoiceDetails.container) && (
+                  <button
+                    type="button"
+                    onClick={handleOpenAddItem}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded"
+                  >
+                    <FaPlus className="text-xs" /> Add item
+                  </button>
+                )}
+              </div>
+              {invoiceDetails.items && invoiceDetails.items.length > 0 ? (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead className="bg-gray-50 dark:bg-gray-700">
@@ -780,26 +923,226 @@ export default function InvoicesManagement() {
                         <th className="px-3 py-2 text-right">CBM</th>
                         <th className="px-3 py-2 text-right">Rate</th>
                         <th className="px-3 py-2 text-right">Total</th>
+                        <th className="px-3 py-2 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                       {invoiceDetails.items.map((item) => (
-                        <tr key={item.id}>
-                          <td className="px-3 py-2 text-gray-900 dark:text-white">{item.tracking_number}</td>
-                          <td className="px-3 py-2 text-gray-900 dark:text-white">{item.description}</td>
-                          <td className="px-3 py-2 text-right text-gray-900 dark:text-white">
-                            {Number(item.cbm || 0).toFixed(3)}
-                          </td>
-                          <td className="px-3 py-2 text-right text-gray-900 dark:text-white">
-                            ${Number(item.rate_per_cbm || 0).toFixed(2)}
-                          </td>
-                          <td className="px-3 py-2 text-right">
-                            ${Number(item.total_amount || 0).toFixed(2)}
-                          </td>
-                        </tr>
+                        <React.Fragment key={item.id}>
+                          {editingItemId === item.id ? (
+                            <tr className="bg-indigo-50 dark:bg-indigo-900/20">
+                              <td className="px-3 py-2 text-gray-900 dark:text-white">{item.tracking_number || "—"}</td>
+                              <td className="px-3 py-2">
+                                <input
+                                  value={editItemForm.description}
+                                  onChange={(e) => setEditItemForm((f) => ({ ...f, description: e.target.value }))}
+                                  className="w-full max-w-xs px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                                  placeholder="Description"
+                                />
+                              </td>
+                              <td className="px-3 py-2">
+                                <input
+                                  type="number"
+                                  step="0.001"
+                                  value={editItemForm.cbm}
+                                  onChange={(e) => setEditItemForm((f) => ({ ...f, cbm: e.target.value }))}
+                                  className="w-20 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm text-right"
+                                />
+                              </td>
+                              <td className="px-3 py-2">
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={editItemForm.rate_per_cbm}
+                                  onChange={(e) => setEditItemForm((f) => ({ ...f, rate_per_cbm: e.target.value }))}
+                                  className="w-20 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm text-right"
+                                />
+                              </td>
+                              <td className="px-3 py-2">
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={editItemForm.total_amount}
+                                  onChange={(e) => setEditItemForm((f) => ({ ...f, total_amount: e.target.value }))}
+                                  className="w-24 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm text-right"
+                                />
+                              </td>
+                              <td className="px-3 py-2 text-right">
+                                <button
+                                  type="button"
+                                  onClick={handleSaveEditItem}
+                                  disabled={savingItemId === item.id}
+                                  className="text-green-600 dark:text-green-400 hover:underline mr-2"
+                                >
+                                  {savingItemId === item.id ? <FaSpinner className="animate-spin inline" /> : "Save"}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingItemId(null)}
+                                  className="text-gray-600 dark:text-gray-400 hover:underline"
+                                >
+                                  Cancel
+                                </button>
+                              </td>
+                            </tr>
+                          ) : (
+                            <tr>
+                              <td className="px-3 py-2 text-gray-900 dark:text-white">{item.tracking_number || "—"}</td>
+                              <td className="px-3 py-2 text-gray-900 dark:text-white">{item.description}</td>
+                              <td className="px-3 py-2 text-right text-gray-900 dark:text-white">
+                                {Number(item.cbm || 0).toFixed(3)}
+                              </td>
+                              <td className="px-3 py-2 text-right text-gray-900 dark:text-white">
+                                ${Number(item.rate_per_cbm || 0).toFixed(2)}
+                              </td>
+                              <td className="px-3 py-2 text-right text-gray-900 dark:text-white">
+                                ${Number(item.total_amount || 0).toFixed(2)}
+                              </td>
+                              <td className="px-3 py-2 text-right">
+                                <button
+                                  type="button"
+                                  onClick={() => handleStartEditItem(item)}
+                                  className="text-indigo-600 dark:text-indigo-400 hover:underline mr-2"
+                                  title="Edit item"
+                                >
+                                  <FaEdit className="inline" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveItem(item)}
+                                  disabled={removingItemId === item.id}
+                                  className="text-red-600 dark:text-red-400 hover:underline"
+                                  title="Remove item"
+                                >
+                                  {removingItemId === item.id ? <FaSpinner className="animate-spin inline" /> : <FaTrash className="inline" />}
+                                </button>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
                       ))}
                     </tbody>
                   </table>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500 dark:text-gray-400 py-2">
+                  No items yet.{(invoiceDetails.container_id || invoiceDetails.container) ? " Click “Add item” to add from trackings or add a manual line." : ""}
+                </p>
+              )}
+            </div>
+
+            {/* Add Item Modal */}
+            {showAddItemModal && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md shadow-xl">
+                  <h4 className="font-semibold text-gray-800 dark:text-white mb-4">Add invoice item</h4>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
+                      <select
+                        value={addItemMode}
+                        onChange={(e) => setAddItemMode(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      >
+                        <option value="tracking">From tracking</option>
+                        <option value="manual">Manual line</option>
+                      </select>
+                    </div>
+                    {addItemMode === "tracking" && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tracking</label>
+                        <select
+                          value={addItemTrackingId}
+                          onChange={(e) => setAddItemTrackingId(e.target.value)}
+                          disabled={loadingAvailableTrackings}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        >
+                          <option value="">Select a tracking</option>
+                          {availableTrackings.map((t) => (
+                            <option key={t.id} value={t.id}>
+                              {t.tracking_number} (CBM: {Number(t.cbm || 0).toFixed(3)}, ${Number(t.shipping_fee || 0).toFixed(2)})
+                            </option>
+                          ))}
+                        </select>
+                        {loadingAvailableTrackings && <p className="text-xs text-gray-500 mt-1">Loading trackings...</p>}
+                        {!loadingAvailableTrackings && availableTrackings.length === 0 && (invoiceDetails?.container_id || invoiceDetails?.container) && (
+                          <p className="text-xs text-gray-500 mt-1">No more trackings available for this container.</p>
+                        )}
+                      </div>
+                    )}
+                    {addItemMode === "manual" && (
+                      <>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description *</label>
+                          <input
+                            value={addItemManual.description}
+                            onChange={(e) => setAddItemManual((f) => ({ ...f, description: e.target.value }))}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            placeholder="e.g. Freight fee"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Total amount (USD) *</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={addItemManual.total_amount}
+                            onChange={(e) => setAddItemManual((f) => ({ ...f, total_amount: e.target.value }))}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            placeholder="0.00"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">CBM</label>
+                            <input
+                              type="number"
+                              step="0.001"
+                              value={addItemManual.cbm}
+                              onChange={(e) => setAddItemManual((f) => ({ ...f, cbm: e.target.value }))}
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Rate per CBM</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={addItemManual.rate_per_cbm}
+                              onChange={(e) => setAddItemManual((f) => ({ ...f, rate_per_cbm: e.target.value }))}
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tracking # (optional)</label>
+                          <input
+                            value={addItemManual.tracking_number}
+                            onChange={(e) => setAddItemManual((f) => ({ ...f, tracking_number: e.target.value }))}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            placeholder="Manual"
+                          />
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  <div className="flex justify-end gap-2 mt-6">
+                    <button
+                      type="button"
+                      onClick={() => setShowAddItemModal(false)}
+                      className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleAddItem}
+                      disabled={addingItem}
+                      className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
+                    >
+                      {addingItem ? <FaSpinner className="animate-spin inline mr-1" /> : null} Add
+                    </button>
+                  </div>
                 </div>
               </div>
             )}

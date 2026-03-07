@@ -276,8 +276,11 @@ const Training = () => {
       toast.info("Connecting to payment gateway...");
 
       try {
-      // Now initiate payment gateway
-      const paymentResponse = await initiateTrainingPayment(bookingId);
+      // Now initiate payment gateway (Paystack)
+      const baseUrl = import.meta.env?.VITE_APP_URL || (typeof window !== "undefined" ? window.location.origin : "");
+      const paymentResponse = await initiateTrainingPayment(bookingId, {
+        callback_url: baseUrl ? `${String(baseUrl).replace(/\/$/, "")}/payment/callback` : undefined,
+      });
 
       if (paymentResponse.data.payment_url) {
         // Redirect to payment gateway

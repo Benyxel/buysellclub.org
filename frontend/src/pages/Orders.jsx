@@ -358,6 +358,8 @@ const Orders = () => {
                               const itemQuantity = item.quantity || 0;
                               const itemPrice = typeof item.price === 'number' ? item.price : parseFloat(item.price || 0);
                               const itemSize = item.size && item.size !== 'default' && item.size !== 'null' && item.size !== null ? item.size : null;
+                              const itemColor = item.color && String(item.color).trim() ? item.color : null;
+                              const optionsLabel = [itemColor, itemSize].filter(Boolean).join(' • ');
                               
                               return (
                                 <div key={index} className="flex items-center gap-4">
@@ -373,7 +375,7 @@ const Orders = () => {
                                     <h3 className="font-medium text-gray-900 dark:text-white">{itemName}</h3>
                                     <p className="text-sm text-gray-500 dark:text-gray-400">
                                       Qty: {itemQuantity} × ₵{itemPrice.toFixed(2)}
-                                      {itemSize && ` • Size: ${itemSize}`}
+                                      {optionsLabel && ` • ${optionsLabel}`}
                                     </p>
                                   </div>
                                 </div>
@@ -523,6 +525,8 @@ const Orders = () => {
                           const itemQuantity = item.quantity || 0;
                           const itemPrice = typeof item.price === 'number' ? item.price : parseFloat(item.price || 0);
                           const itemSize = item.size && item.size !== 'default' && item.size !== 'null' && item.size !== null ? item.size : null;
+                          const itemColor = item.color && String(item.color).trim() ? item.color : null;
+                          const optionsLabel = [itemColor, itemSize].filter(Boolean).join(' • ');
                           const itemTotal = itemQuantity * itemPrice;
                           
                           return (
@@ -539,7 +543,7 @@ const Orders = () => {
                                 <h3 className="font-medium text-gray-900 dark:text-white">{itemName}</h3>
                                 <p className="text-sm text-gray-600 dark:text-gray-400">
                                   Quantity: {itemQuantity} × ₵{itemPrice.toFixed(2)}
-                                  {itemSize && ` • Size: ${itemSize}`}
+                                  {optionsLabel && ` • ${optionsLabel}`}
                                 </p>
                               </div>
                               <p className="font-medium text-gray-900 dark:text-white">

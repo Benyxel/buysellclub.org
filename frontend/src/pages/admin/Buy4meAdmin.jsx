@@ -40,7 +40,7 @@ const Buy4meAdmin = () => {
   
   // Settings state
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [defaultSourcingPayment, setDefaultSourcingPayment] = useState(100);
+  const [defaultSourcingPayment, setDefaultSourcingPayment] = useState(0);
   const [settingsNotes, setSettingsNotes] = useState('');
   const [savingSettings, setSavingSettings] = useState(false);
   const [loadingSettings, setLoadingSettings] = useState(false);
@@ -87,6 +87,7 @@ const Buy4meAdmin = () => {
       userName: request.user_name || request.user_username || 'Unknown',
       status: request.status,
       tracking_status: request.tracking_status,
+      sourcing_fee_paid: request.sourcing_fee_paid || false,
       link: request.product_url || '',
       product_url: request.product_url,
       additional_links: request.additional_links || [],
@@ -360,7 +361,7 @@ const Buy4meAdmin = () => {
     try {
       const response = await getBuy4meSettings();
       if (response.data) {
-        setDefaultSourcingPayment(response.data.defaultSourcingPayment || 100);
+        setDefaultSourcingPayment(response.data.defaultSourcingPayment ?? 0);
         setSettingsNotes(response.data.notes || '');
       }
       setShowSettingsModal(true);
@@ -630,10 +631,10 @@ const Buy4meAdmin = () => {
                   Status
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Proof
+                  Tracking
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Tracking
+                  Sourcing fee
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Invoice
@@ -669,9 +670,14 @@ const Buy4meAdmin = () => {
                         className="rounded"
                       />
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900 dark:text-white">{request.title || 'N/A'}</div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                    <td className="px-6 py-4 max-w-[200px]">
+                      <div
+                        className="text-sm font-medium text-gray-900 dark:text-white truncate cursor-default"
+                        title={request.title || 'N/A'}
+                      >
+                        {request.title || 'N/A'}
+                      </div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400 truncate cursor-default" title={request.description || ''}>
                         {request.description && request.description.length > 50 
                           ? `${request.description.substring(0, 50)}...` 
                           : (request.description || 'No description')}
@@ -689,26 +695,6 @@ const Buy4meAdmin = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {request.proof_of_payment ? (
-                        <button
-                          type="button"
-                          onClick={() => setPreviewProof(request.proof_of_payment)}
-                          className="inline-flex items-center gap-2"
-                        >
-                          <img
-                            src={request.proof_of_payment}
-                            alt="Proof"
-                            className="h-12 w-12 rounded object-cover border"
-                          />
-                          <span className="text-xs text-blue-600 dark:text-blue-400">
-                            View
-                          </span>
-                        </button>
-                      ) : (
-                        <span className="text-gray-400 text-xs">No proof</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
                       {request.tracking_status ? (
                         <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
                           {request.tracking_status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
@@ -717,6 +703,15 @@ const Buy4meAdmin = () => {
                         <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
                           Not Started
                         </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {request.sourcing_fee_paid ? (
+                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300" title="Sourcing fee paid (Paystack)">
+                          Paid
+                        </span>
+                      ) : (
+                        <span className="text-sm text-gray-500 dark:text-gray-400">—</span>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -884,6 +879,16 @@ const Buy4meAdmin = () => {
                   )}
                 </div>
                 <div>
+                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Sourcing fee</h4>
+                  {selectedRequest.sourcing_fee_paid ? (
+                    <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+                      Paid
+                    </span>
+                  ) : (
+                    <span className="text-sm text-gray-500 dark:text-gray-400">—</span>
+                  )}
+                </div>
+                <div>
                   <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Created At</h4>
                   <p className="text-gray-900 dark:text-white">
                     {new Date(selectedRequest.createdAt).toLocaleString()}
@@ -904,42 +909,39 @@ const Buy4meAdmin = () => {
                   <p className="text-gray-900 dark:text-white">{selectedRequest.description}</p>
                 </div>
                 <div>
-                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Quantity</h4>
+                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Total Quantity</h4>
                   <p className="text-gray-900 dark:text-white">{selectedRequest.quantity}</p>
                 </div>
-                <div>
-                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Product Link</h4>
-                  <a 
-                    href={selectedRequest.link || selectedRequest.product_url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 break-all"
-                  >
-                    {selectedRequest.link || selectedRequest.product_url || 'N/A'}
-                  </a>
-                </div>
-                {selectedRequest.additional_links && selectedRequest.additional_links.length > 0 && (
-                  <div className="md:col-span-2">
-                    <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Additional Links</h4>
-                    <div className="space-y-2">
-                      {selectedRequest.additional_links.map((link, index) => (
-                        <div key={index} className="flex items-center gap-2">
-                          <a 
-                            href={typeof link === 'string' ? link : link.url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 break-all text-sm"
-                          >
-                            {typeof link === 'string' ? link : link.url}
-                          </a>
-                          {typeof link === 'object' && link.quantity && (
-                            <span className="text-xs text-gray-500">(Qty: {link.quantity})</span>
-                          )}
-                        </div>
-                      ))}
+                {(() => {
+                  const products = selectedRequest.additional_links && selectedRequest.additional_links.length > 0
+                    ? selectedRequest.additional_links
+                    : (selectedRequest.link || selectedRequest.product_url)
+                      ? [{ url: selectedRequest.link || selectedRequest.product_url, quantity: selectedRequest.quantity }]
+                      : [];
+                  if (products.length === 0) return null;
+                  return (
+                    <div className="md:col-span-2">
+                      <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Products</h4>
+                      <div className="space-y-2">
+                        {products.map((link, index) => (
+                          <div key={index} className="flex items-center gap-2">
+                            <a
+                              href={typeof link === 'string' ? link : link.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 break-all text-sm"
+                            >
+                              {typeof link === 'string' ? link : link.url}
+                            </a>
+                            {typeof link === 'object' && (link.quantity != null || link.quantity === 0) && (
+                              <span className="text-xs text-gray-500">(Qty: {link.quantity})</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
                 {selectedRequest.images && selectedRequest.images.length > 0 && (
                   <div className="md:col-span-2">
                     <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Product Images</h4>
@@ -1058,81 +1060,35 @@ const Buy4meAdmin = () => {
                   {!selectedRequest.invoice ? (
                     <>
                       {showInvoiceForm && (() => {
-                        // Calculate number of products: 1 main product + additional links
-                        const additionalLinksCount = selectedRequest?.additional_links?.length || 0;
-                        const totalProducts = 1 + additionalLinksCount;
-                        
-                        // Initialize costs and quantities arrays if not already set or if product count changed
+                        const products = selectedRequest?.additional_links?.length > 0
+                          ? selectedRequest.additional_links
+                          : (selectedRequest?.product_url || selectedRequest?.link)
+                            ? [{ url: selectedRequest.product_url || selectedRequest.link, quantity: selectedRequest.quantity }]
+                            : [];
+                        const totalProducts = products.length || 1;
+
                         if (invoiceProductCostsRmb.length !== totalProducts) {
                           setInvoiceProductCostsRmb(new Array(totalProducts).fill(''));
                         }
                         if (invoiceQuantities.length !== totalProducts) {
-                          // Initialize all quantities to 0 - all products are independent
-                          setInvoiceQuantities(new Array(totalProducts).fill(0));
+                          setInvoiceQuantities(products.map(p => (typeof p === 'object' && p.quantity != null ? p.quantity : 0)));
                         }
-                        
+
                         return (
                         <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
                           <h5 className="text-md font-medium text-gray-900 dark:text-white mb-3">Create New Invoice</h5>
                           <div className="space-y-4">
-                            {/* Product Cost Fields - One for each product */}
                             <div>
                               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                 Product Costs (RMB) <span className="text-red-500">*</span>
                               </label>
                               <div className="space-y-3">
-                                {/* Main Product Cost */}
-                                <div>
-                                  <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
-                                    Product 1
-                                  </label>
-                                  <div className="flex gap-2">
-                                    <div className="flex-1 flex rounded-md shadow-sm">
-                                      <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-gray-400">
-                                        ¥
-                                      </span>
-                                      <input
-                                        type="number"
-                                        value={invoiceProductCostsRmb[0] || ''}
-                                        onChange={(e) => {
-                                          const newCosts = [...invoiceProductCostsRmb];
-                                          newCosts[0] = e.target.value;
-                                          setInvoiceProductCostsRmb(newCosts);
-                                        }}
-                                        className="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-r-md border dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                                        placeholder="0.00"
-                                        min="0"
-                                        step="0.01"
-                                        required
-                                      />
-                                    </div>
-                                    <div className="flex items-center">
-                                      <label className="sr-only">Quantity</label>
-                                      <input
-                                        type="number"
-                                        min="0"
-                                        value={invoiceQuantities[0] || 0}
-                                        onChange={(e) => {
-                                          const newQuantities = [...invoiceQuantities];
-                                          newQuantities[0] = parseInt(e.target.value) || 0;
-                                          setInvoiceQuantities(newQuantities);
-                                        }}
-                                        className="w-20 px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent sm:text-sm"
-                                        placeholder="Qty"
-                                      />
-                                    </div>
-                                  </div>
-                                </div>
-                                
-                                {/* Additional Products Costs */}
-                                {selectedRequest?.additional_links?.map((link, index) => {
-                                  const productIndex = index + 1;
+                                {products.map((link, index) => {
                                   const linkUrl = typeof link === 'string' ? link : link.url;
-                                  
                                   return (
                                     <div key={index}>
                                       <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
-                                        Product {productIndex + 1}: {linkUrl.substring(0, 50)}{linkUrl.length > 50 ? '...' : ''}
+                                        {linkUrl ? `${linkUrl.substring(0, 50)}${linkUrl.length > 50 ? '...' : ''}` : `Product ${index + 1}`}
                                       </label>
                                       <div className="flex gap-2">
                                         <div className="flex-1 flex rounded-md shadow-sm">
@@ -1141,10 +1097,10 @@ const Buy4meAdmin = () => {
                                           </span>
                                           <input
                                             type="number"
-                                            value={invoiceProductCostsRmb[productIndex] || ''}
+                                            value={invoiceProductCostsRmb[index] || ''}
                                             onChange={(e) => {
                                               const newCosts = [...invoiceProductCostsRmb];
-                                              newCosts[productIndex] = e.target.value;
+                                              newCosts[index] = e.target.value;
                                               setInvoiceProductCostsRmb(newCosts);
                                             }}
                                             className="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-r-md border dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
@@ -1159,10 +1115,10 @@ const Buy4meAdmin = () => {
                                           <input
                                             type="number"
                                             min="0"
-                                            value={invoiceQuantities[productIndex] || 0}
+                                            value={invoiceQuantities[index] ?? ''}
                                             onChange={(e) => {
                                               const newQuantities = [...invoiceQuantities];
-                                              newQuantities[productIndex] = parseInt(e.target.value) || 0;
+                                              newQuantities[index] = parseInt(e.target.value, 10) || 0;
                                               setInvoiceQuantities(newQuantities);
                                             }}
                                             className="w-20 px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent sm:text-sm"

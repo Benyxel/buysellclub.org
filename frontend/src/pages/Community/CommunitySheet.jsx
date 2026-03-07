@@ -277,6 +277,13 @@ const CommunitySheet = () => {
         </Link>
       </div>
 
+      {/* Disclaimer */}
+      <div className="mb-6 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-4 py-3">
+        <p className="text-sm text-amber-800 dark:text-amber-200">
+          <strong>Disclaimer:</strong> The supplier contact information on this page is provided for community members as a convenience. BuySell Club does not endorse, verify, or guarantee any supplier listed here. You are responsible for your own due diligence and any transactions you enter into with these contacts. Use this information at your own discretion.
+        </p>
+      </div>
+
       {/* Toolbar: search + filters */}
       <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-800 rounded-xl border border-blue-200 dark:border-gray-600 p-4 mb-6 shadow-sm">
         <div className="flex flex-col gap-4">

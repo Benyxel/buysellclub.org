@@ -4,7 +4,7 @@ import { toast } from "../utils/toast";
 import { getLiveChatMessages, sendLiveChatMessage } from "../api";
 import { LiveChatWebSocket } from "../utils/websocket";
 
-const LiveChatWidget = () => {
+const LiveChatWidget = ({ hideLauncher = false }) => {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState("");
@@ -149,6 +149,20 @@ const LiveChatWidget = () => {
       }
     }
   };
+
+  // Allow external components to toggle the chat widget (e.g. combined support button)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handleToggle = () => {
+      setOpen((prev) => !prev);
+    };
+
+    window.addEventListener("toggleLiveChatWidget", handleToggle);
+    return () => {
+      window.removeEventListener("toggleLiveChatWidget", handleToggle);
+    };
+  }, []);
 
   // Track scroll position to determine if user is at bottom
   useEffect(() => {
@@ -505,14 +519,16 @@ const LiveChatWidget = () => {
   return (
     <>
       {open && chatContainer}
-      <button
-        onClick={() => setOpen(!open)}
-        className="fixed bottom-4 left-4 md:bottom-6 md:left-auto md:right-6 z-[1100] flex items-center gap-2 rounded-full bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 px-4 py-2.5 md:px-5 md:py-3 text-sm font-semibold text-white shadow-xl transition-all"
-        aria-label="Open chat"
-      >
-        <FaRegCommentDots className="text-base md:text-lg" />
-        <span className="hidden sm:inline">Chat with us</span>
-      </button>
+      {!hideLauncher && (
+        <button
+          onClick={() => setOpen(!open)}
+          className="fixed bottom-4 left-4 md:bottom-6 md:left-auto md:right-6 z-[1100] flex items-center gap-2 rounded-full bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 px-4 py-2.5 md:px-5 md:py-3 text-sm font-semibold text-white shadow-xl transition-all"
+          aria-label="Open chat"
+        >
+          <FaRegCommentDots className="text-base md:text-lg" />
+          <span className="hidden sm:inline">Chat with us</span>
+        </button>
+      )}
     </>
   );
 };

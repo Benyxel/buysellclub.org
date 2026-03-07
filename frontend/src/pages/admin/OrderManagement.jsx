@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { FaSearch, FaSortAmountDown, FaSortAmountUp, FaFilter, FaDownload, FaEye, FaCheck, FaTimes, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { FaSearch, FaSortAmountDown, FaSortAmountUp, FaFilter, FaDownload, FaEye, FaCheck, FaTimes, FaChevronLeft, FaChevronRight, FaTrash } from 'react-icons/fa';
 import { toast } from '../../utils/toast';
-import API, { getOrders } from '../../api';
+import API, { Api, getOrders } from '../../api';
 import BulkActions from '../../components/shared/BulkActions';
 import { getApiUrl } from '../../config/api';
 import { getPlaceholderImagePath } from '../../utils/paths';
@@ -48,6 +48,12 @@ const OrderManagement = () => {
   useEffect(() => {
     applyFiltersAndSort();
   }, [orders, searchTerm, sortField, sortDirection, filterStatus]);
+
+  // Keep "select all" in sync with current page selection
+  useEffect(() => {
+    const allSelected = filteredOrders.length > 0 && filteredOrders.every((o) => selectedOrders.includes(o.id));
+    setSelectAll(allSelected);
+  }, [filteredOrders, selectedOrders]);
 
   const fetchOrders = async (page = currentPage, size = pageSize) => {
     setLoading(true);
@@ -114,6 +120,12 @@ const OrderManagement = () => {
     });
 
     setFilteredOrders(filtered);
+  };
+
+  const handleSelectOrder = (orderId) => {
+    setSelectedOrders((prev) =>
+      prev.includes(orderId) ? prev.filter((id) => id !== orderId) : [...prev, orderId]
+    );
   };
 
   const openStatusModal = (order) => {
@@ -189,6 +201,40 @@ const OrderManagement = () => {
     }
   };
 
+  const handleDeleteOrder = async (order) => {
+    if (!window.confirm(`Delete order #${order.id}? This will permanently remove the order.`)) {
+      return;
+    }
+    const url = `/buysellapi/admin/orders/${order.id}/`;
+    try {
+      // Use same API instance as fetchOrders; try DELETE first, fallback to POST (some proxies block DELETE)
+      let response;
+      try {
+        response = await API.delete(url);
+      } catch (deleteErr) {
+        if (deleteErr.response?.status === 405 || deleteErr.code === 'ERR_NETWORK') {
+          response = await API.post(url, {});
+        } else {
+          throw deleteErr;
+        }
+      }
+      if (response?.status === 200 || response?.status === 204) {
+        toast.success('Order deleted successfully');
+        fetchOrders(currentPage, pageSize);
+        if (selectedOrder?.id === order.id) {
+          setShowOrderDetails(false);
+          setSelectedOrder(null);
+        }
+      } else {
+        toast.error('Unexpected response from server');
+      }
+    } catch (error) {
+      console.error('Error deleting order:', error?.response?.data || error);
+      const errorMessage = error.response?.data?.error || error.message || 'Failed to delete order';
+      toast.error(errorMessage);
+    }
+  };
+
   const getStatusColor = (status) => {
     switch (status.toLowerCase()) {
       case 'pending':
@@ -257,6 +303,18 @@ const OrderManagement = () => {
           <table className="w-full">
             <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
+                <th className="py-3 px-4 w-10">
+                  <input
+                    type="checkbox"
+                    checked={selectAll}
+                    onChange={(e) => {
+                      setSelectAll(e.target.checked);
+                      setSelectedOrders(e.target.checked ? filteredOrders.map((o) => o.id) : []);
+                    }}
+                    className="rounded"
+                    title="Select all"
+                  />
+                </th>
                 <th className="py-3 px-4 text-left">
                   <button
                     onClick={() => {
@@ -353,7 +411,7 @@ const OrderManagement = () => {
                       {new Date(order.created_at).toLocaleDateString()}
                     </td>
                     <td className="py-3 px-4">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <button
                           onClick={() => {
                             setSelectedOrder(order);
@@ -370,6 +428,13 @@ const OrderManagement = () => {
                           title="Update Status"
                         >
                           Update Status
+                        </button>
+                        <button
+                          onClick={() => handleDeleteOrder(order)}
+                          className="p-2 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                          title="Cancel / Delete order"
+                        >
+                          <FaTrash />
                         </button>
                       </div>
                     </td>
@@ -429,7 +494,7 @@ const OrderManagement = () => {
                           <p className="font-medium text-gray-900 dark:text-white">{item.name}</p>
                           <p className="text-sm text-gray-600 dark:text-gray-400">
                             Quantity: {item.quantity} × ₵{typeof item.price === 'number' ? item.price.toFixed(2) : parseFloat(item.price || 0).toFixed(2)}
-                            {item.size && item.size !== 'default' && ` (Size: ${item.size})`}
+                            {([item.color, item.size && item.size !== 'default' ? item.size : null].filter(Boolean).length > 0) && ` (${[item.color, item.size && item.size !== 'default' ? item.size : null].filter(Boolean).join(' • ')})`}
                           </p>
                         </div>
                         <p className="font-medium text-gray-900 dark:text-white">

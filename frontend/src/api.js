@@ -291,6 +291,13 @@ const Api = {
     profile: () => http.get("/buysellapi/users/me/"),
     register: (payload) => http.post("/buysellapi/user/register/", payload),
   },
+  /** Upload a file (image/video) for admin use. type: 'product' | 'whatsapp' | 'video' | 'thumbnail' | 'image' */
+  uploadFile: (file, type = "product") => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("type", type);
+    return http.post("/buysellapi/admin/upload/", formData);
+  },
   products: {
     list: (params) => http.get("/buysellapi/products/", { params }),
     detail: (slug) => http.get(`/buysellapi/products/${slug}/`),
@@ -313,6 +320,7 @@ const Api = {
     update: (id, payload) => http.put(`/buysellapi/orders/${id}/`, payload),
     remove: (id) => http.delete(`/buysellapi/orders/${id}/`),
     adminList: (params) => http.get("/buysellapi/admin/orders/", { params }),
+    adminRemove: (id) => http.delete(`/buysellapi/admin/orders/${id}/`),
     payment: (id, body) => http.post(`/buysellapi/orders/${id}/payment/`, body || {}),
   },
   buy4me: {
@@ -321,6 +329,12 @@ const Api = {
     create: (payload) => http.post("/buysellapi/buy4me-requests/", payload),
     createWithPayment: (payload) => http.post("/buysellapi/buy4me-requests/create-with-payment/", payload),
     createWithProof: (payload) => http.post("/buysellapi/buy4me-requests/create-with-proof/", payload),
+    /** Pay-first flow: get current paid slot (awaiting_details + paid) if any */
+    awaitingSubmission: () => http.get("/buysellapi/buy4me-requests/awaiting-submission/"),
+    /** Pay-first flow: create slot and get Paystack payment URL */
+    initiateSourcingFee: (payload) => http.post("/buysellapi/buy4me-requests/initiate-sourcing-fee/", payload || {}),
+    /** Pay-first flow: submit order details for a paid slot (one submission per payment) */
+    submitDetails: (id, payload) => http.patch(`/buysellapi/buy4me-requests/${id}/submit-details/`, payload),
     update: (id, payload) =>
       http.put(`/buysellapi/buy4me-requests/${id}/`, payload),
     remove: (id) => http.delete(`/buysellapi/buy4me-requests/${id}/`),
@@ -388,6 +402,14 @@ const Api = {
   },
   invoices: {
     public: (params) => http.get("/buysellapi/invoices/public/", { params }),
+    availableTrackings: (invoiceId) =>
+      http.get(`/buysellapi/invoices/${invoiceId}/available-trackings/`),
+    addItem: (invoiceId, payload) =>
+      http.post(`/buysellapi/invoices/${invoiceId}/items/`, payload),
+    updateItem: (invoiceId, itemId, payload) =>
+      http.patch(`/buysellapi/invoices/${invoiceId}/items/${itemId}/`, payload),
+    removeItem: (invoiceId, itemId) =>
+      http.delete(`/buysellapi/invoices/${invoiceId}/items/${itemId}/`),
   },
   alipay: {
     payments: (params = {}, options = {}) => {
@@ -439,6 +461,14 @@ const Api = {
       http.patch(`/buysellapi/product-types/${slug}/`, payload),
     remove: (slug) => http.delete(`/buysellapi/product-types/${slug}/`),
   },
+  productOptionTypes: {
+    list: (params) => http.get("/buysellapi/product-option-types/", { params }),
+    detail: (slug) => http.get(`/buysellapi/product-option-types/${slug}/`),
+    create: (payload) => http.post("/buysellapi/product-option-types/", payload),
+    update: (slug, payload) =>
+      http.patch(`/buysellapi/product-option-types/${slug}/`, payload),
+    remove: (slug) => http.delete(`/buysellapi/product-option-types/${slug}/`),
+  },
   analytics: {
     admin: (params) =>
       http.get("/buysellapi/admin/analytics/", {
@@ -480,7 +510,7 @@ const Api = {
     settings: () => http.get("/buysellapi/training-settings/"),
     updateSettings: (payload) => http.post("/buysellapi/training-settings/", payload),
     payment: (id, payload) => http.put(`/buysellapi/training-bookings/${id}/payment/`, payload),
-    paymentGateway: (id) => http.post(`/buysellapi/training-bookings/${id}/payment/`),
+    paymentGateway: (id, body) => http.post(`/buysellapi/training-bookings/${id}/payment/`, body || {}),
     adminBookings: (params) =>
       http.get("/buysellapi/admin/training-bookings/", {
         params,
@@ -531,6 +561,7 @@ const Api = {
     sheetData: (config = {}) =>
       http.get("/buysellapi/community/sheet-data/", { noCache: true, cacheDuration: 0, ...config }),
     submitRequest: (payload) => http.post("/buysellapi/community/requests/", payload),
+    initiatePayment: (payload) => http.post("/buysellapi/community/requests/initiate-payment/", payload),
     adminRequests: (config = {}) =>
       http.get("/buysellapi/admin/community/requests/", config),
     adminApprove: (requestId, payload = {}) =>
@@ -539,6 +570,80 @@ const Api = {
       http.post(`/buysellapi/admin/community/requests/${requestId}/reject/`, payload),
     adminDelete: (requestId) =>
       http.delete(`/buysellapi/admin/community/requests/${requestId}/`),
+  },
+  communityContent: {
+    winningProducts: {
+      list: (config = {}) =>
+        http.get("/buysellapi/community/winning-products/", {
+          noCache: true,
+          cacheDuration: 0,
+          ...config,
+        }),
+      adminList: (config = {}) =>
+        http.get("/buysellapi/admin/community/winning-products/", {
+          noCache: true,
+          cacheDuration: 0,
+          ...config,
+        }),
+      create: (payload) =>
+        http.post("/buysellapi/admin/community/winning-products/", payload),
+      update: (id, payload) =>
+        http.put(`/buysellapi/admin/community/winning-products/${id}/`, payload),
+      remove: (id) =>
+        http.delete(`/buysellapi/admin/community/winning-products/${id}/`),
+      like: (id) =>
+        http.post(`/buysellapi/community/winning-products/${id}/like/`, {}),
+      unlike: (id) =>
+        http.delete(`/buysellapi/community/winning-products/${id}/like/`),
+      recordView: (id) =>
+        http.post(`/buysellapi/community/winning-products/${id}/view/`, {}),
+    },
+    tutorials: {
+      list: (config = {}) =>
+        http.get("/buysellapi/community/tutorials/", {
+          noCache: true,
+          cacheDuration: 0,
+          ...config,
+        }),
+      adminList: (config = {}) =>
+        http.get("/buysellapi/admin/community/tutorials/", {
+          noCache: true,
+          cacheDuration: 0,
+          ...config,
+        }),
+      create: (payload) =>
+        http.post("/buysellapi/admin/community/tutorials/", payload),
+      update: (id, payload) =>
+        http.put(`/buysellapi/admin/community/tutorials/${id}/`, payload),
+      remove: (id) =>
+        http.delete(`/buysellapi/admin/community/tutorials/${id}/`),
+      like: (id) =>
+        http.post(`/buysellapi/community/tutorials/${id}/like/`, {}),
+      unlike: (id) =>
+        http.delete(`/buysellapi/community/tutorials/${id}/like/`),
+      recordView: (id) =>
+        http.post(`/buysellapi/community/tutorials/${id}/view/`, {}),
+    },
+    resources: {
+      list: (config = {}) =>
+        http.get("/buysellapi/community/resources/", {
+          noCache: true,
+          cacheDuration: 0,
+          ...config,
+        }),
+      adminList: (config = {}) =>
+        http.get("/buysellapi/admin/community/resources/", {
+          noCache: true,
+          cacheDuration: 0,
+          ...config,
+        }),
+      create: (payload) =>
+        http.post("/buysellapi/admin/community/resources/", payload),
+      update: (id, payload) =>
+        http.put(`/buysellapi/admin/community/resources/${id}/`, payload),
+      remove: (id) =>
+        http.delete(`/buysellapi/admin/community/resources/${id}/`),
+    },
   },
   vendor: {
     submit: (payload) => http.post("/buysellapi/vendor-applications/", payload),
@@ -640,6 +745,9 @@ export const getBuy4meRequest = Api.buy4me.detail;
 export const createBuy4meRequest = Api.buy4me.create;
 export const createBuy4meRequestWithPayment = Api.buy4me.createWithPayment;
 export const createBuy4meRequestWithProof = Api.buy4me.createWithProof;
+export const getBuy4meAwaitingSubmission = Api.buy4me.awaitingSubmission;
+export const initiateBuy4meSourcingFee = Api.buy4me.initiateSourcingFee;
+export const submitBuy4meDetails = Api.buy4me.submitDetails;
 export const updateBuy4meRequest = Api.buy4me.update;
 export const deleteBuy4meRequest = Api.buy4me.remove;
 export const initiateBuy4mePayment = Api.buy4me.payment;
@@ -673,6 +781,12 @@ export const getProductType = Api.productTypes.detail;
 export const createProductType = Api.productTypes.create;
 export const updateProductType = Api.productTypes.update;
 export const deleteProductType = Api.productTypes.remove;
+
+export const getProductOptionTypes = Api.productOptionTypes.list;
+export const getProductOptionType = Api.productOptionTypes.detail;
+export const createProductOptionType = Api.productOptionTypes.create;
+export const updateProductOptionType = Api.productOptionTypes.update;
+export const deleteProductOptionType = Api.productOptionTypes.remove;
 
 export const getAdminAnalytics = Api.analytics.admin;
 export const getAdminAnalyticsTrends = Api.analytics.trends;

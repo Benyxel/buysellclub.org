@@ -140,6 +140,8 @@ const JoinCommunity = () => {
   const sheetOnlyLabel = settings.sheet_only_label || "Suppliers only";
   const _hasSheetProduct = settings.has_sheet_product;
   const hasSheetAccess = sheetAccessType === "member" || sheetAccessType === "sheet_only";
+  // Treat as approved: has an approved request, or superadmin (backend gives sheet_access_type "member" + telegram_link)
+  const isApprovedMember = currentStatus === "approved" || (sheetAccessType === "member" && !!telegramLink);
   const expiresAt = requestInfo?.expires_at
     ? new Date(requestInfo.expires_at).toLocaleDateString()
     : "";
@@ -225,7 +227,7 @@ const JoinCommunity = () => {
                 Join Community
               </h1>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Pay the membership fee and submit proof to join our community.
+                Pay the membership fee with Paystack to join our community.
               </p>
             </div>
           </div>
@@ -275,9 +277,9 @@ const JoinCommunity = () => {
           </div>
         </div>
 
-        {(currentStatus === "approved" && telegramLink) || hasSheetAccess ? (
+        {(isApprovedMember && telegramLink) || hasSheetAccess ? (
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-green-200 dark:border-green-700">
-            {currentStatus === "approved" && telegramLink ? (
+            {isApprovedMember && telegramLink ? (
               <>
             <div className="flex flex-wrap items-center gap-2 mb-2">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -314,7 +316,7 @@ const JoinCommunity = () => {
               </>
             ) : null}
             {hasSheetAccess ? (
-              <div className={currentStatus === "approved" && telegramLink ? "mt-6 pt-4 border-t border-gray-200 dark:border-gray-600" : ""}>
+              <div className={isApprovedMember && telegramLink ? "mt-6 pt-4 border-t border-gray-200 dark:border-gray-600" : ""}>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                   Suppliers Contacts
                 </h3>
@@ -348,10 +350,10 @@ const JoinCommunity = () => {
         ) : (
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              Submit your payment proof
+              Pay with Paystack
             </h2>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              Complete payment and upload your proof to request access.
+              Complete payment securely with Paystack to request access.
             </p>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
               Membership is billed yearly. Your expiration date will be shown
@@ -369,7 +371,7 @@ const JoinCommunity = () => {
                 to="/CommunityPayment"
                 className="inline-flex items-center px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold"
               >
-                Pay & Submit Proof
+                Join
               </Link>
               {sheetOnlyPrice > 0 && (
                 <Link

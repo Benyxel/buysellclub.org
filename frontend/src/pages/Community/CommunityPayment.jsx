@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { FaInfoCircle, FaMoneyBillWave, FaAlipay, FaUpload } from "react-icons/fa";
+import { FaInfoCircle } from "react-icons/fa";
 import { toast } from "../../utils/toast";
 import { Link, useSearchParams } from "react-router-dom";
 import { Api } from "../../api";
@@ -11,8 +11,6 @@ const CommunityPayment = () => {
   const [salePrice, setSalePrice] = useState(0);
   const [sheetOnlyPrice, setSheetOnlyPrice] = useState(0);
   const [sheetOnlyLabel, setSheetOnlyLabel] = useState("Suppliers only");
-  const [proofOfPayment, setProofOfPayment] = useState(null);
-  const [proofOfPaymentPreview, setProofOfPaymentPreview] = useState("");
   const [loading, setLoading] = useState(false);
   const [requestStatus, setRequestStatus] = useState(null);
   const [requestType, setRequestType] = useState(null);
@@ -39,7 +37,6 @@ const CommunityPayment = () => {
     ? sheetOnlyPrice
     : (salePrice > 0 && salePrice < membershipAmount ? salePrice : membershipAmount);
 
-  // Block submit only when: pending (any), or approved for *this* flow (same request_type)
   const isBlockedForThisFlow =
     requestStatus === "pending" ||
     (requestStatus === "approved" &&
@@ -47,71 +44,45 @@ const CommunityPayment = () => {
 
   useEffect(() => {
     fetchSettingsAndStatus();
-
     const refresh = () => fetchSettingsAndStatus();
     const handleFocus = () => refresh();
     window.addEventListener("focus", handleFocus);
     document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") {
-        refresh();
-      }
+      if (document.visibilityState === "visible") refresh();
     });
-
     const handleStorage = (e) => {
-      if (e.key === "communitySettingsUpdatedAt") {
-        refresh();
-      }
+      if (e.key === "communitySettingsUpdatedAt") refresh();
     };
     window.addEventListener("storage", handleStorage);
-
     return () => {
       window.removeEventListener("focus", handleFocus);
       window.removeEventListener("storage", handleStorage);
     };
   }, []);
 
-  const handleProofOfPaymentChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Proof of payment image must be less than 5MB");
-      return;
-    }
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please upload an image file");
-      return;
-    }
-    setProofOfPayment(file);
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setProofOfPaymentPreview(reader.result);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleSubmit = async (e) => {
+  const handlePayWithPaystack = async (e) => {
     e.preventDefault();
-    if (!proofOfPaymentPreview) {
-      toast.error("Please upload proof of payment");
-      return;
-    }
+    if (isBlockedForThisFlow || (isSheetOnly && sheetOnlyPrice <= 0)) return;
     try {
       setLoading(true);
-      await Api.community.submitRequest({
-        proof_of_payment: proofOfPaymentPreview,
+      const baseUrl = import.meta.env?.VITE_APP_URL || (typeof window !== "undefined" ? window.location.origin : "");
+      const res = await Api.community.initiatePayment({
         request_type: isSheetOnly ? "sheet_only" : "membership",
+        callback_url: baseUrl ? `${String(baseUrl).replace(/\/$/, "")}/payment/callback` : undefined,
       });
-      toast.success(isSheetOnly ? `${sheetOnlyLabel} request submitted. Await admin approval.` : "Community request submitted. Await admin approval.");
-      setProofOfPayment(null);
-      setProofOfPaymentPreview("");
-      await fetchSettingsAndStatus();
+      if (res.data?.payment_url) {
+        toast.success("Redirecting to payment...");
+        window.location.href = res.data.payment_url;
+      } else {
+        toast.error(res.data?.error || "Payment could not be started.");
+        setLoading(false);
+      }
     } catch (error) {
       const message =
         error.response?.data?.error ||
         error.response?.data?.detail ||
-        "Failed to submit community request";
+        "Failed to start payment.";
       toast.error(message);
-    } finally {
       setLoading(false);
     }
   };
@@ -124,7 +95,7 @@ const CommunityPayment = () => {
             What you get inside the community
           </h2>
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-            You are not joining a noisy group chat. You’re joining a structured
+            You are not joining a noisy group chat. You're joining a structured
             community with focused Topics:
           </p>
           <ul className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
@@ -152,15 +123,15 @@ const CommunityPayment = () => {
           </div>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
             {isSheetOnly
-              ? `Pay the one-time fee and upload proof to get access to the ${sheetOnlyLabel} sheet.`
-              : "Complete payment using the details below and upload your proof."}
+              ? `Pay the one-time fee to get access to the ${sheetOnlyLabel} sheet.`
+              : "Complete payment securely with Paystack (cards, mobile money)."}
           </p>
         </div>
 
         {isBlockedForThisFlow && (
           <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-2xl p-5 text-sm text-yellow-900 dark:text-yellow-100">
-            You already have a {requestStatus} {isSheetOnly ? `${sheetOnlyLabel} ` : "membership "}request. Submit a new proof only if your
-            previous request was rejected.
+            You already have a {requestStatus} {isSheetOnly ? `${sheetOnlyLabel} ` : "membership "}request.
+            Submit a new payment only if your previous request was rejected.
           </div>
         )}
         {isSheetOnly && sheetOnlyPrice <= 0 && (
@@ -173,73 +144,11 @@ const CommunityPayment = () => {
           <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white p-4 rounded-xl">
             <h3 className="text-xl font-bold mb-2 flex items-center gap-2">
               <FaInfoCircle className="w-6 h-6" />
-              Payment Instructions
+              Pay with Paystack
             </h3>
             <p className="text-sm text-white/90">
-              Please complete payment using one of the options below before uploading proof.
+              You will be redirected to Paystack to pay securely (cards, mobile money). After payment, your request will be submitted for admin approval.
             </p>
-          </div>
-
-          <div className="border-2 border-gray-200 dark:border-gray-700 rounded-xl p-5 space-y-3">
-            <h4 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <FaMoneyBillWave className="w-5 h-5 text-green-600" />
-              Bank Transfer Details
-            </h4>
-            <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600 dark:text-gray-400">
-                  Account Name:
-                </span>
-                <span className="font-semibold text-gray-900 dark:text-white">
-                  BUY SELL CLUB LTD
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Bank:</span>
-                <span className="font-semibold text-gray-900 dark:text-white">
-                  ECOBANK(ACHIMOTA)
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600 dark:text-gray-400">
-                  Account Number:
-                </span>
-                <span className="font-mono font-bold text-lg text-blue-600 dark:text-blue-400">
-                  1441004957068
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="border-2 border-gray-200 dark:border-gray-700 rounded-xl p-5 space-y-3">
-            <h4 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <FaAlipay className="w-5 h-5 text-purple-600" />
-              Mobile Money (MoMo) Details
-            </h4>
-            <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Name:</span>
-                <span className="font-semibold text-gray-900 dark:text-white">
-                  Buy Sell Club
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600 dark:text-gray-400">
-                  Number:
-                </span>
-                <span className="font-mono font-bold text-lg text-blue-600 dark:text-blue-400">
-                  054 437 0928
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600 dark:text-gray-400">
-                  Merchant ID:
-                </span>
-                <span className="font-mono font-semibold text-gray-900 dark:text-white">
-                  060140
-                </span>
-              </div>
-            </div>
           </div>
 
           <div className="bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-800 rounded-xl p-5">
@@ -260,43 +169,14 @@ const CommunityPayment = () => {
             )}
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-6 text-center">
-              <input
-                type="file"
-                id="proofUpload"
-                className="hidden"
-                accept="image/*"
-                onChange={handleProofOfPaymentChange}
-              />
-              <label
-                htmlFor="proofUpload"
-                className="cursor-pointer flex flex-col items-center gap-2"
-              >
-                {proofOfPaymentPreview ? (
-                  <img
-                    src={proofOfPaymentPreview}
-                    alt="Proof of Payment"
-                    className="max-h-48 rounded-lg shadow-md"
-                  />
-                ) : (
-                  <>
-                    <FaUpload className="text-3xl text-gray-400" />
-                    <span className="text-sm text-gray-600 dark:text-gray-400">
-                      Click to upload proof of payment
-                    </span>
-                  </>
-                )}
-              </label>
-            </div>
-            <button
-              type="submit"
-              disabled={loading || isBlockedForThisFlow || (isSheetOnly && sheetOnlyPrice <= 0)}
-              className="w-full py-3 rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? "Submitting..." : "Submit Proof"}
-            </button>
-          </form>
+          <button
+            type="button"
+            onClick={handlePayWithPaystack}
+            disabled={loading || isBlockedForThisFlow || (isSheetOnly && sheetOnlyPrice <= 0)}
+            className="w-full py-3 rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? "Redirecting..." : "Pay with Paystack"}
+          </button>
         </div>
       </div>
     </div>
@@ -304,5 +184,3 @@ const CommunityPayment = () => {
 };
 
 export default CommunityPayment;
-
-

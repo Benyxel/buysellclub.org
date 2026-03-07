@@ -26,7 +26,6 @@ const Quicklinks = [
   { name: "Training", href: "/Training" },
   { name: "Our Rates", href: "/OurRates" },
   { name: "Alipay Payment", href: "/AlipayPayment" },
-  { name: "Donate", href: "/Donate" },
 ];
 
 // Static links that don't change based on auth status

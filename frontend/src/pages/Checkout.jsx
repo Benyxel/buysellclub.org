@@ -8,22 +8,15 @@ import { getPlaceholderImagePath } from '../utils/paths';
 
 const Checkout = () => {
   const navigate = useNavigate();
-  const { cartItems, getCartAmount, clearCart, products, currency } = useContext(ShopContext);
-  const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    address: '',
-    city: '',
-    state: '',
-    zipCode: '',
-    country: 'Ghana'
-  });
-  const [paymentMethod, setPaymentMethod] = useState('expresspay'); // 'expresspay' | 'momo'
-  const [errors, setErrors] = useState({});
+  const { cartItems, cartItemOptions = {}, getCartAmount, clearCart, products, currency } = useContext(ShopContext);
+  const [userProfile, setUserProfile] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [paymentMethod, setPaymentMethod] = useState('paystack');
   const [loading, setLoading] = useState(false);
   const [connectingToPayment, setConnectingToPayment] = useState(false);
+  // Shipping info: user can enter contact and delivery location
+  const [shippingContact, setShippingContact] = useState('');
+  const [deliveryLocation, setDeliveryLocation] = useState('');
 
   // Convert cartItems object to array format for display
   const checkoutItems = useMemo(() => {
@@ -33,23 +26,21 @@ const Checkout = () => {
     }
 
     for (const productId in cartItems) {
-      for (const size in cartItems[productId]) {
-        const quantity = cartItems[productId][size];
+      for (const cartKey in cartItems[productId]) {
+        const quantity = cartItems[productId][cartKey];
         if (quantity > 0) {
-          // Find product details
           const product = products.find(
             (p) =>
               p._id === Number(productId) ||
               p._id === productId ||
               String(p._id) === String(productId)
           );
-
           if (product) {
-            // Handle image - could be string or array
             const productImage = Array.isArray(product.image)
               ? product.image[0]
               : product.image || (product.images && product.images[0]) || '';
-
+            const sizeForOrder = cartKey === 'default' ? null : (cartKey.includes('|Color:') ? cartKey.split('|Color:')[0] : cartKey);
+            const color = (cartItemOptions[productId]?.[cartKey]?.color) || (cartKey.includes('|Color:') ? cartKey.split('|Color:')[1] : null) || null;
             items.push({
               id: productId,
               productId: productId,
@@ -57,39 +48,33 @@ const Checkout = () => {
               image: productImage,
               price: typeof product.price === 'number' ? product.price : parseFloat(product.price) || 0,
               quantity: quantity,
-              size: size !== 'default' ? size : null,
+              size: sizeForOrder,
+              color: color || null,
             });
           }
         }
       }
     }
     return items;
-  }, [cartItems, products]);
+  }, [cartItems, cartItemOptions, products]);
 
-  // Auto-fill first name, last name, and email from logged-in user profile
+  // Load logged-in user profile for order details
   useEffect(() => {
     let cancelled = false;
-    const fillFromProfile = async () => {
+    const loadProfile = async () => {
       try {
         const resp = await api.get('/buysellapi/users/me/');
-        const data = resp?.data;
-        if (cancelled || !data) return;
-        const fullName = (data.full_name || data.username || '').trim();
-        const parts = fullName.split(/\s+/, 2);
-        const firstName = parts[0] || '';
-        const lastName = parts[1] || '';
-        const email = (data.email || '').trim();
-        setFormData(prev => ({
-          ...prev,
-          firstName: prev.firstName || firstName,
-          lastName: prev.lastName || lastName,
-          email: prev.email || email,
-        }));
+        if (cancelled) return;
+        const profile = resp?.data || null;
+        setUserProfile(profile);
+        if (profile?.contact) setShippingContact((profile.contact || '').trim());
       } catch {
-        // Not logged in or profile fetch failed; leave form empty
+        setUserProfile(null);
+      } finally {
+        if (!cancelled) setProfileLoading(false);
       }
     };
-    fillFromProfile();
+    loadProfile();
     return () => { cancelled = true; };
   }, []);
 
@@ -103,41 +88,32 @@ const Checkout = () => {
     }
   }, [checkoutItems.length, navigate]);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    // Clear error when user starts typing
-    if (errors[name]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: ''
-      }));
-    }
-  };
-
-  const validateForm = () => {
-    const newErrors = {};
-    
-    if (!formData.firstName) newErrors.firstName = 'First name is required';
-    if (!formData.lastName) newErrors.lastName = 'Last name is required';
-    if (!formData.email) {
-      newErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Email is invalid';
-    }
-    if (!formData.phone) newErrors.phone = 'Phone number is required';
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+  const customerName = (userProfile?.full_name || userProfile?.username || '').trim() || 'Customer';
+  const customerEmail = (userProfile?.email || '').trim();
+  const customerPhone = (shippingContact || (userProfile?.contact || '').trim()).trim() || '';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validateForm()) return;
-    
+    if (!userProfile) {
+      toast.error('Please log in to place an order.');
+      return;
+    }
+    if (!customerEmail) {
+      toast.error('Please add an email to your profile to place an order.');
+      navigate('/Profile');
+      return;
+    }
+    const contact = (shippingContact || '').trim();
+    const location = (deliveryLocation || '').trim();
+    if (!contact) {
+      toast.error('Please enter your contact number for delivery.');
+      return;
+    }
+    if (!location) {
+      toast.error('Please enter your delivery location.');
+      return;
+    }
+
     // Validate inventory before submitting
     const inventoryErrors = [];
     for (const item of checkoutItems) {
@@ -181,11 +157,13 @@ const Checkout = () => {
           image: item.image || '',
           price: typeof item.price === 'number' ? item.price : parseFloat(item.price) || 0,
           quantity: item.quantity,
-          size: item.size || null
+          size: item.size || null,
+          color: item.color || null,
         })),
-        customer_name: `${formData.firstName} ${formData.lastName}`,
-        customer_email: formData.email,
-        customer_phone: formData.phone,
+        customer_name: customerName,
+        customer_email: customerEmail,
+        customer_phone: contact,
+        shipping_address: location,
         subtotal: parseFloat(getCartAmount().toFixed(2)),
         tax: 0,
         shipping_cost: 0,
@@ -194,22 +172,17 @@ const Checkout = () => {
         status: 'pending',
         payment_status: 'pending'
       };
-      if (paymentMethod === 'momo') {
-        orderData.momo_phone = formData.phone || orderData.customer_phone;
+      const baseUrl = import.meta.env.VITE_APP_URL;
+      if (baseUrl && paymentMethod === 'paystack') {
+        orderData.callback_url = `${String(baseUrl).replace(/\/$/, '')}/payment/callback`;
       }
 
-      // Debug: Log the order data being sent
-      console.log('Order data being sent:', JSON.stringify(orderData, null, 2));
-      
-      // Create order using API helper. For MoMo, backend requests payment first and only creates order after MoMo accepts (202).
       const response = await createOrder(orderData);
-      
-      // MoMo failed: backend did not create order (503)
+
       if (response.status === 503) {
         const errData = response.data || {};
-        const msg = errData.momo_error || errData.detail || errData.error || 'MoMo payment could not be started.';
-        const hint = errData.hint ? ` ${errData.hint}` : '';
-        toast.error(msg + hint);
+        const msg = errData.detail || errData.error || 'Payment could not be started.';
+        toast.error(msg);
         setLoading(false);
         return;
       }
@@ -232,32 +205,20 @@ const Checkout = () => {
       
       console.log('Order created successfully:', response.data);
       const data = response.data;
-      
-      // MoMo: order is created only after MoMo accepted the request; no separate payment initiation
-      if (paymentMethod === 'momo') {
-        toast.success('Check your phone to approve the payment.');
-        clearCart();
-        navigate('/Orders');
-        setLoading(false);
-        return;
-      }
-      
-      // ExpressPay (or other): redirect to payment URL if present
-      const shouldRedirectToGateway = data.payment_url && paymentMethod !== 'momo';
-      if (shouldRedirectToGateway) {
+
+      if (data.payment_url) {
         toast.success('Redirecting to payment gateway...');
         window.location.href = data.payment_url;
         return;
       }
       
-      // If no payment URL in response, initiate payment separately (e.g. ExpressPay)
       if (data.id && data.total > 0) {
         setLoading(false);
         setConnectingToPayment(true);
         toast.info("Connecting to payment gateway...");
 
         try {
-          const paymentResponse = await initiateOrderPayment(data.id, {});
+          const paymentResponse = await initiateOrderPayment(data.id, { payment_method: paymentMethod });
           
           if (paymentResponse?.data?.payment_url) {
             toast.success('Redirecting to payment gateway...');
@@ -271,13 +232,14 @@ const Checkout = () => {
             return;
           }
         } catch (paymentError) {
-          console.error('Error initiating payment:', paymentError);
+          const res = paymentError.response;
+          console.error('Error initiating payment:', res?.data || paymentError);
           setConnectingToPayment(false);
           setLoading(false);
-          if (paymentError.response?.status === 503) {
-            const errorMsg = paymentError.response?.data?.error || 'Payment gateway is currently unavailable. Please contact support or try again later.';
+          if (res?.status === 503) {
+            const errorMsg = res?.data?.error || res?.data?.message || 'Payment gateway is currently unavailable. Please contact support or try again later.';
             toast.error(errorMsg);
-          } else if (paymentError.response?.status === 400) {
+          } else if (res?.status === 400) {
             const errorMsg = paymentError.response?.data?.error || 'Invalid payment request. Please try again.';
             toast.error(errorMsg);
           } else {
@@ -287,7 +249,6 @@ const Checkout = () => {
         }
       }
       
-      // Clear cart and redirect only when we did not need payment initiation, or ExpressPay returned URL
       clearCart();
       toast.success(`Order placed successfully! Order ID: ${data.id}`);
       navigate(`/Orders`);
@@ -374,7 +335,11 @@ const Checkout = () => {
                       <p className="font-medium text-gray-900 dark:text-white">{item.name}</p>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
                         Quantity: {item.quantity} × <span className="text-gray-500">Price</span> {currency}{item.price.toFixed(2)}
-                        {item.size && <span className="ml-2">({item.size})</span>}
+                        {(item.color || item.size) && (
+                          <span className="ml-2 text-gray-500 dark:text-gray-400">
+                            ({[item.color, item.size ? item.size.replace(/\|/g, ' • ').replace(/:/g, ': ') : null].filter(Boolean).join(' • ')})
+                          </span>
+                        )}
                       </p>
                     </div>
                     <p className="font-medium text-gray-900 dark:text-white">
@@ -396,120 +361,67 @@ const Checkout = () => {
               </div>
             </div>
 
-            {/* Checkout Form */}
+            {/* Payment */}
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Contact & Payment</h2>
-              
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Payment</h2>
+
+              {profileLoading ? (
+                <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400 py-4">
+                  <FaSpinner className="w-5 h-5 animate-spin" />
+                  <span>Loading your details...</span>
+                </div>
+              ) : !userProfile ? (
+                <div className="py-4">
+                  <p className="text-gray-600 dark:text-gray-400 mb-4">You need to be logged in to checkout.</p>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/Login')}
+                    className="w-full py-3 px-4 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold"
+                  >
+                    Log in
+                  </button>
+                </div>
+              ) : (
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      First Name
-                    </label>
-                    <input
-                      type="text"
-                      name="firstName"
-                      value={formData.firstName}
-                      onChange={handleChange}
-                      className={`w-full px-4 py-2 rounded-lg border ${
-                        errors.firstName ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                      } bg-white dark:bg-gray-700 text-gray-900 dark:text-white`}
-                    />
-                    {errors.firstName && (
-                      <p className="mt-1 text-sm text-red-500">{errors.firstName}</p>
-                    )}
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Last Name
-                    </label>
-                    <input
-                      type="text"
-                      name="lastName"
-                      value={formData.lastName}
-                      onChange={handleChange}
-                      className={`w-full px-4 py-2 rounded-lg border ${
-                        errors.lastName ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                      } bg-white dark:bg-gray-700 text-gray-900 dark:text-white`}
-                    />
-                    {errors.lastName && (
-                      <p className="mt-1 text-sm text-red-500">{errors.lastName}</p>
-                    )}
-                  </div>
+                <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600">
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Paying as</p>
+                  <p className="text-gray-900 dark:text-white font-medium mt-0.5">{customerName}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{customerEmail}</p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    className={`w-full px-4 py-2 rounded-lg border ${
-                      errors.email ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                    } bg-white dark:bg-gray-700 text-gray-900 dark:text-white`}
-                  />
-                  {errors.email && (
-                    <p className="mt-1 text-sm text-red-500">{errors.email}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Phone
-                  </label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    placeholder={paymentMethod === 'momo' ? 'MoMo number (e.g. 0244123456)' : ''}
-                    className={`w-full px-4 py-2 rounded-lg border ${
-                      errors.phone ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                    } bg-white dark:bg-gray-700 text-gray-900 dark:text-white`}
-                  />
-                  {errors.phone && (
-                    <p className="mt-1 text-sm text-red-500">{errors.phone}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Payment method
-                  </label>
-                  <div className="flex flex-wrap gap-4">
-                    <label className="flex items-center gap-2 cursor-pointer">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Shipping info</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label htmlFor="checkout-contact" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Contact number
+                      </label>
                       <input
-                        type="radio"
-                        name="paymentMethod"
-                        value="expresspay"
-                        checked={paymentMethod === 'expresspay'}
-                        onChange={() => setPaymentMethod('expresspay')}
-                        className="text-primary focus:ring-primary"
+                        id="checkout-contact"
+                        type="tel"
+                        value={shippingContact}
+                        onChange={(e) => setShippingContact(e.target.value)}
+                        placeholder="e.g. 0244123456"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
                       />
-                      <span className="text-gray-700 dark:text-gray-300">ExpressPay (card/redirect)</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="paymentMethod"
-                        value="momo"
-                        checked={paymentMethod === 'momo'}
-                        onChange={() => setPaymentMethod('momo')}
-                        className="text-primary focus:ring-primary"
+                    </div>
+                    <div>
+                      <label htmlFor="checkout-delivery" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Delivery location
+                      </label>
+                      <textarea
+                        id="checkout-delivery"
+                        value={deliveryLocation}
+                        onChange={(e) => setDeliveryLocation(e.target.value)}
+                        placeholder="Address, area, or landmark for delivery"
+                        rows={3}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
                       />
-                      <span className="text-gray-700 dark:text-gray-300">MoMo (pay on your phone)</span>
-                    </label>
+                    </div>
                   </div>
-                  {paymentMethod === 'momo' && (
-                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                      Use the phone number above. You will get a prompt on your phone to approve the payment.
-                    </p>
-                  )}
                 </div>
+
+                <p className="text-sm text-gray-600 dark:text-gray-400">Paystack (card / mobile money)</p>
 
                 <button
                   type="submit"
@@ -543,6 +455,7 @@ const Checkout = () => {
                   </div>
                 )}
               </form>
+              )}
             </div>
           </div>
         </div>
