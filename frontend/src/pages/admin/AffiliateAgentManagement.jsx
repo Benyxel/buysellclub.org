@@ -4,11 +4,16 @@ import API from "../../api";
 import { FaUserPlus, FaUserMinus, FaUserTag, FaSearch, FaHandshake } from "react-icons/fa";
 import ConfirmModal from "../../components/shared/ConfirmModal";
 
+const USERS_PAGE_SIZE = 20;
+
 export default function AffiliateAgentManagement() {
   const [agents, setAgents] = useState([]);
   const [users, setUsers] = useState([]);
+  const [usersCount, setUsersCount] = useState(0);
+  const [usersPage, setUsersPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [usersLoading, setUsersLoading] = useState(false);
   const [assigning, setAssigning] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [showRemoveModal, setShowRemoveModal] = useState(false);
@@ -17,8 +22,12 @@ export default function AffiliateAgentManagement() {
 
   useEffect(() => {
     loadAgents();
-    loadUsers();
   }, []);
+
+  useEffect(() => {
+    setUsersLoading(true);
+    loadUsers(usersPage).finally(() => setUsersLoading(false));
+  }, [usersPage]);
 
   const loadAgents = async () => {
     try {
@@ -43,13 +52,14 @@ export default function AffiliateAgentManagement() {
     }
   };
 
-  const loadUsers = async () => {
+  const loadUsers = async (page = 1) => {
     try {
       const resp = await API.get("/buysellapi/users/", {
-        params: { page_size: 100 },
+        params: { page_size: USERS_PAGE_SIZE, page },
       });
-      // API returns paginated { results: [...], count }
       const allUsers = resp.data?.results ?? (Array.isArray(resp.data) ? resp.data : []);
+      const total = resp.data?.count ?? allUsers.length;
+      setUsersCount(total);
       const nonAgentUsers = allUsers.filter(
         (user) => !user.is_agent && user.role !== "admin"
       );
@@ -57,6 +67,7 @@ export default function AffiliateAgentManagement() {
     } catch (err) {
       console.error("Failed to load users", err);
       setUsers([]);
+      setUsersCount(0);
     }
   };
 
@@ -76,7 +87,7 @@ export default function AffiliateAgentManagement() {
       });
       toast.success("User assigned as affiliate agent successfully!");
       loadAgents();
-      loadUsers();
+      loadUsers(usersPage);
       setShowAssignModal(false);
       setUserToAssign(null);
     } catch (err) {
@@ -113,7 +124,7 @@ export default function AffiliateAgentManagement() {
       await API.delete(`/buysellapi/admin/agents/${agentToRemove.id || agentToRemove.user_id}/`);
       toast.success("Affiliate agent removed successfully!");
       loadAgents();
-      loadUsers();
+      loadUsers(usersPage);
       setShowRemoveModal(false);
       setAgentToRemove(null);
     } catch (err) {
@@ -145,6 +156,7 @@ export default function AffiliateAgentManagement() {
       (user.email || "").toLowerCase().includes(searchLower)
     );
   });
+  const usersTotalPages = Math.max(1, Math.ceil(usersCount / USERS_PAGE_SIZE));
 
   return (
     <div>
@@ -248,54 +260,83 @@ export default function AffiliateAgentManagement() {
           <FaUserPlus className="text-purple-600" />
           Available Users ({filteredUsers.length})
         </h3>
-        {filteredUsers.length === 0 ? (
+        {usersLoading ? (
+          <div className="text-center py-8 text-gray-500">Loading users…</div>
+        ) : filteredUsers.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
             No available users to assign as affiliate agents
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-700">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                    Username
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                    Full Name
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                    Email
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {filteredUsers.map((user) => (
-                  <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
-                      {user.username}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
-                      {user.full_name}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
-                      {user.email}
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      <button
-                        onClick={() => handleAssignAgentClick(user)}
-                        className="text-purple-600 hover:text-purple-800 dark:text-purple-400 flex items-center gap-1"
-                      >
-                        <FaUserPlus /> Assign as Affiliate Agent
-                      </button>
-                    </td>
+          <>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gray-50 dark:bg-gray-700">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                      Username
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                      Full Name
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                      Email
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                      Actions
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                  {filteredUsers.map((user) => (
+                    <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                        {user.username}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                        {user.full_name}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                        {user.email}
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <button
+                          onClick={() => handleAssignAgentClick(user)}
+                          className="text-purple-600 hover:text-purple-800 dark:text-purple-400 flex items-center gap-1"
+                        >
+                          <FaUserPlus /> Assign as Affiliate Agent
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {usersTotalPages > 1 && (
+              <div className="mt-4 flex items-center justify-between border-t border-gray-200 dark:border-gray-700 pt-3">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Page {usersPage} of {usersTotalPages} ({usersCount} user{usersCount !== 1 ? "s" : ""} total)
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setUsersPage((p) => Math.max(1, p - 1))}
+                    disabled={usersPage <= 1 || usersLoading}
+                    className="px-3 py-1.5 rounded-md bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setUsersPage((p) => Math.min(usersTotalPages, p + 1))}
+                    disabled={usersPage >= usersTotalPages || usersLoading}
+                    className="px-3 py-1.5 rounded-md bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 

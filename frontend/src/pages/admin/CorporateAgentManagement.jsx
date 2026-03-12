@@ -1,24 +1,49 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { toast } from "../../utils/toast";
 import API from "../../api";
 import { FaUserPlus, FaUserMinus, FaUserTag, FaSearch, FaBuilding } from "react-icons/fa";
 import ConfirmModal from "../../components/shared/ConfirmModal";
 
+const USERS_PAGE_SIZE = 20;
+
 export default function CorporateAgentManagement() {
   const [agents, setAgents] = useState([]);
   const [users, setUsers] = useState([]);
+  const [usersCount, setUsersCount] = useState(0);
+  const [usersPage, setUsersPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [usersLoading, setUsersLoading] = useState(false);
   const [assigning, setAssigning] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [showRemoveModal, setShowRemoveModal] = useState(false);
   const [userToAssign, setUserToAssign] = useState(null);
   const [agentToRemove, setAgentToRemove] = useState(null);
+  const searchDebounceRef = useRef(null);
 
   useEffect(() => {
     loadAgents();
-    loadUsers();
   }, []);
+
+  useEffect(() => {
+    const q = searchTerm.trim();
+    const doLoad = (query, page) => {
+      setUsersLoading(true);
+      loadUsers(query, page).finally(() => setUsersLoading(false));
+    };
+    if (q) {
+      searchDebounceRef.current = setTimeout(() => doLoad(q, usersPage), 300);
+      return () => {
+        if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+      };
+    }
+    doLoad("", usersPage);
+  }, [searchTerm, usersPage]);
+
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+    setUsersPage(1);
+  };
 
   const loadAgents = async () => {
     try {
@@ -43,14 +68,16 @@ export default function CorporateAgentManagement() {
     }
   };
 
-  const loadUsers = async () => {
+  const loadUsers = async (searchQuery = "", page = 1) => {
     try {
-      const resp = await API.get("/buysellapi/users/", {
-        params: { page_size: 100 },
-      });
-      // API returns paginated { results: [...], count } 
+      const params = { page_size: USERS_PAGE_SIZE, page };
+      if (searchQuery && searchQuery.trim()) {
+        params.q = searchQuery.trim();
+      }
+      const resp = await API.get("/buysellapi/users/", { params });
       const allUsers = resp.data?.results ?? (Array.isArray(resp.data) ? resp.data : []);
-      // Filter out users who are already agents and admins
+      const total = resp.data?.count ?? allUsers.length;
+      setUsersCount(total);
       const nonAgentUsers = allUsers.filter(
         (user) => !user.is_agent && user.role !== "admin"
       );
@@ -58,6 +85,7 @@ export default function CorporateAgentManagement() {
     } catch (err) {
       console.error("Failed to load users", err);
       setUsers([]);
+      setUsersCount(0);
     }
   };
 
@@ -78,7 +106,7 @@ export default function CorporateAgentManagement() {
       });
       toast.success("User assigned as corporate agent successfully!");
       loadAgents();
-      loadUsers();
+      loadUsers(searchTerm.trim(), usersPage);
       setShowAssignModal(false);
       setUserToAssign(null);
     } catch (err) {
@@ -115,7 +143,7 @@ export default function CorporateAgentManagement() {
       await API.delete(`/buysellapi/admin/agents/${agentToRemove.id || agentToRemove.user_id}/`);
       toast.success("Corporate agent removed successfully!");
       loadAgents();
-      loadUsers();
+      loadUsers(searchTerm.trim(), usersPage);
       setShowRemoveModal(false);
       setAgentToRemove(null);
     } catch (err) {
@@ -139,14 +167,8 @@ export default function CorporateAgentManagement() {
     );
   });
 
-  const filteredUsers = users.filter((user) => {
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      (user.username || "").toLowerCase().includes(searchLower) ||
-      (user.full_name || "").toLowerCase().includes(searchLower) ||
-      (user.email || "").toLowerCase().includes(searchLower)
-    );
-  });
+  const usersToShow = users;
+  const usersTotalPages = Math.max(1, Math.ceil(usersCount / USERS_PAGE_SIZE));
 
   return (
     <div>
@@ -166,9 +188,9 @@ export default function CorporateAgentManagement() {
           <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
           <input
             type="text"
-            placeholder="Search corporate agents or users..."
+            placeholder="Search corporate agents below, or type to search all users to add as agent..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={handleSearchChange}
             className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
           />
         </div>
@@ -248,56 +270,92 @@ export default function CorporateAgentManagement() {
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
         <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
           <FaUserPlus className="text-green-600" />
-          Available Users ({filteredUsers.length})
+          Available Users ({usersToShow.length})
+          {searchTerm.trim() && (
+            <span className="text-sm font-normal text-gray-500 dark:text-gray-400">
+              — search across all users
+            </span>
+          )}
         </h3>
-        {filteredUsers.length === 0 ? (
+        {usersLoading ? (
+          <div className="text-center py-8 text-gray-500">Loading users…</div>
+        ) : usersToShow.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
-            No available users to assign as corporate agents
+            {searchTerm.trim()
+              ? "No users match your search. Try a different term."
+              : "No available users to assign as corporate agents"}
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-700">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                    Username
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                    Full Name
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                    Email
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {filteredUsers.map((user) => (
-                  <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
-                      {user.username}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
-                      {user.full_name}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
-                      {user.email}
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      <button
-                        onClick={() => handleAssignAgentClick(user)}
-                        className="text-green-600 hover:text-green-800 dark:text-green-400 flex items-center gap-1"
-                      >
-                        <FaUserPlus /> Assign as Corporate Agent
-                      </button>
-                    </td>
+          <>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gray-50 dark:bg-gray-700">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                      Username
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                      Full Name
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                      Email
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                      Actions
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                  {usersToShow.map((user) => (
+                    <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                        {user.username}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                        {user.full_name}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                        {user.email}
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <button
+                          onClick={() => handleAssignAgentClick(user)}
+                          className="text-green-600 hover:text-green-800 dark:text-green-400 flex items-center gap-1"
+                        >
+                          <FaUserPlus /> Assign as Corporate Agent
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {usersTotalPages > 1 && (
+              <div className="mt-4 flex items-center justify-between border-t border-gray-200 dark:border-gray-700 pt-3">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Page {usersPage} of {usersTotalPages} ({usersCount} user{usersCount !== 1 ? "s" : ""} total)
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setUsersPage((p) => Math.max(1, p - 1))}
+                    disabled={usersPage <= 1 || usersLoading}
+                    className="px-3 py-1.5 rounded-md bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setUsersPage((p) => Math.min(usersTotalPages, p + 1))}
+                    disabled={usersPage >= usersTotalPages || usersLoading}
+                    className="px-3 py-1.5 rounded-md bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 

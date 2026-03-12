@@ -921,8 +921,6 @@ export default function InvoicesManagement() {
                         <th className="px-3 py-2 text-left">Tracking #</th>
                         <th className="px-3 py-2 text-left">Description</th>
                         <th className="px-3 py-2 text-right">CBM</th>
-                        <th className="px-3 py-2 text-right">Rate</th>
-                        <th className="px-3 py-2 text-right">Total</th>
                         <th className="px-3 py-2 text-right">Actions</th>
                       </tr>
                     </thead>
@@ -949,24 +947,6 @@ export default function InvoicesManagement() {
                                   className="w-20 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm text-right"
                                 />
                               </td>
-                              <td className="px-3 py-2">
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  value={editItemForm.rate_per_cbm}
-                                  onChange={(e) => setEditItemForm((f) => ({ ...f, rate_per_cbm: e.target.value }))}
-                                  className="w-20 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm text-right"
-                                />
-                              </td>
-                              <td className="px-3 py-2">
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  value={editItemForm.total_amount}
-                                  onChange={(e) => setEditItemForm((f) => ({ ...f, total_amount: e.target.value }))}
-                                  className="w-24 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm text-right"
-                                />
-                              </td>
                               <td className="px-3 py-2 text-right">
                                 <button
                                   type="button"
@@ -991,12 +971,6 @@ export default function InvoicesManagement() {
                               <td className="px-3 py-2 text-gray-900 dark:text-white">{item.description}</td>
                               <td className="px-3 py-2 text-right text-gray-900 dark:text-white">
                                 {Number(item.cbm || 0).toFixed(3)}
-                              </td>
-                              <td className="px-3 py-2 text-right text-gray-900 dark:text-white">
-                                ${Number(item.rate_per_cbm || 0).toFixed(2)}
-                              </td>
-                              <td className="px-3 py-2 text-right text-gray-900 dark:text-white">
-                                ${Number(item.total_amount || 0).toFixed(2)}
                               </td>
                               <td className="px-3 py-2 text-right">
                                 <button
@@ -1150,6 +1124,18 @@ export default function InvoicesManagement() {
             {/* Totals */}
             <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
               <div className="space-y-2">
+                {invoiceDetails.items && invoiceDetails.items.length > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600 dark:text-gray-400">
+                      Total CBM:
+                    </span>
+                    <span className="font-medium text-gray-900 dark:text-white">
+                      {Number(
+                        invoiceDetails.items.reduce((s, i) => s + Number(i.cbm || 0), 0)
+                      ).toFixed(3)}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600 dark:text-gray-400">
                     Subtotal:

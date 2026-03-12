@@ -40,6 +40,7 @@ import {
   FaHandshake,
   FaTicketAlt,
   FaGift,
+  FaEnvelope,
 } from "react-icons/fa";
 
 import UsersManagement from "./UsersManagement";
@@ -83,6 +84,7 @@ import AffiliateAgentManagement from "./AffiliateAgentManagement";
 import LocalAgentSettingsManagement from "./LocalAgentSettingsManagement";
 import LocalAgentRewardClaims from "./LocalAgentRewardClaims";
 import CommunityManagement from "./CommunityManagement";
+import BulkEmailAdmin from "./BulkEmailAdmin";
 import VendorManagement from "./VendorManagement";
 import AdminVendorPayoutRequests from "./AdminVendorPayoutRequests";
 import StaffClockRecords from "./StaffClockRecords";
@@ -238,6 +240,7 @@ const AdminDashboard = () => {
       { icon: <FaHandHoldingUsd />, label: "Buy4me", section: "buy4me" },
       { icon: <FaUserTag />, label: "Agent Management", section: "agents" },
       { icon: <FaComments />, label: "Messages", section: "messages" },
+      { icon: <FaEnvelope />, label: "Bulk Email", section: "bulk-email" },
       { icon: <FaUsers />, label: "Community", section: "community" },
       { icon: <FaShoppingCart />, label: "Orders", section: "orders" },
       { icon: <FaGraduationCap />, label: "Training", section: "training" },
@@ -1620,6 +1623,7 @@ const AdminDashboard = () => {
               <div className="flex flex-wrap">
                 {[
                   { key: "overview", label: "Overview" },
+                  { key: "site", label: "Site" },
                   { key: "shipping", label: "Shipping" },
                   { key: "alipay", label: "Alipay" },
                   { key: "buy4me", label: "Buy4me" },
@@ -1649,6 +1653,15 @@ const AdminDashboard = () => {
         );
       case "community":
         return <CommunityManagement />;
+      case "bulk-email":
+        return (
+          <div className="p-6">
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">
+              Bulk Email & Promotions
+            </h2>
+            <BulkEmailAdmin />
+          </div>
+        );
       case "staff":
         return <StaffClockRecords />;
       case "messages":

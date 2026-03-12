@@ -1,24 +1,45 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { toast } from "../../utils/toast";
 import API from "../../api";
 import { FaUserPlus, FaUserMinus, FaUserTag, FaSearch } from "react-icons/fa";
 import ConfirmModal from "../../components/shared/ConfirmModal";
 
+const USERS_PAGE_SIZE = 20;
+
 export default function AgentManagement() {
   const [agents, setAgents] = useState([]);
   const [users, setUsers] = useState([]);
+  const [usersCount, setUsersCount] = useState(0);
+  const [usersPage, setUsersPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [usersLoading, setUsersLoading] = useState(false);
   const [assigning, setAssigning] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [showRemoveModal, setShowRemoveModal] = useState(false);
   const [userToAssign, setUserToAssign] = useState(null);
   const [agentToRemove, setAgentToRemove] = useState(null);
+  const searchDebounceRef = useRef(null);
 
   useEffect(() => {
     loadAgents();
-    loadUsers();
   }, []);
+
+  // Load users with pagination and optional search; when search term changes we reset to page 1 (via handler)
+  useEffect(() => {
+    const q = searchTerm.trim();
+    const doLoad = () => {
+      setUsersLoading(true);
+      loadUsers(q || "", usersPage).finally(() => setUsersLoading(false));
+    };
+    if (q) {
+      searchDebounceRef.current = setTimeout(doLoad, 300);
+      return () => {
+        if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+      };
+    }
+    doLoad();
+  }, [searchTerm, usersPage]);
 
   const loadAgents = async () => {
     try {
@@ -39,13 +60,16 @@ export default function AgentManagement() {
     }
   };
 
-  const loadUsers = async () => {
+  const loadUsers = async (searchQuery = "", page = 1) => {
     try {
-      const resp = await API.get("/buysellapi/users/", {
-        params: { page_size: 100 },
-      });
-      // API returns paginated { results: [...], count }
+      const params = { page_size: USERS_PAGE_SIZE, page };
+      if (searchQuery && searchQuery.trim()) {
+        params.q = searchQuery.trim();
+      }
+      const resp = await API.get("/buysellapi/users/", { params });
       const allUsers = resp.data?.results ?? (Array.isArray(resp.data) ? resp.data : []);
+      const total = resp.data?.count ?? allUsers.length;
+      setUsersCount(total);
       const nonAgentUsers = allUsers.filter(
         (user) => !user.is_agent && user.role !== "admin"
       );
@@ -53,6 +77,7 @@ export default function AgentManagement() {
     } catch (err) {
       console.error("Failed to load users", err);
       setUsers([]);
+      setUsersCount(0);
     }
   };
 
@@ -69,7 +94,7 @@ export default function AgentManagement() {
       const response = await API.post("/buysellapi/admin/agents/", { user_id: userToAssign.id });
       toast.success("User assigned as agent successfully!");
       loadAgents();
-      loadUsers();
+      loadUsers(searchTerm.trim(), usersPage);
       setShowAssignModal(false);
       setUserToAssign(null);
     } catch (err) {
@@ -108,7 +133,7 @@ export default function AgentManagement() {
       await API.delete(`/buysellapi/admin/agents/${agentToRemove.id}/`);
       toast.success("Agent status removed successfully!");
       loadAgents();
-      loadUsers();
+      loadUsers(searchTerm.trim(), usersPage);
       setShowRemoveModal(false);
       setAgentToRemove(null);
     } catch (err) {
@@ -119,12 +144,12 @@ export default function AgentManagement() {
     }
   };
 
-  const filteredUsers = users.filter(
-    (user) =>
-      user.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.full_name?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const usersTotalPages = Math.max(1, Math.ceil(usersCount / USERS_PAGE_SIZE));
+
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+    setUsersPage(1);
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -230,20 +255,23 @@ export default function AgentManagement() {
                   type="text"
                   placeholder="Search by username, email, or name..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={handleSearchChange}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:text-white"
                 />
               </div>
             </div>
 
             {/* Users List */}
-            {filteredUsers.length === 0 ? (
+            {usersLoading ? (
+              <p className="text-gray-500 dark:text-gray-400 text-center py-8">Loading users...</p>
+            ) : users.length === 0 ? (
               <p className="text-gray-500 dark:text-gray-400 text-center py-8">
                 {searchTerm
                   ? "No users found matching your search."
                   : "No users available to assign as agents."}
               </p>
             ) : (
+              <>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50 dark:bg-gray-700">
@@ -263,7 +291,7 @@ export default function AgentManagement() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {filteredUsers.map((user) => (
+                    {users.map((user) => (
                       <tr
                         key={user.id}
                         className="hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -291,6 +319,32 @@ export default function AgentManagement() {
                   </tbody>
                 </table>
               </div>
+              {usersTotalPages > 1 && (
+                <div className="mt-4 flex items-center justify-between border-t border-gray-200 dark:border-gray-700 pt-3">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Showing page {usersPage} of {usersTotalPages} ({usersCount} user{usersCount !== 1 ? "s" : ""} total)
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setUsersPage((p) => Math.max(1, p - 1))}
+                      disabled={usersPage <= 1 || usersLoading}
+                      className="px-3 py-1.5 rounded-md bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Previous
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setUsersPage((p) => Math.min(usersTotalPages, p + 1))}
+                      disabled={usersPage >= usersTotalPages || usersLoading}
+                      className="px-3 py-1.5 rounded-md bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
+              </>
             )}
           </div>
         </>

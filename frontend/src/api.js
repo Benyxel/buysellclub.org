@@ -290,6 +290,12 @@ const Api = {
     refresh: (payload) => http.post("/buysellapi/token/refresh/", payload),
     profile: () => http.get("/buysellapi/users/me/"),
     register: (payload) => http.post("/buysellapi/user/register/", payload),
+    requestPasswordResetLink: (payload) =>
+      http.post("/buysellapi/auth/request-password-reset-link/", payload),
+    validatePasswordResetLink: (token) =>
+      http.get("/buysellapi/auth/validate-password-reset-link/", { params: { token } }),
+    resetPasswordWithLink: (payload) =>
+      http.post("/buysellapi/auth/reset-password-with-link/", payload),
   },
   /** Upload a file (image/video) for admin use. type: 'product' | 'whatsapp' | 'video' | 'thumbnail' | 'image' */
   uploadFile: (file, type = "product") => {
@@ -367,6 +373,8 @@ const Api = {
         update: (id, payload) =>
           http.put(`/buysellapi/admin/buy4me-requests/${id}/invoice/`, payload),
       },
+      createInvoiceForClient: (payload) =>
+        http.post("/buysellapi/admin/buy4me-requests/create-invoice/", payload),
     },
   },
   shipping: {
@@ -562,6 +570,10 @@ const Api = {
       http.get("/buysellapi/community/sheet-data/", { noCache: true, cacheDuration: 0, ...config }),
     submitRequest: (payload) => http.post("/buysellapi/community/requests/", payload),
     initiatePayment: (payload) => http.post("/buysellapi/community/requests/initiate-payment/", payload),
+    setPasswordValidate: (token) =>
+      http.get("/buysellapi/community/set-password/validate/", { params: { token } }),
+    setPasswordSubmit: (payload) =>
+      http.post("/buysellapi/community/set-password/submit/", payload),
     adminRequests: (config = {}) =>
       http.get("/buysellapi/admin/community/requests/", config),
     adminApprove: (requestId, payload = {}) =>
@@ -570,6 +582,10 @@ const Api = {
       http.post(`/buysellapi/admin/community/requests/${requestId}/reject/`, payload),
     adminDelete: (requestId) =>
       http.delete(`/buysellapi/admin/community/requests/${requestId}/`),
+    adminAssignMember: (payload) =>
+      http.post("/buysellapi/admin/community/assign-member/", payload),
+    adminResendSetPasswordLink: (requestId) =>
+      http.post(`/buysellapi/admin/community/requests/${requestId}/resend-set-password-link/`),
   },
   communityContent: {
     winningProducts: {
@@ -759,6 +775,7 @@ export const updateBuy4meRequestStatus = Api.buy4me.admin.updateStatus;
 export const updateBuy4meRequestTracking = Api.buy4me.admin.updateTracking;
 export const createBuy4meRequestInvoice = Api.buy4me.admin.invoice.create;
 export const updateBuy4meRequestInvoiceStatus = Api.buy4me.admin.invoice.update;
+export const createBuy4meInvoiceForClient = Api.buy4me.admin.createInvoiceForClient;
 export const getBuy4meSettings = Api.buy4me.settings.get;
 export const updateBuy4meSettings = Api.buy4me.settings.update;
 

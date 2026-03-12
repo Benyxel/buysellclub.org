@@ -41,9 +41,9 @@ const PaymentCallback = () => {
                 toast.success('Donation received. Thank you!');
                 setTimeout(() => navigate('/'), 2000);
               } else if (isCommunity) {
-                setMessage('Payment successful! Your community request has been submitted for review.');
-                toast.success('Community payment confirmed! Awaiting admin approval.');
-                setTimeout(() => navigate('/Profile?tab=community'), 2000);
+                setMessage('Payment successful! Check your email (Gmail) for a link to set your username and password so you can log in.');
+                toast.success('Payment confirmed! Check your email to set your username and password.');
+                setTimeout(() => navigate('/Profile?tab=community'), 4000);
               } else if (isBuy4me && requestId) {
                 setMessage(`Sourcing fee paid! You can now submit your Buy4me order on the next page.`);
                 toast.success(`Sourcing fee paid! Submit your order details.`);
@@ -75,15 +75,18 @@ const PaymentCallback = () => {
             setTimeout(() => navigate('/'), 5000);
           } catch (err) {
             console.error('Paystack verify error:', err);
-            const errMsg = err.response?.data?.error || '';
+            const errMsg = err.response?.data?.error || err.response?.data?.detail || '';
             const errText = (errMsg || err.message || '').toLowerCase();
+            const is401 = err.response?.status === 401;
             if (attempt < maxAttempts && (errText.includes('pending') || errText.includes('not completed'))) {
               setMessage(`Verifying payment... (attempt ${attempt + 1}/${maxAttempts})`);
               setTimeout(() => doVerify(attempt + 1, maxAttempts), 2000);
               return;
             }
             setStatus('failed');
-            const msg = errMsg || 'Failed to verify payment. Please contact support.';
+            const msg = is401 || errText.includes('authentic') || errText.includes('credential')
+              ? 'Payment verification could not complete. Please log in and try again, or contact support.'
+              : (errMsg || 'Failed to verify payment. Please contact support.');
             setMessage(msg);
             toast.error(msg);
             setTimeout(() => navigate('/'), 5000);

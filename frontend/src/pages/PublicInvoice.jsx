@@ -46,14 +46,13 @@ const PublicInvoice = () => {
   };
 
   const formatCurrency = (amount, currency = "USD") => {
-    if (!amount) return currency === "GHS" ? "GH₵0" : "$0";
+    if (!amount) return currency === "GHS" ? "GH₵0.00" : "$0.00";
     const num = parseFloat(amount);
-    // Round up to whole number
-    const rounded = Math.ceil(num);
+    const formatted = Number.isFinite(num) ? num.toFixed(2) : "0.00";
     if (currency === "GHS") {
-      return `GH₵${rounded}`;
+      return `GH₵${formatted}`;
     }
-    return `$${rounded}`;
+    return `$${formatted}`;
   };
 
   const formatDate = (dateString) => {
@@ -204,53 +203,51 @@ const PublicInvoice = () => {
             Invoice Items ({invoice.items?.length || 0})
           </h2>
           {invoice.items && invoice.items.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 dark:bg-gray-700">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Tracking #
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Description
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      CBM
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Rate/CBM
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Amount
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                  {invoice.items.map((item) => (
-                    <tr
-                      key={item.id}
-                      className="hover:bg-gray-50 dark:hover:bg-gray-700"
-                    >
-                      <td className="px-4 py-3 whitespace-nowrap text-gray-900 dark:text-white font-medium">
-                        {item.tracking_number || "N/A"}
-                      </td>
-                      <td className="px-4 py-3 text-gray-900 dark:text-white">
-                        {item.description || "N/A"}
-                      </td>
-                      <td className="px-4 py-3 text-right text-gray-900 dark:text-white">
-                        {Number(item.cbm || 0).toFixed(3)}
-                      </td>
-                      <td className="px-4 py-3 text-right text-gray-900 dark:text-white">
-                        {formatCurrency(item.rate_per_cbm || 0)}
-                      </td>
-                      <td className="px-4 py-3 text-right text-gray-900 dark:text-white font-medium">
-                        {formatCurrency(item.total_amount || 0)}
-                      </td>
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 dark:bg-gray-700">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Tracking #
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Description
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        CBM
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {invoice.items.map((item) => (
+                      <tr
+                        key={item.id}
+                        className="hover:bg-gray-50 dark:hover:bg-gray-700"
+                      >
+                        <td className="px-4 py-3 whitespace-nowrap text-gray-900 dark:text-white font-medium">
+                          {item.tracking_number || "N/A"}
+                        </td>
+                        <td className="px-4 py-3 text-gray-900 dark:text-white">
+                          {item.description || "N/A"}
+                        </td>
+                        <td className="px-4 py-3 text-right text-gray-900 dark:text-white">
+                          {Number(item.cbm || 0).toFixed(3)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600 flex justify-end">
+                <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                  Total CBM:{" "}
+                  {Number(
+                    invoice.items.reduce((s, i) => s + Number(i.cbm || 0), 0)
+                  ).toFixed(3)}
+                </span>
+              </div>
+            </>
           ) : (
             <p className="text-gray-500 dark:text-gray-400 text-center py-8">
               No items found
@@ -309,9 +306,17 @@ const PublicInvoice = () => {
 
           {/* Payment Information */}
           <div className="mt-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 rounded">
-            <p className="text-sm text-yellow-800 dark:text-yellow-200 whitespace-pre-line">
-              <strong>Payment Information:</strong> (0248939278)
-              {"\n"}FOFOOFO GROUP PTY
+            <h3 className="text-sm font-semibold text-yellow-800 dark:text-yellow-200 mb-2">
+              Payment Information
+            </h3>
+            <p className="text-sm text-yellow-800 dark:text-yellow-200">
+              <strong>Bank:</strong> Calbank
+            </p>
+            <p className="text-sm text-yellow-800 dark:text-yellow-200">
+              <strong>Account:</strong> 1400006745425
+            </p>
+            <p className="text-sm text-yellow-800 dark:text-yellow-200">
+              <strong>Name:</strong> FOFOOFO GROUP PTY LIMITED
             </p>
           </div>
         </div>

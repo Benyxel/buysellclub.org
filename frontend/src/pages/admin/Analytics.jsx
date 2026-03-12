@@ -526,6 +526,111 @@ const Analytics = ({ activeTab = "overview" }) => {
         </>
       )}
 
+      {/* Site analytics: daily signups, daily visitors, Quick Links & Community pages */}
+      {activeTab === "site" && (
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <FaChartLine className="text-2xl text-blue-600" />
+            <h3 className="text-xl font-semibold text-gray-800 dark:text-white">
+              Site Analytics (last 30 days)
+            </h3>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <div>
+              <h4 className="text-lg font-medium text-gray-800 dark:text-white mb-3 flex items-center gap-2">
+                <FaUsers className="text-blue-600" /> Daily signups
+              </h4>
+              <div className="border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
+                  <thead className="bg-gray-50 dark:bg-gray-700">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-gray-600 dark:text-gray-300">Date</th>
+                      <th className="px-4 py-2 text-right text-gray-600 dark:text-gray-300">Signups</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {(analytics.site?.daily_signups || []).length === 0 ? (
+                      <tr>
+                        <td colSpan={2} className="px-4 py-6 text-center text-gray-500">No signups in the last 30 days</td>
+                      </tr>
+                    ) : (
+                      [...(analytics.site?.daily_signups || [])]
+                        .sort((a, b) => (b.date > a.date ? 1 : -1))
+                        .map((row) => (
+                          <tr key={row.date}>
+                            <td className="px-4 py-2 text-gray-900 dark:text-white">{row.date}</td>
+                            <td className="px-4 py-2 text-right font-medium text-gray-900 dark:text-white">{row.count}</td>
+                          </tr>
+                        ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div>
+              <h4 className="text-lg font-medium text-gray-800 dark:text-white mb-3 flex items-center gap-2">
+                <FaChartLine className="text-green-600" /> Daily visitors
+              </h4>
+              <div className="border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
+                  <thead className="bg-gray-50 dark:bg-gray-700">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-gray-600 dark:text-gray-300">Date</th>
+                      <th className="px-4 py-2 text-right text-gray-600 dark:text-gray-300">Visitors</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {(analytics.site?.daily_visitors || []).length === 0 ? (
+                      <tr>
+                        <td colSpan={2} className="px-4 py-6 text-center text-gray-500">No visit data yet</td>
+                      </tr>
+                    ) : (
+                      [...(analytics.site?.daily_visitors || [])]
+                        .sort((a, b) => (b.date > a.date ? 1 : -1))
+                        .map((row) => (
+                          <tr key={row.date}>
+                            <td className="px-4 py-2 text-gray-900 dark:text-white">{row.date}</td>
+                            <td className="px-4 py-2 text-right font-medium text-gray-900 dark:text-white">{row.count}</td>
+                          </tr>
+                        ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <h4 className="text-lg font-medium text-gray-800 dark:text-white mb-3 flex items-center gap-2">
+            <FaChartLine className="text-purple-600" /> Quick Links & Community page views
+          </h4>
+          <div className="border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
+              <thead className="bg-gray-50 dark:bg-gray-700">
+                <tr>
+                  <th className="px-4 py-2 text-left text-gray-600 dark:text-gray-300">Page</th>
+                  <th className="px-4 py-2 text-right text-gray-600 dark:text-gray-300">Views</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                {(analytics.site?.page_views || []).length === 0 ? (
+                  <tr>
+                    <td colSpan={2} className="px-4 py-6 text-center text-gray-500">No page views yet</td>
+                  </tr>
+                ) : (
+                  (analytics.site?.page_views || []).map((row) => (
+                    <tr key={row.path}>
+                      <td className="px-4 py-2 text-gray-900 dark:text-white font-mono">{row.path}</td>
+                      <td className="px-4 py-2 text-right font-medium text-gray-900 dark:text-white">{row.count}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* Shipping Management Analytics */}
       {activeTab === "shipping" && (
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">

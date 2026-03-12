@@ -4,6 +4,7 @@ import { toast } from "../utils/toast";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import { FcGoogle } from "react-icons/fc";
 import API from "../api";
+import { trackSignUp } from "../utils/ga4";
 
 const Signup = () => {
   const navigate = useNavigate();
@@ -170,6 +171,7 @@ const Signup = () => {
 
       // Show success message from backend
       toast.success(response.data.message || "Account created successfully!");
+      trackSignUp("email");
 
       // Navigate to login (pass redirect so after login they go to e.g. CommunityPayment)
       navigate("/Login", { state: redirectTo ? { redirectTo } : undefined });
@@ -451,6 +453,7 @@ const Signup = () => {
     try {
       await API.patch("/buysellapi/users/me/", { contact: trimmedContact });
       toast.success("Contact saved! Redirecting.");
+      trackSignUp("Google");
       setShowGoogleContactModal(false);
       setGoogleContact("");
       navigate(redirectTo || "/");

@@ -6,6 +6,8 @@ import {
   FaSearch,
   FaTimes,
   FaUsers,
+  FaEnvelope,
+  FaSpinner,
 } from "react-icons/fa";
 import { toast } from "../../utils/toast";
 import API from "../../api";
@@ -27,6 +29,7 @@ const UsersManagement = () => {
   const [userIdToDelete, setUserIdToDelete] = useState(null);
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [selectAll, setSelectAll] = useState(false);
+  const [resendLinkUserId, setResendLinkUserId] = useState(null);
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -526,6 +529,23 @@ const UsersManagement = () => {
     setShowDeleteModal(true);
   };
 
+  const handleSendPasswordResetLink = async (user) => {
+    if (!user?.id || !user?.email) {
+      toast.error("User has no email address");
+      return;
+    }
+    setResendLinkUserId(user.id);
+    try {
+      await API.post(`/buysellapi/admin/users/${user.id}/send-password-reset-link/`);
+      toast.success("Password reset link sent to " + (user.email || "user"));
+    } catch (err) {
+      const msg = err.response?.data?.error || "Failed to send reset link";
+      toast.error(msg);
+    } finally {
+      setResendLinkUserId(null);
+    }
+  };
+
   const confirmDeleteUser = async () => {
     if (!userIdToDelete) return;
     try {
@@ -806,6 +826,21 @@ const UsersManagement = () => {
                     >
                       <FaEdit />
                     </button>
+                    {isAdmin && user.email && (
+                      <button
+                        type="button"
+                        onClick={() => handleSendPasswordResetLink(user)}
+                        disabled={resendLinkUserId === user.id}
+                        className="text-amber-600 hover:text-amber-900 dark:text-amber-400 dark:hover:text-amber-300 mr-3"
+                        title="Send password reset link to user's email"
+                      >
+                        {resendLinkUserId === user.id ? (
+                          <FaSpinner className="animate-spin inline" />
+                        ) : (
+                          <FaEnvelope />
+                        )}
+                      </button>
+                    )}
                     {isSuper && (
                       <button
                         onClick={() => openManageTabs(user)}

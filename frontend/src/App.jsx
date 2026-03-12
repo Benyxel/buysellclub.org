@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
+import { pageView } from "./utils/ga4";
+import { recordPageView } from "./utils/siteAnalytics";
 import { getMaintenanceSettings } from "./api";
 import MaintenancePage from "./components/MaintenancePage";
 import Home from "./pages/Home";
@@ -29,6 +31,8 @@ import ToolsDownloads from "./pages/Community/ToolsDownloads";
 import VendorOnboarding from "./pages/VendorOnboarding";
 import VendorSales from "./pages/VendorSales";
 import CommunityPayment from "./pages/Community/CommunityPayment";
+import CommunitySetPassword from "./pages/Community/CommunitySetPassword";
+import ResetPassword from "./pages/ResetPassword";
 import PaymentCallback from "./pages/PaymentCallback";
 import Donation from "./pages/Donation";
 import Favorites from "./pages/Favorites";
@@ -97,6 +101,16 @@ function App() {
   if (shouldBypassMaintenance) {
     console.log("Route bypassing maintenance mode:", currentPath);
   }
+
+  // GA4: track page view on every route change (site visits, Quick Links, Community pages)
+  useEffect(() => {
+    pageView(location.pathname || "/", document.title || "BuySellClub");
+  }, [location.pathname]);
+
+  // Custom site analytics: record page view for admin dashboard (daily visitors, page stats)
+  useEffect(() => {
+    recordPageView(location.pathname || "/");
+  }, [location.pathname]);
 
   useEffect(() => {
     const checkMaintenance = async () => {
@@ -218,6 +232,8 @@ function App() {
                         path="payment/callback"
                         element={<PaymentCallback />}
                       />
+                      <Route path="community/set-password" element={<CommunitySetPassword />} />
+                      <Route path="reset-password" element={<ResetPassword />} />
                       {/* Donation: Paystack; not linked in nav */}
                       <Route path="donation" element={<Donation />} />
 
@@ -320,14 +336,7 @@ function App() {
                           </ProtectedRoute>
                         }
                       />
-                      <Route
-                        path="CommunityPayment"
-                        element={
-                          <ProtectedRoute>
-                            <CommunityPayment />
-                          </ProtectedRoute>
-                        }
-                      />
+                      <Route path="CommunityPayment" element={<CommunityPayment />} />
                       <Route
                         path="Favorites"
                         element={

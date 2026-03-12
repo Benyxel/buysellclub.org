@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaEdit, FaTrash, FaEye, FaCheck, FaTimes, FaFileInvoiceDollar, FaPrint, FaDownload, FaSpinner, FaChevronLeft, FaChevronRight, FaCog } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaEye, FaCheck, FaTimes, FaFileInvoiceDollar, FaPrint, FaDownload, FaSpinner, FaChevronLeft, FaChevronRight, FaCog, FaPlus, FaSearch } from 'react-icons/fa';
 import { toast } from '../../utils/toast';
 import InvoiceModal from '../../components/InvoiceModal';
 import Invoice from '../../components/Invoice';
@@ -13,9 +13,11 @@ import {
   deleteAdminBuy4meRequest,
   createBuy4meRequestInvoice,
   updateBuy4meRequestInvoiceStatus,
+  createBuy4meInvoiceForClient,
   getBuy4meSettings,
   updateBuy4meSettings,
 } from '../../api';
+import API from '../../api';
 
 const Buy4meAdmin = () => {
   const [requests, setRequests] = useState([]);
@@ -44,6 +46,22 @@ const Buy4meAdmin = () => {
   const [settingsNotes, setSettingsNotes] = useState('');
   const [savingSettings, setSavingSettings] = useState(false);
   const [loadingSettings, setLoadingSettings] = useState(false);
+
+  // Create invoice for client (admin) – same pattern as Alipay: email lookup auto-fills name/contact
+  const [showCreateInvoiceModal, setShowCreateInvoiceModal] = useState(false);
+  const [createInvoiceForm, setCreateInvoiceForm] = useState({
+    client_email: '',
+    client_name: '',
+    client_contact: '',
+    title: '',
+    product_costs_rmb: [''],
+    quantities: [1],
+    rmb_to_ghs_rate: '',
+    shipping_method: 'sea',
+    service_fee_percent: 5,
+  });
+  const [createInvoiceLookupLoading, setCreateInvoiceLookupLoading] = useState(false);
+  const [createInvoiceSubmitting, setCreateInvoiceSubmitting] = useState(false);
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -53,6 +71,49 @@ const Buy4meAdmin = () => {
   useEffect(() => {
     fetchBuy4meRequests(currentPage, pageSize);
   }, [currentPage, pageSize, invoiceFilter]);
+
+  // Build product list for invoice: additional_links (incl. image-only slots), or main product, or one row per image when no links
+  const getProductsForInvoice = (request) => {
+    if (!request) return [];
+    const additional = request.additional_links || [];
+    const mainUrl = request.product_url || request.link || null;
+    const mainQty = request.quantity ?? 1;
+    if (additional.length > 0) {
+      return additional.map((link) =>
+        typeof link === 'string'
+          ? { url: link, quantity: 1 }
+          : { url: link?.url ?? '', quantity: link?.quantity ?? 1 }
+      );
+    }
+    if (mainUrl) return [{ url: mainUrl, quantity: mainQty }];
+    const images = request.images || [];
+    if (images.length > 0) {
+      const qtyEach = Math.max(1, Math.floor(mainQty / images.length));
+      return Array.from({ length: images.length }, (_, i) =>
+        i === images.length - 1 && mainQty > 0
+          ? { url: '', quantity: Math.max(1, mainQty - (images.length - 1) * qtyEach) }
+          : { url: '', quantity: qtyEach }
+      );
+    }
+    return [];
+  };
+
+  // When invoice form is shown, initialize product cost/quantity arrays to match request products (avoid setState during render)
+  useEffect(() => {
+    if (!showInvoiceForm || !selectedRequest) return;
+    const products = getProductsForInvoice(selectedRequest);
+    const totalProducts = Math.max(products.length, 1);
+    const paddedProducts =
+      products.length >= totalProducts
+        ? products
+        : [...products, ...Array.from({ length: totalProducts - products.length }, () => ({ url: '', quantity: 1 }))];
+    setInvoiceProductCostsRmb((prev) =>
+      prev.length === totalProducts ? prev : new Array(totalProducts).fill('')
+    );
+    setInvoiceQuantities((prev) =>
+      prev.length === totalProducts ? prev : paddedProducts.map((p) => (typeof p === 'object' && p.quantity != null ? p.quantity : 1))
+    );
+  }, [showInvoiceForm, selectedRequest?.id, selectedRequest?.additional_links, selectedRequest?.product_url, selectedRequest?.link, selectedRequest?.quantity, selectedRequest?.images]);
 
   // Pagination handlers
   const totalPages = Math.ceil(total / pageSize);
@@ -396,6 +457,94 @@ const Buy4meAdmin = () => {
     }
   };
 
+  const handleOpenCreateInvoiceModal = () => {
+    setCreateInvoiceForm({
+      client_email: '',
+      client_name: '',
+      client_contact: '',
+      title: '',
+      product_costs_rmb: [''],
+      quantities: [1],
+      rmb_to_ghs_rate: '',
+      shipping_method: 'sea',
+      service_fee_percent: 5,
+    });
+    setShowCreateInvoiceModal(true);
+  };
+
+  const handleCreateInvoiceLookup = async () => {
+    const email = (createInvoiceForm.client_email || '').trim().toLowerCase();
+    if (!email) {
+      toast.error('Enter client email to look up');
+      return;
+    }
+    setCreateInvoiceLookupLoading(true);
+    try {
+      const res = await API.get('/buysellapi/admin/users/by-email/', { params: { email } });
+      const d = res.data;
+      setCreateInvoiceForm((prev) => ({
+        ...prev,
+        client_name: d.full_name || prev.client_name,
+        client_contact: d.contact || prev.client_contact,
+        client_email: d.email || email,
+      }));
+      toast.success('Client details loaded');
+    } catch (err) {
+      if (err.response?.status === 404) {
+        toast.error('No user found with this email. Client must have an account.');
+      } else {
+        toast.error(err.response?.data?.error || 'Failed to look up client');
+      }
+    } finally {
+      setCreateInvoiceLookupLoading(false);
+    }
+  };
+
+  const handleCreateInvoiceForClientSubmit = async (e) => {
+    e.preventDefault();
+    const email = (createInvoiceForm.client_email || '').trim().toLowerCase();
+    if (!email || !email.includes('@')) {
+      toast.error('Client email is required');
+      return;
+    }
+    const costs = createInvoiceForm.product_costs_rmb.filter((c) => c !== '' && c != null).map((c) => parseFloat(c));
+    if (costs.length === 0) {
+      toast.error('At least one product cost (RMB) is required');
+      return;
+    }
+    if (!createInvoiceForm.rmb_to_ghs_rate || parseFloat(createInvoiceForm.rmb_to_ghs_rate) <= 0) {
+      toast.error('RMB to GHS rate is required and must be positive');
+      return;
+    }
+    const quantities = createInvoiceForm.quantities.slice(0, costs.length).map((q) => (parseInt(q, 10) || 1));
+    if (quantities.length !== costs.length) {
+      const qtyPad = Array(costs.length - quantities.length).fill(1);
+      quantities.push(...qtyPad);
+    }
+    setCreateInvoiceSubmitting(true);
+    try {
+      const payload = {
+        client_email: email,
+        product_costs_rmb: costs,
+        quantities,
+        rmb_to_ghs_rate: parseFloat(createInvoiceForm.rmb_to_ghs_rate),
+        shipping_method: createInvoiceForm.shipping_method || 'sea',
+        service_fee_percent: parseFloat(createInvoiceForm.service_fee_percent) || 5,
+        title: (createInvoiceForm.title || '').trim() || undefined,
+      };
+      const response = await createBuy4meInvoiceForClient(payload);
+      const created = response.data;
+      toast.success('Invoice created successfully');
+      setShowCreateInvoiceModal(false);
+      fetchBuy4meRequests(1, pageSize);
+    } catch (err) {
+      const msg = err.response?.data?.error || err.response?.data?.detail || 'Failed to create invoice';
+      toast.error(msg);
+    } finally {
+      setCreateInvoiceSubmitting(false);
+    }
+  };
+
   const filteredRequests = requests
     .filter(request => statusFilter === 'all' || request.status === statusFilter)
     .filter(request => {
@@ -535,14 +684,24 @@ const Buy4meAdmin = () => {
             View and manage customer product purchase requests
           </p>
           </div>
-          <button
-            onClick={handleOpenSettings}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-            title="Buy4me Settings"
-          >
-            <FaCog className="w-5 h-5" />
-            <span>Settings</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleOpenCreateInvoiceModal}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              title="Create invoice for a client (enter email to auto-fill name & contact)"
+            >
+              <FaPlus className="w-5 h-5" />
+              <span>Create invoice for client</span>
+            </button>
+            <button
+              onClick={handleOpenSettings}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              title="Buy4me Settings"
+            >
+              <FaCog className="w-5 h-5" />
+              <span>Settings</span>
+            </button>
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
@@ -1060,19 +1219,12 @@ const Buy4meAdmin = () => {
                   {!selectedRequest.invoice ? (
                     <>
                       {showInvoiceForm && (() => {
-                        const products = selectedRequest?.additional_links?.length > 0
-                          ? selectedRequest.additional_links
-                          : (selectedRequest?.product_url || selectedRequest?.link)
-                            ? [{ url: selectedRequest.product_url || selectedRequest.link, quantity: selectedRequest.quantity }]
-                            : [];
-                        const totalProducts = products.length || 1;
-
-                        if (invoiceProductCostsRmb.length !== totalProducts) {
-                          setInvoiceProductCostsRmb(new Array(totalProducts).fill(''));
-                        }
-                        if (invoiceQuantities.length !== totalProducts) {
-                          setInvoiceQuantities(products.map(p => (typeof p === 'object' && p.quantity != null ? p.quantity : 0)));
-                        }
+                        const products = getProductsForInvoice(selectedRequest);
+                        const totalProducts = Math.max(products.length, 1);
+                        const productRows =
+                          products.length >= totalProducts
+                            ? products
+                            : [...products, ...Array.from({ length: totalProducts - products.length }, () => ({ url: null, quantity: 1 }))];
 
                         return (
                         <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
@@ -1083,8 +1235,8 @@ const Buy4meAdmin = () => {
                                 Product Costs (RMB) <span className="text-red-500">*</span>
                               </label>
                               <div className="space-y-3">
-                                {products.map((link, index) => {
-                                  const linkUrl = typeof link === 'string' ? link : link.url;
+                                {productRows.map((link, index) => {
+                                  const linkUrl = typeof link === 'string' ? link : (link && link.url) || null;
                                   return (
                                     <div key={index}>
                                       <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
@@ -1615,6 +1767,199 @@ const Buy4meAdmin = () => {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create invoice for client modal – same pattern as Alipay: email lookup auto-fills name/contact */}
+      {showCreateInvoiceModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                  Create Buy4me Invoice for Client
+                </h3>
+                <button
+                  onClick={() => setShowCreateInvoiceModal(false)}
+                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                >
+                  <FaTimes className="w-5 h-5" />
+                </button>
+              </div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                Enter client email and click Look up to auto-fill name and contact (same as Alipay payment).
+              </p>
+              <form onSubmit={handleCreateInvoiceForClientSubmit} className="space-y-4">
+                <div className="flex gap-2 items-end">
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Client email *</label>
+                    <input
+                      type="email"
+                      value={createInvoiceForm.client_email}
+                      onChange={(e) => setCreateInvoiceForm((prev) => ({ ...prev, client_email: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      placeholder="client@example.com"
+                      required
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCreateInvoiceLookup}
+                    disabled={createInvoiceLookupLoading}
+                    className="px-3 py-2 rounded-lg bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-500 flex items-center gap-1 disabled:opacity-50"
+                  >
+                    {createInvoiceLookupLoading ? <FaSpinner className="animate-spin" /> : <FaSearch />}
+                    Look up
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name (auto-filled)</label>
+                    <input
+                      type="text"
+                      value={createInvoiceForm.client_name}
+                      onChange={(e) => setCreateInvoiceForm((prev) => ({ ...prev, client_name: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      placeholder="Auto-filled from lookup"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Contact (auto-filled)</label>
+                    <input
+                      type="text"
+                      value={createInvoiceForm.client_contact}
+                      onChange={(e) => setCreateInvoiceForm((prev) => ({ ...prev, client_contact: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      placeholder="Auto-filled from lookup"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Invoice title (optional)</label>
+                  <input
+                    type="text"
+                    value={createInvoiceForm.title}
+                    onChange={(e) => setCreateInvoiceForm((prev) => ({ ...prev, title: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    placeholder="e.g. Admin-created Buy4me Invoice"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Product costs (RMB) * – one per line/item</label>
+                  {createInvoiceForm.product_costs_rmb.map((cost, idx) => (
+                    <div key={idx} className="flex gap-2 items-center mb-2">
+                      <span className="text-gray-500 w-8">#{idx + 1}</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={cost}
+                        onChange={(e) => {
+                          const next = [...createInvoiceForm.product_costs_rmb];
+                          next[idx] = e.target.value;
+                          setCreateInvoiceForm((prev) => ({ ...prev, product_costs_rmb: next }));
+                        }}
+                        className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        placeholder="0.00"
+                      />
+                      <span className="text-gray-500 text-sm">×</span>
+                      <input
+                        type="number"
+                        min="1"
+                        value={createInvoiceForm.quantities[idx] ?? 1}
+                        onChange={(e) => {
+                          const next = [...createInvoiceForm.quantities];
+                          next[idx] = parseInt(e.target.value, 10) || 1;
+                          setCreateInvoiceForm((prev) => ({ ...prev, quantities: next }));
+                        }}
+                        className="w-20 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      />
+                      {createInvoiceForm.product_costs_rmb.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCreateInvoiceForm((prev) => ({
+                              ...prev,
+                              product_costs_rmb: prev.product_costs_rmb.filter((_, i) => i !== idx),
+                              quantities: prev.quantities.filter((_, i) => i !== idx),
+                            }));
+                          }}
+                          className="text-red-500 hover:text-red-700 p-1"
+                        >
+                          <FaTimes />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setCreateInvoiceForm((prev) => ({
+                      ...prev,
+                      product_costs_rmb: [...prev.product_costs_rmb, ''],
+                      quantities: [...prev.quantities, 1],
+                    }))}
+                    className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    + Add another product cost
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">RMB to GHS rate *</label>
+                    <input
+                      type="number"
+                      step="0.0001"
+                      min="0.0001"
+                      value={createInvoiceForm.rmb_to_ghs_rate}
+                      onChange={(e) => setCreateInvoiceForm((prev) => ({ ...prev, rmb_to_ghs_rate: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      placeholder="e.g. 0.58"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Shipping</label>
+                    <select
+                      value={createInvoiceForm.shipping_method}
+                      onChange={(e) => setCreateInvoiceForm((prev) => ({ ...prev, shipping_method: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    >
+                      <option value="sea">Sea</option>
+                      <option value="air">Air</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Service fee %</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    value={createInvoiceForm.service_fee_percent}
+                    onChange={(e) => setCreateInvoiceForm((prev) => ({ ...prev, service_fee_percent: e.target.value }))}
+                    className="w-full max-w-[120px] px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="submit"
+                    disabled={createInvoiceSubmitting}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {createInvoiceSubmitting ? <FaSpinner className="animate-spin" /> : <FaFileInvoiceDollar />}
+                    Create invoice
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateInvoiceModal(false)}
+                    className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </div>

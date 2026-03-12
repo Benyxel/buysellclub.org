@@ -699,8 +699,11 @@ const Login = () => {
           {showReset ? (
             <div className="space-y-4">
               <h2 className="text-lg font-semibold text-gray-800 dark:text-white">
-                Reset Password with OTP
+                Forgot password? Reset it
               </h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                We’ll send a code to your email so you can set a new password. This is not the same as logging in with OTP — use &quot;Login with OTP&quot; above if you only want to sign in with a code.
+              </p>
               <div>
                 <label className="block text-sm text-gray-600 dark:text-gray-300 mb-1">
                   Email or Username
@@ -714,39 +717,70 @@ const Login = () => {
                 />
               </div>
               {!resetSent ? (
-                <button
-                  type="button"
-                  disabled={loading}
-                  onClick={async () => {
-                    if (!resetIdentifier) {
-                      toast.error("Enter your email or username");
-                      return;
-                    }
-                    try {
-                      setLoading(true);
-                      await API.post(
-                        "/buysellapi/auth/request-password-reset/",
-                        {
-                          identifier: resetIdentifier,
+                <>
+                  <button
+                    type="button"
+                    disabled={loading}
+                    onClick={async () => {
+                      if (!resetIdentifier) {
+                        toast.error("Enter your email or username");
+                        return;
+                      }
+                      try {
+                        setLoading(true);
+                        await API.post(
+                          "/buysellapi/auth/request-password-reset/",
+                          {
+                            identifier: resetIdentifier,
+                          }
+                        );
+                        setResetSent(true);
+                        toast.success("Reset code sent if the account exists.");
+                      } catch (err) {
+                        const msg =
+                          err.response?.data?.detail ||
+                          "Failed to send reset code";
+                        toast.error(msg);
+                      } finally {
+                        setLoading(false);
+                      }
+                    }}
+                    className={`w-full py-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors ${
+                      loading ? "opacity-70 cursor-not-allowed" : ""
+                    }`}
+                  >
+                    {loading ? "Sending..." : "Send password reset code"}
+                  </button>
+                  <div className="text-center mt-2">
+                    <button
+                      type="button"
+                      disabled={loading}
+                      onClick={async () => {
+                        if (!resetIdentifier) {
+                          toast.error("Enter your email or username first");
+                          return;
                         }
-                      );
-                      setResetSent(true);
-                      toast.success("Reset code sent if the account exists.");
-                    } catch (err) {
-                      const msg =
-                        err.response?.data?.detail ||
-                        "Failed to send reset code";
-                      toast.error(msg);
-                    } finally {
-                      setLoading(false);
-                    }
-                  }}
-                  className={`w-full py-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors ${
-                    loading ? "opacity-70 cursor-not-allowed" : ""
-                  }`}
-                >
-                  {loading ? "Sending..." : "Send Reset Code"}
-                </button>
+                        try {
+                          setLoading(true);
+                          await API.post(
+                            "/buysellapi/auth/request-password-reset-link/",
+                            { email: resetIdentifier, identifier: resetIdentifier }
+                          );
+                          toast.success(
+                            "If an account exists, a reset link has been sent to your email. Check your inbox (and spam)."
+                          );
+                        } catch (err) {
+                          toast.error(err.response?.data?.error || "Failed to send link.");
+                        } finally {
+                          setLoading(false);
+                        }
+                      }}
+                      className="text-sm text-primary hover:underline disabled:opacity-50"
+                    >
+                      Prefer a link? Send reset link to my email
+                    </button>
+                  </div>
+                </>
               ) : (
                 <>
                   <div>

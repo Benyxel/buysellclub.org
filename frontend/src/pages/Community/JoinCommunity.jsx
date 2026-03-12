@@ -359,56 +359,22 @@ const JoinCommunity = () => {
               Membership is billed yearly. Your expiration date will be shown
               after approval.
             </p>
-            {sheetOnlyPrice > 0 && (
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                Or get the <strong>{sheetOnlyLabel}</strong> sheet only (one-time ₵{sheetOnlyPrice.toFixed(2)}) — no membership required.
-              </p>
-            )}
             <div className="flex flex-wrap gap-3 items-center">
             {isLoggedIn ? (
-              <>
               <Link
                 to="/CommunityPayment"
                 className="inline-flex items-center px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold"
               >
-                Join
+                Get Access
               </Link>
-              {sheetOnlyPrice > 0 && (
-                <Link
-                  to="/CommunityPayment?type=sheet_only"
-                  className="inline-flex items-center px-5 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold"
-                >
-                  Purchase {sheetOnlyLabel} (₵{sheetOnlyPrice.toFixed(2)})
-                </Link>
-              )}
-              </>
             ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={() =>
-                    navigate("/Signup", {
-                      state: { redirectTo: "/CommunityPayment" },
-                    })
-                  }
-                  className="inline-flex items-center px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold"
-                >
-                  Register to join
-                </button>
-                {sheetOnlyPrice > 0 && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      navigate("/Signup", {
-                        state: { redirectTo: "/CommunityPayment?type=sheet_only" },
-                      })
-                    }
-                    className="inline-flex items-center px-5 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold"
-                  >
-                    Sign in to purchase {sheetOnlyLabel}
-                  </button>
-                )}
-              </>
+              <button
+                type="button"
+                onClick={() => navigate("/CommunityPayment")}
+                className="inline-flex items-center px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+              >
+                Get Access
+              </button>
             )}
             </div>
           </div>

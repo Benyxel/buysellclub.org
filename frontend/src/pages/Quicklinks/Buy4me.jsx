@@ -400,16 +400,23 @@ const Buy4me = () => {
         return;
       }
 
-      // Build from products: each row has link, image, quantity. Links are optional.
-      const filteredProducts = formData.products
-        .filter((p) => p.url && p.url.trim() !== "")
+      // Include every slot that has a link OR an image so admin gets one cost field per product.
+      // Links are optional; image-only slots are valid (admin can use images to create invoice).
+      const productsWithLinkOrImage = formData.products
         .map((p) => ({
-          url: p.url.trim(),
+          url: (p.url || "").trim(),
           quantity: Math.max(0, Number(p.quantity) || 0),
-        }));
+          hasImage: !!(p.image && p.image.trim() !== ""),
+        }))
+        .filter((p) => p.url !== "" || p.hasImage);
 
-      const totalQty = filteredProducts.reduce((sum, p) => sum + p.quantity, 0);
-      let productUrl = filteredProducts[0]?.url ?? "";
+      const additional_links = productsWithLinkOrImage.map((p) => ({
+        url: p.url || "",
+        quantity: p.quantity,
+      }));
+      const totalQty = additional_links.reduce((sum, p) => sum + p.quantity, 0);
+      const firstWithUrl = additional_links.find((p) => p.url && p.url.trim() !== "");
+      let productUrl = firstWithUrl ? firstWithUrl.url : "";
       if (productUrl && !productUrl.startsWith("http://") && !productUrl.startsWith("https://")) {
         productUrl = "https://" + productUrl;
       }
@@ -417,10 +424,10 @@ const Buy4me = () => {
       const orderData = {
         title: formData.title.trim(),
         description: formData.description.trim(),
-        product_url: productUrl,
-        additional_links: filteredProducts,
+        product_url: productUrl || null,
+        additional_links,
         images: formData.products.map((p) => p.image).filter((img) => img && img.trim() !== ""),
-        quantity: totalQty,
+        quantity: totalQty || 1,
         invoice_shipping_method: formData.shippingMethod,
       };
       
@@ -551,8 +558,19 @@ const Buy4me = () => {
                 </div>
               ) : !editMode && !awaitingSlot ? (
                 <div className="space-y-6">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    Buy4Me Product Sourcing Service
+                  </h3>
                   <p className="text-gray-600 dark:text-gray-300">
-                    Pay the sourcing fee first to get access to place one Buy4me order. After you submit that order, pay again to place another.
+                    Submit up to 5 product links or photos, and we will source the items for you from suppliers.
+                  </p>
+                  <ul className="text-gray-600 dark:text-gray-300 space-y-2 list-disc list-inside">
+                    <li>Pay a GHS {defaultSourcingPayment || "—"} sourcing fee to start.</li>
+                    <li>Once sourcing is completed, we will send you an invoice for the product cost.</li>
+                    <li>After payment, we proceed with purchasing your order.</li>
+                  </ul>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    One sourcing fee = one Buy4Me request (up to 5 items).
                   </p>
                   <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-4">
                     <p className="text-sm font-medium text-amber-800 dark:text-amber-200 mb-2">Sourcing fee: GHS {defaultSourcingPayment || "—"}</p>

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { FaSave, FaSpinner, FaCheck, FaTimes } from "react-icons/fa";
+import { FaSave, FaSpinner, FaCheck, FaTimes, FaUserPlus, FaEnvelope } from "react-icons/fa";
 import { toast } from "../../utils/toast";
 import { Api, clearCache } from "../../api";
 import ConfirmModal from "../../components/shared/ConfirmModal";
@@ -55,6 +55,10 @@ const CommunityManagement = () => {
     file_type: "",
     category: "",
   });
+  const [assignEmail, setAssignEmail] = useState("");
+  const [assignContact, setAssignContact] = useState("");
+  const [assignLoading, setAssignLoading] = useState(false);
+  const [resendLoadingId, setResendLoadingId] = useState(null);
 
   const fetchSettings = async () => {
     try {
@@ -250,6 +254,46 @@ const CommunityManagement = () => {
     setRequestToDelete(null);
   };
 
+  const handleAssignMember = async (e) => {
+    e?.preventDefault();
+    const email = (assignEmail || "").trim().toLowerCase();
+    if (!email || !email.includes("@")) {
+      toast.error("Enter a valid email address.");
+      return;
+    }
+    setAssignLoading(true);
+    try {
+      await Api.community.adminAssignMember({
+        email,
+        contact: (assignContact || "").trim().slice(0, 20) || undefined,
+      });
+      toast.success("Member assigned. Set-password link sent to their email.");
+      setAssignEmail("");
+      setAssignContact("");
+      fetchRequests(currentPage);
+    } catch (error) {
+      const message =
+        error.response?.data?.error || "Failed to assign member.";
+      toast.error(message);
+    } finally {
+      setAssignLoading(false);
+    }
+  };
+
+  const handleResendSetPasswordLink = async (requestId) => {
+    setResendLoadingId(requestId);
+    try {
+      await Api.community.adminResendSetPasswordLink(requestId);
+      toast.success("Set-password link sent to the user's email.");
+    } catch (error) {
+      const message =
+        error.response?.data?.error || "Failed to send link.";
+      toast.error(message);
+    } finally {
+      setResendLoadingId(null);
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       {/* Submenu / tabs */}
@@ -430,10 +474,48 @@ const CommunityManagement = () => {
 
       {activeTab === "requests" && (
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-wrap items-end justify-between gap-4 mb-4">
           <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
             Community Join Requests
           </h2>
+          <form
+            onSubmit={handleAssignMember}
+            className="flex flex-wrap items-end gap-2"
+          >
+            <div>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                Assign member (email)
+              </label>
+              <input
+                type="email"
+                value={assignEmail}
+                onChange={(e) => setAssignEmail(e.target.value)}
+                placeholder="user@example.com"
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-800 dark:text-white text-sm min-w-[200px]"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                Contact (optional)
+              </label>
+              <input
+                type="text"
+                value={assignContact}
+                onChange={(e) => setAssignContact(e.target.value)}
+                placeholder="Phone"
+                maxLength={20}
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-800 dark:text-white text-sm min-w-[120px]"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={assignLoading}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-medium disabled:opacity-50"
+            >
+              {assignLoading ? <FaSpinner className="animate-spin" /> : <FaUserPlus />}
+              Assign as member
+            </button>
+          </form>
         </div>
         {requestsLoading && (
           <div className="flex items-center justify-center py-4">
@@ -547,10 +629,26 @@ const CommunityManagement = () => {
                           </button>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <span className="text-xs text-gray-500 dark:text-gray-400">
                             {req.status}
                           </span>
+                          {req.status === "approved" && (
+                            <button
+                              type="button"
+                              onClick={() => handleResendSetPasswordLink(req.id)}
+                              disabled={resendLoadingId === req.id}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded bg-blue-600 text-white hover:bg-blue-700 text-xs disabled:opacity-50"
+                              title="Resend set-password link to user's email"
+                            >
+                              {resendLoadingId === req.id ? (
+                                <FaSpinner className="animate-spin" />
+                              ) : (
+                                <FaEnvelope />
+                              )}
+                              Resend link
+                            </button>
+                          )}
                           <button
                             onClick={() => {
                               setRequestToDelete(req.id);
