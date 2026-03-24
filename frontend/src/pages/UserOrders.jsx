@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
-import { FaEye, FaTimes, FaShoppingBag, FaSpinner } from 'react-icons/fa';
+import { FaEye, FaTimes, FaShoppingBag, FaSpinner, FaDownload } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import { toast } from '../utils/toast';
-import { getOrders, getOrder, updateOrder } from '../api';
+import { getOrders, getOrder, updateOrder, downloadOrderReceipt } from '../api';
 import { getPlaceholderImagePath } from '../utils/paths';
 
 const UserOrders = () => {
@@ -103,6 +103,20 @@ const UserOrders = () => {
     }, 15000);
     return () => clearInterval(interval);
   }, [location.pathname, fetchOrders]);
+
+  const [downloadingReceiptId, setDownloadingReceiptId] = useState(null);
+  const handleDownloadReceipt = async (orderId) => {
+    setDownloadingReceiptId(orderId);
+    try {
+      await downloadOrderReceipt(orderId, false);
+      toast.success('Receipt downloaded');
+    } catch (err) {
+      const msg = err.response?.data?.error || err.response?.data?.detail || err.message || 'Failed to download receipt';
+      toast.error(typeof msg === 'string' ? msg : 'Failed to download receipt');
+    } finally {
+      setDownloadingReceiptId(null);
+    }
+  };
 
   const handleCancelOrder = async (orderId) => {
     try {
@@ -217,8 +231,17 @@ const UserOrders = () => {
                           setShowOrderDetails(true);
                         }}
                         className="p-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                        title="View details"
                       >
                         <FaEye />
+                      </button>
+                      <button
+                        onClick={() => handleDownloadReceipt(order.id)}
+                        disabled={downloadingReceiptId === order.id}
+                        className="p-2 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50"
+                        title="Download receipt"
+                      >
+                        {downloadingReceiptId === order.id ? <FaSpinner className="animate-spin" /> : <FaDownload />}
                       </button>
                       {order.status === 'pending' && (
                         <button
@@ -246,12 +269,23 @@ const UserOrders = () => {
                 <h3 className="text-xl font-bold text-gray-900 dark:text-white">
                   Order Details - #{selectedOrder.id}
                 </h3>
-                <button
-                  onClick={() => setShowOrderDetails(false)}
-                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                >
-                  <FaTimes />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleDownloadReceipt(selectedOrder.id)}
+                    disabled={downloadingReceiptId === selectedOrder.id}
+                    className="flex items-center gap-2 px-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50"
+                    title="Download receipt"
+                  >
+                    {downloadingReceiptId === selectedOrder.id ? <FaSpinner className="animate-spin" /> : <FaDownload />}
+                    Receipt
+                  </button>
+                  <button
+                    onClick={() => setShowOrderDetails(false)}
+                    className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                  >
+                    <FaTimes />
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-6">

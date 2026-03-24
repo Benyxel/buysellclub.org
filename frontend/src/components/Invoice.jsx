@@ -126,7 +126,10 @@ const Invoice = memo(({ invoice, request, printable = false, invoiceId, customer
         <style type="text/css" media="print">
           {`
             @page { size: auto; margin: 0mm; }
-            body { margin: 1.6cm; }
+            body {
+              margin: 1.6cm;
+              font-family: "Outfit", "Segoe UI", "Segoe UI Symbol", "Noto Sans", "DejaVu Sans", system-ui, -apple-system, Arial, sans-serif;
+            }
             .no-print { display: none !important; }
           `}
         </style>

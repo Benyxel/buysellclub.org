@@ -12,10 +12,12 @@ import {
   updateBuy4meRequestTracking,
   deleteAdminBuy4meRequest,
   createBuy4meRequestInvoice,
+  editBuy4meRequestInvoice,
   updateBuy4meRequestInvoiceStatus,
   createBuy4meInvoiceForClient,
   getBuy4meSettings,
   updateBuy4meSettings,
+  downloadBuy4meInvoiceReceipt,
 } from '../../api';
 import API from '../../api';
 
@@ -31,14 +33,17 @@ const Buy4meAdmin = () => {
   const [invoiceProductCostsRmb, setInvoiceProductCostsRmb] = useState([]);
   const [invoiceQuantities, setInvoiceQuantities] = useState([]);
   const [invoiceRmbToGhsRate, setInvoiceRmbToGhsRate] = useState('');
+  const [invoiceShippingMethod, setInvoiceShippingMethod] = useState('sea');
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [showPrintableInvoice, setShowPrintableInvoice] = useState(false);
+  const [isEditingInvoice, setIsEditingInvoice] = useState(false);
   const [selectedRequests, setSelectedRequests] = useState([]);
   const [selectAll, setSelectAll] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [previewProof, setPreviewProof] = useState('');
+  const [downloadingInvoiceId, setDownloadingInvoiceId] = useState(null);
   
   // Settings state
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -101,6 +106,15 @@ const Buy4meAdmin = () => {
   // When invoice form is shown, initialize product cost/quantity arrays to match request products (avoid setState during render)
   useEffect(() => {
     if (!showInvoiceForm || !selectedRequest) return;
+    if (isEditingInvoice && selectedRequest.invoice) {
+      const costs = selectedRequest.invoice_product_costs_rmb ?? selectedRequest.invoice.productCostsRmb ?? [];
+      const qty = selectedRequest.invoice_product_quantities ?? selectedRequest.invoice.productQuantities ?? [];
+      const rate = selectedRequest.invoice_rmb_to_ghs_rate ?? selectedRequest.invoice.rmbToGhsRate ?? '';
+      setInvoiceProductCostsRmb(Array.isArray(costs) && costs.length ? costs.map((c) => String(c ?? '')) : ['']);
+      setInvoiceQuantities(Array.isArray(qty) && qty.length ? qty.map((q) => (typeof q === 'number' ? q : parseInt(q, 10) || 1)) : [1]);
+      setInvoiceRmbToGhsRate(rate ? String(rate) : '');
+      return;
+    }
     const products = getProductsForInvoice(selectedRequest);
     const totalProducts = Math.max(products.length, 1);
     const paddedProducts =
@@ -113,7 +127,7 @@ const Buy4meAdmin = () => {
     setInvoiceQuantities((prev) =>
       prev.length === totalProducts ? prev : paddedProducts.map((p) => (typeof p === 'object' && p.quantity != null ? p.quantity : 1))
     );
-  }, [showInvoiceForm, selectedRequest?.id, selectedRequest?.additional_links, selectedRequest?.product_url, selectedRequest?.link, selectedRequest?.quantity, selectedRequest?.images]);
+  }, [showInvoiceForm, selectedRequest?.id, isEditingInvoice, selectedRequest?.additional_links, selectedRequest?.product_url, selectedRequest?.link, selectedRequest?.quantity, selectedRequest?.images, selectedRequest?.invoice, selectedRequest?.invoice_product_costs_rmb, selectedRequest?.invoice_product_quantities, selectedRequest?.invoice_rmb_to_ghs_rate]);
 
   // Pagination handlers
   const totalPages = Math.ceil(total / pageSize);
@@ -329,18 +343,17 @@ const Buy4meAdmin = () => {
     
     try {
       const requestId = selectedRequest.id || selectedRequest._id;
-      
-      // Use quantities from form state
       const quantities = invoiceQuantities.slice(0, invoiceProductCostsRmb.length).map(qty => qty || 0);
-      
       const invoiceData = {
         product_costs_rmb: invoiceProductCostsRmb.map(cost => parseFloat(cost)),
-        quantities: quantities, // Use quantities from form
+        quantities,
         rmb_to_ghs_rate: parseFloat(invoiceRmbToGhsRate),
-        shipping_method: selectedRequest?.invoice_shipping_method,
-        service_fee_percent: 5.0, // 5% service fee
+        shipping_method: isEditingInvoice ? invoiceShippingMethod : (selectedRequest?.invoice_shipping_method || selectedRequest?.invoice?.shippingMethod || 'sea'),
+        service_fee_percent: 5.0,
       };
-      const response = await createBuy4meRequestInvoice(requestId, invoiceData);
+      const response = isEditingInvoice
+        ? await editBuy4meRequestInvoice(requestId, invoiceData)
+        : await createBuy4meRequestInvoice(requestId, invoiceData);
       const updatedRequest = response.data;
       
       // Transform response to match frontend expectations
@@ -369,8 +382,9 @@ const Buy4meAdmin = () => {
       setSelectedRequest(transformedRequest);
       setShowInvoiceForm(false);
       setInvoiceAmount('');
+      setIsEditingInvoice(false);
       setShowInvoiceModal(true);
-      toast.success('Invoice created successfully');
+      toast.success(isEditingInvoice ? 'Invoice updated successfully' : 'Invoice created successfully');
     } catch (error) {
       console.error('Error creating invoice:', error);
       const errorMessage = error.response?.data?.error || error.response?.data?.detail || error.message || 'Failed to create invoice';
@@ -413,6 +427,41 @@ const Buy4meAdmin = () => {
       console.error('Error updating invoice status:', error);
       const errorMessage = error.response?.data?.error || error.response?.data?.detail || error.message || 'Failed to update invoice status';
       toast.error(errorMessage);
+    }
+  };
+
+  /** Open edit-invoice form and load previous invoice items (rate, quantities, costs) from the request. */
+  const handleOpenEditInvoice = async () => {
+    const requestId = selectedRequest?.id || selectedRequest?._id;
+    if (!requestId) return;
+    try {
+      const response = await getAdminBuy4meRequest(requestId, { includeMedia: true });
+      const raw = response?.data || {};
+      const req = transformRequest(raw);
+      setSelectedRequest(req);
+
+      const costs = raw.invoice_product_costs_rmb ?? req.invoice?.productCostsRmb ?? req.invoice_product_costs_rmb ?? [];
+      const qty = raw.invoice_product_quantities ?? req.invoice?.productQuantities ?? req.invoice_product_quantities ?? [];
+      const rate = raw.invoice_rmb_to_ghs_rate ?? req.invoice?.rmbToGhsRate ?? req.invoice_rmb_to_ghs_rate ?? '';
+
+      const costStrings = Array.isArray(costs) && costs.length
+        ? costs.map((c) => String(c ?? ''))
+        : [''];
+      const quantities = Array.isArray(qty) && qty.length
+        ? qty.map((q) => (typeof q === 'number' ? q : parseInt(q, 10) || 1))
+        : [1];
+      const rateStr = rate !== undefined && rate !== null && rate !== '' ? String(rate) : '';
+      const shipping = raw.invoice_shipping_method ?? req.invoice?.shippingMethod ?? req.invoice_shipping_method ?? 'sea';
+
+      setInvoiceProductCostsRmb(costStrings);
+      setInvoiceQuantities(quantities);
+      setInvoiceRmbToGhsRate(rateStr);
+      setInvoiceShippingMethod(shipping === 'air' ? 'air' : 'sea');
+      setIsEditingInvoice(true);
+      setShowInvoiceForm(true);
+    } catch (err) {
+      console.error('Error loading invoice for edit:', err);
+      toast.error(err.response?.data?.error || err.response?.data?.detail || 'Failed to load invoice details');
     }
   };
 
@@ -658,6 +707,23 @@ const Buy4meAdmin = () => {
       window.print();
       setShowPrintableInvoice(false);
     }, 300);
+  };
+
+  const handleDownloadInvoicePdf = async (requestId) => {
+    setDownloadingInvoiceId(requestId);
+    try {
+      await downloadBuy4meInvoiceReceipt(requestId, true);
+      toast.success("Invoice downloaded");
+    } catch (err) {
+      const msg =
+        err.response?.data?.error ||
+        err.response?.data?.detail ||
+        err.message ||
+        "Failed to download invoice";
+      toast.error(typeof msg === "string" ? msg : "Failed to download invoice");
+    } finally {
+      setDownloadingInvoiceId(null);
+    }
   };
 
   if (showPrintableInvoice) {
@@ -1216,19 +1282,22 @@ const Buy4meAdmin = () => {
                 <div className="mt-6 border-t dark:border-gray-700 pt-6">
                   <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Invoice Management</h4>
                   
-                  {!selectedRequest.invoice ? (
+                  {(showInvoiceForm && (!selectedRequest.invoice || isEditingInvoice)) ? (
                     <>
-                      {showInvoiceForm && (() => {
+                      {(() => {
                         const products = getProductsForInvoice(selectedRequest);
-                        const totalProducts = Math.max(products.length, 1);
-                        const productRows =
-                          products.length >= totalProducts
-                            ? products
-                            : [...products, ...Array.from({ length: totalProducts - products.length }, () => ({ url: null, quantity: 1 }))];
+                        const totalProducts = isEditingInvoice
+                          ? Math.max((invoiceProductCostsRmb || []).length, 1)
+                          : Math.max(products.length, 1);
+                        const productRows = isEditingInvoice
+                          ? Array.from({ length: totalProducts }, (_, i) => ({ url: null, quantity: (invoiceQuantities[i] ?? 1) }))
+                          : (products.length >= totalProducts
+                              ? products
+                              : [...products, ...Array.from({ length: totalProducts - products.length }, () => ({ url: null, quantity: 1 }))]);
 
                         return (
                         <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                          <h5 className="text-md font-medium text-gray-900 dark:text-white mb-3">Create New Invoice</h5>
+                          <h5 className="text-md font-medium text-gray-900 dark:text-white mb-3">{isEditingInvoice ? 'Edit Invoice' : 'Create New Invoice'}</h5>
                           <div className="space-y-4">
                             <div>
                               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -1308,11 +1377,22 @@ const Buy4meAdmin = () => {
                               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                                 Shipping Method
                               </label>
-                              <p className="mt-1 text-sm text-gray-900 dark:text-white">
-                                {selectedRequest?.invoice_shipping_method === "air"
-                                  ? "Air Shipping"
-                                  : "Sea Shipping"}
-                              </p>
+                              {isEditingInvoice ? (
+                                <select
+                                  value={invoiceShippingMethod}
+                                  onChange={(e) => setInvoiceShippingMethod(e.target.value)}
+                                  className="mt-1 block w-full max-w-[180px] rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 sm:text-sm"
+                                >
+                                  <option value="sea">Sea Shipping</option>
+                                  <option value="air">Air Shipping</option>
+                                </select>
+                              ) : (
+                                <p className="mt-1 text-sm text-gray-900 dark:text-white">
+                                  {selectedRequest?.invoice_shipping_method === "air"
+                                    ? "Air Shipping"
+                                    : "Sea Shipping"}
+                                </p>
+                              )}
                             </div>
                             {invoiceProductCostsRmb.length > 0 && invoiceRmbToGhsRate && (() => {
                               // Calculate total from all product costs multiplied by quantities from form
@@ -1363,9 +1443,9 @@ const Buy4meAdmin = () => {
                               <button
                                 onClick={handleCreateInvoice}
                                 disabled={
-                                  !invoiceProductCostsRmb || 
-                                  invoiceProductCostsRmb.length === 0 || 
-                                  !invoiceRmbToGhsRate || 
+                                  !invoiceProductCostsRmb ||
+                                  invoiceProductCostsRmb.length === 0 ||
+                                  !invoiceRmbToGhsRate ||
                                   invoiceProductCostsRmb.some(cost => !cost || parseFloat(cost) <= 0) ||
                                   invoiceQuantities.length !== invoiceProductCostsRmb.length ||
                                   invoiceQuantities.some(qty => qty < 0) ||
@@ -1374,7 +1454,7 @@ const Buy4meAdmin = () => {
                                 className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-pink-600 hover:bg-pink-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
                               >
                                 <FaFileInvoiceDollar className="mr-2" />
-                                Create Invoice
+                                {isEditingInvoice ? 'Save changes' : 'Create Invoice'}
                               </button>
                               <button
                                 onClick={() => {
@@ -1384,6 +1464,7 @@ const Buy4meAdmin = () => {
                                   setInvoiceQuantities([]);
                                   setInvoiceRmbToGhsRate('');
                                   setInvoiceShippingMethod('sea');
+                                  setIsEditingInvoice(false);
                                 }}
                                 className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                               >
@@ -1395,7 +1476,7 @@ const Buy4meAdmin = () => {
                         );
                       })()}
                     </>
-                  ) : (
+                  ) : selectedRequest.invoice ? (
                     <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
                       <div className="flex justify-between items-center mb-4">
                         <h5 className="text-md font-medium text-gray-900 dark:text-white">Invoice Details</h5>
@@ -1408,11 +1489,32 @@ const Buy4meAdmin = () => {
                             View
                           </button>
                           <button
+                            onClick={() => handleDownloadInvoicePdf(selectedRequest.id || selectedRequest._id)}
+                            disabled={downloadingInvoiceId === (selectedRequest.id || selectedRequest._id)}
+                            className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-gray-700 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 disabled:opacity-50"
+                            title="Download invoice PDF"
+                          >
+                            {downloadingInvoiceId === (selectedRequest.id || selectedRequest._id) ? (
+                              <FaSpinner className="mr-1 animate-spin" />
+                            ) : (
+                              <FaDownload className="mr-1" />
+                            )}
+                            Download
+                          </button>
+                          <button
                             onClick={handlePrintInvoice}
                             className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-gray-700 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
                           >
                             <FaPrint className="mr-1" />
                             Print
+                          </button>
+                          <button
+                            onClick={handleOpenEditInvoice}
+                            className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-amber-700 bg-amber-100 hover:bg-amber-200 dark:bg-amber-900 dark:text-amber-200 dark:hover:bg-amber-800"
+                            title="Edit invoice amounts and line items"
+                          >
+                            <FaEdit className="mr-1" />
+                            Edit invoice
                           </button>
                         </div>
                       </div>
@@ -1574,6 +1676,17 @@ const Buy4meAdmin = () => {
                         </div>
                       </div>
                     </div>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        handleViewRequest(selectedRequest);
+                        setShowInvoiceForm(true);
+                      }}
+                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-pink-600 hover:bg-pink-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500"
+                    >
+                      <FaFileInvoiceDollar className="mr-2" />
+                      Create Invoice
+                    </button>
                   )}
                 </div>
               )}

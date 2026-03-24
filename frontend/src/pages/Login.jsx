@@ -4,6 +4,7 @@ import { toast } from "../utils/toast";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import { FcGoogle } from "react-icons/fc";
 import API from "../api";
+import { normalizePhone } from "../utils/ghanaPhone";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -405,11 +406,17 @@ const Login = () => {
       return;
     }
 
+    const normalized = normalizePhone(trimmedContact);
+    if (!normalized.ok) {
+      setGoogleContactError(normalized.error || "Please enter a valid contact number");
+      return;
+    }
+
     setGoogleContactError("");
     setGoogleContactLoading(true);
 
     try {
-      await API.patch("/buysellapi/users/me/", { contact: trimmedContact });
+      await API.patch("/buysellapi/users/me/", { contact: normalized.normalized });
       toast.success("Contact saved! Redirecting.");
       setShowGoogleContactModal(false);
       setGoogleContact("");

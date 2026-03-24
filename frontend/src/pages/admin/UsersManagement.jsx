@@ -13,6 +13,7 @@ import { toast } from "../../utils/toast";
 import API from "../../api";
 import ConfirmModal from "../../components/shared/ConfirmModal";
 import BulkActions from "../../components/shared/BulkActions";
+import { normalizePhone } from "../../utils/ghanaPhone";
 
 const UsersManagement = () => {
   const [users, setUsers] = useState([]);
@@ -473,7 +474,9 @@ const UsersManagement = () => {
         !addForm.full_name ||
         !addForm.email ||
         !addForm.password ||
-        !addForm.confirm_password
+        !addForm.confirm_password ||
+        !addForm.contact ||
+        !addForm.location
       ) {
         toast.error("Please fill in all required fields");
         return;
@@ -482,7 +485,13 @@ const UsersManagement = () => {
         toast.error("Passwords do not match");
         return;
       }
-      const resp = await API.post("/buysellapi/user/register/", addForm);
+      const normalized = normalizePhone(addForm.contact);
+      if (!normalized.ok) {
+        toast.error(normalized.error || "Please enter a valid contact number");
+        return;
+      }
+      const payload = { ...addForm, contact: normalized.normalized };
+      const resp = await API.post("/buysellapi/user/register/", payload);
       toast.success(resp.data?.message || "User added successfully");
       setShowAddModal(false);
       setAddForm({
@@ -513,7 +522,16 @@ const UsersManagement = () => {
         toast.error("No user selected");
         return;
       }
-      await API.put(`/buysellapi/users/${selectedUser.id}/update/`, editForm);
+      let payload = { ...editForm };
+      if ((payload.contact || "").trim()) {
+        const normalized = normalizePhone(payload.contact);
+        if (!normalized.ok) {
+          toast.error(normalized.error || "Please enter a valid contact number");
+          return;
+        }
+        payload.contact = normalized.normalized;
+      }
+      await API.put(`/buysellapi/users/${selectedUser.id}/update/`, payload);
       toast.success("User updated successfully");
       setShowEditModal(false);
       fetchUsers(currentPage, pageSize);

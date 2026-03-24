@@ -56,9 +56,7 @@ const JoinCommunity = () => {
       setLoading(true);
       // Fetch settings (allow failure for guests so page still shows)
       try {
-        const settingsResp = await Api.community.settings.get({
-          noCache: true,
-        });
+        const settingsResp = await Api.community.settings.get();
         const d = settingsResp.data || {};
         setSettings({
           membership_amount: d.membership_amount ?? 0,
@@ -73,7 +71,7 @@ const JoinCommunity = () => {
       // Only fetch my request status when logged in
       if (hasToken) {
         try {
-          const requestResp = await Api.community.myRequest({ noCache: true });
+          const requestResp = await Api.community.myRequest();
           setRequestInfo(requestResp.data?.request || null);
           setTelegramLink(requestResp.data?.telegram_link || "");
           setSheetAccessType(requestResp.data?.sheet_access_type || null);

@@ -3,19 +3,47 @@ import { FaDownload, FaSpinner, FaFileAlt, FaArrowLeft } from "react-icons/fa";
 import { Link } from "react-router-dom";
 import { toast } from "../../utils/toast";
 import { Api } from "../../api";
+import { getCachedData } from "../../utils/apiCache";
 
 const PAGE_SIZE = 10;
 
 const ToolsDownloads = () => {
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => {
+    try {
+      const cachedReq = getCachedData("/buysellapi/community/requests/me/");
+      const cachedList = getCachedData("/buysellapi/community/resources/");
+      return !(cachedReq && cachedList);
+    } catch {
+      return true;
+    }
+  });
   const [isMember, setIsMember] = useState(false);
   const [items, setItems] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
+    // Hydrate instantly from cache (avoids spinner on revisits)
+    try {
+      const cachedReq = getCachedData("/buysellapi/community/requests/me/");
+      const cachedList = getCachedData("/buysellapi/community/resources/");
+      const reqData = cachedReq?.data;
+      if (reqData) {
+        const status = reqData?.request?.status;
+        const sheetType = reqData?.sheet_access_type;
+        const telegramLink = reqData?.telegram_link || "";
+        const approved =
+          status === "approved" || (sheetType === "member" && !!telegramLink);
+        setIsMember(!!approved);
+      }
+      const listData = cachedList?.data;
+      if (listData) {
+        setItems(Array.isArray(listData) ? listData : listData?.results || []);
+      }
+    } catch {}
+
     const load = async () => {
       try {
-        const resp = await Api.community.myRequest({ noCache: true });
+        const resp = await Api.community.myRequest();
         const status = resp.data?.request?.status;
         const sheetType = resp.data?.sheet_access_type;
         const telegramLink = resp.data?.telegram_link || "";

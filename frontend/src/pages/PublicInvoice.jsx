@@ -312,11 +312,20 @@ const PublicInvoice = () => {
             <p className="text-sm text-yellow-800 dark:text-yellow-200">
               <strong>Bank:</strong> Calbank
             </p>
-            <p className="text-sm text-yellow-800 dark:text-yellow-200">
-              <strong>Account:</strong> 1400006745425
+            <p className="text-sm text-yellow-800 dark:text-yellow-200 font-bold">
+              Account: 1400006745425
             </p>
             <p className="text-sm text-yellow-800 dark:text-yellow-200">
               <strong>Name:</strong> FOFOOFO GROUP PTY LIMITED
+            </p>
+            <p className="text-sm font-semibold text-yellow-900 dark:text-yellow-100 mt-3 mb-1">
+              Mobile Money (MoMo)
+            </p>
+            <p className="text-sm text-yellow-800 dark:text-yellow-200 font-bold">
+              Name: FOFOOFO GROUP PTY LIMITED
+            </p>
+            <p className="text-sm text-yellow-800 dark:text-yellow-200 font-bold">
+              Number: 0248939278
             </p>
           </div>
         </div>

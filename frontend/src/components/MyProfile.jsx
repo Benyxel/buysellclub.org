@@ -43,6 +43,7 @@ import {
   FaHandshake,
   FaAlipay,
   FaStore,
+  FaDownload,
 } from "react-icons/fa";
 import { trackingSystem } from "../utils/trackingSystem";
 import { NOTE_MESSAGE } from "./ShippingTrackingNote";
@@ -55,6 +56,7 @@ import { API_BASE_URL } from "../config/api";
 import API, {
   Api,
   initiateBuy4mePayment,
+  downloadBuy4meInvoiceReceipt,
   getCachedData,
   setCachedData,
   CACHE_DURATION,
@@ -68,6 +70,7 @@ import ConfirmModal from "./shared/ConfirmModal";
 import AvatarSelector, { AVATARS } from "./AvatarSelector";
 import AvatarSVG from "./AvatarSVG";
 import VendorSales from "../pages/VendorSales";
+import { normalizePhone } from "../utils/ghanaPhone";
 
 const MyProfile = () => {
   // Status mapping from backend values to display labels
@@ -210,7 +213,7 @@ const MyProfile = () => {
   useEffect(() => {
     const fetchCommunityStatus = async () => {
       try {
-        const response = await Api.community.myRequest({ noCache: true });
+        const response = await Api.community.myRequest();
         const status = response.data?.request?.status;
         const sheetType = response.data?.sheet_access_type;
         const telegramLink = response.data?.telegram_link || "";
@@ -561,8 +564,8 @@ const MyProfile = () => {
         return;
       }
 
-      // Fetch current user profile from backend
-      const resp = await API.get("/buysellapi/users/me/");
+      // Fetch current user profile from backend (cached)
+      const resp = await Api.auth.profile();
       const u = resp?.data || {};
 
       // Persist for offline/cache use
@@ -804,7 +807,7 @@ const MyProfile = () => {
         if (updateUserProfile) {
           try {
             // Fetch the latest user profile to ensure we have up-to-date data
-            const profileResponse = await API.get(`/buysellapi/users/me/`);
+            const profileResponse = await Api.auth.profile();
 
             if (profileResponse.data) {
               setUserInfo(profileResponse.data);
@@ -898,12 +901,18 @@ const MyProfile = () => {
         return;
       }
 
+      const normalized = normalizePhone(userInfo.phone || "");
+      if (!normalized.ok) {
+        toast.error(normalized.error || "Please enter a valid contact number");
+        return;
+      }
+
       // Make API call to update profile (use PATCH — backend supports PATCH on users/me/)
       const response = await API.patch(`/buysellapi/users/me/`, {
-        name: userInfo.name,
+        full_name: userInfo.name,
         email: userInfo.email,
-        phone: userInfo.phone,
-        address: userInfo.address,
+        contact: normalized.normalized,
+        location: (userInfo.address || "").trim().slice(0, 20),
       });
 
       if (response.data) {
@@ -1659,8 +1668,8 @@ const MyProfile = () => {
       // Fetch user profile and shipping marks in parallel for faster loading
       console.log("Fetching user data in parallel...");
       const [profileResponse, marksResponse] = await Promise.all([
-        API.get(`/buysellapi/users/me/`),
-        API.get(`/buysellapi/shipping-marks/`).catch((err) => {
+        Api.auth.profile(),
+        Api.shipping.marks().catch((err) => {
           // Handle 404 gracefully - user might not have shipping marks yet
           if (err?.response?.status === 404) {
             return { data: [] };
@@ -2210,6 +2219,26 @@ const MyProfile = () => {
     setSelectedInvoice(invoice);
     setSelectedInvoiceRequest(request);
     setShowInvoiceModal(true);
+  };
+
+  const [downloadingBuy4meInvoiceId, setDownloadingBuy4meInvoiceId] =
+    useState(null);
+
+  const handleDownloadBuy4meInvoice = async (requestId) => {
+    setDownloadingBuy4meInvoiceId(requestId);
+    try {
+      await downloadBuy4meInvoiceReceipt(requestId, false);
+      toast.success("Invoice downloaded");
+    } catch (err) {
+      const msg =
+        err.response?.data?.error ||
+        err.response?.data?.detail ||
+        err.message ||
+        "Failed to download invoice";
+      toast.error(typeof msg === "string" ? msg : "Failed to download invoice");
+    } finally {
+      setDownloadingBuy4meInvoiceId(null);
+    }
   };
 
   return (
@@ -4033,6 +4062,25 @@ const MyProfile = () => {
                                 >
                                   <FaEye className="text-sm" />
                                   View Details
+                                </button>
+
+                                <button
+                                  onClick={() => {
+                                    const requestId = item.request?.id || item.id;
+                                    if (!requestId) {
+                                      toast.error("Request ID not found");
+                                      return;
+                                    }
+                                    handleDownloadBuy4meInvoice(requestId);
+                                  }}
+                                  disabled={
+                                    downloadingBuy4meInvoiceId ===
+                                    (item.request?.id || item.id)
+                                  }
+                                  className="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium rounded-md text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 disabled:opacity-50"
+                                >
+                                  <FaDownload className="text-sm" />
+                                  Download
                                 </button>
 
                                 {item.invoice.status === "pending" && (

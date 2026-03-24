@@ -39,8 +39,18 @@
     font-style: normal;
 }
 
+/* Use a font stack that supports currency symbols like ₵ */
 * {
-  font-family: outfit;
+  font-family:
+    "Outfit",
+    "Segoe UI",
+    "Segoe UI Symbol",
+    "Noto Sans",
+    "DejaVu Sans",
+    system-ui,
+    -apple-system,
+    Arial,
+    sans-serif;
 }
 
 @media (max-width: 640px) {

@@ -328,6 +328,22 @@ const Api = {
     adminList: (params) => http.get("/buysellapi/admin/orders/", { params }),
     adminRemove: (id) => http.delete(`/buysellapi/admin/orders/${id}/`),
     payment: (id, body) => http.post(`/buysellapi/orders/${id}/payment/`, body || {}),
+    /** Download order receipt as PDF (user: own orders; admin: any order via admin path). */
+    async downloadReceipt(orderId, useAdminPath = false) {
+      const path = useAdminPath
+        ? `/buysellapi/admin/orders/${orderId}/receipt/`
+        : `/buysellapi/orders/${orderId}/receipt/`;
+      const res = await api.get(normalizePath(path), { responseType: "blob" });
+      const blob = res.data;
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `receipt-order-${orderId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    },
   },
   buy4me: {
     list: (params) => http.get("/buysellapi/buy4me-requests/", { params }),
@@ -372,9 +388,27 @@ const Api = {
           ),
         update: (id, payload) =>
           http.put(`/buysellapi/admin/buy4me-requests/${id}/invoice/`, payload),
+        edit: (id, payload) =>
+          http.patch(`/buysellapi/admin/buy4me-requests/${id}/invoice/`, payload),
       },
       createInvoiceForClient: (payload) =>
         http.post("/buysellapi/admin/buy4me-requests/create-invoice/", payload),
+    },
+    /** Download Buy4Me invoice PDF (user: own request; admin: any request via admin path). */
+    async downloadInvoiceReceipt(requestId, useAdminPath = false) {
+      const path = useAdminPath
+        ? `/buysellapi/admin/buy4me-requests/${requestId}/invoice/receipt/`
+        : `/buysellapi/buy4me-requests/${requestId}/invoice/receipt/`;
+      const res = await api.get(normalizePath(path), { responseType: "blob" });
+      const blob = res.data;
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `buy4me-invoice-${requestId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
     },
   },
   shipping: {
@@ -565,9 +599,17 @@ const Api = {
       get: (config = {}) => http.get("/buysellapi/community/settings/", config),
       update: (payload) => http.post("/buysellapi/community/settings/", payload),
     },
-    myRequest: (config = {}) => http.get("/buysellapi/community/requests/me/", config),
+    // Cache community status so tabs don't reload constantly when revisited.
+    myRequest: (config = {}) =>
+      http.get("/buysellapi/community/requests/me/", {
+        cacheDuration: CACHE_DURATION.MEDIUM,
+        ...config,
+      }),
     sheetData: (config = {}) =>
-      http.get("/buysellapi/community/sheet-data/", { noCache: true, cacheDuration: 0, ...config }),
+      http.get("/buysellapi/community/sheet-data/", {
+        cacheDuration: CACHE_DURATION.LONG,
+        ...config,
+      }),
     submitRequest: (payload) => http.post("/buysellapi/community/requests/", payload),
     initiatePayment: (payload) => http.post("/buysellapi/community/requests/initiate-payment/", payload),
     setPasswordValidate: (token) =>
@@ -591,8 +633,7 @@ const Api = {
     winningProducts: {
       list: (config = {}) =>
         http.get("/buysellapi/community/winning-products/", {
-          noCache: true,
-          cacheDuration: 0,
+          cacheDuration: CACHE_DURATION.LONG,
           ...config,
         }),
       adminList: (config = {}) =>
@@ -617,8 +658,7 @@ const Api = {
     tutorials: {
       list: (config = {}) =>
         http.get("/buysellapi/community/tutorials/", {
-          noCache: true,
-          cacheDuration: 0,
+          cacheDuration: CACHE_DURATION.LONG,
           ...config,
         }),
       adminList: (config = {}) =>
@@ -643,8 +683,7 @@ const Api = {
     resources: {
       list: (config = {}) =>
         http.get("/buysellapi/community/resources/", {
-          noCache: true,
-          cacheDuration: 0,
+          cacheDuration: CACHE_DURATION.LONG,
           ...config,
         }),
       adminList: (config = {}) =>
@@ -755,6 +794,8 @@ export const updateOrder = Api.orders.update;
 export const deleteOrder = Api.orders.remove;
 export const getAdminOrders = Api.orders.adminList;
 export const initiateOrderPayment = Api.orders.payment;
+export const downloadOrderReceipt = (orderId, useAdminPath = false) =>
+  Api.orders.downloadReceipt(orderId, useAdminPath);
 
 export const getBuy4meRequests = Api.buy4me.list;
 export const getBuy4meRequest = Api.buy4me.detail;
@@ -767,6 +808,8 @@ export const submitBuy4meDetails = Api.buy4me.submitDetails;
 export const updateBuy4meRequest = Api.buy4me.update;
 export const deleteBuy4meRequest = Api.buy4me.remove;
 export const initiateBuy4mePayment = Api.buy4me.payment;
+export const downloadBuy4meInvoiceReceipt = (requestId, useAdminPath = false) =>
+  Api.buy4me.downloadInvoiceReceipt(requestId, useAdminPath);
 export const getAdminBuy4meRequests = Api.buy4me.admin.list;
 export const getAdminBuy4meRequest = Api.buy4me.admin.detail;
 export const updateAdminBuy4meRequest = Api.buy4me.update;
@@ -775,6 +818,7 @@ export const updateBuy4meRequestStatus = Api.buy4me.admin.updateStatus;
 export const updateBuy4meRequestTracking = Api.buy4me.admin.updateTracking;
 export const createBuy4meRequestInvoice = Api.buy4me.admin.invoice.create;
 export const updateBuy4meRequestInvoiceStatus = Api.buy4me.admin.invoice.update;
+export const editBuy4meRequestInvoice = Api.buy4me.admin.invoice.edit;
 export const createBuy4meInvoiceForClient = Api.buy4me.admin.createInvoiceForClient;
 export const getBuy4meSettings = Api.buy4me.settings.get;
 export const updateBuy4meSettings = Api.buy4me.settings.update;

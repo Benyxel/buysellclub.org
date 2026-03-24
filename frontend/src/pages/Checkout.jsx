@@ -5,6 +5,7 @@ import { ShopContext } from '../context/ShopContext';
 import { toast } from '../utils/toast';
 import api, { createOrder, initiateOrderPayment } from '../api';
 import { getPlaceholderImagePath } from '../utils/paths';
+import { normalizePhone } from '../utils/ghanaPhone';
 
 const Checkout = () => {
   const navigate = useNavigate();
@@ -109,6 +110,11 @@ const Checkout = () => {
       toast.error('Please enter your contact number for delivery.');
       return;
     }
+    const normalized = normalizePhone(contact);
+    if (!normalized.ok) {
+      toast.error(normalized.error || 'Please enter a valid contact number.');
+      return;
+    }
     if (!location) {
       toast.error('Please enter your delivery location.');
       return;
@@ -162,7 +168,7 @@ const Checkout = () => {
         })),
         customer_name: customerName,
         customer_email: customerEmail,
-        customer_phone: contact,
+        customer_phone: normalized.normalized,
         shipping_address: location,
         subtotal: parseFloat(getCartAmount().toFixed(2)),
         tax: 0,

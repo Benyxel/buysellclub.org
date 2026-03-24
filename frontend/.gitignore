@@ -1,5 +1,25 @@
-# Large archives (GitHub file size limit 100 MB)
+# Large archives & installers (GitHub file size limit 100 MB)
+*.7z
+*.bz2
+*.cab
+*.dmg
+*.gz
+*.iso
+*.jar
 *.rar
+*.tar
+*.tar.gz
+*.tgz
+*.xz
+*.zip
+
+# Backups & temp
+*.bak
+*.backup
+*.old
+*.orig
+*.tmp
+*.temp
 
 # Logs
 logs
@@ -139,3 +159,9 @@ dist
 .yarn/install-state.gz
 .pnp.*
 .venv
+
+# OS
+.DS_Store
+Desktop.ini
+Thumbs.db
+ehthumbs.db

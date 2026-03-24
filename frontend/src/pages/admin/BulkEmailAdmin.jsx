@@ -22,6 +22,7 @@ export default function BulkEmailAdmin() {
   const [audience, setAudience] = useState("all");
   const [audienceDays, setAudienceDays] = useState(30);
   const [emailType, setEmailType] = useState("bulk");
+  const [testRecipientEmail, setTestRecipientEmail] = useState("");
   const [sending, setSending] = useState(false);
   const [previewCount, setPreviewCount] = useState(null);
   const [history, setHistory] = useState([]);
@@ -76,6 +77,8 @@ export default function BulkEmailAdmin() {
     formData.append("audience", audience);
     if (audience === "recent_signups") formData.append("audience_days", String(audienceDays));
     formData.append("email_type", emailType);
+    const testEmail = testRecipientEmail.trim();
+    if (testEmail && testEmail.includes("@")) formData.append("test_recipient_email", testEmail);
     flyerFiles.forEach((file) => formData.append("flyers", file));
     API.post("/buysellapi/admin/bulk-email/", formData)
       .then((res) => {
@@ -166,6 +169,23 @@ export default function BulkEmailAdmin() {
             {previewCount !== null && (
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 <FaUsers className="inline mr-1" /> {previewCount} recipient{previewCount !== 1 ? "s" : ""}
+              </p>
+            )}
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Test mode: send only to one email (optional)
+            </label>
+            <input
+              type="email"
+              value={testRecipientEmail}
+              onChange={(e) => setTestRecipientEmail(e.target.value)}
+              placeholder="e.g. you@example.com — leave empty to send to full audience"
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2"
+            />
+            {testRecipientEmail.trim() && (
+              <p className="mt-1 text-sm text-amber-600 dark:text-amber-400">
+                Only this address will receive the email (audience is ignored).
               </p>
             )}
           </div>

@@ -5,6 +5,7 @@ import { FaEye, FaEyeSlash } from "react-icons/fa";
 import { FcGoogle } from "react-icons/fc";
 import API from "../api";
 import { trackSignUp } from "../utils/ga4";
+import { normalizePhone } from "../utils/ghanaPhone";
 
 const Signup = () => {
   const navigate = useNavigate();
@@ -107,10 +108,8 @@ const Signup = () => {
 
     // Contact validation
     if (form.contact) {
-      const cleanedContact = form.contact.replace(/[\s\-()]/g, "");
-      if (cleanedContact.length < 10) {
-        newErrors.contact = "Please enter a valid contact number";
-      }
+      const r = normalizePhone(form.contact);
+      if (!r.ok) newErrors.contact = r.error || "Please enter a valid contact number";
     }
 
     // Terms and conditions validation
@@ -150,6 +149,7 @@ const Signup = () => {
       }
       const csrfToken = getCookie("csrftoken");
       // Call Django registration endpoint with CSRF token
+      const normalizedContact = normalizePhone(form.contact);
       const response = await API.post(
         "/buysellapi/user/register/",
         {
@@ -158,7 +158,7 @@ const Signup = () => {
           email: form.email,
           password: form.password,
           confirm_password: form.confirm_password,
-          contact: form.contact,
+          contact: normalizedContact.ok ? normalizedContact.normalized : form.contact,
           location: form.location,
         },
         {
@@ -447,11 +447,17 @@ const Signup = () => {
       return;
     }
 
+    const normalized = normalizePhone(trimmedContact);
+    if (!normalized.ok) {
+      setGoogleContactError(normalized.error || "Please enter a valid contact number");
+      return;
+    }
+
     setGoogleContactError("");
     setGoogleContactLoading(true);
 
     try {
-      await API.patch("/buysellapi/users/me/", { contact: trimmedContact });
+      await API.patch("/buysellapi/users/me/", { contact: normalized.normalized });
       toast.success("Contact saved! Redirecting.");
       trackSignUp("Google");
       setShowGoogleContactModal(false);

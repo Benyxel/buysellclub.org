@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { FaSearch, FaSortAmountDown, FaSortAmountUp, FaFilter, FaDownload, FaEye, FaCheck, FaTimes, FaChevronLeft, FaChevronRight, FaTrash } from 'react-icons/fa';
+import { FaSearch, FaSortAmountDown, FaSortAmountUp, FaFilter, FaDownload, FaEye, FaCheck, FaTimes, FaChevronLeft, FaChevronRight, FaTrash, FaSpinner } from 'react-icons/fa';
 import { toast } from '../../utils/toast';
-import API, { Api, getOrders } from '../../api';
+import API, { Api, getOrders, downloadOrderReceipt } from '../../api';
 import BulkActions from '../../components/shared/BulkActions';
 import { getApiUrl } from '../../config/api';
 import { getPlaceholderImagePath } from '../../utils/paths';
@@ -22,6 +22,7 @@ const OrderManagement = () => {
   const [loading, setLoading] = useState(true);
   const [selectedOrders, setSelectedOrders] = useState([]);
   const [selectAll, setSelectAll] = useState(false);
+  const [downloadingReceiptId, setDownloadingReceiptId] = useState(null);
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -198,6 +199,19 @@ const OrderManagement = () => {
     } catch (error) {
       console.error('Error generating invoice:', error);
       toast.error('Failed to generate invoice');
+    }
+  };
+
+  const handleDownloadReceipt = async (orderId) => {
+    setDownloadingReceiptId(orderId);
+    try {
+      await downloadOrderReceipt(orderId, true);
+      toast.success('Receipt downloaded');
+    } catch (err) {
+      const msg = err.response?.data?.error || err.response?.data?.detail || err.message || 'Failed to download receipt';
+      toast.error(typeof msg === 'string' ? msg : 'Failed to download receipt');
+    } finally {
+      setDownloadingReceiptId(null);
     }
   };
 
@@ -423,6 +437,14 @@ const OrderManagement = () => {
                           <FaEye />
                         </button>
                         <button
+                          onClick={() => handleDownloadReceipt(order.id)}
+                          disabled={downloadingReceiptId === order.id}
+                          className="p-2 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50"
+                          title="Download receipt"
+                        >
+                          {downloadingReceiptId === order.id ? <FaSpinner className="animate-spin" /> : <FaDownload />}
+                        </button>
+                        <button
                           onClick={() => openStatusModal(order)}
                           className="px-3 py-1 text-sm bg-primary text-white rounded hover:bg-primary/90 transition-colors"
                           title="Update Status"
@@ -455,12 +477,23 @@ const OrderManagement = () => {
                 <h3 className="text-xl font-bold text-gray-900 dark:text-white">
                   Order Details - #{selectedOrder.id}
                 </h3>
-                <button
-                  onClick={() => setShowOrderDetails(false)}
-                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                >
-                  <FaTimes />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleDownloadReceipt(selectedOrder.id)}
+                    disabled={downloadingReceiptId === selectedOrder.id}
+                    className="flex items-center gap-2 px-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50"
+                    title="Download receipt"
+                  >
+                    {downloadingReceiptId === selectedOrder.id ? <FaSpinner className="animate-spin" /> : <FaDownload />}
+                    Receipt
+                  </button>
+                  <button
+                    onClick={() => setShowOrderDetails(false)}
+                    className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                  >
+                    <FaTimes />
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-6">

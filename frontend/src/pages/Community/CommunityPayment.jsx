@@ -3,6 +3,7 @@ import { FaInfoCircle } from "react-icons/fa";
 import { toast } from "../../utils/toast";
 import { Link, useSearchParams } from "react-router-dom";
 import { Api } from "../../api";
+import { normalizePhone } from "../../utils/ghanaPhone";
 
 const CommunityPayment = () => {
   const [searchParams] = useSearchParams();
@@ -22,14 +23,14 @@ const CommunityPayment = () => {
 
   const fetchSettingsAndStatus = async () => {
     try {
-      const settingsResp = await Api.community.settings.get({ noCache: true });
+      const settingsResp = await Api.community.settings.get();
       setMembershipAmount(Number(settingsResp.data?.membership_amount || 0));
       setSalePrice(Number(settingsResp.data?.sale_price || 0));
       setSheetOnlyPrice(Number(settingsResp.data?.sheet_only_price || 0));
       setSheetOnlyLabel(settingsResp.data?.sheet_only_label || "Suppliers only");
       if (isLoggedIn) {
         try {
-          const requestResp = await Api.community.myRequest({ noCache: true });
+          const requestResp = await Api.community.myRequest();
           setRequestStatus(requestResp.data?.request?.status || null);
           setRequestType(requestResp.data?.request?.request_type || null);
         } catch (e) {
@@ -93,7 +94,15 @@ const CommunityPayment = () => {
       const emailVal = (guestEmail || "").trim().toLowerCase();
       if (emailVal) {
         payload.email = emailVal;
-        if ((guestContact || "").trim()) payload.contact = (guestContact || "").trim().slice(0, 20);
+        if ((guestContact || "").trim()) {
+          const normalized = normalizePhone(guestContact);
+          if (!normalized.ok) {
+            toast.error(normalized.error || "Please enter a valid contact number.");
+            setLoading(false);
+            return;
+          }
+          payload.contact = normalized.normalized;
+        }
       }
       const res = await Api.community.initiatePayment(payload);
       if (res.data?.payment_url) {
@@ -209,7 +218,7 @@ const CommunityPayment = () => {
                 <input
                   type="text"
                   value={guestContact}
-                  onChange={(e) => setGuestContact(e.target.value.slice(0, 20))}
+                  onChange={(e) => setGuestContact(e.target.value)}
                   placeholder="e.g. 0244123456"
                   maxLength={20}
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary"
