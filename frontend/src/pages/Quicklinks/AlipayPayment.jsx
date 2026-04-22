@@ -381,14 +381,28 @@ const AlipayPayment = () => {
         <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">
           <strong>Payment Details:</strong>
         </p>
-        <p className="text-base font-semibold text-gray-900 dark:text-white">
-          Amount: {currency === "CEDI" ? "₵" : "¥"} {amount}
-        </p>
-        {convertedAmount > 0 && (
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Converted: {currency === "CEDI" ? "¥" : "₵"} {convertedAmount}
-          </p>
-        )}
+        {(() => {
+          const cur = String(currency || "").toUpperCase();
+          const origAmt = Number(amount ?? 0) || 0;
+          const convAmt = Number(convertedAmount ?? 0) || 0;
+
+          const isCny = cur === "CNY" || cur === "RMB" || cur === "YUAN";
+          const isCedi = cur === "CEDI" || cur === "GHS";
+
+          const cnyAmount = isCny ? origAmt : convAmt;
+          const ghsAmount = isCedi ? origAmt : convAmt;
+
+          return (
+            <div className="space-y-1">
+              <p className="text-base font-semibold text-gray-900 dark:text-white">
+                Amount (CNY): <span className="font-bold">¥ {Number(cnyAmount || 0).toFixed(2)}</span>
+              </p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Amount (GHS): ₵ {Number(ghsAmount || 0).toFixed(2)}
+              </p>
+            </div>
+          );
+        })()}
       </div>
       <p className="text-gray-600 dark:text-gray-400 mb-2">
         You will receive a confirmation email shortly.
@@ -522,10 +536,18 @@ const AlipayPayment = () => {
                   <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg space-y-2">
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-600 dark:text-gray-400">
-                        Name:
+                        MoMo name:
                       </span>
                       <span className="font-semibold text-gray-900 dark:text-white">
-                        Buy Sell Club
+                        BuySellClub
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        Registered name:
+                      </span>
+                      <span className="font-semibold text-gray-900 dark:text-white">
+                        DANIEL TWUMASI
                       </span>
                     </div>
                     <div className="flex justify-between items-center">

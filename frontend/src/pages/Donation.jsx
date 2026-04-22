@@ -53,8 +53,12 @@ const Donation = () => {
             </h4>
             <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg space-y-2">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Name:</span>
-                <span className="font-semibold text-gray-900 dark:text-white">Buy Sell Club</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400">MoMo name:</span>
+                <span className="font-semibold text-gray-900 dark:text-white">BuySellClub</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Registered name:</span>
+                <span className="font-semibold text-gray-900 dark:text-white">DANIEL TWUMASI</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600 dark:text-gray-400">Number:</span>

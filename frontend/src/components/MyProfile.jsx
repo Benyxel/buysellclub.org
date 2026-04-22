@@ -44,6 +44,7 @@ import {
   FaAlipay,
   FaStore,
   FaDownload,
+  FaWhatsapp,
 } from "react-icons/fa";
 import { trackingSystem } from "../utils/trackingSystem";
 import { NOTE_MESSAGE } from "./ShippingTrackingNote";
@@ -169,6 +170,9 @@ const MyProfile = () => {
   const [showAllShipments, setShowAllShipments] = useState(false);
   const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState(null);
+  const [showAirCopyModal, setShowAirCopyModal] = useState(false);
+  const [showSeaCopyModal, setShowSeaCopyModal] = useState(false);
+  const [showRepackCopyModal, setShowRepackCopyModal] = useState(false);
   const [buy4meOrders, setBuy4meOrders] = useState([]);
   const [showAllBuy4meOrders, setShowAllBuy4meOrders] = useState(false);
   const [showAllBuy4meTracking, setShowAllBuy4meTracking] = useState(false);
@@ -176,6 +180,21 @@ const MyProfile = () => {
   const [editingOrderId, setEditingOrderId] = useState(null);
   const [tempOrder, setTempOrder] = useState(null);
   const navigate = useNavigate();
+
+  const AIR_ADDRESS_WHATSAPP_PHONE = "+233540266839";
+
+  useEffect(() => {
+    if (!showAirCopyModal && !showSeaCopyModal && !showRepackCopyModal) return;
+    const onKey = (e) => {
+      if (e.key === "Escape") {
+        setShowAirCopyModal(false);
+        setShowSeaCopyModal(false);
+        setShowRepackCopyModal(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showAirCopyModal, showSeaCopyModal, showRepackCopyModal]);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [selectedInvoiceRequest, setSelectedInvoiceRequest] = useState(null);
@@ -966,6 +985,13 @@ const MyProfile = () => {
   const copyToClipboard = (text, id) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id ?? null);
+    if (typeof id === "string" && id.endsWith("-air")) {
+      setShowAirCopyModal(true);
+    } else if (typeof id === "string" && id.endsWith("-full")) {
+      setShowSeaCopyModal(true);
+    } else if (typeof id === "string" && id.endsWith("-repack")) {
+      setShowRepackCopyModal(true);
+    }
     setTimeout(() => setCopiedId(null), 2000);
   };
 
@@ -1176,6 +1202,7 @@ const MyProfile = () => {
                 shipping_fee: d.shipping_fee ?? "",
                 goods_type: d.goods_type ?? "",
                 eta: d.eta ?? "",
+                container_eta: d.container_eta ?? null,
                 date_added: d.date_added || enriched.date_added,
                 action: d.action || enriched.action,
                 container_number: d.container_number || enriched.container_number || null,
@@ -3071,21 +3098,26 @@ const MyProfile = () => {
                               <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
                                 Air shipping address (China)
                               </p>
-                              <div className="relative">
-                                <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                                  <p className="text-sm text-gray-900 dark:text-white break-all whitespace-pre-line">
-                                    {airAddressText}
-                                  </p>
-                                </div>
+                              <div className="p-4 rounded-lg bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
+                                <p className="text-sm text-gray-800 dark:text-gray-200 mb-3">
+                                  The air address is hidden. Request it on WhatsApp.
+                                </p>
                                 <button
-                                  onClick={() => copyToClipboard(airAddressText, `${copyId}-air`)}
-                                  className="absolute top-3 right-3 p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                                  type="button"
+                                  onClick={() => {
+                                    const clean = AIR_ADDRESS_WHATSAPP_PHONE.replace(/[^\d]/g, "");
+                                    const msg = encodeURIComponent(
+                                      `Hi, I want to request the Air shipping address.\\n\\nMy shipping mark: ${displayShippingMark || ""}`.trim()
+                                    );
+                                    window.open(
+                                      `https://wa.me/${clean}?text=${msg}`,
+                                      "_blank",
+                                      "noopener,noreferrer"
+                                    );
+                                  }}
+                                  className="inline-flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2.5 text-sm font-semibold transition-colors w-full sm:w-auto"
                                 >
-                                  {copiedId === `${copyId}-air` ? (
-                                    <FaCheck className="w-5 h-5 text-green-500" />
-                                  ) : (
-                                    <FaCopy className="w-5 h-5" />
-                                  )}
+                                  Request Air Address (WhatsApp)
                                 </button>
                               </div>
                             </div>
@@ -3528,9 +3560,24 @@ const MyProfile = () => {
                                         ? new Date(
                                             selectedTracking.eta
                                           ).toLocaleDateString()
-                                        : "-"}
+                                        : "Not set"}
                                     </span>
                                   </div>
+                                  {(selectedTracking.container_number ||
+                                    selectedTracking.container_number === 0) && (
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-500 dark:text-gray-400">
+                                        Container ETA:
+                                      </span>
+                                      <span className="font-medium text-gray-900 dark:text-white">
+                                        {selectedTracking.container_eta
+                                          ? new Date(
+                                              selectedTracking.container_eta
+                                            ).toLocaleDateString()
+                                          : "Not set"}
+                                      </span>
+                                    </div>
+                                  )}
                                   <div className="flex justify-between">
                                     <span className="text-gray-500 dark:text-gray-400">
                                       Date Added:
@@ -4643,8 +4690,17 @@ const MyProfile = () => {
                             return "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300";
                           };
                           const dateVal = payment.createdAt ?? payment.created_at;
-                          const cedis = payment.convertedAmount ?? payment.converted_amount ?? null;
-                          const cny = payment.originalAmount ?? payment.original_amount ?? null;
+                          const originalCurrency =
+                            payment.originalCurrency ?? payment.original_currency ?? null;
+                          const originalAmount =
+                            payment.originalAmount ?? payment.original_amount ?? null;
+                          const convertedAmount =
+                            payment.convertedAmount ?? payment.converted_amount ?? null;
+                          // Always compute explicit amounts by currency
+                          const cny =
+                            originalCurrency === "CNY" ? originalAmount : convertedAmount;
+                          const cedis =
+                            originalCurrency === "CEDI" ? originalAmount : convertedAmount;
                           const rate = payment.exchangeRate ?? payment.exchange_rate ?? null;
 
                           return (
@@ -4661,8 +4717,17 @@ const MyProfile = () => {
                                 <span className="flex flex-col gap-0.5">
                                   {cedis != null || cny != null ? (
                                     <>
-                                      {cedis != null && <span className="font-medium text-emerald-600 dark:text-emerald-400">₵{Number(cedis).toFixed(2)}</span>}
-                                      {cny != null && <span className="font-medium text-amber-600 dark:text-amber-400">¥{Number(cny).toFixed(2)}</span>}
+                                      {/* Always show CNY first / emphasized */}
+                                      {cny != null && (
+                                        <span className="font-semibold text-amber-700 dark:text-amber-300">
+                                          ¥{Number(cny).toFixed(2)}
+                                        </span>
+                                      )}
+                                      {cedis != null && (
+                                        <span className="font-medium text-emerald-600 dark:text-emerald-400">
+                                          ₵{Number(cedis).toFixed(2)}
+                                        </span>
+                                      )}
                                     </>
                                   ) : (
                                     <span className="text-gray-500 dark:text-gray-400">-</span>
@@ -5109,6 +5174,199 @@ const MyProfile = () => {
         currentAvatar={selectedAvatar}
         onSelect={handleAvatarSelect}
       />
+
+      {/* Air address copy popup (center) */}
+      {showAirCopyModal && (
+        <div
+          className="fixed inset-0 z-[1200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="air-address-modal-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowAirCopyModal(false);
+          }}
+        >
+          <div
+            className="relative w-full max-w-md rounded-2xl bg-red-50 dark:bg-red-950/50 shadow-2xl border-2 border-red-200 dark:border-red-800/80 p-6 sm:p-8"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2
+              id="air-address-modal-title"
+              className="text-lg font-semibold text-red-900 dark:text-red-100 text-center mb-3"
+            >
+              Air shipping address
+            </h2>
+            <p className="text-sm text-red-800/90 dark:text-red-200/90 text-center mb-3">
+              Please tell us the product you are shipping via air before you use
+              this address.
+            </p>
+            <p className="text-sm text-red-950 dark:text-red-50 text-left mb-4 rounded-lg bg-red-100 dark:bg-red-900/40 border border-red-200 dark:border-red-700/60 p-3 leading-relaxed">
+              Please do not send any package to this address except{" "}
+              <strong>laptops</strong>, <strong>phones</strong>,{" "}
+              <strong>tablets</strong>, and <strong>drones</strong>. If a{" "}
+              <strong>sea</strong> shipment is sent to the <strong>air</strong>{" "}
+              address by mistake, a fee of <strong>370 RMB</strong> applies.
+            </p>
+            <p className="text-sm font-medium text-red-700 dark:text-red-300 text-center mb-6">
+              Copied to clipboard.
+            </p>
+            <div className="flex flex-col items-center gap-4">
+              <button
+                type="button"
+                onClick={() => {
+                  const clean = AIR_ADDRESS_WHATSAPP_PHONE.replace(/[^\d]/g, "");
+                  window.open(
+                    `https://wa.me/${clean}`,
+                    "_blank",
+                    "noopener,noreferrer"
+                  );
+                }}
+                className="flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2.5 text-sm font-semibold transition-colors w-full max-w-xs"
+              >
+                <FaWhatsapp className="text-base shrink-0" />
+                <span>WhatsApp</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowAirCopyModal(false)}
+                className="text-sm font-medium text-red-800 dark:text-red-300 hover:text-red-950 dark:hover:text-red-100"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sea address copy popup (center) */}
+      {showSeaCopyModal && (
+        <div
+          className="fixed inset-0 z-[1200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="sea-address-modal-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowSeaCopyModal(false);
+          }}
+        >
+          <div
+            className="relative w-full max-w-md rounded-2xl bg-red-50 dark:bg-red-950/50 shadow-2xl border-2 border-red-200 dark:border-red-800/80 p-6 sm:p-8"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2
+              id="sea-address-modal-title"
+              className="text-lg font-semibold text-red-900 dark:text-red-100 text-center mb-3"
+            >
+              Sea shipping address
+            </h2>
+            <div className="text-sm text-red-950 dark:text-red-50 text-left mb-4 rounded-lg bg-red-100 dark:bg-red-900/40 border border-red-200 dark:border-red-700/60 p-3 leading-relaxed">
+              <p className="font-semibold mb-2">Important notes</p>
+              <ol className="list-decimal pl-5 space-y-1">
+                <li>
+                  Note: We don’t inspect personal goods for clients. Verify your
+                  products from your suppliers.
+                </li>
+                <li>
+                  Chassis numbers must be provided for motorbikes and tricycles
+                  before we can ship.
+                </li>
+              </ol>
+            </div>
+            <p className="text-sm font-medium text-red-700 dark:text-red-300 text-center mb-6">
+              Copied to clipboard.
+            </p>
+            <div className="flex flex-col items-center gap-4">
+              <button
+                type="button"
+                onClick={() => {
+                  const clean = AIR_ADDRESS_WHATSAPP_PHONE.replace(/[^\d]/g, "");
+                  window.open(
+                    `https://wa.me/${clean}`,
+                    "_blank",
+                    "noopener,noreferrer"
+                  );
+                }}
+                className="flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2.5 text-sm font-semibold transition-colors w-full max-w-xs"
+              >
+                <FaWhatsapp className="text-base shrink-0" />
+                <span>WhatsApp</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowSeaCopyModal(false)}
+                className="text-sm font-medium text-red-800 dark:text-red-300 hover:text-red-950 dark:hover:text-red-100"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Repack address copy popup (center) */}
+      {showRepackCopyModal && (
+        <div
+          className="fixed inset-0 z-[1200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="repack-address-modal-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowRepackCopyModal(false);
+          }}
+        >
+          <div
+            className="relative w-full max-w-md rounded-2xl bg-red-50 dark:bg-red-950/50 shadow-2xl border-2 border-red-200 dark:border-red-800/80 p-6 sm:p-8"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2
+              id="repack-address-modal-title"
+              className="text-lg font-semibold text-red-900 dark:text-red-100 text-center mb-3"
+            >
+              Repack address
+            </h2>
+            <div className="text-sm text-red-950 dark:text-red-50 text-left mb-4 rounded-lg bg-red-100 dark:bg-red-900/40 border border-red-200 dark:border-red-700/60 p-3 leading-relaxed">
+              <p className="font-semibold mb-2">Important notes</p>
+              <ol className="list-decimal pl-5 space-y-1">
+                <li>
+                  Note: We don’t inspect personal goods for clients. Verify your
+                  products from your suppliers.
+                </li>
+                <li>
+                  Chassis numbers must be provided for motorbikes and tricycles
+                  before we can ship.
+                </li>
+              </ol>
+            </div>
+            <p className="text-sm font-medium text-red-700 dark:text-red-300 text-center mb-6">
+              Copied to clipboard.
+            </p>
+            <div className="flex flex-col items-center gap-4">
+              <button
+                type="button"
+                onClick={() => {
+                  const clean = AIR_ADDRESS_WHATSAPP_PHONE.replace(/[^\d]/g, "");
+                  window.open(
+                    `https://wa.me/${clean}`,
+                    "_blank",
+                    "noopener,noreferrer"
+                  );
+                }}
+                className="flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2.5 text-sm font-semibold transition-colors w-full max-w-xs"
+              >
+                <FaWhatsapp className="text-base shrink-0" />
+                <span>WhatsApp</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowRepackCopyModal(false)}
+                className="text-sm font-medium text-red-800 dark:text-red-300 hover:text-red-950 dark:hover:text-red-100"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

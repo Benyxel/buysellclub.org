@@ -68,11 +68,12 @@ import NotFound from "./pages/NotFound";
 import LoginPromptModal from "./components/LoginPromptModal";
 import UserView from "./pages/admin/UserView";
 import ScrollToTop from "./components/ScrollToTop";
+import ScrollToTopButton from "./components/ScrollToTopButton";
 
 function App() {
   const location = useLocation();
+  /** null = not fetched yet; show app immediately (no blocking splash). */
   const [maintenance, setMaintenance] = useState(null);
-  const [loading, setLoading] = useState(true);
 
   // Check if current route is an admin, agent, or auth route (should bypass maintenance)
   const currentPath = location.pathname;
@@ -119,35 +120,27 @@ function App() {
         setMaintenance(response.data);
       } catch (error) {
         console.error("Failed to check maintenance status:", error);
-        // If API fails, assume no maintenance
         setMaintenance({ is_enabled: false });
-      } finally {
-        setLoading(false);
       }
     };
 
     checkMaintenance();
-    // Check maintenance status every 30 seconds
     const interval = setInterval(checkMaintenance, 30000);
     return () => clearInterval(interval);
   }, []);
 
   return (
     <>
-      {/* Show maintenance page if enabled and not on admin/agent/auth routes or payment callback */}
-      {!loading && maintenance?.is_enabled && !shouldBypassMaintenance ? (
+      {maintenance?.is_enabled && !shouldBypassMaintenance ? (
         <MaintenancePage
           title={maintenance.title}
           message={maintenance.message}
           estimatedTime={maintenance.estimated_time}
         />
-      ) : loading ? (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-        </div>
       ) : (
         <div className="min-h-screen flex flex-col bg-gray-50">
           <ScrollToTop />
+          <ScrollToTopButton />
           <Routes>
             {/* Auth pages without Navbar and Footer */}
             <Route path="/Login" element={<Login />} />

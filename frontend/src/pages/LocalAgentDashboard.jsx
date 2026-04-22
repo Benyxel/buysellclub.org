@@ -26,8 +26,8 @@ const LocalAgentDashboard = () => {
       preparing: "Preparing",
       loading: "Loading",
       in_transit: "In Transit",
-      arrived_port: "Arrived at Port",
       clearing: "Clearing",
+      arrived_port: "Offloaded",
       completed: "Completed",
     };
     return map[status] || status || "Unknown";

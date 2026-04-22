@@ -50,8 +50,8 @@ const ContainerManagement = () => {
     { value: "preparing", label: "Preparing" },
     { value: "loading", label: "Loading" },
     { value: "in_transit", label: "In Transit" },
-    { value: "arrived_port", label: "Arrived at Port" },
     { value: "clearing", label: "Clearing" },
+    { value: "arrived_port", label: "Offloaded" },
     { value: "completed", label: "Completed" },
   ];
 
@@ -168,18 +168,29 @@ const ContainerManagement = () => {
     }));
   };
 
+  const buildContainerPayload = () => ({
+    ...formData,
+    departure_date: formData.departure_date || null,
+    arrival_date: formData.arrival_date || null,
+    display_cbm:
+      formData.display_cbm === "" || formData.display_cbm == null
+        ? null
+        : formData.display_cbm,
+  });
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
+      const payload = buildContainerPayload();
       if (currentContainer) {
         // Update existing container
-        await api.put(`/api/admin/containers/${currentContainer.id}`, formData);
+        await api.put(`/api/admin/containers/${currentContainer.id}`, payload);
         toast.success("Container updated successfully");
       } else {
         // Create new container
-        await api.post("/api/admin/containers", formData);
+        await api.post("/api/admin/containers", payload);
         toast.success("Container created successfully");
       }
 
@@ -273,10 +284,10 @@ const ContainerManagement = () => {
         "bg-gradient-to-r from-blue-400 to-cyan-500 text-white shadow-sm",
       in_transit:
         "bg-gradient-to-r from-purple-400 to-pink-500 text-white shadow-sm",
-      arrived_port:
-        "bg-gradient-to-r from-green-400 to-emerald-500 text-white shadow-sm",
       clearing:
         "bg-gradient-to-r from-orange-400 to-red-500 text-white shadow-sm",
+      arrived_port:
+        "bg-gradient-to-r from-green-400 to-emerald-500 text-white shadow-sm",
       completed:
         "bg-gradient-to-r from-gray-400 to-gray-500 text-white shadow-sm",
     };
@@ -420,14 +431,14 @@ const ContainerManagement = () => {
                           ? `Dep: ${new Date(
                               container.departure_date
                             ).toLocaleDateString()}`
-                          : "No departure"}
+                          : "Dep: Not set"}
                       </div>
                       <div>
                         {container.arrival_date
-                          ? `Arr: ${new Date(
+                          ? `ETA: ${new Date(
                               container.arrival_date
                             ).toLocaleDateString()}`
-                          : "No arrival"}
+                          : "ETA: Not set"}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
@@ -575,7 +586,7 @@ const ContainerManagement = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Departure Date
+                    Departure date <span className="text-gray-500 font-normal">(optional)</span>
                   </label>
                   <input
                     type="date"
@@ -584,11 +595,14 @@ const ContainerManagement = () => {
                     onChange={handleInputChange}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Leave blank to set later when you edit the container.
+                  </p>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Arrival Date
+                    Arrival / ETA <span className="text-gray-500 font-normal">(optional)</span>
                   </label>
                   <input
                     type="date"
@@ -597,6 +611,9 @@ const ContainerManagement = () => {
                     onChange={handleInputChange}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Leave blank if ETA is not known yet; users will see &quot;Not set&quot;.
+                  </p>
                 </div>
 
                 <div className="col-span-2">

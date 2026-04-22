@@ -492,7 +492,11 @@ const Buy4me = () => {
             ],
           });
         } catch (error) {
-          const errMsg = error.response?.data?.error || error.response?.data?.detail || "Failed to submit order. Please try again.";
+          const errMsg =
+            error.response?.data?.error ||
+            error.response?.data?.detail ||
+            error.response?.data?.message ||
+            "Failed to submit order. Please try again.";
           toast.error(errMsg);
         }
         setIsSubmittingBuy4me(false);

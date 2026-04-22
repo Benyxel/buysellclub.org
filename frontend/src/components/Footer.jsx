@@ -10,243 +10,220 @@ import {
   FaMapMarkerAlt,
 } from "react-icons/fa";
 import buysellogo from "../assets/buysellogo.png";
-import buysellogod from "../assets/buysellogod.png";
+
+const linkClass =
+  "text-slate-400 hover:text-white transition-colors text-sm leading-relaxed block";
+
+const headingClass =
+  "text-white font-semibold text-sm tracking-wide mb-4 text-left";
 
 const Footer = () => {
   return (
-    <footer className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 mt-auto">
-      <div className="container mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-          {/* Company Info */}
-          <div className="space-y-4 text-center md:text-left">
-            <Link to="/" className="inline-block mx-auto md:mx-0">
-              {/* Light mode logo */}
-              <img
-                src={buysellogod}
-                alt="BuySellClub Logo"
-                className="h-12 md:h-14 object-contain dark:hidden"
-              />
-              {/* Dark mode logo */}
-              <img
-                src={buysellogo}
-                alt="BuySellClub Logo"
-                className="h-12 md:h-14 object-contain hidden dark:block"
-              />
-            </Link>
-            <p className="text-gray-600 dark:text-gray-400 text-sm">
-              Your one-stop destination for quality products and exceptional
-              service. We bring the best products to your doorstep.
-            </p>
-            <div className="flex justify-center md:justify-start space-x-4">
-              <a
-                href="#"
-                className="text-gray-400 hover:text-primary transition-colors"
-              >
-                <FaFacebook className="w-5 h-5" />
-              </a>
-              <a
-                href="#"
-                className="text-gray-400 hover:text-primary transition-colors"
-              >
-                <FaTwitter className="w-5 h-5" />
-              </a>
-              <a
-                href="#"
-                className="text-gray-400 hover:text-primary transition-colors"
-              >
-                <FaInstagram className="w-5 h-5" />
-              </a>
-              <a
-                href="#"
-                className="text-gray-400 hover:text-primary transition-colors"
-              >
-                <FaLinkedin className="w-5 h-5" />
-              </a>
-            </div>
+    <footer className="bg-slate-900 text-slate-300 mt-auto border-t border-slate-800">
+      <div className="container mx-auto px-4 py-10 md:py-12">
+        {/* Logo + tagline + social — centered on mobile (Odoo-style), left on large screens */}
+        <div className="text-center lg:text-left mb-10 lg:mb-12 pb-10 border-b border-slate-700/80">
+          <Link to="/" className="inline-block">
+            <img
+              src={buysellogo}
+              alt="BuySellClub Logo"
+              className="h-12 md:h-14 object-contain mx-auto lg:mx-0"
+            />
+          </Link>
+          <p className="text-slate-400 text-sm mt-4 max-w-md mx-auto lg:mx-0">
+            Your one-stop destination for quality products and exceptional
+            service. We bring the best products to your doorstep.
+          </p>
+          <div className="flex justify-center lg:justify-start gap-4 mt-5">
+            <a
+              href="#"
+              className="text-slate-500 hover:text-white transition-colors"
+              aria-label="Facebook"
+            >
+              <FaFacebook className="w-5 h-5" />
+            </a>
+            <a
+              href="#"
+              className="text-slate-500 hover:text-white transition-colors"
+              aria-label="Twitter"
+            >
+              <FaTwitter className="w-5 h-5" />
+            </a>
+            <a
+              href="#"
+              className="text-slate-500 hover:text-white transition-colors"
+              aria-label="Instagram"
+            >
+              <FaInstagram className="w-5 h-5" />
+            </a>
+            <a
+              href="#"
+              className="text-slate-500 hover:text-white transition-colors"
+              aria-label="LinkedIn"
+            >
+              <FaLinkedin className="w-5 h-5" />
+            </a>
           </div>
+        </div>
 
-          {/* Quick Links */}
-          <div className="text-center md:text-left">
-            <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
-              Quick Links
-            </h3>
-            <ul className="space-y-2">
+        {/* Mobile: 2-column grid (Odoo-style). Desktop: 4 columns */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-10 lg:gap-8 text-left">
+          <div>
+            <h3 className={headingClass}>Quick links</h3>
+            <ul className="space-y-2.5">
               <li>
-                <Link
-                  to="/Shop"
-                  className="text-gray-600 dark:text-gray-400 hover:text-primary transition-colors"
-                >
+                <Link to="/Shop" className={linkClass}>
                   Shop
                 </Link>
               </li>
               <li>
-                <Link
-                  to="/Signup"
-                  className="text-gray-600 dark:text-gray-400 hover:text-primary transition-colors"
-                >
-                  Sign Up
+                <Link to="/Signup" className={linkClass}>
+                  Sign up
                 </Link>
               </li>
               <li>
-                <Link
-                  to="/Services"
-                  className="text-gray-600 dark:text-gray-400 hover:text-primary transition-colors"
-                >
+                <Link to="/Services" className={linkClass}>
                   Services
                 </Link>
               </li>
               <li>
-                <Link
-                  to="/tracking"
-                  className="text-gray-600 dark:text-gray-400 hover:text-primary transition-colors"
-                >
-                  Tracking
+                <Link to="/About" className={linkClass}>
+                  About us
                 </Link>
               </li>
               <li>
-                <Link
-                  to="/QuickTracking"
-                  className="text-gray-600 dark:text-gray-400 hover:text-primary transition-colors"
-                >
-                  Quick Tracking
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/OurRates"
-                  className="text-gray-600 dark:text-gray-400 hover:text-primary transition-colors"
-                >
-                  Our Rates
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/About"
-                  className="text-gray-600 dark:text-gray-400 hover:text-primary transition-colors"
-                >
-                  About Us
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/Contact"
-                  className="text-gray-600 dark:text-gray-400 hover:text-primary transition-colors"
-                >
+                <Link to="/Contact" className={linkClass}>
                   Contact
                 </Link>
               </li>
               <li>
-                <Link
-                  to="/Policies"
-                  className="text-gray-600 dark:text-gray-400 hover:text-primary transition-colors"
-                >
-                  Policies & Compliance
+                <Link to="/Policies" className={linkClass}>
+                  Policies &amp; compliance
                 </Link>
               </li>
             </ul>
           </div>
 
-          {/* Customer Service */}
-          <div className="text-center md:text-left">
-            <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
-              Customer Service
-            </h3>
-            <ul className="space-y-2">
+          <div>
+            <h3 className={headingClass}>Shipping &amp; tracking</h3>
+            <ul className="space-y-2.5">
               <li>
-                <Link
-                  to="/Orders"
-                  className="text-gray-600 dark:text-gray-400 hover:text-primary transition-colors"
-                >
-                  Track Order
+                <Link to="/tracking" className={linkClass}>
+                  Tracking
                 </Link>
               </li>
               <li>
-                <Link
-                  to="/Cart"
-                  className="text-gray-600 dark:text-gray-400 hover:text-primary transition-colors"
-                >
-                  Shopping Cart
+                <Link to="/QuickTracking" className={linkClass}>
+                  Quick tracking
                 </Link>
               </li>
               <li>
-                <Link
-                  to="/Favorites"
-                  className="text-gray-600 dark:text-gray-400 hover:text-primary transition-colors"
-                >
+                <Link to="/OurRates" className={linkClass}>
+                  Our rates
+                </Link>
+              </li>
+              <li>
+                <Link to="/Training" className={linkClass}>
+                  Training
+                </Link>
+              </li>
+              <li>
+                <Link to="/Gallery" className={linkClass}>
+                  Gallery
+                </Link>
+              </li>
+              <li>
+                <Link to="/Community" className={linkClass}>
+                  Community
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          <div>
+            <h3 className={headingClass}>Your account</h3>
+            <ul className="space-y-2.5">
+              <li>
+                <Link to="/Orders" className={linkClass}>
+                  Track order
+                </Link>
+              </li>
+              <li>
+                <Link to="/Cart" className={linkClass}>
+                  Shopping cart
+                </Link>
+              </li>
+              <li>
+                <Link to="/Favorites" className={linkClass}>
                   Favorites
                 </Link>
               </li>
               <li>
-                <Link
-                  to="/Checkout"
-                  className="text-gray-600 dark:text-gray-400 hover:text-primary transition-colors"
-                >
+                <Link to="/Checkout" className={linkClass}>
                   Checkout
                 </Link>
               </li>
             </ul>
           </div>
 
-          {/* Contact Info */}
-          <div className="text-center md:text-left">
-            <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
-              Contact Us
-            </h3>
+          <div className="col-span-2 lg:col-span-1 min-w-0">
+            <h3 className={headingClass}>Contact us</h3>
             <ul className="space-y-3">
-              <li className="flex items-start justify-center md:justify-start gap-2 text-gray-600 dark:text-gray-400">
-                <FaPhone className="w-5 h-5 mt-1 text-primary" />
-                <a
-                  href="tel:+233535377248"
-                  className="hover:text-primary transition-colors"
-                >
-                  +233 53 537 7248
-                </a>
-                <span>/</span>
-                <a
-                  href="tel:+233540266839"
-                  className="hover:text-primary transition-colors"
-                >
-                  +233 54 026 6839
-                </a>
+              <li className="flex items-start gap-2 text-slate-400 text-sm">
+                <FaPhone className="w-4 h-4 mt-0.5 text-slate-500 shrink-0" />
+                <span className="flex flex-wrap gap-x-1 gap-y-1">
+                  <a
+                    href="tel:+233535377248"
+                    className="hover:text-white transition-colors"
+                  >
+                    +233 53 537 7248
+                  </a>
+                  <span className="text-slate-600">/</span>
+                  <a
+                    href="tel:+233540266839"
+                    className="hover:text-white transition-colors"
+                  >
+                    +233 54 026 6839
+                  </a>
+                </span>
               </li>
-              <li className="flex items-start justify-center md:justify-start gap-3 text-gray-600 dark:text-gray-400">
-                <FaEnvelope className="w-5 h-5 mt-1 text-primary" />
-                <a 
-                  href="mailto:support@buysellclub.org" 
-                  className="hover:text-primary transition-colors"
+              <li className="flex items-start gap-2 text-slate-400 text-sm">
+                <FaEnvelope className="w-4 h-4 mt-0.5 text-slate-500 shrink-0" />
+                <a
+                  href="mailto:support@buysellclub.org"
+                  className="hover:text-white transition-colors break-all"
                 >
                   support@buysellclub.org
                 </a>
               </li>
-              <li className="flex items-start justify-center md:justify-start gap-1 text-gray-600 dark:text-gray-400">
-                <FaMapMarkerAlt className="w-5 h-5 mt-1 text-primary flex-shrink-0" />
-                <span className="text-center md:text-left max-w-[220px] md:max-w-none">
-                  FOFOOFO GROUP, Israel Palm-plaza, Okropom Street(Pazzy's
-                  Villa), Accra{" "}
+              <li className="flex items-start gap-2 text-slate-400 text-sm">
+                <FaMapMarkerAlt className="w-4 h-4 mt-0.5 text-slate-500 shrink-0" />
+                <span>
+                  FOFOOFO GROUP, Israel Palm-plaza, Okropom Street
+                  (Pazzy&apos;s Villa), Accra
                 </span>
               </li>
             </ul>
           </div>
         </div>
 
-        {/* Bottom Bar */}
-        <div className="border-t border-gray-200 dark:border-gray-800 mt-12 pt-8">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-gray-600 dark:text-gray-400 text-sm">
+        <div className="border-t border-slate-700/80 mt-10 pt-8">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-slate-500">
+            <p>
               © {new Date().getFullYear()} Buysellclub. All rights reserved.
             </p>
-            <div className="flex gap-6 text-sm">
+            <div className="flex flex-wrap justify-center gap-4 md:gap-6">
               <Link
                 to="/Policies#compliance"
-                className="text-gray-600 dark:text-gray-400 hover:text-primary transition-colors"
+                className="hover:text-white transition-colors"
               >
-                Privacy & Data Policy
+                Privacy &amp; data policy
               </Link>
               <Link
                 to="/Policies#operations"
-                className="text-gray-600 dark:text-gray-400 hover:text-primary transition-colors"
+                className="hover:text-white transition-colors"
               >
-                Service Terms
+                Service terms
               </Link>
             </div>
           </div>
@@ -257,4 +234,3 @@ const Footer = () => {
 };
 
 export default Footer;
-

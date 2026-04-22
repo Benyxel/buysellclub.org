@@ -1,44 +1,69 @@
-import React, { useState, useEffect } from "react";
+import React, { Suspense, lazy, useState, useEffect } from "react";
 import HeroSection from "../components/HeroSection";
-import Event from "../components/Event";
-import Category from "../components/Category";
-import Category2 from "../components/Category2";
-import LastestProducts from "../components/LastestProducts";
-import ServicesC from "../components/ServicesC";
 import Banner from "../components/Banner";
-import SupplierBanner from "../components/SupplierBanner";
 import bimg1 from "../assets/bimg1.png";
-import TrendingP from "../components/TrendingP";
-import LatestYouTubeVideos from "../components/LatestYouTubeVideos";
-import ContainerInfoWidget from "../components/ContainerInfoWidget";
-import SupportWidget from "../components/SupportWidget";
 import { Api } from "../api";
 
+const Event = lazy(() => import("../components/Event"));
+const Category = lazy(() => import("../components/Category"));
+const Category2 = lazy(() => import("../components/Category2"));
+const ServicesC = lazy(() => import("../components/ServicesC"));
+const LastestProducts = lazy(() => import("../components/LastestProducts"));
+const TrendingP = lazy(() => import("../components/TrendingP"));
+const LatestYouTubeVideos = lazy(() => import("../components/LatestYouTubeVideos"));
+const SupplierBanner = lazy(() => import("../components/SupplierBanner"));
+const ContainerInfoWidget = lazy(() => import("../components/ContainerInfoWidget"));
+const ContainerShipmentWidget = lazy(() => import("../components/ContainerShipmentWidget"));
+const SupportWidget = lazy(() => import("../components/SupportWidget"));
+
+const BelowFoldFallback = () => (
+  <div className="min-h-[120px] w-full" aria-hidden />
+);
+
 const Home = () => {
-  const [shippingRate, setShippingRate] = useState("240$"); // Default fallback
+  const [shippingRate, setShippingRate] = useState("240$");
   const [specialRate, setSpecialRate] = useState("300$");
 
   useEffect(() => {
-    // Fetch the current shipping rate from backend
-    const fetchShippingRate = async () => {
-      try {
-        const response = await Api.shipping.adRate();
-        if (response.data && response.data.normal_goods_rate) {
-          // Format the rate as "$240" format
-          const rate = parseFloat(response.data.normal_goods_rate).toFixed(0);
-          setShippingRate(`${rate}$`);
-        }
-        if (response.data && response.data.special_goods_rate) {
-          const rate = parseFloat(response.data.special_goods_rate).toFixed(0);
-          setSpecialRate(`${rate}$`);
-        }
-      } catch (error) {
-        console.error("Failed to fetch shipping rate:", error);
-        // Keep default "240$" if fetch fails
+    let cancelled = false;
+    const applyRates = (response) => {
+      if (!response?.data || cancelled) return;
+      if (response.data.normal_goods_rate != null) {
+        const rate = parseFloat(response.data.normal_goods_rate).toFixed(0);
+        setShippingRate(`${rate}$`);
+      }
+      if (response.data.special_goods_rate != null) {
+        const rate = parseFloat(response.data.special_goods_rate).toFixed(0);
+        setSpecialRate(`${rate}$`);
       }
     };
 
-    fetchShippingRate();
+    const load = async () => {
+      try {
+        const response = await Api.shipping.adRate();
+        applyRates(response);
+      } catch (error) {
+        console.error("Failed to fetch shipping rate:", error);
+      }
+    };
+
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      const id = window.requestIdleCallback(() => load(), { timeout: 2500 });
+      return () => {
+        cancelled = true;
+        window.cancelIdleCallback(id);
+      };
+    }
+    if (typeof window === "undefined") {
+      return () => {
+        cancelled = true;
+      };
+    }
+    const t = window.setTimeout(load, 150);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
   }, []);
 
   const BannerData = {
@@ -56,21 +81,26 @@ const Home = () => {
   return (
     <div>
       <HeroSection />
-      <Event />
-      <Category />
-      <Category2 />
-      <ServicesC />
+      <Suspense fallback={<BelowFoldFallback />}>
+        <Event />
+        <Category />
+        <Category2 />
+        <ServicesC />
+      </Suspense>
       <Banner data={BannerData} />
-      <LastestProducts />
-      <TrendingP />
-      <LatestYouTubeVideos />
-      <SupplierBanner />
-      <ContainerInfoWidget />
-      <SupportWidget
-        whatsappPhone="+233540266839"
-        whatsappLabel="WhatsApp"
-        chatLabel="Chat with us"
-      />
+      <Suspense fallback={<BelowFoldFallback />}>
+        <LastestProducts />
+        <TrendingP />
+        <LatestYouTubeVideos />
+        <SupplierBanner />
+        <ContainerShipmentWidget />
+        <ContainerInfoWidget />
+        <SupportWidget
+          whatsappPhone="+233540266839"
+          whatsappLabel="WhatsApp"
+          chatLabel="Chat with us"
+        />
+      </Suspense>
     </div>
   );
 };

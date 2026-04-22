@@ -28,6 +28,7 @@ export default function InvoicesManagement() {
   const [pageSize, setPageSize] = useState(20);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [status, setStatus] = useState("");
   const [ordering, setOrdering] = useState("-created_at");
   const [showDetailsModal, setShowDetailsModal] = useState(false);
@@ -91,7 +92,7 @@ export default function InvoicesManagement() {
         params: {
           page,
           page_size: pageSize,
-          search: search || undefined,
+          search: debouncedSearch || undefined,
           status: status || undefined,
           ordering,
         },
@@ -116,12 +117,21 @@ export default function InvoicesManagement() {
   useEffect(() => {
     fetchInvoices();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, pageSize, status, ordering]);
+  }, [page, pageSize, status, ordering, debouncedSearch]);
+
+  // Auto-filter as user types (debounced)
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setPage(1);
+      setDebouncedSearch(search);
+    }, 350);
+    return () => clearTimeout(t);
+  }, [search]);
 
   const onSearch = (e) => {
     e.preventDefault();
     setPage(1);
-    fetchInvoices();
+    setDebouncedSearch(search);
   };
 
   const handleViewDetails = async (invoiceId) => {

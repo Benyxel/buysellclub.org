@@ -244,9 +244,18 @@ const TrackingManagement = () => {
       };
       await API.patch(`/buysellapi/trackings/${row.id}/`, payload);
       toast.success("Shipping fee updated");
-
-      // Refresh from backend to ensure we have all updated fields
-      await fetchTrackings();
+      // Update locally to avoid reloading the whole table
+      setTrackings((prev) =>
+        prev.map((t) =>
+          t.id === row.id
+            ? {
+                ...t,
+                ShippingFee: payload.shipping_fee,
+                GoodsType: payload.goods_type,
+              }
+            : t
+        )
+      );
     } catch (e) {
       console.error("apply rate error", e);
       toast.error(
@@ -986,7 +995,7 @@ const TrackingManagement = () => {
                     <td className="py-3 px-4 text-gray-900 dark:text-white">
                       {tracking.ETA
                         ? new Date(tracking.ETA).toLocaleDateString()
-                        : "-"}
+                        : "Not set"}
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex items-center space-x-2">
@@ -1509,7 +1518,7 @@ const TrackingManagement = () => {
                     <p className="text-sm text-gray-900 dark:text-white">
                       {viewTracking.ETA
                         ? new Date(viewTracking.ETA).toLocaleDateString()
-                        : "N/A"}
+                        : "Not set"}
                     </p>
                   </div>
                   <div>

@@ -42,6 +42,19 @@ const TrackingSearch = () => {
     return statusMap[statusValue] || statusValue;
   };
 
+  const getContainerStatusLabel = (code) => {
+    if (!code) return null;
+    const map = {
+      preparing: "Preparing",
+      loading: "Loading",
+      in_transit: "In Transit",
+      clearing: "Clearing",
+      arrived_port: "Offloaded",
+      completed: "Completed",
+    };
+    return map[code] || code;
+  };
+
   const fetchActiveRates = async () => {
     try {
       const resp = await API.get("/buysellapi/ad-shipping-rates/");
@@ -155,7 +168,10 @@ const TrackingSearch = () => {
           eta: backendData.eta || null,
           action: backendData.action || null,
           containerNumber: backendData.container_number || null,
-          containerStatus: backendData.container_status || null,
+          containerStatus:
+            backendData.container_status_display ||
+            getContainerStatusLabel(backendData.container_status) ||
+            null,
           containerEta: backendData.container_eta || null,
           statusHistory: [
             {
@@ -368,7 +384,10 @@ const TrackingSearch = () => {
                     <option value="">Select Container *</option>
                     {containers.map((container) => (
                       <option key={container.id} value={container.id}>
-                        {container.container_number} ({container.status})
+                        {container.container_number} (
+                        {container.status_display ||
+                          getContainerStatusLabel(container.status)}
+                        )
                       </option>
                     ))}
                   </select>
@@ -413,7 +432,22 @@ const TrackingSearch = () => {
                   Mark ID: <span className="font-semibold">{markContainerResult.mark_id}</span> | Container: <span className="font-semibold">{markContainerResult.container.container_number}</span>
                 </p>
                 <p className="text-gray-600 dark:text-gray-400 text-sm">
-                  Status: <span className="font-semibold">{markContainerResult.container.status || "N/A"}</span> | ETA: <span className="font-semibold">{markContainerResult.container.eta ? new Date(markContainerResult.container.eta).toLocaleDateString() : "N/A"}</span>
+                  Status:{" "}
+                  <span className="font-semibold">
+                    {markContainerResult.container.status_display ||
+                      getContainerStatusLabel(
+                        markContainerResult.container.status
+                      ) ||
+                      "N/A"}
+                  </span>{" "}
+                  | ETA:{" "}
+                  <span className="font-semibold">
+                    {markContainerResult.container.eta
+                      ? new Date(
+                          markContainerResult.container.eta
+                        ).toLocaleDateString()
+                      : "Not set"}
+                  </span>
                 </p>
               </div>
             </div>
@@ -665,7 +699,7 @@ const TrackingSearch = () => {
                       Status: {trackingResult.containerStatus || "N/A"}
                     </p>
                     <p className="text-gray-700 dark:text-gray-300 text-sm">
-                      ETA: {trackingResult.containerEta ? new Date(trackingResult.containerEta).toLocaleDateString() : "N/A"}
+                      ETA: {trackingResult.containerEta ? new Date(trackingResult.containerEta).toLocaleDateString() : "Not set"}
                     </p>
                   </div>
                 </div>

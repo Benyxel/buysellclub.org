@@ -215,6 +215,9 @@ const AlipayBuyingRateManagement = () => {
               <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
                   <th className="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-200">
+                    Date
+                  </th>
+                  <th className="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-200">
                     User
                   </th>
                   <th className="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-200">
@@ -243,13 +246,34 @@ const AlipayBuyingRateManagement = () => {
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {rows.map(({ payment, profitGhs, profitCny }) => {
                   const paymentId = payment._id || payment.id;
+                  const createdAt = payment.createdAt || payment.created_at || null;
+                  const originalCurrency =
+                    payment.originalCurrency || payment.original_currency || null;
+                  const originalAmount =
+                    payment.originalAmount ?? payment.original_amount ?? null;
+                  const convertedAmount =
+                    payment.convertedAmount ?? payment.converted_amount ?? null;
+                  const cny =
+                    originalCurrency === "CNY" ? originalAmount : convertedAmount;
+                  const cedis =
+                    originalCurrency === "CEDI" ? originalAmount : convertedAmount;
                   return (
                     <tr key={paymentId} className="bg-white dark:bg-gray-800">
+                      <td className="px-3 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                        {createdAt ? new Date(createdAt).toLocaleDateString() : "-"}
+                      </td>
                       <td className="px-3 py-2 text-gray-900 dark:text-gray-100">
                         {payment.userName || payment.realName || "Unknown"}
                       </td>
                       <td className="px-3 py-2 text-gray-700 dark:text-gray-300">
-                        {payment.originalCurrency} {formatMoney(payment.originalAmount)}
+                        <div className="flex flex-col leading-tight">
+                          <span className="font-semibold text-amber-700 dark:text-amber-300">
+                            ¥ {formatMoney(cny)}
+                          </span>
+                          <span className="text-xs text-emerald-700 dark:text-emerald-300">
+                            ₵ {formatMoney(cedis)}
+                          </span>
+                        </div>
                       </td>
                       <td className="px-3 py-2 text-gray-700 dark:text-gray-300">
                         {formatMoney(payment.exchangeRate, 3)}

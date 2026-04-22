@@ -15,6 +15,7 @@ const ContainerInfoWidget = () => {
     rmbRate: null,
     shippingRate: null,
     status: null,
+    statusDisplay: null,
     containerId: null,
     notes: "",
   });
@@ -141,6 +142,8 @@ const ContainerInfoWidget = () => {
       const containerNumber = containerResponse?.data?.container_number || "N/A";
       const totalCbm = containerResponse?.data?.total_cbm || "0.000";
       const containerStatus = containerResponse?.data?.status || null;
+      const containerStatusDisplay =
+        containerResponse?.data?.status_display || null;
       const containerIdFromResponse = containerResponse?.data?.container_id || null;
       const containerNotes = containerResponse?.data?.notes || "";
 
@@ -173,6 +176,7 @@ const ContainerInfoWidget = () => {
         rmbRate: rmbRate ? rmbRate.toFixed(3) : null,
         shippingRate: shippingRate ? shippingRate.toFixed(2) : null,
         status: containerStatus,
+        statusDisplay: containerStatusDisplay,
         containerId: containerIdFromResponse,
         notes: containerNotes,
       });
@@ -184,6 +188,7 @@ const ContainerInfoWidget = () => {
         rmbRate: null,
         shippingRate: null,
         status: null,
+        statusDisplay: null,
         notes: "",
       });
     } finally {
@@ -313,11 +318,23 @@ const ContainerInfoWidget = () => {
                         ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300"
                         : containerInfo.status === "in_transit"
                         ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
-                        : containerInfo.status === "arrived"
+                        : containerInfo.status === "arrived_port"
                         ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
                         : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
                     }`}>
-                      {containerInfo.status.charAt(0).toUpperCase() + containerInfo.status.slice(1).replace("_", " ")}
+                      {containerInfo.statusDisplay ||
+                        (
+                          {
+                            preparing: "Preparing",
+                            loading: "Loading",
+                            in_transit: "In Transit",
+                            clearing: "Clearing",
+                            arrived_port: "Offloaded",
+                            completed: "Completed",
+                          }[containerInfo.status] ||
+                          (containerInfo.status.charAt(0).toUpperCase() +
+                            containerInfo.status.slice(1).replace(/_/g, " "))
+                        )}
                     </span>
                   )}
                   {containerInfo.notes && (

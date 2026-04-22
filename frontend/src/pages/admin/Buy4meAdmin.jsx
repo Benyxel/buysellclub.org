@@ -28,6 +28,7 @@ const Buy4meAdmin = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [invoiceFilter, setInvoiceFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [quickFilter, setQuickFilter] = useState("all"); // all | need_invoice
   const [showInvoiceForm, setShowInvoiceForm] = useState(false);
   const [invoiceAmount, setInvoiceAmount] = useState('');
   const [invoiceProductCostsRmb, setInvoiceProductCostsRmb] = useState([]);
@@ -72,10 +73,67 @@ const Buy4meAdmin = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
+  const [allRequests, setAllRequests] = useState(null); // used for cross-page quick filters
+
+  const fetchAllBuy4meRequests = async (size = 200) => {
+    try {
+      setLoading(true);
+      const firstParams = { page: 1, page_size: size || 200 };
+      if (invoiceFilter && invoiceFilter !== "all") {
+        firstParams.invoice_status = invoiceFilter;
+      }
+      const firstResp = await getAdminBuy4meRequests(firstParams);
+      if (!(firstResp?.data && typeof firstResp.data === "object" && "results" in firstResp.data)) {
+        // If backend doesn't paginate here, fall back to single fetch handler.
+        await fetchBuy4meRequests(1, pageSize);
+        return;
+      }
+
+      const count = firstResp.data.count || 0;
+      const results1 = Array.isArray(firstResp.data.results) ? firstResp.data.results : [];
+      let merged = [...results1];
+
+      const totalPagesToFetch = Math.max(1, Math.ceil(count / (size || 200)));
+      for (let p = 2; p <= totalPagesToFetch; p += 1) {
+        const params = { page: p, page_size: size || 200 };
+        if (invoiceFilter && invoiceFilter !== "all") {
+          params.invoice_status = invoiceFilter;
+        }
+        const resp = await getAdminBuy4meRequests(params);
+        const pageResults = Array.isArray(resp?.data?.results) ? resp.data.results : [];
+        merged = merged.concat(pageResults);
+        if (pageResults.length === 0) break;
+      }
+
+      const transformed = merged.map(transformRequest);
+      setAllRequests(transformed);
+    } catch (error) {
+      console.error("Error fetching all Buy4me requests:", error);
+      const status = error.response?.status;
+      if (status && status >= 400) {
+        const errorMessage =
+          error.response?.data?.error ||
+          error.response?.data?.detail ||
+          error.message ||
+          "Failed to fetch Buy4me requests";
+        toast.error(errorMessage, { toastId: "fetch-buy4me-error" });
+      }
+      setAllRequests([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    fetchBuy4meRequests(currentPage, pageSize);
-  }, [currentPage, pageSize, invoiceFilter]);
+    if (quickFilter === "all") {
+      setAllRequests(null);
+      fetchBuy4meRequests(currentPage, pageSize);
+    } else {
+      // Cross-page quick filters need the full dataset.
+      fetchAllBuy4meRequests();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, pageSize, invoiceFilter, quickFilter]);
 
   // Build product list for invoice: additional_links (incl. image-only slots), or main product, or one row per image when no links
   const getProductsForInvoice = (request) => {
@@ -130,7 +188,7 @@ const Buy4meAdmin = () => {
   }, [showInvoiceForm, selectedRequest?.id, isEditingInvoice, selectedRequest?.additional_links, selectedRequest?.product_url, selectedRequest?.link, selectedRequest?.quantity, selectedRequest?.images, selectedRequest?.invoice, selectedRequest?.invoice_product_costs_rmb, selectedRequest?.invoice_product_quantities, selectedRequest?.invoice_rmb_to_ghs_rate]);
 
   // Pagination handlers
-  const totalPages = Math.ceil(total / pageSize);
+  const totalPages = effectiveTotalPages;
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= totalPages) {
       setCurrentPage(newPage);
@@ -594,8 +652,20 @@ const Buy4meAdmin = () => {
     }
   };
 
-  const filteredRequests = requests
+  const baseRequests = quickFilter === "all" ? requests : allRequests || [];
+
+  const filteredRequests = baseRequests
     .filter(request => statusFilter === 'all' || request.status === statusFilter)
+    .filter((request) => {
+      if (quickFilter === "all") return true;
+      const hasTracking = Boolean((request.tracking_status || "").trim());
+      const hasInvoice = Boolean(request.invoice || request.invoice_created || request.invoice_number);
+      if (quickFilter === "need_invoice") {
+        // Needs invoice creation (approved + no invoice yet)
+        return request.status === "approved" && !hasInvoice;
+      }
+      return true;
+    })
     .filter(request => {
       const searchLower = searchTerm.toLowerCase();
       return (
@@ -605,6 +675,13 @@ const Buy4meAdmin = () => {
         String(request.id || request._id || '').includes(searchTerm)
       );
     });
+
+  const effectiveTotal = quickFilter === "all" ? total : filteredRequests.length;
+  const effectiveTotalPages = Math.max(1, Math.ceil(effectiveTotal / pageSize));
+  const pagedRequests =
+    quickFilter === "all"
+      ? filteredRequests
+      : filteredRequests.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   // Bulk actions handlers
   const handleSelectRequest = (requestId) => {
@@ -798,6 +875,35 @@ const Buy4meAdmin = () => {
               <option value="cancelled">Cancelled Invoices</option>
               <option value="draft">Draft Invoices</option>
             </select>
+
+            <div className="hidden md:flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setQuickFilter("need_invoice");
+                  setStatusFilter("approved");
+                  setCurrentPage(1);
+                }}
+                className={`px-3 py-2 text-sm font-medium rounded-md border transition-colors ${
+                  quickFilter === "need_invoice"
+                    ? "bg-amber-600 border-amber-600 text-white"
+                    : "bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600"
+                }`}
+                title="Approved requests that need invoice creation"
+              >
+                Create invoice
+              </button>
+              {quickFilter !== "all" && (
+                <button
+                  type="button"
+                  onClick={() => setQuickFilter("all")}
+                  className="px-3 py-2 text-sm font-medium rounded-md border bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600"
+                  title="Clear quick filter"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
             
             <button
               onClick={fetchBuy4meRequests}
@@ -885,7 +991,7 @@ const Buy4meAdmin = () => {
                   </td>
                 </tr>
               ) : (
-                filteredRequests.map(request => (
+                pagedRequests.map(request => (
                   <tr key={request.id || request._id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <input
@@ -1017,12 +1123,12 @@ const Buy4meAdmin = () => {
       </div>
 
       {/* Pagination */}
-      {total > 0 && (
+      {effectiveTotal > 0 && (
         <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-4 bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
           <div className="flex items-center gap-4">
             <span className="text-sm text-gray-600 dark:text-gray-400">
-              Showing {(currentPage - 1) * pageSize + 1} to{" "}
-              {Math.min(currentPage * pageSize, total)} of {total} requests
+              Showing {effectiveTotal === 0 ? 0 : (currentPage - 1) * pageSize + 1} to{" "}
+              {Math.min(currentPage * pageSize, effectiveTotal)} of {effectiveTotal} requests
             </span>
             <select
               value={pageSize}

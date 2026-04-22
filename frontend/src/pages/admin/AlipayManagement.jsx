@@ -856,18 +856,28 @@ const AlipayManagement = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900 dark:text-white font-semibold">
-                            {payment.originalCurrency === "CEDI" ? "₵" : "¥"}{" "}
-                            {Number(payment.originalAmount ?? 0).toFixed(2)}
+                            {/* Always show CNY first to prevent miscalculation */}
+                            ¥{" "}
+                            {Number(
+                              payment.originalCurrency === "CNY"
+                                ? payment.originalAmount ?? 0
+                                : payment.convertedAmount ?? 0
+                            ).toFixed(2)}
                           </div>
                           <div className="mt-1 flex items-center gap-2">
                             <span className="text-[11px] text-gray-500 dark:text-gray-400">
-                              Converted:
+                              ₵
                             </span>
                             <span className="text-[11px] font-medium text-gray-700 dark:text-gray-300">
-                              {payment.convertedCurrency === "CEDI" ? "₵" : "¥"}{" "}
-                              {Number(payment.convertedAmount ?? 0).toFixed(2)}
+                              {Number(
+                                payment.originalCurrency === "CEDI"
+                                  ? payment.originalAmount ?? 0
+                                  : payment.convertedAmount ?? 0
+                              ).toFixed(2)}
                             </span>
-                            {currencyPill(payment.convertedCurrency)}
+                            <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                              {currencyPill("CEDI")}
+                            </span>
                           </div>
                           <div className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
                             @ rate{" "}
@@ -1023,15 +1033,31 @@ const AlipayManagement = () => {
                     <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">
                       Payment Amount
                     </h4>
-                    <p className="text-lg font-bold text-gray-900 dark:text-white">
-                      {selectedPayment.originalCurrency === "CEDI" ? "₵" : "¥"}{" "}
-                      {Number(selectedPayment.originalAmount ?? 0).toFixed(2)}
-                    </p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      Converted:{" "}
-                      {selectedPayment.convertedCurrency === "CEDI" ? "₵" : "¥"}{" "}
-                      {Number(selectedPayment.convertedAmount ?? 0).toFixed(2)}
-                    </p>
+                    {(() => {
+                      const origCur = String(selectedPayment.originalCurrency || "").toUpperCase();
+                      const convCur = String(selectedPayment.convertedCurrency || "").toUpperCase();
+                      const origAmt = Number(selectedPayment.originalAmount ?? 0) || 0;
+                      const convAmt = Number(selectedPayment.convertedAmount ?? 0) || 0;
+
+                      const isOrigCny = origCur === "CNY" || origCur === "RMB" || origCur === "YUAN";
+                      const isOrigCedi = origCur === "CEDI" || origCur === "GHS";
+                      const isConvCny = convCur === "CNY" || convCur === "RMB" || convCur === "YUAN";
+                      const isConvCedi = convCur === "CEDI" || convCur === "GHS";
+
+                      const cnyAmount = isOrigCny ? origAmt : isConvCny ? convAmt : 0;
+                      const ghsAmount = isOrigCedi ? origAmt : isConvCedi ? convAmt : 0;
+
+                      return (
+                        <div className="space-y-1">
+                          <p className="text-lg font-bold text-gray-900 dark:text-white">
+                            ¥ {cnyAmount.toFixed(2)}
+                          </p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            ₵ {ghsAmount.toFixed(2)}
+                          </p>
+                        </div>
+                      );
+                    })()}
                     <p className="text-xs text-gray-500 dark:text-gray-400">
                       Exchange Rate:{" "}
                       {Number(selectedPayment.exchangeRate || 0).toFixed(3)}

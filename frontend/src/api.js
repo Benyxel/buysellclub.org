@@ -612,6 +612,8 @@ const Api = {
       }),
     submitRequest: (payload) => http.post("/buysellapi/community/requests/", payload),
     initiatePayment: (payload) => http.post("/buysellapi/community/requests/initiate-payment/", payload),
+    submitInternationalMomo: (payload) =>
+      http.post("/buysellapi/community/requests/international-momo-submit/", payload),
     setPasswordValidate: (token) =>
       http.get("/buysellapi/community/set-password/validate/", { params: { token } }),
     setPasswordSubmit: (payload) =>

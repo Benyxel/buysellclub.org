@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { FaUsers, FaCheckCircle, FaClock, FaTimesCircle, FaQuoteLeft, FaTimes } from "react-icons/fa";
+import { FaUsers, FaCheckCircle, FaClock, FaTimesCircle, FaQuoteLeft, FaTimes, FaLock } from "react-icons/fa";
 import { toast } from "../../utils/toast";
 import { Api } from "../../api";
 import comment1 from "../../assets/comments/WhatsApp Image 2026-02-06 at 3.01.03 PM.jpeg";
@@ -33,6 +33,7 @@ const statusConfig = {
 const JoinCommunity = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [priceJumpCountdown, setPriceJumpCountdown] = useState("");
   const [settings, setSettings] = useState({
     membership_amount: 0,
     sale_price: 0,
@@ -117,6 +118,58 @@ const JoinCommunity = () => {
       window.removeEventListener("focus", handleFocus);
       window.removeEventListener("storage", handleStorage);
     };
+  }, []);
+
+  useEffect(() => {
+    const STORAGE_KEY = "communityPriceJumpCycleStartMs_1h";
+    const CYCLE_MS = 60 * 60 * 1000; // 1 hour
+
+    const getStartMs = () => {
+      const raw = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
+      const parsed = raw ? Number(raw) : NaN;
+      if (Number.isFinite(parsed) && parsed > 0) return parsed;
+      const now = Date.now();
+      try {
+        localStorage.setItem(STORAGE_KEY, String(now));
+      } catch {
+        // ignore storage failures
+      }
+      return now;
+    };
+
+    let startMs = getStartMs();
+
+    const formatRemaining = (ms) => {
+      const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+      const h = Math.floor(totalSeconds / 3600);
+      const m = Math.floor((totalSeconds % 3600) / 60);
+      const s = totalSeconds % 60;
+      const pad = (n) => String(n).padStart(2, "0");
+      return `${pad(h)}:${pad(m)}:${pad(s)}`;
+    };
+
+    const tick = () => {
+      const now = Date.now();
+      const elapsed = now - startMs;
+      const inCycle = ((elapsed % CYCLE_MS) + CYCLE_MS) % CYCLE_MS;
+      const remaining = CYCLE_MS - inCycle;
+
+      // When we hit the end of cycle, reset start time to keep a clean loop.
+      if (remaining <= 1000) {
+        startMs = now;
+        try {
+          localStorage.setItem(STORAGE_KEY, String(startMs));
+        } catch {
+          // ignore storage failures
+        }
+      }
+
+      setPriceJumpCountdown(formatRemaining(remaining));
+    };
+
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
   }, []);
 
   useEffect(() => {
@@ -311,6 +364,26 @@ const JoinCommunity = () => {
             >
               Join Telegram Group
             </a>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <Link
+                to="/Community/WinningProducts"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-medium text-sm"
+              >
+                Winning products
+              </Link>
+              <Link
+                to="/Community/VideoTutorials"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-medium text-sm"
+              >
+                Video tutorials
+              </Link>
+              <Link
+                to="/Community/ToolsDownloads"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm"
+              >
+                Tools &amp; downloads
+              </Link>
+            </div>
               </>
             ) : null}
             {hasSheetAccess ? (
@@ -374,6 +447,27 @@ const JoinCommunity = () => {
                 Get Access
               </button>
             )}
+            </div>
+            <div className="mt-4 w-full max-w-md">
+              <div className="rounded-xl border border-pink-200/80 dark:border-pink-500/30 bg-pink-100 dark:bg-pink-500/10 px-4 py-3 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-pink-950 dark:text-pink-100">
+                      Price will jump to <span className="font-extrabold">GHS 1500</span> soon
+                    </p>
+                    <p className="mt-1 text-xs text-pink-900/70 dark:text-pink-100/70 flex items-center gap-1.5">
+                      <FaLock className="text-pink-700 dark:text-pink-200" />
+                      <span>Secure your spot now before the price changes.</span>
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 rounded-full bg-white/85 dark:bg-pink-500/10 border border-pink-200 dark:border-pink-500/30 px-3 py-1.5 shadow-sm">
+                    <FaClock className="text-pink-600 dark:text-pink-300" />
+                    <span className="font-mono text-sm font-bold text-pink-950 dark:text-pink-100">
+                      {priceJumpCountdown || "01:00:00"}
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}

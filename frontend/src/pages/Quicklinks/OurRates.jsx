@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, memo } from "react";
 import { Link } from "react-router-dom";
 import {
   FaPlaneDeparture,
@@ -15,6 +15,57 @@ import {
 import { Api } from "../../api";
 import airImg from "../../assets/air.jpg";
 import seaImg from "../../assets/sea.jpg";
+
+function formatMoney(value, currency) {
+  if (value === null || value === undefined || value === "") return "--";
+  const numberValue = Number(value);
+  if (Number.isNaN(numberValue)) return `${currency} ${value}`;
+  return `${currency} ${numberValue.toFixed(2)}`;
+}
+
+function getAirUnitLabel(serviceName = "") {
+  const name = serviceName.toLowerCase();
+  if (name.includes("phone") || name.includes("mobile")) {
+    return "per phone";
+  }
+  return "per kg";
+}
+
+const AirServiceRow = memo(function AirServiceRow({ service }) {
+  const unitLabel = getAirUnitLabel(service.name);
+  return (
+    <div
+      className="rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 p-5 md:px-6 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+      style={{ contain: "layout style" }}
+    >
+      <div className="grid gap-3 md:grid-cols-[2fr_1.2fr_1fr_1fr] md:items-center">
+        <div>
+          <h4 className="text-lg md:text-xl font-semibold text-gray-900 dark:text-white">
+            {service.name}
+          </h4>
+          <p className="text-sm text-gray-500 dark:text-white/50 mt-1 md:hidden">
+            {service.days_text}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 text-gray-600 dark:text-white/70 text-sm md:text-base">
+          <FaClock className="text-pink-500 dark:text-pink-400 shrink-0 text-base" />
+          <span>{service.days_text}</span>
+        </div>
+        <div>
+          <span className="text-sm font-semibold text-pink-700 dark:text-pink-300 bg-pink-100 dark:bg-pink-500/20 border border-pink-200 dark:border-pink-400/30 px-3 py-1.5 rounded-full">
+            {service.currency}
+          </span>
+        </div>
+        <div className="flex items-baseline gap-2 md:justify-end">
+          <p className="text-xl font-bold text-gray-900 dark:text-white">
+            {formatMoney(service.price, service.currency)}
+          </p>
+          <span className="text-sm text-gray-500 dark:text-white/50">{unitLabel}</span>
+        </div>
+      </div>
+    </div>
+  );
+});
 
 const OurRates = () => {
   const [airServices, setAirServices] = useState([]);
@@ -61,22 +112,6 @@ const OurRates = () => {
       isMounted = false;
     };
   }, []);
-
-
-  const formatMoney = (value, currency) => {
-    if (value === null || value === undefined || value === "") return "--";
-    const numberValue = Number(value);
-    if (Number.isNaN(numberValue)) return `${currency} ${value}`;
-    return `${currency} ${numberValue.toFixed(2)}`;
-  };
-
-  const getAirUnitLabel = (serviceName = "") => {
-    const name = serviceName.toLowerCase();
-    if (name.includes("phone") || name.includes("mobile")) {
-      return "per phone";
-    }
-    return "per kg";
-  };
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-white">
@@ -179,7 +214,7 @@ const OurRates = () => {
       {/* Air section: full-bleed air.jpg + glass card */}
       <section id="air-rates" className="relative min-h-[80vh] flex items-center py-20 overflow-hidden">
         <div
-          className="absolute inset-0 bg-cover bg-center bg-fixed"
+          className="absolute inset-0 bg-cover bg-center bg-scroll"
           style={{ backgroundImage: `url(${airImg})` }}
           aria-hidden
         />
@@ -210,7 +245,7 @@ const OurRates = () => {
             </div>
           ) : (
             <div className="max-w-4xl mx-auto">
-              <div className="rounded-3xl bg-white/80 dark:bg-white/10 backdrop-blur-2xl border border-gray-200 dark:border-white/20 shadow-2xl overflow-hidden chrome-border-animation dark:bg-gray-900/40">
+              <div className="rounded-3xl bg-white/90 dark:bg-gray-900/85 border border-gray-200 dark:border-white/20 shadow-xl overflow-hidden dark:shadow-black/40">
                 <div className="p-6 md:p-8 border-b border-gray-200 dark:border-white/10">
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div>
@@ -232,37 +267,12 @@ const OurRates = () => {
                     <span className="text-right">Price / unit</span>
                   </div>
                   <div className="mt-4 space-y-3">
-                    {airServices.map((service) => {
-                      const unitLabel = getAirUnitLabel(service.name);
-                      return (
-                        <div
-                          key={service.id || `${service.name}-${service.days_text}`}
-                          className="rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 p-5 md:px-6 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
-                        >
-                          <div className="grid gap-3 md:grid-cols-[2fr_1.2fr_1fr_1fr] md:items-center">
-                            <div>
-                              <h4 className="text-lg md:text-xl font-semibold text-gray-900 dark:text-white">{service.name}</h4>
-                              <p className="text-sm text-gray-500 dark:text-white/50 mt-1 md:hidden">{service.days_text}</p>
-                            </div>
-                            <div className="flex items-center gap-2 text-gray-600 dark:text-white/70 text-sm md:text-base">
-                              <FaClock className="text-pink-500 dark:text-pink-400 shrink-0 text-base" />
-                              <span>{service.days_text}</span>
-                            </div>
-                            <div>
-                              <span className="text-sm font-semibold text-pink-700 dark:text-pink-300 bg-pink-100 dark:bg-pink-500/20 border border-pink-200 dark:border-pink-400/30 px-3 py-1.5 rounded-full">
-                                {service.currency}
-                              </span>
-                            </div>
-                            <div className="flex items-baseline gap-2 md:justify-end">
-                              <p className="text-xl font-bold text-gray-900 dark:text-white">
-                                {formatMoney(service.price, service.currency)}
-                              </p>
-                              <span className="text-sm text-gray-500 dark:text-white/50">{unitLabel}</span>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
+                    {airServices.map((service) => (
+                      <AirServiceRow
+                        key={service.id || `${service.name}-${service.days_text}`}
+                        service={service}
+                      />
+                    ))}
                   </div>
                 </div>
                 <div className="px-6 md:px-8 pb-6 flex flex-wrap justify-center gap-3">
@@ -285,7 +295,7 @@ const OurRates = () => {
       {/* Sea section: full-bleed sea.jpg + glass card */}
       <section id="sea-rates" className="relative min-h-[80vh] flex items-center py-20 overflow-hidden">
         <div
-          className="absolute inset-0 bg-cover bg-center bg-fixed"
+          className="absolute inset-0 bg-cover bg-center bg-scroll"
           style={{ backgroundImage: `url(${seaImg})` }}
           aria-hidden
         />
@@ -316,7 +326,7 @@ const OurRates = () => {
             </div>
           ) : (
             <div className="max-w-2xl mx-auto">
-              <div className="rounded-3xl bg-white/80 dark:bg-white/10 backdrop-blur-2xl border border-gray-200 dark:border-white/20 shadow-2xl overflow-hidden chrome-border-animation dark:bg-gray-900/40">
+              <div className="rounded-3xl bg-white/90 dark:bg-gray-900/85 border border-gray-200 dark:border-white/20 shadow-xl overflow-hidden dark:shadow-black/40">
                 <div className="p-6 md:p-8 border-b border-gray-200 dark:border-white/10 flex items-center justify-between">
                   <div>
                     <h3 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">Sea Shipping</h3>

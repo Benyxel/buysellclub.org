@@ -18,7 +18,7 @@ function Gallery() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const pageSize = 12;
+  const pageSize = 20;
 
   useEffect(() => {
     let mounted = true;
