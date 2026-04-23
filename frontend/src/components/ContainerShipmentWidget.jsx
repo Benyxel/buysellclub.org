@@ -179,10 +179,16 @@ function WaveStrip({ fill = "rgba(59,130,246,0.25)", className = "" }) {
   );
 }
 
-function WaveProgressBar({ progressPct, indeterminate }) {
+function WaveProgressBar({
+  progressPct,
+  indeterminate,
+  heightClass = "h-8",
+}) {
   const widthPct = indeterminate ? 40 : Math.max(2, progressPct ?? 0);
   return (
-    <div className="relative h-8 rounded-full overflow-hidden bg-blue-100/60 dark:bg-blue-900/20 border border-blue-200/60 dark:border-blue-800/40">
+    <div
+      className={`relative ${heightClass} rounded-full overflow-hidden bg-blue-100/60 dark:bg-blue-900/20 border border-blue-200/60 dark:border-blue-800/40`}
+    >
       {/* Base water */}
       <div className="absolute inset-0">
         <WaveStrip
@@ -208,6 +214,113 @@ function WaveProgressBar({ progressPct, indeterminate }) {
   );
 }
 
+/**
+ * Compact Nansha → Tema animation with arrival date and days left (for inline cards).
+ */
+export function TemaPortVoyageMini({
+  departureDate,
+  arrivalDate,
+  containerNumber,
+  className = "",
+}) {
+  const progress = calcProgress({
+    departureDate,
+    arrivalDate,
+  });
+  const arr = parseISODate(arrivalDate);
+  const pct = progress == null ? null : Math.round(progress * 100);
+  const daysLeft = daysUntil(arr);
+  const shipLeft = progress == null ? 0.08 : progress;
+
+  const countdownLabel =
+    arr == null
+      ? "ETA not set"
+      : daysLeft <= 0
+        ? "Arrived or due at Tema Port"
+        : daysLeft === 1
+          ? "1 day to Tema Port"
+          : `${daysLeft} days to Tema Port`;
+
+  const containerLabel =
+    containerNumber != null && String(containerNumber).trim() !== ""
+      ? String(containerNumber).trim()
+      : null;
+
+  return (
+    <>
+      <style>{`
+        @keyframes shipBob {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-3px); }
+        }
+        @keyframes containerWaveSweep {
+          0% { transform: translateX(-70%); }
+          50% { transform: translateX(60%); }
+          100% { transform: translateX(140%); }
+        }
+      `}</style>
+      <div
+        className={`rounded-xl border border-blue-200/60 dark:border-blue-800/50 bg-gradient-to-br from-slate-50 to-blue-50/90 dark:from-gray-900/90 dark:to-blue-950/50 px-3 py-2 shadow-inner ${className}`}
+      >
+        <div
+          className={`mb-1.5 flex min-w-0 flex-nowrap items-baseline gap-2 ${
+            containerLabel ? "justify-between" : "justify-end"
+          }`}
+        >
+          {containerLabel && (
+            <span
+              className="min-w-0 max-w-[58%] truncate text-left text-xs font-bold leading-tight text-gray-900 dark:text-white sm:text-sm font-mono"
+              title={containerLabel}
+            >
+              {containerLabel}
+            </span>
+          )}
+          <p
+            className={`shrink-0 text-right text-[10px] font-semibold uppercase leading-none tracking-wide text-gray-500 dark:text-gray-400 ${
+              containerLabel ? "max-w-[42%] truncate pl-1" : ""
+            }`}
+            title={`${ORIGIN_PORT} → ${DEST_PORT}`}
+          >
+            {ORIGIN_PORT} → {DEST_PORT}
+          </p>
+        </div>
+        <div className="relative h-7 mb-1.5">
+          <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2">
+            <WaveProgressBar
+              heightClass="h-7"
+              indeterminate={progress == null}
+              progressPct={pct ?? 0}
+            />
+          </div>
+          <div
+            className="absolute top-1/2 -translate-y-1/2 z-[1] scale-[0.5] origin-center"
+            style={{
+              left: `calc(${shipLeft * 100}% - 16px)`,
+              transition: "left 600ms ease",
+            }}
+          >
+            <ContainerShipIcon className="drop-shadow-sm animate-[shipBob_2.2s_ease-in-out_infinite]" />
+          </div>
+        </div>
+        <div className="flex flex-nowrap items-center justify-center gap-x-1.5 text-center leading-tight min-w-0 overflow-hidden">
+          <span className="min-w-0 truncate text-xs font-bold text-gray-900 dark:text-white sm:text-sm">
+            {formatDateShort(arr)}
+          </span>
+          <span
+            className="shrink-0 text-gray-300 dark:text-gray-600 select-none"
+            aria-hidden="true"
+          >
+            ·
+          </span>
+          <span className="shrink-0 text-xs font-semibold text-blue-600 dark:text-blue-300">
+            {countdownLabel}
+          </span>
+        </div>
+      </div>
+    </>
+  );
+}
+
 const ContainerShipmentWidget = () => {
   const [loading, setLoading] = useState(false);
   const [containers, setContainers] = useState([]);
@@ -227,7 +340,7 @@ const ContainerShipmentWidget = () => {
         });
         const items = Array.isArray(resp?.data) ? resp.data : [];
         if (!cancelled) setContainers(items);
-      } catch (e) {
+      } catch {
         if (!cancelled) setContainers([]);
       } finally {
         if (!cancelled) setLoading(false);

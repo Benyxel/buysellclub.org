@@ -12,6 +12,7 @@ import {
   FaShip,
 } from "react-icons/fa";
 import API from "../api";
+import { TemaPortVoyageMini } from "./ContainerShipmentWidget";
 
 const TrackingSearch = () => {
   const [searchMode, setSearchMode] = useState("tracking"); // "tracking" or "mark-container"
@@ -91,7 +92,6 @@ const TrackingSearch = () => {
     if (searchMode === "mark-container") {
       fetchContainers();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchMode]);
 
   const handleSearchByMarkContainer = async (e) => {
@@ -162,11 +162,19 @@ const TrackingSearch = () => {
           addedDate: backendData.date_added,
           product: "Package",
           quantity: 1,
-          cbm: backendData.cbm || null,
+          cbm:
+            backendData.cbm_display != null && backendData.cbm_display !== ""
+              ? backendData.cbm_display
+              : backendData.cbm ?? null,
+          bulkGroupId: backendData.bulk_group_id || null,
+          bulkTotalCbm: backendData.bulk_total_cbm,
+          bulkTrackingNumbers: backendData.bulk_tracking_numbers || [],
           shippingFee: backendData.shipping_fee || null,
           goodsType: backendData.goods_type || null,
           eta: backendData.eta || null,
           action: backendData.action || null,
+          containerId: backendData.container ?? null,
+          containerDepartureDate: backendData.container_departure_date || null,
           containerNumber: backendData.container_number || null,
           containerStatus:
             backendData.container_status_display ||
@@ -197,6 +205,9 @@ const TrackingSearch = () => {
       setLoading(false);
     }
   };
+
+  const showTrackingVoyageMini = (tr) =>
+    !!tr && (tr.containerId != null || tr.containerNumber != null);
 
   const getStatusColor = (statusValue) => {
     const normalized = statusValue
@@ -423,8 +434,8 @@ const TrackingSearch = () => {
         {/* Mark ID + Container Results */}
         {markContainerResult && (
           <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 animate-slide-in-up chrome-border-animation">
-            <div className="flex items-center justify-between mb-6 border-b border-gray-200 dark:border-gray-700 pb-4">
-              <div>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-6 border-b border-gray-200 dark:border-gray-700 pb-4">
+              <div className="min-w-0 flex-1">
                 <h3 className="text-xl font-bold text-gray-800 dark:text-white">
                   Container Summary
                 </h3>
@@ -449,6 +460,18 @@ const TrackingSearch = () => {
                       : "Not set"}
                   </span>
                 </p>
+              </div>
+              <div className="w-full sm:max-w-[440px] sm:w-[min(100%,440px)] shrink-0 mx-auto sm:mx-0">
+                <TemaPortVoyageMini
+                  containerNumber={
+                    markContainerResult.container.container_number
+                  }
+                  departureDate={markContainerResult.container.departure_date}
+                  arrivalDate={
+                    markContainerResult.container.arrival_date ||
+                    markContainerResult.container.eta
+                  }
+                />
               </div>
             </div>
 
@@ -512,22 +535,33 @@ const TrackingSearch = () => {
         {/* Single Tracking Result */}
         {trackingResult && (
           <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 animate-slide-in-up chrome-border-animation">
-            <div className="flex items-center justify-between mb-6 border-b border-gray-200 dark:border-gray-700 pb-4 animate-fade-in">
-              <div>
-                <h3 className="text-xl font-bold text-gray-800 dark:text-white">
-                  Tracking Details
-                </h3>
-                <p className="text-gray-600 dark:text-gray-400 text-sm">
-                  Tracking Number: {trackingResult.trackingNumber}
-                </p>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-6 border-b border-gray-200 dark:border-gray-700 pb-4 animate-fade-in">
+              <div className="min-w-0 flex-1 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                <div className="min-w-0">
+                  <h3 className="text-xl font-bold text-gray-800 dark:text-white">
+                    Tracking Details
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-400 text-sm">
+                    Tracking Number: {trackingResult.trackingNumber}
+                  </p>
+                </div>
+                <div
+                  className={`px-4 py-2 rounded-full border shrink-0 self-start ${getStatusColor(
+                    trackingResult.status
+                  )} animate-bounce-in`}
+                >
+                  {trackingResult.status}
+                </div>
               </div>
-              <div
-                className={`px-4 py-2 rounded-full border ${getStatusColor(
-                  trackingResult.status
-                )} animate-bounce-in`}
-              >
-                {trackingResult.status}
-              </div>
+              {showTrackingVoyageMini(trackingResult) && (
+                <div className="w-full sm:max-w-[440px] sm:w-[min(100%,440px)] shrink-0 mx-auto sm:mx-0">
+                  <TemaPortVoyageMini
+                    containerNumber={trackingResult.containerNumber}
+                    departureDate={trackingResult.containerDepartureDate}
+                    arrivalDate={trackingResult.containerEta}
+                  />
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -579,7 +613,7 @@ const TrackingSearch = () => {
                 </div>
               </div>
 
-              {trackingResult.cbm && (
+              {(trackingResult.cbm != null && trackingResult.cbm !== "") && (
                 <div
                   className="flex items-start gap-4 hover-lift animate-fade-in"
                   style={{
@@ -597,7 +631,20 @@ const TrackingSearch = () => {
                     </h4>
                     <p className="font-medium text-gray-800 dark:text-white">
                       {trackingResult.cbm} m³
+                      {trackingResult.bulkGroupId ? (
+                        <span className="ml-2 text-xs text-purple-700 dark:text-purple-300">
+                          (total for your bulk shipment)
+                        </span>
+                      ) : null}
                     </p>
+                    {trackingResult.bulkTrackingNumbers?.length > 1 && (
+                      <p className="mt-2 text-xs text-gray-600 dark:text-gray-400 break-all">
+                        Other numbers in this bulk:{" "}
+                        {trackingResult.bulkTrackingNumbers
+                          .filter((n) => n !== trackingResult.trackingNumber)
+                          .join(", ")}
+                      </p>
+                    )}
                   </div>
                 </div>
               )}
@@ -676,34 +723,41 @@ const TrackingSearch = () => {
                 </div>
               )}
 
-              {(trackingResult.containerNumber || trackingResult.containerNumber === 0) && (
-                <div
-                  className="flex items-start gap-4 hover-lift animate-fade-in"
-                  style={{
-                    animationDelay: "0.7s",
-                    opacity: 0,
-                    animation: "fadeInUp 0.6s ease-out 0.7s forwards",
-                  }}
-                >
-                  <div className="p-3 bg-cyan-50 dark:bg-cyan-900/20 rounded-full transition-all duration-300 hover:scale-110 hover:rotate-6">
-                    <FaBoxOpen className="text-cyan-500" />
+              {!showTrackingVoyageMini(trackingResult) &&
+                (trackingResult.containerNumber ||
+                  trackingResult.containerNumber === 0) && (
+                  <div
+                    className="flex items-start gap-4 hover-lift animate-fade-in"
+                    style={{
+                      animationDelay: "0.7s",
+                      opacity: 0,
+                      animation: "fadeInUp 0.6s ease-out 0.7s forwards",
+                    }}
+                  >
+                    <div className="p-3 bg-cyan-50 dark:bg-cyan-900/20 rounded-full transition-all duration-300 hover:scale-110 hover:rotate-6">
+                      <FaBoxOpen className="text-cyan-500" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                        Container Number
+                      </h4>
+                      <p className="font-medium text-cyan-600 dark:text-cyan-400">
+                        {trackingResult.containerNumber}
+                      </p>
+                      <p className="text-gray-700 dark:text-gray-300 text-sm">
+                        Status: {trackingResult.containerStatus || "N/A"}
+                      </p>
+                      <p className="text-gray-700 dark:text-gray-300 text-sm">
+                        ETA:{" "}
+                        {trackingResult.containerEta
+                          ? new Date(
+                              trackingResult.containerEta
+                            ).toLocaleDateString()
+                          : "Not set"}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="text-sm text-gray-500 dark:text-gray-400 mb-1">
-                      Container Number
-                    </h4>
-                    <p className="font-medium text-cyan-600 dark:text-cyan-400">
-                      {trackingResult.containerNumber}
-                    </p>
-                    <p className="text-gray-700 dark:text-gray-300 text-sm">
-                      Status: {trackingResult.containerStatus || "N/A"}
-                    </p>
-                    <p className="text-gray-700 dark:text-gray-300 text-sm">
-                      ETA: {trackingResult.containerEta ? new Date(trackingResult.containerEta).toLocaleDateString() : "Not set"}
-                    </p>
-                  </div>
-                </div>
-              )}
+                )}
             </div>
 
             {activeRates && (

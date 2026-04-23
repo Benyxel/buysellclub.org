@@ -51,6 +51,7 @@ import { NOTE_MESSAGE } from "./ShippingTrackingNote";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Link } from "react-router-dom";
 import { toast } from "../utils/toast";
+import { apiErrorMessage } from "../utils/apiErrorMessage";
 import "react-toastify/dist/ReactToastify.css";
 import axios from "axios";
 import { API_BASE_URL } from "../config/api";
@@ -2070,6 +2071,11 @@ const MyProfile = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [showAddForm, setShowAddForm] = useState(false);
+    const [showBulkForm, setShowBulkForm] = useState(false);
+    const [bulkNumbersText, setBulkNumbersText] = useState("");
+    const [bulkCbmPerLineText, setBulkCbmPerLineText] = useState("");
+    const [bulkTotalCbm, setBulkTotalCbm] = useState("");
+    const [bulkSubmitting, setBulkSubmitting] = useState(false);
     // Remove Chakra UI toast
     // const { toast } = useToast();
     // use imported API_BASE_URL
@@ -2119,6 +2125,75 @@ const MyProfile = () => {
       }
     };
 
+    const handleBulkCreate = async (e) => {
+      e.preventDefault();
+      const uid = currentUser?.id;
+      if (!uid) {
+        toast.error("Profile not loaded. Refresh and try again.");
+        return;
+      }
+      const numLines = bulkNumbersText
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter(Boolean);
+      const cbmLines = bulkCbmPerLineText
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter(Boolean);
+      const perLine = cbmLines.length > 0;
+      if (perLine && cbmLines.length !== numLines.length) {
+        toast.error(
+          `CBM lines (${cbmLines.length}) must match tracking lines (${numLines.length}) one-to-one.`
+        );
+        return;
+      }
+      let tc = parseFloat(bulkTotalCbm);
+      if (!perLine) {
+        if (!bulkTotalCbm || !Number.isFinite(tc) || tc <= 0) {
+          toast.error(
+            "Enter a valid total CBM, or fill per-line CBM in the second box."
+          );
+          return;
+        }
+      } else if (bulkTotalCbm.trim()) {
+        if (!Number.isFinite(tc) || tc <= 0) {
+          toast.error("Optional total CBM must be valid if provided.");
+          return;
+        }
+      }
+      if (!bulkNumbersText.trim()) {
+        toast.error("Enter your tracking numbers (one per line).");
+        return;
+      }
+      setBulkSubmitting(true);
+      try {
+        const payload = {
+          owner_id: uid,
+          tracking_numbers_text: bulkNumbersText,
+        };
+        if (perLine) {
+          payload.cbm_per_line_text = bulkCbmPerLineText;
+          if (bulkTotalCbm.trim() && Number.isFinite(tc) && tc > 0) {
+            payload.total_cbm = tc;
+          }
+        } else {
+          payload.total_cbm = tc;
+        }
+        await API.post("/buysellapi/trackings/bulk-create/", payload);
+        toast.success("Bulk trackings added.");
+        setShowBulkForm(false);
+        setBulkNumbersText("");
+        setBulkCbmPerLineText("");
+        setBulkTotalCbm("");
+        await fetchTrackings();
+      } catch (err) {
+        const d = err?.response?.data;
+        toast.error(apiErrorMessage(d, "Failed to add bulk trackings."));
+      } finally {
+        setBulkSubmitting(false);
+      }
+    };
+
     const handleDeleteTracking = async (trackingId) => {
       if (
         !window.confirm("Are you sure you want to delete this tracking number?")
@@ -2148,32 +2223,109 @@ const MyProfile = () => {
 
     return (
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex flex-wrap justify-between items-center gap-2 mb-6">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white">
             My Tracking Numbers
           </h2>
-          <button
-            onClick={() => setShowAddForm(!showAddForm)}
-            className="flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          >
-            {showAddForm ? (
-              <>
-                <span className="mr-2">Cancel</span>
-                <FaTimes />
-              </>
-            ) : (
-              <>
-                <span className="mr-2">Add New</span>
-                <FaPlus />
-              </>
-            )}
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setShowBulkForm(false);
+                setShowAddForm(!showAddForm);
+              }}
+              className="flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              {showAddForm ? (
+                <>
+                  <span className="mr-2">Cancel</span>
+                  <FaTimes />
+                </>
+              ) : (
+                <>
+                  <span className="mr-2">Add one</span>
+                  <FaPlus />
+                </>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowAddForm(false);
+                setShowBulkForm(!showBulkForm);
+              }}
+              className="flex items-center px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              {showBulkForm ? "Close bulk" : "Add bulk tracking"}
+            </button>
+          </div>
         </div>
 
         {showAddForm && (
           <div className="mb-6 p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
             <AddTrackingForm onSubmit={handleAddTracking} />
           </div>
+        )}
+
+        {showBulkForm && (
+          <form
+            onSubmit={handleBulkCreate}
+            className="mb-6 p-4 border border-indigo-200 dark:border-indigo-800 rounded-lg space-y-3 bg-indigo-50/50 dark:bg-indigo-950/20"
+          >
+            <p className="text-sm text-gray-700 dark:text-gray-300">
+              Add many tracking numbers at once. Either enter one{" "}
+              <strong>total CBM</strong> for the whole shipment, or one CBM per
+              line (same order as tracking numbers).
+            </p>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Tracking numbers (one per line)
+              </label>
+              <textarea
+                rows={5}
+                value={bulkNumbersText}
+                onChange={(e) => setBulkNumbersText(e.target.value)}
+                className="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white font-mono text-sm"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                CBM per line (optional)
+              </label>
+              <textarea
+                rows={5}
+                value={bulkCbmPerLineText}
+                onChange={(e) => setBulkCbmPerLineText(e.target.value)}
+                className="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white font-mono text-sm"
+                placeholder="One value per non-empty tracking line, or leave blank and use total below."
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Total CBM (whole bulk)
+              </label>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                Required if per-line CBM is empty. If per-line CBM is filled,
+                leave blank or enter the exact sum to verify.
+              </p>
+              <input
+                type="number"
+                step="0.001"
+                min="0"
+                value={bulkTotalCbm}
+                onChange={(e) => setBulkTotalCbm(e.target.value)}
+                className="w-full max-w-xs px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={bulkSubmitting}
+              className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50"
+            >
+              {bulkSubmitting ? "Submitting…" : "Submit bulk"}
+            </button>
+          </form>
         )}
 
         {loading ? (

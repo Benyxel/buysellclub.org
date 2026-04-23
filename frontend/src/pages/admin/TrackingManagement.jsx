@@ -13,6 +13,7 @@ import {
   FaExternalLinkAlt,
 } from "react-icons/fa";
 import { toast } from "../../utils/toast";
+import { apiErrorMessage } from "../../utils/apiErrorMessage";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import API from "../../api";
@@ -57,6 +58,16 @@ const TrackingManagement = () => {
   const [selectedTrackings, setSelectedTrackings] = useState([]);
   const [selectAll, setSelectAll] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showBulkAddForm, setShowBulkAddForm] = useState(false);
+  const [bulkShippingMark, setBulkShippingMark] = useState("");
+  const [bulkMarkSearchOptions, setBulkMarkSearchOptions] = useState([]);
+  const [bulkMarkSearchLoading, setBulkMarkSearchLoading] = useState(false);
+  const [bulkResolvedOwner, setBulkResolvedOwner] = useState(null);
+  const [bulkNumbersText, setBulkNumbersText] = useState("");
+  const [bulkCbmPerLineText, setBulkCbmPerLineText] = useState("");
+  const [bulkTotalCbm, setBulkTotalCbm] = useState("");
+  const [bulkContainerId, setBulkContainerId] = useState("");
+  const [bulkSubmitting, setBulkSubmitting] = useState(false);
   const [editTracking, setEditTracking] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
   const [viewTracking, setViewTracking] = useState(null);
@@ -87,6 +98,7 @@ const TrackingManagement = () => {
   const [markOptions, setMarkOptions] = useState([]);
   const [markLoading, setMarkLoading] = useState(false);
   const markDebounceRef = useRef(null);
+  const bulkMarkDebounceRef = useRef(null);
 
   // Prefill mark when tracking exists (user added first)
   const [prefilledMark, setPrefilledMark] = useState("");
@@ -140,11 +152,20 @@ const TrackingManagement = () => {
           TrackingNum: t.tracking_number,
           ShippingMark: t.shipping_mark || "",
           Status: formatStatusLabel(t.status),
-          CBM: t.cbm || "",
+          CBM:
+            t.cbm_display != null && t.cbm_display !== ""
+              ? String(t.cbm_display)
+              : t.cbm != null && t.cbm !== ""
+              ? String(t.cbm)
+              : "",
+          bulkGroupId: t.bulk_group_id || null,
+          bulkTotalCbm: t.bulk_total_cbm,
+          bulkTrackingNumbers: t.bulk_tracking_numbers || [],
           ShippingFee: t.shipping_fee || "",
           GoodsType: t.goods_type || "",
           ETA: t.eta || "",
           Container: t.container || "",
+          container_id: t.container ?? null,
           ContainerNumber: t.container_number || "",
           AddedDate: t.date_added,
           LastUpdated: t.date_added,
@@ -226,11 +247,15 @@ const TrackingManagement = () => {
       toast.error("No active shipping rates found. Set rates first.");
       return;
     }
-    if (!row.CBM || parseFloat(row.CBM) <= 0) {
+    const cbmForRate =
+      row.bulkGroupId != null && row.bulkTotalCbm != null
+        ? parseFloat(row.bulkTotalCbm)
+        : parseFloat(row.CBM);
+    if (!cbmForRate || cbmForRate <= 0) {
       toast.error("CBM is required and must be greater than 0 to calculate.");
       return;
     }
-    const fee = calculateFeeUsingRates(row.CBM, goodsType, rates);
+    const fee = calculateFeeUsingRates(cbmForRate, goodsType, rates);
     if (fee === null) {
       toast.error(
         "Unable to calculate fee with current rates. Check settings."
@@ -422,10 +447,143 @@ const TrackingManagement = () => {
     } catch (error) {
       console.error("Bulk update failed:", error);
       toast.error(
-        error?.response?.data?.message || "Failed to bulk update tracking statuses"
+        apiErrorMessage(error?.response?.data, "Failed to bulk update tracking statuses")
       );
     } finally {
       setBulkUpdating(false);
+    }
+  };
+
+  const runBulkMarkSearch = async (val) => {
+    const q = (val || "").trim();
+    if (!q) {
+      setBulkMarkSearchOptions([]);
+      return;
+    }
+    try {
+      setBulkMarkSearchLoading(true);
+      const resp = await API.get("/buysellapi/shipping-marks/", {
+        params: { q, page_size: 10 },
+      });
+      const items = Array.isArray(resp.data?.results)
+        ? resp.data.results
+        : Array.isArray(resp.data)
+        ? resp.data
+        : [];
+      setBulkMarkSearchOptions(items);
+    } catch {
+      setBulkMarkSearchOptions([]);
+    } finally {
+      setBulkMarkSearchLoading(false);
+    }
+  };
+
+  const resolveBulkOwnerFromMark = async (markOrUsername) => {
+    const q = (markOrUsername || "").trim();
+    if (!q) {
+      setBulkResolvedOwner(null);
+      return null;
+    }
+    try {
+      const resp = await API.get(
+        `/buysellapi/users/by-mark/${encodeURIComponent(q)}/`
+      );
+      const ownerObj = {
+        id: resp.data.id,
+        username: resp.data.username,
+        full_name: resp.data.full_name,
+      };
+      setBulkResolvedOwner(ownerObj);
+      return ownerObj;
+    } catch (e) {
+      setBulkResolvedOwner(null);
+      toast.error(
+        e?.response?.data?.error ||
+          e?.response?.data?.detail ||
+          "Could not find user for that mark or username"
+      );
+      return null;
+    }
+  };
+
+  const closeBulkAddModal = () => {
+    if (bulkMarkDebounceRef.current) {
+      clearTimeout(bulkMarkDebounceRef.current);
+      bulkMarkDebounceRef.current = null;
+    }
+    setShowBulkAddForm(false);
+  };
+
+  const handleBulkCreateSubmit = async (e) => {
+    e.preventDefault();
+    let owner = bulkResolvedOwner;
+    if (!owner?.id && bulkShippingMark.trim()) {
+      owner = await resolveBulkOwnerFromMark(bulkShippingMark.trim());
+      if (!owner?.id) return;
+    }
+    if (!owner?.id) {
+      toast.error(
+        "Search and select a Mark ID from the list (or enter mark / username and submit)"
+      );
+      return;
+    }
+    const numLines = bulkNumbersText
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean);
+    const cbmLines = bulkCbmPerLineText
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean);
+    const perLine = cbmLines.length > 0;
+    if (perLine && cbmLines.length !== numLines.length) {
+      toast.error(
+        `CBM lines (${cbmLines.length}) must match tracking lines (${numLines.length}) one-to-one.`
+      );
+      return;
+    }
+    let tc = parseFloat(bulkTotalCbm);
+    if (!perLine) {
+      if (!bulkTotalCbm || !Number.isFinite(tc) || tc <= 0) {
+        toast.error(
+          "Enter a valid total CBM for the bulk, or fill per-line CBM below"
+        );
+        return;
+      }
+    } else if (bulkTotalCbm.trim()) {
+      if (!Number.isFinite(tc) || tc <= 0) {
+        toast.error("Optional total CBM must be valid if provided");
+        return;
+      }
+    }
+    if (!bulkNumbersText.trim()) {
+      toast.error("Enter tracking numbers (one per line)");
+      return;
+    }
+    setBulkSubmitting(true);
+    try {
+      const payload = {
+        owner_id: owner.id,
+        tracking_numbers_text: bulkNumbersText,
+        container_id: bulkContainerId ? parseInt(bulkContainerId, 10) : null,
+      };
+      if (perLine) {
+        payload.cbm_per_line_text = bulkCbmPerLineText;
+        if (bulkTotalCbm.trim() && Number.isFinite(tc) && tc > 0) {
+          payload.total_cbm = tc;
+        }
+      } else {
+        payload.total_cbm = tc;
+      }
+      await API.post("/buysellapi/admin/trackings/bulk-create/", payload);
+      toast.success("Bulk trackings created");
+      closeBulkAddModal();
+      await fetchTrackings();
+    } catch (err) {
+      const d = err?.response?.data;
+      toast.error(apiErrorMessage(d, "Bulk create failed"));
+    } finally {
+      setBulkSubmitting(false);
     }
   };
 
@@ -777,6 +935,27 @@ const TrackingManagement = () => {
             className="px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors flex items-center gap-2"
           >
             <FaPlus /> Add Tracking
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (bulkMarkDebounceRef.current) {
+                clearTimeout(bulkMarkDebounceRef.current);
+                bulkMarkDebounceRef.current = null;
+              }
+              setBulkShippingMark("");
+              setBulkMarkSearchOptions([]);
+              setBulkMarkSearchLoading(false);
+              setBulkResolvedOwner(null);
+              setBulkNumbersText("");
+              setBulkCbmPerLineText("");
+              setBulkTotalCbm("");
+              setBulkContainerId("");
+              setShowBulkAddForm(true);
+            }}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2"
+          >
+            <FaPlus /> Bulk tracking
           </button>
           <button
             onClick={exportToCSV}
@@ -1426,6 +1605,164 @@ const TrackingManagement = () => {
         </div>
       )}
 
+      {showBulkAddForm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-lg my-8">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Bulk tracking
+              </h3>
+              <button
+                type="button"
+                onClick={closeBulkAddModal}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400"
+              >
+                <FaTimesCircle />
+              </button>
+            </div>
+            <form onSubmit={handleBulkCreateSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Mark ID{" "}
+                  {bulkResolvedOwner && (
+                    <span className="text-green-600 dark:text-green-400">✓</span>
+                  )}
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Search mark IDs..."
+                    value={bulkShippingMark}
+                    onChange={(e) => {
+                      const val = e.target.value.toUpperCase();
+                      setBulkShippingMark(val);
+                      setBulkResolvedOwner(null);
+                      if (bulkMarkDebounceRef.current) {
+                        clearTimeout(bulkMarkDebounceRef.current);
+                      }
+                      bulkMarkDebounceRef.current = setTimeout(() => {
+                        runBulkMarkSearch(val);
+                      }, 300);
+                    }}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                  {(bulkMarkSearchLoading ||
+                    (bulkMarkSearchOptions && bulkMarkSearchOptions.length > 0)) && (
+                    <div className="absolute z-20 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg max-h-40 overflow-auto">
+                      {bulkMarkSearchLoading && (
+                        <div className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">
+                          Searching...
+                        </div>
+                      )}
+                      {!bulkMarkSearchLoading &&
+                        bulkMarkSearchOptions.map((m) => (
+                          <button
+                            key={m._id || m.id || m.markId}
+                            type="button"
+                            onClick={async () => {
+                              const markId = m.markId || m.mark_id || "";
+                              setBulkShippingMark(markId);
+                              setBulkMarkSearchOptions([]);
+                              await resolveBulkOwnerFromMark(markId);
+                            }}
+                            className="w-full text-left px-3 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-700"
+                          >
+                            {(m.markId || m.mark_id) +
+                              (m.name ? `: ${m.name}` : "")}
+                          </button>
+                        ))}
+                    </div>
+                  )}
+                </div>
+                {bulkResolvedOwner && (
+                  <p className="mt-1 text-sm text-green-700 dark:text-green-400">
+                    Owner: {bulkResolvedOwner.full_name} (@
+                    {bulkResolvedOwner.username}) — id {bulkResolvedOwner.id}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Tracking numbers (one per line)
+                </label>
+                <textarea
+                  rows={6}
+                  value={bulkNumbersText}
+                  onChange={(e) => setBulkNumbersText(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-sm"
+                  placeholder={"TN001\nTN002\nTN003"}
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  CBM per line (optional)
+                </label>
+                <textarea
+                  rows={6}
+                  value={bulkCbmPerLineText}
+                  onChange={(e) => setBulkCbmPerLineText(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-sm"
+                  placeholder={
+                    "Same order as tracking numbers, one CBM per line.\nLeave empty to use a single total below."
+                  }
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Total CBM (whole bulk)
+                </label>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                  Required if per-line CBM is empty. If per-line CBM is filled, leave
+                  this blank (or enter the exact sum to double-check).
+                </p>
+                <input
+                  type="number"
+                  step="0.001"
+                  min="0"
+                  value={bulkTotalCbm}
+                  onChange={(e) => setBulkTotalCbm(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Container (optional)
+                </label>
+                <select
+                  value={bulkContainerId}
+                  onChange={(e) => setBulkContainerId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                >
+                  <option value="">None</option>
+                  {containers.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.container_number}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={closeBulkAddModal}
+                  className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={bulkSubmitting}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50"
+                >
+                  {bulkSubmitting ? "Creating…" : "Create bulk"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* View Details Modal */}
       {showViewModal && viewTracking && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
@@ -1488,8 +1825,24 @@ const TrackingManagement = () => {
                     </label>
                     <p className="text-sm text-gray-900 dark:text-white">
                       {viewTracking.CBM || "N/A"}
+                      {viewTracking.bulkGroupId ? (
+                        <span className="ml-2 text-xs text-indigo-600 dark:text-indigo-400">
+                          (group shipment)
+                        </span>
+                      ) : null}
                     </p>
                   </div>
+                  {viewTracking.bulkGroupId &&
+                    viewTracking.bulkTrackingNumbers?.length > 0 && (
+                      <div className="md:col-span-2">
+                        <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                          Bulk group — all tracking numbers
+                        </label>
+                        <p className="text-xs text-gray-700 dark:text-gray-300 mt-1 break-all">
+                          {viewTracking.bulkTrackingNumbers.join(", ")}
+                        </p>
+                      </div>
+                    )}
                   <div>
                     <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
                       Shipping Fee

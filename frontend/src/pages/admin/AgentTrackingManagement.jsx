@@ -14,6 +14,7 @@ import {
   FaExternalLinkAlt,
 } from "react-icons/fa";
 import { toast } from "../../utils/toast";
+import { apiErrorMessage } from "../../utils/apiErrorMessage";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import API from "../../api";
@@ -211,7 +212,14 @@ const AgentTrackingManagement = () => {
           TrackingNum: t.tracking_number,
           ShippingMark: t.shipping_mark || "",
           Status: formatStatusLabel(t.status),
-          CBM: t.cbm || "",
+          CBM:
+            t.cbm_display != null && t.cbm_display !== ""
+              ? String(t.cbm_display)
+              : t.cbm != null && t.cbm !== ""
+              ? String(t.cbm)
+              : "",
+          bulkGroupId: t.bulk_group_id || null,
+          bulkTotalCbm: t.bulk_total_cbm,
           ShippingFee: t.shipping_fee || "",
           GoodsType: t.goods_type || "",
           ETA: t.eta || "",
@@ -585,7 +593,10 @@ const AgentTrackingManagement = () => {
     } catch (error) {
       console.error("Bulk update failed:", error);
       toast.error(
-        error?.response?.data?.message || "Failed to bulk update tracking statuses"
+        apiErrorMessage(
+          error?.response?.data,
+          "Failed to bulk update tracking statuses"
+        )
       );
     } finally {
       setBulkUpdating(false);
