@@ -15,6 +15,8 @@ const SupplierBanner = lazy(() => import("../components/SupplierBanner"));
 const ContainerInfoWidget = lazy(() => import("../components/ContainerInfoWidget"));
 const ContainerShipmentWidget = lazy(() => import("../components/ContainerShipmentWidget"));
 const SupportWidget = lazy(() => import("../components/SupportWidget"));
+const DeliveryRequestWidget = lazy(() => import("../components/DeliveryRequestWidget"));
+const HomeWidgetsHub = lazy(() => import("../components/HomeWidgetsHub"));
 
 const BelowFoldFallback = () => (
   <div className="min-h-[120px] w-full" aria-hidden />
@@ -93,8 +95,10 @@ const Home = () => {
         <TrendingP />
         <LatestYouTubeVideos />
         <SupplierBanner />
+        <HomeWidgetsHub />
         <ContainerShipmentWidget />
         <ContainerInfoWidget />
+        <DeliveryRequestWidget />
         <SupportWidget
           whatsappPhone="+233540266839"
           whatsappLabel="WhatsApp"

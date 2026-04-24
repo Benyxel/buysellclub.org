@@ -187,19 +187,6 @@ const Buy4meAdmin = () => {
     );
   }, [showInvoiceForm, selectedRequest?.id, isEditingInvoice, selectedRequest?.additional_links, selectedRequest?.product_url, selectedRequest?.link, selectedRequest?.quantity, selectedRequest?.images, selectedRequest?.invoice, selectedRequest?.invoice_product_costs_rmb, selectedRequest?.invoice_product_quantities, selectedRequest?.invoice_rmb_to_ghs_rate]);
 
-  // Pagination handlers
-  const totalPages = effectiveTotalPages;
-  const handlePageChange = (newPage) => {
-    if (newPage >= 1 && newPage <= totalPages) {
-      setCurrentPage(newPage);
-    }
-  };
-
-  const handlePageSizeChange = (newSize) => {
-    setPageSize(newSize);
-    setCurrentPage(1);
-  };
-
   const transformRequest = (request) => {
     const invoiceFromList =
       request.invoice ||
@@ -683,6 +670,18 @@ const Buy4meAdmin = () => {
       ? filteredRequests
       : filteredRequests.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
+  // Pagination handlers (after effectiveTotalPages is computed)
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= effectiveTotalPages) {
+      setCurrentPage(newPage);
+    }
+  };
+
+  const handlePageSizeChange = (newSize) => {
+    setPageSize(newSize);
+    setCurrentPage(1);
+  };
+
   // Bulk actions handlers
   const handleSelectRequest = (requestId) => {
     setSelectedRequests((prev) =>
@@ -818,7 +817,7 @@ const Buy4meAdmin = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="w-full">
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
         <div className="mb-6 flex justify-between items-start">
           <div>

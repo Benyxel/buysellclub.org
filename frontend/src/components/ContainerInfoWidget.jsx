@@ -3,7 +3,7 @@ import { FaInfoCircle, FaTimes, FaShip, FaBoxes, FaYenSign, FaGripVertical, FaCh
 import { Link } from "react-router-dom";
 import { Api } from "../api";
 
-const ContainerInfoWidget = () => {
+const ContainerInfoWidget = ({ launcherHidden = false } = {}) => {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -41,6 +41,16 @@ const ContainerInfoWidget = () => {
       fetchContainersList();
     }
   }, [open]);
+
+  // Allow opening via the mobile "mother" widget hub.
+  useEffect(() => {
+    const handler = (e) => {
+      if (e?.detail?.name !== "shippingInfo") return;
+      setOpen(true);
+    };
+    window.addEventListener("bsc:open-widget", handler);
+    return () => window.removeEventListener("bsc:open-widget", handler);
+  }, []);
 
   useEffect(() => {
     if (open && containers.length > 0 && currentContainerIndex >= 0) {
@@ -438,6 +448,7 @@ const ContainerInfoWidget = () => {
   return (
     <>
       {open && infoContainer}
+      {!launcherHidden && (
       <button
         ref={buttonRef}
         onClick={(e) => {
@@ -446,7 +457,7 @@ const ContainerInfoWidget = () => {
           }
         }}
         onMouseDown={handleMouseDown}
-        className={`fixed z-[1100] flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 px-4 py-2.5 md:px-5 md:py-3 text-sm font-semibold text-white shadow-xl transition-all cursor-move ${
+        className={`hidden md:flex fixed z-[1100] items-center gap-2 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 px-4 py-2.5 md:px-5 md:py-3 text-sm font-semibold text-white shadow-xl transition-all cursor-move ${
           !hasCustomPosition 
             ? "bottom-5 left-1/2 -translate-x-1/2 md:left-4 md:translate-x-0" 
             : ""
@@ -458,6 +469,7 @@ const ContainerInfoWidget = () => {
         <FaInfoCircle className="text-base md:text-lg" />
         <span className="hidden sm:inline">Shipping Info</span>
       </button>
+      )}
     </>
   );
 };

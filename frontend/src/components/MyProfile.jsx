@@ -37,6 +37,7 @@ import {
   FaEye,
   FaSearch,
   FaShip,
+  FaShippingFast,
   FaBoxOpen,
   FaUserTag,
   FaBuilding,
@@ -45,6 +46,7 @@ import {
   FaStore,
   FaDownload,
   FaWhatsapp,
+  FaMotorcycle,
 } from "react-icons/fa";
 import { trackingSystem } from "../utils/trackingSystem";
 import { NOTE_MESSAGE } from "./ShippingTrackingNote";
@@ -73,6 +75,8 @@ import AvatarSelector, { AVATARS } from "./AvatarSelector";
 import AvatarSVG from "./AvatarSVG";
 import VendorSales from "../pages/VendorSales";
 import { normalizePhone } from "../utils/ghanaPhone";
+import ProfileRiderWorkspace from "./profile/ProfileRiderWorkspace";
+import ProfileCustomerDelivery from "./profile/ProfileCustomerDelivery";
 
 const MyProfile = () => {
   // Status mapping from backend values to display labels
@@ -229,6 +233,16 @@ const MyProfile = () => {
   const [communityTelegramLink, setCommunityTelegramLink] = useState("");
   const [communityHasSheetAccess, setCommunityHasSheetAccess] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+
+  // Keep profile tab consistent with rider flag (e.g. stale ?tab= or localStorage)
+  useEffect(() => {
+    if (!currentUser) return;
+    if (activeTab === "delivery" && currentUser.is_rider) {
+      setActiveTab("rider");
+    } else if (activeTab === "rider" && !currentUser.is_rider) {
+      setActiveTab("delivery");
+    }
+  }, [currentUser, activeTab]);
 
   useEffect(() => {
     const fetchCommunityStatus = async () => {
@@ -2708,6 +2722,38 @@ const MyProfile = () => {
                   <FaMapMarkerAlt className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
                   Shipping addresses
                 </button>
+                {currentUser?.is_rider === true && (
+                  <button
+                    onClick={() => {
+                      setActiveTab("rider");
+                      if (isMobile) setShowTabModal(true);
+                    }}
+                    className={`w-full flex items-center gap-2.5 sm:gap-3 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-lg transition-colors text-base ${
+                      activeTab === "rider"
+                        ? "bg-primary text-white"
+                        : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    }`}
+                  >
+                    <FaMotorcycle className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+                    Rider
+                  </button>
+                )}
+                {currentUser && currentUser.is_rider !== true && (
+                  <button
+                    onClick={() => {
+                      setActiveTab("delivery");
+                      if (isMobile) setShowTabModal(true);
+                    }}
+                    className={`w-full flex items-center gap-2.5 sm:gap-3 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-lg transition-colors text-base ${
+                      activeTab === "delivery"
+                        ? "bg-primary text-white"
+                        : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    }`}
+                  >
+                    <FaShippingFast className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+                    Delivery
+                  </button>
+                )}
                 <button
                   onClick={() => {
                     setActiveTab("seller");
@@ -2757,6 +2803,8 @@ const MyProfile = () => {
                     settings: "Settings",
                     shippingmark: "Shipping addresses",
                     community: "Community",
+                    rider: "Rider",
+                    delivery: "Delivery",
                     seller: vendorMe?.is_vendor ? "View Vendor sales" : "Become a Seller",
                   }[activeTab] || activeTab}
                 </span>
@@ -5023,6 +5071,14 @@ const MyProfile = () => {
                   </div>
                 </div>
               </div>
+            )}
+
+            {activeTab === "rider" && currentUser?.is_rider === true && (
+              <ProfileRiderWorkspace />
+            )}
+
+            {activeTab === "delivery" && currentUser && currentUser.is_rider !== true && (
+              <ProfileCustomerDelivery />
             )}
 
             {activeTab === "seller" && (

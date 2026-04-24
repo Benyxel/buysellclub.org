@@ -41,6 +41,7 @@ import {
   FaTicketAlt,
   FaGift,
   FaEnvelope,
+  FaMotorcycle,
 } from "react-icons/fa";
 
 import UsersManagement from "./UsersManagement";
@@ -88,6 +89,8 @@ import BulkEmailAdmin from "./BulkEmailAdmin";
 import VendorManagement from "./VendorManagement";
 import AdminVendorPayoutRequests from "./AdminVendorPayoutRequests";
 import StaffClockRecords from "./StaffClockRecords";
+import RiderManagementPanel from "./delivery/RiderManagementPanel";
+import DeliveryRequestsPanel from "./delivery/DeliveryRequestsPanel";
 import "react-toastify/dist/ReactToastify.css";
 
 const AdminDashboard = () => {
@@ -135,6 +138,15 @@ const AdminDashboard = () => {
 
     const savedSubMenu = localStorage.getItem("adminShopSubMenu");
     return savedSubMenu || "products";
+  };
+
+  const getInitialDeliverySubMenu = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const subMenuFromUrl = urlParams.get("deliverySubMenu");
+    if (subMenuFromUrl) return subMenuFromUrl;
+
+    const savedSubMenu = localStorage.getItem("adminDeliverySubMenu");
+    return savedSubMenu || "riders";
   };
 
   const [activeSection, setActiveSection] = useState(getInitialSection);
@@ -187,6 +199,9 @@ const AdminDashboard = () => {
     getInitialTrainingSubMenu()
   );
   const [shopSubMenu, setShopSubMenu] = useState(getInitialShopSubMenu());
+  const [deliverySubMenu, setDeliverySubMenu] = useState(
+    getInitialDeliverySubMenu()
+  );
   const getInitialAnalyticsTab = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const tabFromUrl = urlParams.get("analyticsTab");
@@ -209,6 +224,9 @@ const AdminDashboard = () => {
     agentRequests: 0,
     localAgentRequests: 0,
     rewardClaims: 0,
+    delivery: 0,
+    vendorApplications: 0,
+    vendorPayoutRequests: 0,
   });
   const [dashboardData, setDashboardData] = useState(null);
   const [dashboardLoading, setDashboardLoading] = useState(false);
@@ -227,6 +245,7 @@ const AdminDashboard = () => {
       { icon: <FaHome />, label: "Dashboard", section: "dashboard" },
       { icon: <FaUsers />, label: "Users", section: "users" },
       { icon: <FaShippingFast />, label: "Shipping", section: "shipping" },
+      { icon: <FaMotorcycle />, label: "Delivery", section: "delivery" },
       {
         icon: <FaAlipay />,
         label: "Alipay Payments",
@@ -366,6 +385,9 @@ const AdminDashboard = () => {
           agentRequests: response.data.agent_requests || 0,
           localAgentRequests: response.data.local_agent_requests || 0,
           rewardClaims: response.data.reward_claims || 0,
+          delivery: response.data.delivery_requests || 0,
+          vendorApplications: response.data.vendor_applications || 0,
+          vendorPayoutRequests: response.data.vendor_payout_requests || 0,
         };
         setUnreadCounts(counts);
         
@@ -483,8 +505,22 @@ const AdminDashboard = () => {
       url.searchParams.delete("shopSubMenu");
     }
 
+    if (activeSection === "delivery") {
+      url.searchParams.set("deliverySubMenu", deliverySubMenu);
+    } else {
+      url.searchParams.delete("deliverySubMenu");
+    }
+
     window.history.replaceState({}, "", url);
-  }, [activeSection, shippingSubMenu, agentSubMenu, analyticsTab, trainingSubMenu, shopSubMenu]);
+  }, [
+    activeSection,
+    shippingSubMenu,
+    agentSubMenu,
+    analyticsTab,
+    trainingSubMenu,
+    shopSubMenu,
+    deliverySubMenu,
+  ]);
 
   // Persist shippingSubMenu to localStorage
   useEffect(() => {
@@ -505,6 +541,11 @@ const AdminDashboard = () => {
   useEffect(() => {
     localStorage.setItem("adminShopSubMenu", shopSubMenu);
   }, [shopSubMenu]);
+
+  // Persist deliverySubMenu to localStorage
+  useEffect(() => {
+    localStorage.setItem("adminDeliverySubMenu", deliverySubMenu);
+  }, [deliverySubMenu]);
 
   // Persist analyticsTab to localStorage
   useEffect(() => {
@@ -1048,6 +1089,53 @@ const AdminDashboard = () => {
             <YouTubeManagement />
           </div>
         );
+      case "delivery":
+        return (
+          <div className="p-6">
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">
+              Delivery
+            </h2>
+
+            <div className="border-b border-gray-200 dark:border-gray-700 mb-6">
+              <div className="flex flex-wrap">
+                <button
+                  type="button"
+                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
+                    deliverySubMenu === "riders"
+                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                  onClick={() => setDeliverySubMenu("riders")}
+                >
+                  <div className="flex items-center gap-2">
+                    <FaUserTag className="w-4 h-4" />
+                    <span>Rider management</span>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
+                    deliverySubMenu === "requests"
+                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                  onClick={() => setDeliverySubMenu("requests")}
+                >
+                  <div className="flex items-center gap-2">
+                    <FaClipboardList className="w-4 h-4" />
+                    <span>Delivery requests</span>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {deliverySubMenu === "riders" ? (
+              <RiderManagementPanel />
+            ) : (
+              <DeliveryRequestsPanel />
+            )}
+          </div>
+        );
       case "shipping":
         return (
           <div className="p-6">
@@ -1570,6 +1658,11 @@ const AdminDashboard = () => {
                   <div className="flex items-center gap-2">
                     <FaHandshake className="w-4 h-4" />
                     <span>Vendors</span>
+                    {unreadCounts.vendorApplications > 0 && (
+                      <span className="ml-1 text-xs font-semibold text-white bg-red-500 rounded-full px-2 py-0.5">
+                        {unreadCounts.vendorApplications}
+                      </span>
+                    )}
                   </div>
                 </button>
                 <button
@@ -1596,6 +1689,11 @@ const AdminDashboard = () => {
                   <div className="flex items-center gap-2">
                     <FaHandHoldingUsd className="w-4 h-4" />
                     <span>Vendor pay requests</span>
+                    {unreadCounts.vendorPayoutRequests > 0 && (
+                      <span className="ml-1 text-xs font-semibold text-white bg-red-500 rounded-full px-2 py-0.5">
+                        {unreadCounts.vendorPayoutRequests}
+                      </span>
+                    )}
                   </div>
                 </button>
               </div>
@@ -1817,6 +1915,12 @@ const AdminDashboard = () => {
                     tabUnreadCount = unreadCounts.training;
                   } else if (item.section === "community") {
                     tabUnreadCount = unreadCounts.community;
+                  } else if (item.section === "delivery") {
+                    tabUnreadCount = unreadCounts.delivery;
+                  } else if (item.section === "shop") {
+                    tabUnreadCount =
+                      (unreadCounts.vendorApplications || 0) +
+                      (unreadCounts.vendorPayoutRequests || 0);
                   } else if (item.section === "agents") {
                     tabUnreadCount = 0;
                   }

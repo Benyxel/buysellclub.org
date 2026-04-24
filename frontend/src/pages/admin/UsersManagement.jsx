@@ -53,6 +53,7 @@ const UsersManagement = () => {
     status: "active",
     contact: "",
     location: "",
+    is_rider: false,
   });
 
   const fetchUsers = async (
@@ -165,6 +166,7 @@ const UsersManagement = () => {
     { label: "Dashboard", section: "dashboard" },
     { label: "Users", section: "users" },
     { label: "Shipping", section: "shipping" },
+    { label: "Delivery", section: "delivery" },
     { label: "Alipay Payments", section: "alipay-payments" },
     { label: "Alipay Buying Rate", section: "alipay-buying-rate" },
     { label: "Buy4me", section: "buy4me" },
@@ -748,6 +750,9 @@ const UsersManagement = () => {
                   Role
                 </th>
                 <th className="px-3 py-3 text-left text-xs font-semibold text-purple-700 dark:text-purple-300 uppercase tracking-wider">
+                  Rider
+                </th>
+                <th className="px-3 py-3 text-left text-xs font-semibold text-purple-700 dark:text-purple-300 uppercase tracking-wider">
                   Status
                 </th>
                 <th className="px-3 py-3 text-left text-xs font-semibold text-purple-700 dark:text-purple-300 uppercase tracking-wider">
@@ -810,6 +815,15 @@ const UsersManagement = () => {
                       {user.role}
                     </span>
                   </td>
+                  <td className="px-3 py-3 whitespace-nowrap text-sm">
+                    {user.is_rider ? (
+                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-200">
+                        Yes
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">—</span>
+                    )}
+                  </td>
                   <td className="px-3 py-3 whitespace-nowrap">
                     <span
                       className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full uppercase ${
@@ -837,6 +851,7 @@ const UsersManagement = () => {
                           status: user.status || "active",
                           contact: user.contact || "",
                           location: user.location || "",
+                          is_rider: Boolean(user.is_rider),
                         });
                         setShowEditModal(true);
                       }}
@@ -1160,6 +1175,23 @@ const UsersManagement = () => {
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                   />
                 </div>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(editForm.is_rider)}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, is_rider: e.target.checked })
+                    }
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+                  />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Company delivery rider
+                  </span>
+                </label>
+                <p className="text-xs text-gray-500 dark:text-gray-400 -mt-2">
+                  Riders see the &quot;Rider&quot; tab on their profile instead of
+                  &quot;Delivery&quot;.
+                </p>
               </div>
               <div className="mt-6 flex justify-end space-x-3">
                 <button

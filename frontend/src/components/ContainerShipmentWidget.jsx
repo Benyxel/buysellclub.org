@@ -321,7 +321,7 @@ export function TemaPortVoyageMini({
   );
 }
 
-const ContainerShipmentWidget = () => {
+const ContainerShipmentWidget = ({ launcherHidden = false } = {}) => {
   const [loading, setLoading] = useState(false);
   const [containers, setContainers] = useState([]);
   const [open, setOpen] = useState(false);
@@ -350,6 +350,16 @@ const ContainerShipmentWidget = () => {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  // Allow opening via the mobile "mother" widget hub.
+  useEffect(() => {
+    const handler = (e) => {
+      if (e?.detail?.name !== "containers") return;
+      setOpen(true);
+    };
+    window.addEventListener("bsc:open-widget", handler);
+    return () => window.removeEventListener("bsc:open-widget", handler);
   }, []);
 
   // Load saved position (similar to ContainerInfoWidget)
@@ -455,24 +465,26 @@ const ContainerShipmentWidget = () => {
   return (
     <>
       {/* Floating launcher (same feel as ContainerInfoWidget) */}
-      <button
-        ref={buttonRef}
-        onClick={() => {
-          if (!isDragging) setOpen(!open);
-        }}
-        onMouseDown={handleMouseDown}
-        style={buttonStyle}
-        className={`fixed z-[1100] flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 px-4 py-2.5 md:px-5 md:py-3 text-sm font-semibold text-white shadow-xl transition-all cursor-move ${
-          !hasCustomPosition
-            ? "bottom-5 left-4 translate-x-0 md:left-56 md:translate-x-0"
-            : ""
-        } ${isDragging ? "opacity-80 scale-95" : "hover:scale-105"}`}
-        aria-label="Open container shipment tracker"
-      >
-        <FaGripVertical className="text-base md:text-lg drag-handle opacity-70" />
-        <FaShip className="text-base md:text-lg" />
-        <span className="hidden sm:inline">Containers</span>
-      </button>
+      {!launcherHidden && (
+        <button
+          ref={buttonRef}
+          onClick={() => {
+            if (!isDragging) setOpen(!open);
+          }}
+          onMouseDown={handleMouseDown}
+          style={buttonStyle}
+          className={`hidden md:flex fixed z-[1100] items-center gap-2 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 px-4 py-2.5 md:px-5 md:py-3 text-sm font-semibold text-white shadow-xl transition-all cursor-move ${
+            !hasCustomPosition
+              ? "bottom-5 left-4 translate-x-0 md:left-56 md:translate-x-0"
+              : ""
+          } ${isDragging ? "opacity-80 scale-95" : "hover:scale-105"}`}
+          aria-label="Open container shipment tracker"
+        >
+          <FaGripVertical className="text-base md:text-lg drag-handle opacity-70" />
+          <FaShip className="text-base md:text-lg" />
+          <span className="hidden sm:inline">Containers</span>
+        </button>
+      )}
 
       {open && (
         <>
