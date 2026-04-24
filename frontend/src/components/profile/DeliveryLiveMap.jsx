@@ -77,22 +77,23 @@ const DeliveryLiveMap = ({ pickup, dropoff, rider, height = 280 }) => {
   const { isLoaded } = useJsApiLoader({
     id: "google-maps",
     googleMapsApiKey: apiKey || "",
-    libraries: ["places"],
+    libraries: ["places", "geometry"],
   });
 
   const mapRef = useRef(null);
   const riderAnimRef = useRef({ raf: 0, from: null, to: null });
   const [riderDrawPos, setRiderDrawPos] = useState(null);
   const [routePath, setRoutePath] = useState(null);
+  const lastGoodRouteRef = useRef(null);
 
   const routeKey = useMemo(() => {
-    const p = pickup ? parseLL(pickup.lat, pickup.lng) : null;
-    const d = dropoff ? parseLL(dropoff.lat, dropoff.lng) : null;
-    if (!p || !d) return null;
-    return `${p.lat.toFixed(6)},${p.lng.toFixed(6)}->${d.lat.toFixed(
+    const origin = rider ? parseLL(rider.lat, rider.lng) : pickup ? parseLL(pickup.lat, pickup.lng) : null;
+    const dest = dropoff ? parseLL(dropoff.lat, dropoff.lng) : null;
+    if (!origin || !dest) return null;
+    return `${origin.lat.toFixed(6)},${origin.lng.toFixed(6)}->${dest.lat.toFixed(
       6
-    )},${d.lng.toFixed(6)}`;
-  }, [pickup, dropoff]);
+    )},${dest.lng.toFixed(6)}`;
+  }, [pickup, dropoff, rider]);
 
   useEffect(() => {
     return () => {
@@ -105,21 +106,25 @@ const DeliveryLiveMap = ({ pickup, dropoff, rider, height = 280 }) => {
     if (!isLoaded) return;
     if (!routeKey) {
       setRoutePath(null);
+      lastGoodRouteRef.current = null;
       return;
     }
-    const p = pickup ? clampToAccra(parseLL(pickup.lat, pickup.lng)) : null;
+    const originRaw = rider ? parseLL(rider.lat, rider.lng) : pickup ? parseLL(pickup.lat, pickup.lng) : null;
+    const origin = originRaw ? clampToAccra(originRaw) : null;
     const d = dropoff ? clampToAccra(parseLL(dropoff.lat, dropoff.lng)) : null;
-    if (!p || !d) {
+    if (!origin || !d) {
       setRoutePath(null);
+      lastGoodRouteRef.current = null;
       return;
     }
 
-    // Try Google Directions (nice), fallback to straight line.
+    // Try Google Directions (auto-reroutes as origin changes). If it fails,
+    // keep the last good route instead of drawing a straight-line fallback.
     try {
       const svc = new google.maps.DirectionsService();
       svc.route(
         {
-          origin: p,
+          origin,
           destination: d,
           travelMode: google.maps.TravelMode.DRIVING,
         },
@@ -130,15 +135,22 @@ const DeliveryLiveMap = ({ pickup, dropoff, rider, height = 280 }) => {
               lng: pt.lng(),
             }));
             setRoutePath(path);
+            lastGoodRouteRef.current = path;
           } else {
-            setRoutePath([p, d]);
+            if (lastGoodRouteRef.current) {
+              setRoutePath(lastGoodRouteRef.current);
+            }
           }
         }
       );
     } catch {
-      setRoutePath([p, d]);
+      if (lastGoodRouteRef.current) {
+        setRoutePath(lastGoodRouteRef.current);
+      } else {
+        setRoutePath(null);
+      }
     }
-  }, [routeKey, pickup, dropoff]);
+  }, [routeKey, pickup, dropoff, rider, isLoaded]);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -188,9 +200,59 @@ const DeliveryLiveMap = ({ pickup, dropoff, rider, height = 280 }) => {
     return pts;
   }, [p, d, riderDrawPos, routePath]);
 
+  // Avoid "jittery" map re-fitting on every rider tick; only refit when the
+  // route endpoints change (pickup/drop-off) or when the route itself changes.
+  const lastFitKeyRef = useRef("");
+  const fitKey = useMemo(() => {
+    const pk = p ? `${p.lat.toFixed(6)},${p.lng.toFixed(6)}` : "none";
+    const dk = d ? `${d.lat.toFixed(6)},${d.lng.toFixed(6)}` : "none";
+    const rk = routeKey || "no-route";
+    return `${pk}::${dk}::${rk}`;
+  }, [p, d, routeKey]);
+
+  // "Follow" behavior: keep rider in view, and zoom in gently as they approach drop-off.
+  const lastFollowAtRef = useRef(0);
+  useEffect(() => {
+    if (!isLoaded || !mapRef.current || !riderDrawPos) return;
+    const map = mapRef.current;
+    const now = Date.now();
+    if (now - lastFollowAtRef.current < 1500) return;
+
+    // If rider is close to drop-off, gently zoom in.
+    if (d) {
+      const dist = google.maps.geometry?.spherical?.computeDistanceBetween
+        ? google.maps.geometry.spherical.computeDistanceBetween(
+            new google.maps.LatLng(riderDrawPos.lat, riderDrawPos.lng),
+            new google.maps.LatLng(d.lat, d.lng)
+          )
+        : null;
+
+      if (typeof dist === "number") {
+        const targetZoom =
+          dist < 250 ? 17 : dist < 600 ? 16 : dist < 1200 ? 15 : null;
+        if (targetZoom != null && (map.getZoom() || 0) < targetZoom) {
+          map.setZoom(targetZoom);
+          map.panTo(riderDrawPos);
+          lastFollowAtRef.current = now;
+          return;
+        }
+      }
+    }
+
+    // Otherwise only pan when rider leaves the current viewport.
+    const b = map.getBounds();
+    if (b && !b.contains(riderDrawPos)) {
+      map.panTo(riderDrawPos);
+      lastFollowAtRef.current = now;
+    }
+  }, [isLoaded, riderDrawPos, d]);
+
   useEffect(() => {
     if (!mapRef.current || !isLoaded) return;
     const map = mapRef.current;
+    // Only refit when pickup/dropoff/route changes (not every rider update).
+    if (fitKey && lastFitKeyRef.current === fitKey) return;
+    lastFitKeyRef.current = fitKey || "";
     if (bounds.length >= 2) {
       const b = new google.maps.LatLngBounds();
       bounds.forEach((pt) => b.extend(pt));
@@ -202,7 +264,7 @@ const DeliveryLiveMap = ({ pickup, dropoff, rider, height = 280 }) => {
       map.setCenter({ lat: ACCRA_MAP_CENTER.lat, lng: ACCRA_MAP_CENTER.lng });
       map.setZoom(12);
     }
-  }, [bounds, isLoaded]);
+  }, [bounds, isLoaded, fitKey]);
 
   const riderMotorIcon = useMemo(() => {
     if (!isLoaded || typeof google === "undefined" || !google?.maps) return null;
@@ -223,6 +285,27 @@ const DeliveryLiveMap = ({ pickup, dropoff, rider, height = 280 }) => {
       anchor: new google.maps.Point(20, 40),
     };
   }, [isLoaded]);
+
+  const mapContainerStyle = useMemo(() => ({ width: "100%", height: "100%" }), []);
+
+  const mapOptions = useMemo(
+    () => ({
+      restriction: {
+        latLngBounds: {
+          south: ACCRA_SW.lat,
+          west: ACCRA_SW.lng,
+          north: ACCRA_NE.lat,
+          east: ACCRA_NE.lng,
+        },
+        strictBounds: false,
+      },
+      fullscreenControl: false,
+      mapTypeControl: false,
+      streetViewControl: false,
+      clickableIcons: false,
+    }),
+    []
+  );
 
   if (!apiKey) {
     return (
@@ -260,20 +343,14 @@ const DeliveryLiveMap = ({ pickup, dropoff, rider, height = 280 }) => {
       aria-label="Delivery live map"
     >
       <GoogleMap
-        mapContainerStyle={{ width: "100%", height: "100%" }}
+        mapContainerStyle={mapContainerStyle}
         center={{ lat: ACCRA_MAP_CENTER.lat, lng: ACCRA_MAP_CENTER.lng }}
         zoom={12}
         onLoad={(m) => (mapRef.current = m)}
-        options={{
-          restriction: {
-            latLngBounds: { south: ACCRA_SW.lat, west: ACCRA_SW.lng, north: ACCRA_NE.lat, east: ACCRA_NE.lng },
-            strictBounds: false,
-          },
-          fullscreenControl: false,
-          mapTypeControl: false,
-          streetViewControl: false,
-          clickableIcons: false,
+        onUnmount={() => {
+          mapRef.current = null;
         }}
+        options={mapOptions}
       >
         {routePath && routePath.length >= 2 && (
           <PolylineF

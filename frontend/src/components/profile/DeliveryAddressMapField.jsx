@@ -1,6 +1,7 @@
 import React, {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -212,6 +213,36 @@ const DeliveryAddressMapField = ({
     return lastValidLatLngRef.current || DEFAULT_CENTER;
   }, [hasCoords, latNum, lngNum]);
 
+  const mapContainerStyle = useMemo(() => ({ width: "100%", height: "100%" }), []);
+
+  const mapOptions = useMemo(
+    () => ({
+      restriction: {
+        latLngBounds: {
+          south: ACCRA_SW.lat,
+          west: ACCRA_SW.lng,
+          north: ACCRA_NE.lat,
+          east: ACCRA_NE.lng,
+        },
+        strictBounds: false,
+      },
+      fullscreenControl: false,
+      mapTypeControl: false,
+      streetViewControl: false,
+      clickableIcons: false,
+    }),
+    []
+  );
+
+  const autocompleteOptions = useMemo(() => {
+    if (!isLoaded || typeof google === "undefined" || !google?.maps) return undefined;
+    return {
+      bounds: new google.maps.LatLngBounds(ACCRA_SW, ACCRA_NE),
+      strictBounds: true,
+      fields: ["geometry", "formatted_address", "name"],
+    };
+  }, [isLoaded]);
+
   return (
     <div className="space-y-2">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
@@ -236,11 +267,7 @@ const DeliveryAddressMapField = ({
               <Autocomplete
                 onLoad={(a) => (autoRef.current = a)}
                 onPlaceChanged={onPlaceChanged}
-                options={{
-                  bounds: new google.maps.LatLngBounds(ACCRA_SW, ACCRA_NE),
-                  strictBounds: true,
-                  fields: ["geometry", "formatted_address", "name"],
-                }}
+                options={autocompleteOptions}
               >
                 <input
                   type="text"
@@ -292,20 +319,14 @@ const DeliveryAddressMapField = ({
               </div>
             ) : (
               <GoogleMap
-                mapContainerStyle={{ width: "100%", height: "100%" }}
+                mapContainerStyle={mapContainerStyle}
                 center={markerPos()}
                 zoom={hasCoords ? 15 : DEFAULT_ZOOM}
                 onLoad={(m) => (mapRef.current = m)}
-                options={{
-                  restriction: {
-                    latLngBounds: { south: ACCRA_SW.lat, west: ACCRA_SW.lng, north: ACCRA_NE.lat, east: ACCRA_NE.lng },
-                    strictBounds: false,
-                  },
-                  fullscreenControl: false,
-                  mapTypeControl: false,
-                  streetViewControl: false,
-                  clickableIcons: false,
+                onUnmount={() => {
+                  mapRef.current = null;
                 }}
+                options={mapOptions}
                 onClick={async (e) => {
                   const lat = e?.latLng?.lat?.();
                   const lng = e?.latLng?.lng?.();

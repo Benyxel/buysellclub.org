@@ -17,7 +17,7 @@ const CLUB_PICKUP_STATIC = buysellclubPickupFormSlice();
 /** Maximum package CBM eligible for local rider delivery */
 export const MAX_DELIVERY_CBM = 0.1;
 
-const LIVE_TRACK_POLL_MS = 4000;
+const LIVE_TRACK_POLL_MS = 30000;
 
 function hasValidLatLng(lat, lng) {
   const la = parseFloat(lat);
