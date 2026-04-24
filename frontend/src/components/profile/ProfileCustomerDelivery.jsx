@@ -544,7 +544,7 @@ const ProfileCustomerDelivery = () => {
             <p className="text-sm text-gray-500 dark:text-gray-400 py-4 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg px-4">
               {trackingCount === 0
                 ? "No shipments are assigned to you as owner yet. Add trackings under Profile → Tracking, or ask admin to assign your shipping mark."
-                : "None of your shipments are on a container yet, or container rows have no CBM. See “Not on a container yet” below if CBM exists without a container."}
+                : "None of your shipments are on a container yet, or container rows have no CBM."}
             </p>
           ) : visibleContainers.length === 0 ? (
             <p className="text-sm text-gray-500 dark:text-gray-400 py-4 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg px-4">
@@ -628,95 +628,7 @@ const ProfileCustomerDelivery = () => {
           )}
           </div>
 
-          <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
-          <h3 className="text-sm font-semibold text-gray-800 dark:text-white mb-2">
-            Not on a container yet
-          </h3>
-          {loading ? null : orphanSummaries.length === 0 ? (
-            <p className="text-sm text-gray-500 dark:text-gray-400 py-3 px-1">
-              No CBM found on shipments without a container. CBM may still be pending
-              admin entry, or trackings only exist in your device list — add them under
-              Profile → <strong>Tracking</strong> so they sync here.
-            </p>
-          ) : visibleOrphans.length === 0 ? (
-            <p className="text-sm text-gray-500 dark:text-gray-400 py-3 px-1">
-              No rows to show here yet.
-            </p>
-          ) : (
-            <div className="max-h-[220px] sm:max-h-[280px] overflow-y-auto pr-1">
-              <ul className="space-y-2">
-                {visibleOrphans.map((row) => {
-                const latest =
-                  row.kind === "bulk_group"
-                    ? deliveryMaps.byBulkGroup.get(Number(row.bulkGroupId))
-                    : deliveryMaps.byTracking.get(Number(row.trackingId));
-                const openRequest =
-                  latest && ACTIVE_DELIVERY_STATUSES.has(latest.status) ? latest : null;
-                const canSubmitRequest = row.canRequestDelivery && !openRequest;
-                return (
-                  <li
-                    key={row.rowKey}
-                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-3 bg-amber-50/40 dark:bg-amber-950/20"
-                  >
-                    <div>
-                      <p className="font-medium text-gray-900 dark:text-white">
-                        {row.title}
-                      </p>
-                      {row.detail ? (
-                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5 font-mono truncate max-w-xl">
-                          {row.detail}
-                        </p>
-                      ) : null}
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                        CBM:{" "}
-                        <span className="font-mono font-semibold text-gray-900 dark:text-white">
-                          {Number((Number(row.totalCbm) || 0).toFixed(4))}
-                        </span>{" "}
-                        <span className="text-gray-500">(max {MAX_DELIVERY_CBM})</span>
-                      </p>
-                      {!row.canRequestDelivery && row.totalCbm > 0 && (
-                        <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
-                          Above {MAX_DELIVERY_CBM} CBM — split the shipment or use standard
-                          shipping for larger volume.
-                        </p>
-                      )}
-                      {openRequest ? (
-                        <p className="text-xs text-amber-800 dark:text-amber-200 mt-2">
-                          A delivery request is already open (
-                          <strong>{formatDeliveryStatusLabel(openRequest.status)}</strong>
-                          ). <strong>Request delivery</strong> stays off until that request
-                          is <strong>cancelled</strong>.
-                        </p>
-                      ) : null}
-                    </div>
-                    <div className="shrink-0 flex flex-col items-stretch sm:items-end gap-1">
-                      {row.canRequestDelivery ? (
-                        <button
-                          type="button"
-                          onClick={() => openOrphanRequest(row)}
-                          disabled={!canSubmitRequest}
-                          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <FaShippingFast className="w-4 h-4" />
-                          Request delivery
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          disabled
-                          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-500 text-sm font-medium cursor-not-allowed"
-                        >
-                          Request delivery
-                        </button>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
-              </ul>
-            </div>
-          )}
-          </div>
+          {/* "Not on a container yet" section removed per request. */}
         </div>
       </div>
 

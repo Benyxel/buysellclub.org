@@ -69,7 +69,7 @@ const HomeWidgetsHub = () => {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 rounded-full bg-gradient-to-r from-gray-900 to-gray-800 hover:from-black hover:to-gray-900 text-white shadow-xl px-5 py-3 text-sm font-semibold transition-all"
+        className="flex items-center gap-2 rounded-full bg-gradient-to-r from-pink-600 to-fuchsia-600 hover:from-pink-700 hover:to-fuchsia-700 text-white shadow-xl px-5 py-3 text-sm font-semibold transition-all"
         aria-expanded={open}
         aria-label="Open quick widgets"
       >
