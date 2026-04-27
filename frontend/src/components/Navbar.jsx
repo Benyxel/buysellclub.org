@@ -23,6 +23,7 @@ const Quicklinks = [
   { name: "Shipping Addresses", href: "/Shipping" },
   { name: "Tracking", href: "/tracking" },
   { name: "Quick Tracking", href: "/QuickTracking" },
+  { name: "Delivery", href: "/Delivery" },
   { name: "Training", href: "/Training" },
   { name: "Our Rates", href: "/OurRates" },
   { name: "Alipay Payment", href: "/AlipayPayment" },
@@ -129,7 +130,7 @@ export default function Navbar() {
       ];
 
   return (
-    <div className="bg-white shadow-md dark:bg-gray-900 dark:text-white duration-200 relative z-40">
+    <div className="bg-white shadow-md dark:bg-gray-900 dark:text-white duration-200 sticky top-0 z-30">
       <div className="py-4">
         <div className="container flex justify-between">
           <div className="flex items-center gap-12">

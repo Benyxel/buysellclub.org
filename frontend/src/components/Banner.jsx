@@ -80,7 +80,7 @@ const Banner = ({ data }) => {
             {/* Badge positioned on the product image (e.g. over the palm) */}
             <Link
               to="/Shipping"
-              className="absolute md:bottom-24 md:right-16 bottom-8 right-6 z-40 cbm-ribbon-outer cbm-badge-pos"
+              className="absolute md:bottom-24 md:right-16 bottom-8 right-6 z-10 cbm-ribbon-outer cbm-badge-pos"
               aria-label="Shipping ETA: 35 to 45 days"
             >
               <div className="cbm-badge" role="button">

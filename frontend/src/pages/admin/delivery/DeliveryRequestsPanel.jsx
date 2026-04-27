@@ -6,6 +6,7 @@ import {
 } from "react-icons/fa";
 import { toast } from "../../../utils/toast";
 import API from "../../../api";
+import { formatDeliveryRequestStatusLabel } from "../../../utils/deliveryStatusLabel";
 
 function normalizeList(resp) {
   const d = resp?.data;
@@ -34,7 +35,7 @@ function shortAddr(s, max = 48) {
 const STATUS_OPTIONS = [
   { value: "pending", label: "Pending assignment" },
   { value: "assigned", label: "Assigned" },
-  { value: "in_progress", label: "In progress" },
+  { value: "in_progress", label: "On his way" },
   { value: "delivered", label: "Delivered" },
   { value: "cancelled", label: "Cancelled" },
 ];
@@ -170,7 +171,7 @@ const DeliveryRequestsPanel = () => {
           <option value="all">All</option>
           <option value="pending">Pending assignment</option>
           <option value="assigned">Assigned</option>
-          <option value="in_progress">In progress</option>
+          <option value="in_progress">On his way</option>
           <option value="delivered">Delivered</option>
           <option value="cancelled">Cancelled</option>
         </select>
@@ -268,8 +269,8 @@ const DeliveryRequestsPanel = () => {
                         ↓ {shortAddr(r.dropoff_address, 40)}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm capitalize text-gray-800 dark:text-gray-200">
-                      {String(r.status || "").replace(/_/g, " ")}
+                    <td className="px-4 py-3 text-sm text-gray-800 dark:text-gray-200">
+                      {formatDeliveryRequestStatusLabel(r.status)}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
                       {r.assigned_rider_username ? (

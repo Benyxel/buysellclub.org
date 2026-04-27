@@ -2615,6 +2615,22 @@ const MyProfile = () => {
                   />
                   Tracking
                 </button>
+                {currentUser && currentUser.is_rider !== true && (
+                  <button
+                    onClick={() => {
+                      setActiveTab("delivery");
+                      if (isMobile) setShowTabModal(true);
+                    }}
+                    className={`w-full flex items-center gap-2.5 sm:gap-3 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-lg transition-colors text-base ${
+                      activeTab === "delivery"
+                        ? "bg-primary text-white"
+                        : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    }`}
+                  >
+                    <FaShippingFast className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+                    Delivery
+                  </button>
+                )}
                 <button
                   onClick={() => {
                     setActiveTab("alipay");
@@ -2736,22 +2752,6 @@ const MyProfile = () => {
                   >
                     <FaMotorcycle className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
                     Rider
-                  </button>
-                )}
-                {currentUser && currentUser.is_rider !== true && (
-                  <button
-                    onClick={() => {
-                      setActiveTab("delivery");
-                      if (isMobile) setShowTabModal(true);
-                    }}
-                    className={`w-full flex items-center gap-2.5 sm:gap-3 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-lg transition-colors text-base ${
-                      activeTab === "delivery"
-                        ? "bg-primary text-white"
-                        : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                    }`}
-                  >
-                    <FaShippingFast className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
-                    Delivery
                   </button>
                 )}
                 <button

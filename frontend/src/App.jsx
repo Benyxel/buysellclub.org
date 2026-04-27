@@ -23,6 +23,7 @@ import PlaceOrder from "./pages/PlaceOrder";
 import Training from "./pages/Quicklinks/Training";
 import AlipayPayment from "./pages/Quicklinks/AlipayPayment";
 import OurRates from "./pages/Quicklinks/OurRates";
+import Delivery from "./pages/Quicklinks/Delivery";
 import JoinCommunity from "./pages/Community/JoinCommunity";
 import CommunitySheet from "./pages/Community/CommunitySheet";
 import WinningProducts from "./pages/Community/WinningProducts";
@@ -284,6 +285,14 @@ function App() {
                         element={
                           <ProtectedRoute>
                             <AlipayPayment />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="Delivery"
+                        element={
+                          <ProtectedRoute>
+                            <Delivery />
                           </ProtectedRoute>
                         }
                       />

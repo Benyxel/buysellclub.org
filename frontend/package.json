@@ -14,7 +14,7 @@
     "@dicebear/collection": "^9.2.4",
     "@dicebear/core": "^9.2.4",
     "@dicebear/personas": "^9.2.4",
-    "@react-google-maps/api": "^2.20.8",
+    "@vis.gl/react-google-maps": "^1.8.3",
     "axios": "^1.8.4",
     "bootstrap": "^5.3.5",
     "boxicons": "^2.1.4",

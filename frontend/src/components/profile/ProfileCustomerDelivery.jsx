@@ -7,8 +7,9 @@ import {
   isCbmEligibleForDelivery,
   formatCbmForInput,
 } from "../../utils/deliveryContainerCbm";
+import { formatDeliveryRequestStatusLabel as formatDeliveryStatusLabel } from "../../utils/deliveryStatusLabel";
 import DeliveryAddressMapField from "./DeliveryAddressMapField";
-import DeliveryLiveMap from "./DeliveryLiveMap";
+import CustomerLiveTrackingModal from "./CustomerLiveTrackingModal";
 import { buysellclubPickupFormSlice } from "../../constants/buysellclubPickupLocation";
 
 /** Fixed pickup shown in the modal (same values as `emptyForm` / submit). */
@@ -17,12 +18,26 @@ const CLUB_PICKUP_STATIC = buysellclubPickupFormSlice();
 /** Maximum package CBM eligible for local rider delivery */
 export const MAX_DELIVERY_CBM = 0.1;
 
-const LIVE_TRACK_POLL_MS = 30000;
-
 function hasValidLatLng(lat, lng) {
   const la = parseFloat(lat);
   const ln = parseFloat(lng);
   return Number.isFinite(la) && Number.isFinite(ln);
+}
+
+function normalizePhone(raw) {
+  return String(raw || "")
+    .trim()
+    .replace(/[^\d+]/g, "");
+}
+
+function isValidReceiverPhone(raw) {
+  const s = normalizePhone(raw);
+  // Ghana-focused validation: allow +233XXXXXXXXX (12/13 chars) or 0XXXXXXXXX (10 digits)
+  if (/^\+233\d{9}$/.test(s)) return true;
+  if (/^0\d{9}$/.test(s)) return true;
+  // Also accept generic E.164 for non-GH numbers (basic length check)
+  if (/^\+\d{10,15}$/.test(s)) return true;
+  return false;
 }
 
 /** Blocks a new "Request delivery" until admin/customer flow cancels the open request */
@@ -65,12 +80,6 @@ function buildLatestDeliveryRequestMaps(requests) {
   return { byContainer, byBulkGroup, byTracking };
 }
 
-function formatDeliveryStatusLabel(status) {
-  return String(status || "")
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
 // Request history UI removed on purpose (keep request creation + container eligibility only).
 
 const emptyForm = () => ({
@@ -91,7 +100,7 @@ const emptyForm = () => ({
 /**
  * Customer profile: delivery requests from container totals (≤ MAX_DELIVERY_CBM) or manual entry.
  */
-const ProfileCustomerDelivery = () => {
+const ProfileCustomerDelivery = ({ embeddedInWidget = false } = {}) => {
   /** @type {null | { trackingCount: number, containers: any[], withoutContainer: any[], message?: string }} */
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -104,9 +113,6 @@ const ProfileCustomerDelivery = () => {
   const [loadingRequests, setLoadingRequests] = useState(false);
   /** @type {number | null} */
   const [liveTrackRequestId, setLiveTrackRequestId] = useState(null);
-  /** @type {Record<string, unknown> | null} */
-  const [liveTrackData, setLiveTrackData] = useState(null);
-  const [liveTrackError, setLiveTrackError] = useState(null);
 
   const shallowEqualSummary = (a, b) => {
     if (a === b) return true;
@@ -118,7 +124,7 @@ const ProfileCustomerDelivery = () => {
               (c) =>
                 `${c?.containerId ?? ""}:${c?.containerNumber ?? ""}:${c?.totalCbm ?? ""}:${
                   c?.canRequestDelivery ? 1 : 0
-                }`
+                }:${c?.containerStatus ?? ""}`
             )
             .join("|")
         : "";
@@ -220,42 +226,6 @@ const ProfileCustomerDelivery = () => {
     return () => clearInterval(t);
   }, [loadSummary, loadMyRequests]);
 
-  useEffect(() => {
-    if (liveTrackRequestId == null) {
-      setLiveTrackData(null);
-      setLiveTrackError(null);
-      return undefined;
-    }
-    let cancelled = false;
-    const fetchLive = async () => {
-      try {
-        const resp = await API.get(
-          `/buysellapi/users/me/delivery-requests/${liveTrackRequestId}/live-tracking/`,
-          { noCache: true }
-        );
-        if (!cancelled) {
-          setLiveTrackData(resp.data || null);
-          setLiveTrackError(null);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          const msg =
-            err.response?.data?.detail ||
-            err.response?.data?.error ||
-            "Could not load live tracking.";
-          setLiveTrackError(typeof msg === "string" ? msg : "Could not load live tracking.");
-          setLiveTrackData(null);
-        }
-      }
-    };
-    fetchLive();
-    const timer = setInterval(fetchLive, LIVE_TRACK_POLL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
-  }, [liveTrackRequestId]);
-
   const containers = summary?.containers ?? [];
   const orphanSummaries = summary?.withoutContainer ?? [];
   const trackingCount = summary?.trackingCount ?? 0;
@@ -326,18 +296,33 @@ const ProfileCustomerDelivery = () => {
       );
       return;
     }
+    if (form.sourceKind === "container" && form.containerId) {
+      const cid = String(form.containerId).trim();
+      const row = containers.find((c) => String(c.containerId) === cid);
+      if (row && !row.canRequestDelivery) {
+        toast.error(
+          `This container is not eligible for rider delivery (needs Offloaded status, not Completed, and your total CBM in the container must be greater than 0 and at most ${MAX_DELIVERY_CBM}).`
+        );
+        return;
+      }
+    }
     if (!form.dropoffAddress.trim()) {
       toast.error("Drop-off address is required.");
       return;
     }
     if (!hasValidLatLng(form.dropoffLatitude, form.dropoffLongitude)) {
       toast.error(
-        "Set drop-off on the map or with Use GPS so coordinates are saved."
+        "Set the drop-off on the map, with Google search, or with Use GPS (Greater Accra only)."
       );
       return;
     }
-    if (!String(form.contactPhone || "").trim()) {
-      toast.error("Day-of contact phone is required.");
+    const receiverPhone = normalizePhone(form.contactPhone);
+    if (!receiverPhone) {
+      toast.error("Receiver contact is required.");
+      return;
+    }
+    if (!isValidReceiverPhone(receiverPhone)) {
+      toast.error("Enter a valid receiver phone number (e.g. 0551234567 or +233551234567).");
       return;
     }
     const pickup = buysellclubPickupFormSlice();
@@ -362,7 +347,7 @@ const ProfileCustomerDelivery = () => {
         form.sourceKind === "container"
           ? ""
           : (form.packageNote || "").trim(),
-      contact_phone: (form.contactPhone || "").trim(),
+      contact_phone: receiverPhone,
     };
     setSubmitting(true);
     try {
@@ -403,11 +388,9 @@ const ProfileCustomerDelivery = () => {
                 Request rider delivery
               </h2>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 max-w-2xl">
-                We use the <strong>total CBM</strong> per <strong>container</strong>, and
-                also list shipments <strong>not on a container yet</strong> when CBM is
-                known. If total is <strong>≤ {MAX_DELIVERY_CBM} CBM</strong>, use{" "}
-                <strong>Request delivery</strong>. Use <strong>Manual request</strong> for
-                a one-off entry (still capped at {MAX_DELIVERY_CBM} CBM).
+                Packages of <strong>{MAX_DELIVERY_CBM} CBM or less</strong> can be delivered.
+                Use <strong>Manual request</strong> if your package does not automatically appear
+                here.
               </p>
             </div>
           </div>
@@ -454,8 +437,8 @@ const ProfileCustomerDelivery = () => {
                     <span className="font-medium text-gray-900 dark:text-white">
                       #{r.id} · {r.cbm} CBM
                     </span>
-                    <span className="text-gray-600 dark:text-gray-400 capitalize">
-                      {String(r.status || "").replace(/_/g, " ")}
+                    <span className="text-gray-600 dark:text-gray-400">
+                      {formatDeliveryStatusLabel(r.status)}
                     </span>
                     {r.assigned_rider_username ? (
                       <span className="text-xs text-gray-500 w-full">
@@ -502,7 +485,7 @@ const ProfileCustomerDelivery = () => {
                           className="text-xs font-medium text-primary hover:underline inline-flex items-center gap-1"
                         >
                           <FaMapMarkerAlt className="w-3 h-3" />
-                          Live map — see rider moving
+                          Live tracking
                         </button>
                       </div>
                     ) : null}
@@ -559,6 +542,15 @@ const ProfileCustomerDelivery = () => {
                 const openRequest =
                   latest && ACTIVE_DELIVERY_STATUSES.has(latest.status) ? latest : null;
                 const canSubmitRequest = row.canRequestDelivery && !openRequest;
+                const cbmOkForRider =
+                  Number(row.totalCbm) > 0 &&
+                  isCbmEligibleForDelivery(row.totalCbm, MAX_DELIVERY_CBM);
+                const st = row.containerStatus;
+                const showOffloadAvailabilityHint =
+                  cbmOkForRider &&
+                  !openRequest &&
+                  st &&
+                  st !== "arrived_port";
                 return (
                   <li
                     key={String(row.containerId)}
@@ -574,17 +566,24 @@ const ProfileCustomerDelivery = () => {
                         Your total CBM in this container:{" "}
                         <span className="font-mono font-semibold text-gray-900 dark:text-white">
                           {Number((Number(row.totalCbm) || 0).toFixed(4))}
-                        </span>{" "}
-                        <span className="text-gray-500">
-                          (max for rider delivery: {MAX_DELIVERY_CBM})
                         </span>
                       </p>
+                      {row.containerStatusLabel ? (
+                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                          Container status:{" "}
+                          <strong className="text-gray-900 dark:text-white">
+                            {row.containerStatusLabel}
+                          </strong>
+                        </p>
+                      ) : null}
                       {Number(row.totalCbm) <= 0 && (
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                           No CBM recorded on your trackings in this container yet.
                         </p>
                       )}
-                      {!row.canRequestDelivery && Number(row.totalCbm) > 0 && (
+                      {!row.canRequestDelivery &&
+                        Number(row.totalCbm) > 0 &&
+                        !isCbmEligibleForDelivery(row.totalCbm, MAX_DELIVERY_CBM) && (
                         <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
                           Total exceeds {MAX_DELIVERY_CBM} CBM — rider delivery is not
                           available for this container as a single request.
@@ -594,12 +593,11 @@ const ProfileCustomerDelivery = () => {
                         <p className="text-xs text-amber-800 dark:text-amber-200 mt-2">
                           A delivery request is already open (
                           <strong>{formatDeliveryStatusLabel(openRequest.status)}</strong>
-                          ). <strong>Request delivery</strong> stays off until that request
-                          is <strong>cancelled</strong>.
+                          ).
                         </p>
                       ) : null}
                     </div>
-                    <div className="shrink-0 flex flex-col items-stretch sm:items-end gap-1">
+                    <div className="shrink-0 flex flex-col items-stretch sm:items-end gap-1 max-w-full sm:max-w-[min(100%,280px)]">
                       {row.canRequestDelivery ? (
                         <button
                           type="button"
@@ -610,6 +608,31 @@ const ProfileCustomerDelivery = () => {
                           <FaShippingFast className="w-4 h-4" />
                           Request delivery
                         </button>
+                      ) : showOffloadAvailabilityHint ? (
+                        <div
+                          className="w-full sm:w-auto rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-100/80 dark:bg-gray-800/80 px-3 py-2.5 text-center"
+                          role="note"
+                        >
+                          <p className="text-xs text-gray-700 dark:text-gray-200 leading-snug">
+                            {st === "completed" ? (
+                              <>
+                                Rider delivery is{" "}
+                                <strong className="text-gray-900 dark:text-white">
+                                  not available
+                                </strong>{" "}
+                                for completed containers.
+                              </>
+                            ) : (
+                              <>
+                                Available after the container is{" "}
+                                <strong className="text-gray-900 dark:text-white">
+                                  Offloaded
+                                </strong>
+                                .
+                              </>
+                            )}
+                          </p>
+                        </div>
                       ) : (
                         <button
                           type="button"
@@ -631,98 +654,6 @@ const ProfileCustomerDelivery = () => {
           {/* "Not on a container yet" section removed per request. */}
         </div>
       </div>
-
-      {liveTrackRequestId != null && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div
-            className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-200 dark:border-gray-700"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="live-track-title"
-          >
-            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-              <h3
-                id="live-track-title"
-                className="text-lg font-semibold text-gray-900 dark:text-white"
-              >
-                Live tracking #{liveTrackRequestId}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setLiveTrackRequestId(null)}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-1 text-xl leading-none"
-                aria-label="Close"
-              >
-                ×
-              </button>
-            </div>
-            <div className="px-6 py-4 space-y-3">
-              {liveTrackError ? (
-                <p className="text-sm text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-900/25 rounded-lg px-3 py-2">
-                  {liveTrackError}
-                </p>
-              ) : null}
-              {liveTrackData && !liveTrackError ? (
-                <>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Status:{" "}
-                    <strong className="text-gray-900 dark:text-white capitalize">
-                      {String(liveTrackData.status || "").replace(/_/g, " ")}
-                    </strong>
-                    {liveTrackData.assigned_rider_full_name ||
-                    liveTrackData.assigned_rider_username ? (
-                      <>
-                        {" "}
-                        · Rider{" "}
-                        <strong className="text-gray-900 dark:text-white">
-                          {liveTrackData.assigned_rider_full_name ||
-                            liveTrackData.assigned_rider_username}
-                        </strong>
-                      </>
-                    ) : null}
-                  </p>
-                  {liveTrackData.rider_last_location_at ? (
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      Last rider position update:{" "}
-                      {new Date(liveTrackData.rider_last_location_at).toLocaleString()}
-                    </p>
-                  ) : (
-                    <p className="text-xs text-amber-800 dark:text-amber-200">
-                      Waiting for the rider to start sharing GPS from their rider tab.
-                    </p>
-                  )}
-                  <DeliveryLiveMap
-                    height={320}
-                    pickup={{
-                      lat: liveTrackData.pickup_latitude,
-                      lng: liveTrackData.pickup_longitude,
-                    }}
-                    dropoff={{
-                      lat: liveTrackData.dropoff_latitude,
-                      lng: liveTrackData.dropoff_longitude,
-                    }}
-                    rider={
-                      liveTrackData.rider_last_latitude != null &&
-                      liveTrackData.rider_last_longitude != null
-                        ? {
-                            lat: liveTrackData.rider_last_latitude,
-                            lng: liveTrackData.rider_last_longitude,
-                          }
-                        : null
-                    }
-                  />
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Map refreshes about every {LIVE_TRACK_POLL_MS / 1000} seconds while this
-                    window is open.
-                  </p>
-                </>
-              ) : !liveTrackError ? (
-                <p className="text-sm text-gray-500 py-8 text-center">Loading map…</p>
-              ) : null}
-            </div>
-          </div>
-        </div>
-      )}
 
       {showRequestModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -808,6 +739,8 @@ const ProfileCustomerDelivery = () => {
                 address={form.dropoffAddress}
                 latitude={form.dropoffLatitude}
                 longitude={form.dropoffLongitude}
+                pickupLatitude={CLUB_PICKUP_STATIC.pickupLatitude}
+                pickupLongitude={CLUB_PICKUP_STATIC.pickupLongitude}
                 onAddressChange={(v) =>
                   setForm((f) => ({ ...f, dropoffAddress: v }))
                 }
@@ -836,7 +769,7 @@ const ProfileCustomerDelivery = () => {
               ) : null}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Day-of contact phone <span className="text-rose-600">*</span>
+                  Receiver contact <span className="text-rose-600">*</span>
                 </label>
                 <input
                   type="tel"
@@ -845,8 +778,15 @@ const ProfileCustomerDelivery = () => {
                   onChange={(e) =>
                     setForm((f) => ({ ...f, contactPhone: e.target.value }))
                   }
+                  inputMode="tel"
+                  autoComplete="tel"
+                  placeholder="e.g. 0551234567 or +233551234567"
+                  pattern="(\\+?\\d[\\d\\s-]{8,16})"
                   className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
                 />
+                <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1">
+                  Use Ghana format (0XXXXXXXXX) or international (+233XXXXXXXXX).
+                </p>
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <button
@@ -868,6 +808,14 @@ const ProfileCustomerDelivery = () => {
           </div>
         </div>
       )}
+
+      {liveTrackRequestId != null ? (
+        <CustomerLiveTrackingModal
+          requestId={liveTrackRequestId}
+          onClose={() => setLiveTrackRequestId(null)}
+          preferBottomSheetLayout={embeddedInWidget}
+        />
+      ) : null}
     </div>
   );
 };

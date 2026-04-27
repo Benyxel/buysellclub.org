@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback, Fragment } from "react";
+import React, { useState, useEffect, useCallback, Fragment, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { FaMotorcycle, FaSpinner, FaMapMarkerAlt, FaBroadcastTower } from "react-icons/fa";
 import { toast } from "../../utils/toast";
 import API from "../../api";
-import DeliveryLiveMap from "./DeliveryLiveMap";
-
+import DeliverySimpleLiveMap from "./DeliverySimpleLiveMap";
+import { formatDeliveryRequestStatusLabel } from "../../utils/deliveryStatusLabel";
 function normalizeList(resp) {
   const d = resp?.data;
   if (d && typeof d === "object" && "results" in d) {
@@ -14,7 +15,7 @@ function normalizeList(resp) {
 }
 
 const RIDER_STATUS_OPTIONS = [
-  { value: "in_progress", label: "In progress" },
+  { value: "in_progress", label: "On his way" },
   { value: "arrived", label: "Arrived" },
   { value: "cancelled", label: "Cancelled" },
 ];
@@ -26,12 +27,6 @@ function formatWhen(iso) {
   } catch {
     return String(iso);
   }
-}
-
-function statusLabel(s) {
-  return String(s || "")
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 /**
@@ -204,6 +199,23 @@ const ProfileRiderWorkspace = () => {
     }
   };
 
+  const expandedJob = useMemo(() => {
+    if (expandedJobId == null) return null;
+    return jobs.find((x) => x.id === expandedJobId) || null;
+  }, [expandedJobId, jobs]);
+
+  const expandedLiveEligible =
+    expandedJob &&
+    ["assigned", "in_progress", "arrived"].includes(expandedJob.status);
+
+  useEffect(() => {
+    if (expandedJobId == null) return;
+    const j = jobs.find((x) => x.id === expandedJobId);
+    if (!j || !["assigned", "in_progress", "arrived"].includes(j.status)) {
+      setExpandedJobId(null);
+    }
+  }, [jobs, expandedJobId]);
+
   const confirmDeliveryOtp = async (jobId) => {
     const otp = String(otpDraft[jobId] || "").trim();
     if (!/^\d{4}$/.test(otp)) {
@@ -229,6 +241,65 @@ const ProfileRiderWorkspace = () => {
     }
   };
 
+  const renderRiderExpandedDetails = (j) => (
+    <>
+      {j.status !== "arrived" ? (
+        <>
+          <p className="text-xs text-gray-600 dark:text-gray-400">
+            Your position is sent to the server every few seconds so the customer can see you
+            on the map. Keep this tab open while you are on the way.
+          </p>
+          <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white/70 dark:bg-gray-950/10 p-2">
+            <DeliverySimpleLiveMap
+              pickupLatitude={j.pickup_latitude}
+              pickupLongitude={j.pickup_longitude}
+              dropoffLatitude={j.dropoff_latitude}
+              dropoffLongitude={j.dropoff_longitude}
+              riderLatitude={liveGps?.lat}
+              riderLongitude={liveGps?.lng}
+              heightClassName="h-[min(40vh,260px)] min-h-[200px]"
+            />
+          </div>
+          {liveGps ? (
+            <p className="text-xs font-mono text-gray-500 dark:text-gray-400">
+              GPS: {liveGps.lat.toFixed(5)}, {liveGps.lng.toFixed(5)}
+            </p>
+          ) : (
+            <p className="text-xs text-amber-700 dark:text-amber-300">Acquiring GPS…</p>
+          )}
+        </>
+      ) : (
+        <div className="rounded-lg border border-pink-200 dark:border-pink-800 bg-pink-50/60 dark:bg-pink-950/20 px-3 py-2">
+          <p className="text-sm font-medium text-gray-900 dark:text-white">
+            Confirm delivery with OTP
+          </p>
+          <p className="text-xs text-gray-700 dark:text-gray-300 mt-1">
+            Ask the customer for the <strong>4-digit code</strong> shown in their delivery
+            screen, then enter it below to mark this job as delivered.
+          </p>
+          <div className="mt-2 flex flex-col sm:flex-row gap-2 sm:items-center">
+            <input
+              value={otpDraft[j.id] ?? ""}
+              onChange={(e) => setOtpDraft((d) => ({ ...d, [j.id]: e.target.value }))}
+              inputMode="numeric"
+              maxLength={4}
+              placeholder="1234"
+              className="w-full sm:w-40 px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-sm font-mono text-gray-900 dark:text-white"
+            />
+            <button
+              type="button"
+              onClick={() => confirmDeliveryOtp(j.id)}
+              disabled={confirmingId === j.id}
+              className="px-4 py-2 rounded-md bg-pink-600 text-white text-sm font-medium hover:bg-pink-700 disabled:opacity-50"
+            >
+              {confirmingId === j.id ? "Confirming…" : "Confirm & deliver"}
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
@@ -243,7 +314,7 @@ const ProfileRiderWorkspace = () => {
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 max-w-2xl">
               Requests appear here when an admin assigns you in{" "}
               <strong>Admin → Delivery → Requests</strong>. You can set status to{" "}
-              <strong>In progress</strong>, <strong>Delivered</strong>, or{" "}
+              <strong>On his way</strong>, <strong>Delivered</strong>, or{" "}
               <strong>Cancelled</strong>.
             </p>
           </div>
@@ -317,10 +388,10 @@ const ProfileRiderWorkspace = () => {
                     </span>
                     <span className="sm:hidden block text-xs text-gray-600 dark:text-gray-300 mt-1">
                       {j.customer_full_name || j.customer_username} ·{" "}
-                      <span className="capitalize">{statusLabel(j.status)}</span>
+                      <span>{formatDeliveryRequestStatusLabel(j.status)}</span>
                     </span>
                     <span className="block text-xs text-gray-600 dark:text-gray-400 mt-1">
-                      Day-of phone: {j.contact_phone || "—"}
+                      Receiver contact: {j.contact_phone || "—"}
                     </span>
                   </td>
                   <td className="hidden sm:table-cell px-4 py-3 text-sm text-gray-800 dark:text-gray-200">
@@ -347,7 +418,7 @@ const ProfileRiderWorkspace = () => {
                     ) : null}
                   </td>
                   <td className="hidden sm:table-cell px-4 py-3 text-sm capitalize text-gray-800 dark:text-gray-200 whitespace-nowrap">
-                    {statusLabel(j.status)}
+                    {formatDeliveryRequestStatusLabel(j.status)}
                   </td>
                   <td className="px-4 py-3 text-right">
                     {j.status === "delivered" || j.status === "cancelled" ? (
@@ -376,7 +447,7 @@ const ProfileRiderWorkspace = () => {
                           className="w-full max-w-[180px] rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-2 py-1.5 text-xs text-gray-900 dark:text-white"
                         >
                           <option value={j.status}>
-                            {statusLabel(j.status)} (current)
+                            {formatDeliveryRequestStatusLabel(j.status)} (current)
                           </option>
                           {RIDER_STATUS_OPTIONS.filter((o) => o.value !== j.status).map(
                             (o) => (
@@ -406,69 +477,11 @@ const ProfileRiderWorkspace = () => {
                 </tr>
                 {expandedJobId === j.id &&
                 (j.status === "assigned" ||
-                j.status === "in_progress" ||
-                j.status === "arrived") ? (
-                  <tr className="bg-gray-50 dark:bg-gray-900/40">
+                  j.status === "in_progress" ||
+                  j.status === "arrived") ? (
+                  <tr className="hidden md:table-row bg-gray-50 dark:bg-gray-900/40">
                     <td colSpan={6} className="px-4 py-4 space-y-3">
-                      {j.status !== "arrived" ? (
-                        <>
-                          <p className="text-xs text-gray-600 dark:text-gray-400">
-                            Your position is sent to the server every few seconds so the customer
-                            can see you on the map. Keep this tab open while you are on the way.
-                          </p>
-                          {liveGps ? (
-                            <p className="text-xs font-mono text-gray-500 dark:text-gray-400">
-                              GPS: {liveGps.lat.toFixed(5)}, {liveGps.lng.toFixed(5)}
-                            </p>
-                          ) : (
-                            <p className="text-xs text-amber-700 dark:text-amber-300">
-                              Acquiring GPS…
-                            </p>
-                          )}
-                        </>
-                      ) : (
-                        <div className="rounded-lg border border-pink-200 dark:border-pink-800 bg-pink-50/60 dark:bg-pink-950/20 px-3 py-2">
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">
-                            Confirm delivery with OTP
-                          </p>
-                          <p className="text-xs text-gray-700 dark:text-gray-300 mt-1">
-                            Ask the customer for the <strong>4-digit code</strong> shown in their delivery screen,
-                            then enter it below to mark this job as delivered.
-                          </p>
-                          <div className="mt-2 flex flex-col sm:flex-row gap-2 sm:items-center">
-                            <input
-                              value={otpDraft[j.id] ?? ""}
-                              onChange={(e) =>
-                                setOtpDraft((d) => ({ ...d, [j.id]: e.target.value }))
-                              }
-                              inputMode="numeric"
-                              maxLength={4}
-                              placeholder="1234"
-                              className="w-full sm:w-40 px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-sm font-mono text-gray-900 dark:text-white"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => confirmDeliveryOtp(j.id)}
-                              disabled={confirmingId === j.id}
-                              className="px-4 py-2 rounded-md bg-pink-600 text-white text-sm font-medium hover:bg-pink-700 disabled:opacity-50"
-                            >
-                              {confirmingId === j.id ? "Confirming…" : "Confirm & deliver"}
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                      <DeliveryLiveMap
-                        height={300}
-                        pickup={{
-                          lat: j.pickup_latitude,
-                          lng: j.pickup_longitude,
-                        }}
-                        dropoff={{
-                          lat: j.dropoff_latitude,
-                          lng: j.dropoff_longitude,
-                        }}
-                        rider={liveGps}
-                      />
+                      {renderRiderExpandedDetails(j)}
                     </td>
                   </tr>
                 ) : null}
@@ -479,8 +492,107 @@ const ProfileRiderWorkspace = () => {
         </table>
         </div>
       </div>
+
+      {expandedLiveEligible && typeof document !== "undefined"
+        ? createPortal(
+            <div className="fixed inset-0 z-[1210] md:hidden bg-black/50">
+              <div className="h-[100dvh] w-full flex flex-col bg-white dark:bg-gray-900 overflow-hidden relative">
+                <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between shrink-0 relative z-20 bg-white/95 dark:bg-gray-900/95 backdrop-blur">
+                  <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+                    Live route #{expandedJob.id}
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setExpandedJobId(null)}
+                    className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-1 text-xl leading-none"
+                    aria-label="Close"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className="flex-1 min-h-0 relative">
+                  <div className="absolute inset-0">
+                    <DeliverySimpleLiveMap
+                      mode="mapOnly"
+                      pickupLatitude={expandedJob.pickup_latitude}
+                      pickupLongitude={expandedJob.pickup_longitude}
+                      dropoffLatitude={expandedJob.dropoff_latitude}
+                      dropoffLongitude={expandedJob.dropoff_longitude}
+                      riderLatitude={liveGps?.lat}
+                      riderLongitude={liveGps?.lng}
+                      heightClassName="h-[100dvh]"
+                      mapChromeClassName="border-0 rounded-none overflow-hidden"
+                    />
+                  </div>
+
+                  <MobileRiderSheet job={expandedJob} liveGps={liveGps}>
+                    {renderRiderExpandedDetails(expandedJob)}
+                  </MobileRiderSheet>
+                </div>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
     </div>
   );
 };
+
+function MobileRiderSheet({ job, liveGps, children }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div
+      className={`absolute left-0 right-0 bottom-0 z-20 transition-transform duration-200 ease-out ${
+        open ? "translate-y-0" : "translate-y-[calc(100%-72px)]"
+      }`}
+    >
+      <div className="mx-3 mb-3 rounded-2xl bg-white/95 dark:bg-gray-950/90 border border-gray-200 dark:border-gray-800 shadow-xl backdrop-blur">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="w-full px-4 py-3 flex items-center justify-center"
+          aria-expanded={open}
+          aria-label={open ? "Collapse details" : "Expand details"}
+        >
+          <div className="h-1.5 w-10 rounded-full bg-gray-200 dark:bg-gray-700" />
+        </button>
+        <div className="px-4 pb-4 max-h-[65dvh] overflow-y-auto space-y-2">
+          {job.dropoff_address ? (
+            <p className="text-xs text-gray-600 dark:text-gray-300 flex items-start gap-1">
+              <FaMapMarkerAlt className="w-3.5 h-3.5 mt-0.5 shrink-0 text-primary" />
+              <span>
+                <span className="font-medium text-gray-800 dark:text-gray-200">Drop-off:</span>{" "}
+                {job.dropoff_address}
+              </span>
+            </p>
+          ) : null}
+          {job.contact_phone ? (
+            <p className="text-xs text-gray-600 dark:text-gray-300">
+              <span className="font-medium text-gray-800 dark:text-gray-200">Receiver contact:</span>{" "}
+              {job.contact_phone}
+            </p>
+          ) : null}
+          {liveGps ? (
+            <p className="text-[11px] text-gray-500 dark:text-gray-400">
+              Your GPS: {liveGps.lat?.toFixed?.(5)}, {liveGps.lng?.toFixed?.(5)}
+            </p>
+          ) : null}
+
+          <DeliverySimpleLiveMap
+            mode="detailsOnly"
+            pickupLatitude={job.pickup_latitude}
+            pickupLongitude={job.pickup_longitude}
+            dropoffLatitude={job.dropoff_latitude}
+            dropoffLongitude={job.dropoff_longitude}
+            riderLatitude={liveGps?.lat}
+            riderLongitude={liveGps?.lng}
+          />
+
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default ProfileRiderWorkspace;

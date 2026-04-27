@@ -196,7 +196,7 @@ const DeliveryRequestWidget = ({ launcherHidden = false } = {}) => {
                 className="h-full overflow-y-scroll px-5 py-5"
                 style={{ scrollbarGutter: "stable" }}
               >
-                {isRider ? <ProfileRiderWorkspace /> : <ProfileCustomerDelivery />}
+                {isRider ? <ProfileRiderWorkspace /> : <ProfileCustomerDelivery embeddedInWidget />}
               </div>
             </div>
           </div>
