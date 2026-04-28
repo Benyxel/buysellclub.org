@@ -51,7 +51,8 @@ const ContainerManagement = () => {
     { value: "loading", label: "Loading" },
     { value: "in_transit", label: "In Transit" },
     { value: "clearing", label: "Clearing" },
-    { value: "arrived_port", label: "Offloaded" },
+    { value: "arrived_port", label: "Arrived at Port" },
+    { value: "offloaded", label: "Offloaded" },
     { value: "completed", label: "Completed" },
   ];
 
@@ -287,6 +288,8 @@ const ContainerManagement = () => {
       clearing:
         "bg-gradient-to-r from-orange-400 to-red-500 text-white shadow-sm",
       arrived_port:
+        "bg-gradient-to-r from-cyan-400 to-teal-500 text-white shadow-sm",
+      offloaded:
         "bg-gradient-to-r from-green-400 to-emerald-500 text-white shadow-sm",
       completed:
         "bg-gradient-to-r from-gray-400 to-gray-500 text-white shadow-sm",

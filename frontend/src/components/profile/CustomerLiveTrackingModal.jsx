@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { FaMapMarkerAlt } from "react-icons/fa";
 import API from "../../api";
@@ -13,6 +13,24 @@ function hasValidLatLng(lat, lng) {
 
 const POLL_MS = 5000;
 
+const MD_UP_MQ = "(min-width: 768px)";
+
+function subscribeMdUp(callback) {
+  if (typeof window === "undefined") return () => {};
+  const mq = window.matchMedia(MD_UP_MQ);
+  mq.addEventListener("change", callback);
+  return () => mq.removeEventListener("change", callback);
+}
+
+function getMdUpSnapshot() {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia(MD_UP_MQ).matches;
+}
+
+function getMdUpServerSnapshot() {
+  return false;
+}
+
 const CustomerLiveTrackingModal = ({
   requestId,
   onClose,
@@ -22,6 +40,7 @@ const CustomerLiveTrackingModal = ({
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const isMdUp = useSyncExternalStore(subscribeMdUp, getMdUpSnapshot, getMdUpServerSnapshot);
 
   useEffect(() => {
     if (!requestId) return undefined;
@@ -116,12 +135,9 @@ const CustomerLiveTrackingModal = ({
             <>
               {canShowMap ? (
                 <>
-                  {/* Desktop/tablet: stacked layout (hidden in widget / when preferBottomSheetLayout) */}
-                  <div
-                    className={`space-y-3 px-4 py-4 md:px-0 md:py-0 ${
-                      preferBottomSheetLayout ? "hidden" : "hidden md:block"
-                    }`}
-                  >
+                  {/* Desktop/tablet: one map+details — do not mount when hidden (avoids duplicate Google Maps). */}
+                  {!preferBottomSheetLayout && isMdUp ? (
+                  <div className="space-y-3 px-4 py-4 md:px-0 md:py-0">
                     <p className="text-sm text-gray-600 dark:text-gray-400">
                       Status:{" "}
                       <strong className="text-gray-900 dark:text-white">
@@ -167,8 +183,10 @@ const CustomerLiveTrackingModal = ({
                       riderLongitude={data.rider_last_longitude}
                     />
                   </div>
+                  ) : null}
 
                   {/* Full-viewport map + bottom sheet (mobile, or delivery widget on any viewport) */}
+                  {preferBottomSheetLayout || !isMdUp ? (
                   <div
                     className={`absolute inset-0 ${
                       preferBottomSheetLayout ? "" : "md:hidden"
@@ -251,6 +269,7 @@ const CustomerLiveTrackingModal = ({
                       </div>
                     </div>
                   </div>
+                  ) : null}
                 </>
               ) : null}
             </>

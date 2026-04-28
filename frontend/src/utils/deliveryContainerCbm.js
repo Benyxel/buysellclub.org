@@ -131,6 +131,25 @@ export function summarizeCbmByContainer(trackings) {
  * @param {ReturnType<summarizeCbmByContainer>} summaries
  * @param {number} maxCbm
  */
+/**
+ * Rider pickup only after container status Offloaded (Django value `offloaded`).
+ * `arrived_port` is "Arrived at Port" only — not eligible. Keep in sync with buysellapi/views.py.
+ */
+export function isContainerOffloadedForDelivery(status) {
+  if (status == null || status === "") return false;
+  return String(status).trim() === "offloaded";
+}
+
+/** Effective "Request delivery" for a container row: CBM cap + offloaded status (ignores stale API flags). */
+export function containerRowCanRequestDelivery(row, maxCbm) {
+  if (!row || typeof row !== "object") return false;
+  const st = row.containerStatus ?? row.container_status ?? null;
+  return (
+    isCbmEligibleForDelivery(row.totalCbm, maxCbm) &&
+    isContainerOffloadedForDelivery(st)
+  );
+}
+
 export function withDeliveryEligibility(summaries, maxCbm) {
   return summaries.map((s) => ({
     ...s,

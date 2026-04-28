@@ -50,7 +50,8 @@ const TrackingSearch = () => {
       loading: "Loading",
       in_transit: "In Transit",
       clearing: "Clearing",
-      arrived_port: "Offloaded",
+      arrived_port: "Arrived at Port",
+      offloaded: "Offloaded",
       completed: "Completed",
     };
     return map[code] || code;

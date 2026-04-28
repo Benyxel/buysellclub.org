@@ -329,6 +329,8 @@ const ContainerInfoWidget = ({ launcherHidden = false } = {}) => {
                         : containerInfo.status === "in_transit"
                         ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
                         : containerInfo.status === "arrived_port"
+                        ? "bg-cyan-100 text-cyan-900 dark:bg-cyan-900/30 dark:text-cyan-200"
+                        : containerInfo.status === "offloaded"
                         ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
                         : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
                     }`}>
@@ -339,7 +341,8 @@ const ContainerInfoWidget = ({ launcherHidden = false } = {}) => {
                             loading: "Loading",
                             in_transit: "In Transit",
                             clearing: "Clearing",
-                            arrived_port: "Offloaded",
+                            arrived_port: "Arrived at Port",
+                            offloaded: "Offloaded",
                             completed: "Completed",
                           }[containerInfo.status] ||
                           (containerInfo.status.charAt(0).toUpperCase() +

@@ -6,6 +6,7 @@ import {
   parseCbmNumber,
   isCbmEligibleForDelivery,
   formatCbmForInput,
+  containerRowCanRequestDelivery,
 } from "../../utils/deliveryContainerCbm";
 import { formatDeliveryRequestStatusLabel as formatDeliveryStatusLabel } from "../../utils/deliveryStatusLabel";
 import DeliveryAddressMapField from "./DeliveryAddressMapField";
@@ -117,14 +118,14 @@ const ProfileCustomerDelivery = ({ embeddedInWidget = false } = {}) => {
   const shallowEqualSummary = (a, b) => {
     if (a === b) return true;
     if (!a || !b) return false;
-    const sig = (s) => {
+      const sig = (s) => {
       const containersSig = Array.isArray(s.containers)
         ? s.containers
             .map(
               (c) =>
                 `${c?.containerId ?? ""}:${c?.containerNumber ?? ""}:${c?.totalCbm ?? ""}:${
-                  c?.canRequestDelivery ? 1 : 0
-                }:${c?.containerStatus ?? ""}`
+                  containerRowCanRequestDelivery(c, MAX_DELIVERY_CBM) ? 1 : 0
+                }:${c?.containerStatus ?? c?.container_status ?? ""}`
             )
             .join("|")
         : "";
@@ -226,8 +227,14 @@ const ProfileCustomerDelivery = ({ embeddedInWidget = false } = {}) => {
     return () => clearInterval(t);
   }, [loadSummary, loadMyRequests]);
 
-  const containers = summary?.containers ?? [];
-  const orphanSummaries = summary?.withoutContainer ?? [];
+  const containers = useMemo(
+    () => (Array.isArray(summary?.containers) ? summary.containers : []),
+    [summary]
+  );
+  const orphanSummaries = useMemo(
+    () => (Array.isArray(summary?.withoutContainer) ? summary.withoutContainer : []),
+    [summary]
+  );
   const trackingCount = summary?.trackingCount ?? 0;
 
   const deliveryMaps = useMemo(
@@ -235,12 +242,12 @@ const ProfileCustomerDelivery = ({ embeddedInWidget = false } = {}) => {
     [myRequests]
   );
 
-  // Always show containers returned by the shipments summary.
-  // Previous behavior hid containers when latest request was delivered, which confused users
-  // who still wanted to see the container rows + request history.
-  const visibleContainers = useMemo(() => containers, [containers]);
-
-  const visibleOrphans = useMemo(() => orphanSummaries, [orphanSummaries]);
+  /** Only show rows the user can actually request (0 &lt; total CBM ≤ MAX). Hide &gt; 0.1 entirely. */
+  const qualifyingContainers = useMemo(
+    () => containers.filter((c) => isCbmEligibleForDelivery(c.totalCbm, MAX_DELIVERY_CBM)),
+    [containers]
+  );
+  const visibleContainers = qualifyingContainers;
 
   const openContainerRequest = (row) => {
     setForm({
@@ -250,22 +257,6 @@ const ProfileCustomerDelivery = ({ embeddedInWidget = false } = {}) => {
       containerId: row.containerId != null ? String(row.containerId) : "",
       containerNumber: row.containerNumber || "",
       packageNote: "",
-    });
-    setCbmLocked(true);
-    setShowRequestModal(true);
-  };
-
-  const openOrphanRequest = (row) => {
-    const isBulk = row.kind === "bulk_group";
-    setForm({
-      ...emptyForm(),
-      sourceKind: isBulk ? "orphan_bulk" : "orphan_single",
-      cbm: formatCbmForInput(row.totalCbm),
-      bulkGroupId: isBulk && row.bulkGroupId != null ? String(row.bulkGroupId) : "",
-      trackingId: row.trackingId != null ? String(row.trackingId) : "",
-      packageNote: isBulk
-        ? `Bulk group — ${row.detail || row.trackingNumber || "no container"}`
-        : `Tracking ${row.trackingNumber || row.trackingId} — no container yet`,
     });
     setCbmLocked(true);
     setShowRequestModal(true);
@@ -298,8 +289,8 @@ const ProfileCustomerDelivery = ({ embeddedInWidget = false } = {}) => {
     }
     if (form.sourceKind === "container" && form.containerId) {
       const cid = String(form.containerId).trim();
-      const row = containers.find((c) => String(c.containerId) === cid);
-      if (row && !row.canRequestDelivery) {
+      const row = qualifyingContainers.find((c) => String(c.containerId) === cid);
+      if (row && !containerRowCanRequestDelivery(row, MAX_DELIVERY_CBM)) {
         toast.error(
           `This container is not eligible for rider delivery (needs Offloaded status, not Completed, and your total CBM in the container must be greater than 0 and at most ${MAX_DELIVERY_CBM}).`
         );
@@ -388,9 +379,9 @@ const ProfileCustomerDelivery = ({ embeddedInWidget = false } = {}) => {
                 Request rider delivery
               </h2>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 max-w-2xl">
-                Packages of <strong>{MAX_DELIVERY_CBM} CBM or less</strong> can be delivered.
-                Use <strong>Manual request</strong> if your package does not automatically appear
-                here.
+                Only shipments with <strong>total CBM greater than 0 and at most{" "}
+                {MAX_DELIVERY_CBM}</strong> are listed below. Larger loads are hidden here. Use{" "}
+                <strong>Manual request</strong> for a one-off within the same CBM cap.
               </p>
             </div>
           </div>
@@ -531,7 +522,19 @@ const ProfileCustomerDelivery = ({ embeddedInWidget = false } = {}) => {
             </p>
           ) : visibleContainers.length === 0 ? (
             <p className="text-sm text-gray-500 dark:text-gray-400 py-4 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg px-4">
-              No container rows to show yet.
+              {containers.some(
+                (c) =>
+                  Number(c.totalCbm) > 0 &&
+                  !isCbmEligibleForDelivery(c.totalCbm, MAX_DELIVERY_CBM)
+              ) ? (
+                <>
+                  Rider delivery only lists containers where your total CBM is at most{" "}
+                  <strong>{MAX_DELIVERY_CBM}</strong>. Your container totals are above that, so
+                  they are not shown here.
+                </>
+              ) : (
+                `No qualifying containers yet. Once your total CBM in a container is greater than 0 and at most ${MAX_DELIVERY_CBM}, it will appear here.`
+              )}
             </p>
           ) : (
             <div className="max-h-[260px] sm:max-h-[320px] overflow-y-auto pr-1">
@@ -541,16 +544,23 @@ const ProfileCustomerDelivery = ({ embeddedInWidget = false } = {}) => {
                 const latest = deliveryMaps.byContainer.get(cid);
                 const openRequest =
                   latest && ACTIVE_DELIVERY_STATUSES.has(latest.status) ? latest : null;
-                const canSubmitRequest = row.canRequestDelivery && !openRequest;
+                const canRequestDelivery = containerRowCanRequestDelivery(
+                  row,
+                  MAX_DELIVERY_CBM
+                );
+                const canSubmitRequest = canRequestDelivery && !openRequest;
                 const cbmOkForRider =
                   Number(row.totalCbm) > 0 &&
                   isCbmEligibleForDelivery(row.totalCbm, MAX_DELIVERY_CBM);
-                const st = row.containerStatus;
+                const st = row.containerStatus ?? row.container_status ?? null;
+                const statusLabel =
+                  row.containerStatusLabel ?? row.container_status_label ?? "";
+                // Show offload note whenever CBM qualifies but container not offloaded yet (or completed).
                 const showOffloadAvailabilityHint =
                   cbmOkForRider &&
                   !openRequest &&
-                  st &&
-                  st !== "arrived_port";
+                  !canRequestDelivery &&
+                  st !== "offloaded";
                 return (
                   <li
                     key={String(row.containerId)}
@@ -568,25 +578,17 @@ const ProfileCustomerDelivery = ({ embeddedInWidget = false } = {}) => {
                           {Number((Number(row.totalCbm) || 0).toFixed(4))}
                         </span>
                       </p>
-                      {row.containerStatusLabel ? (
+                      {statusLabel ? (
                         <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
                           Container status:{" "}
                           <strong className="text-gray-900 dark:text-white">
-                            {row.containerStatusLabel}
+                            {statusLabel}
                           </strong>
                         </p>
                       ) : null}
                       {Number(row.totalCbm) <= 0 && (
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                           No CBM recorded on your trackings in this container yet.
-                        </p>
-                      )}
-                      {!row.canRequestDelivery &&
-                        Number(row.totalCbm) > 0 &&
-                        !isCbmEligibleForDelivery(row.totalCbm, MAX_DELIVERY_CBM) && (
-                        <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
-                          Total exceeds {MAX_DELIVERY_CBM} CBM — rider delivery is not
-                          available for this container as a single request.
                         </p>
                       )}
                       {openRequest ? (
@@ -598,7 +600,7 @@ const ProfileCustomerDelivery = ({ embeddedInWidget = false } = {}) => {
                       ) : null}
                     </div>
                     <div className="shrink-0 flex flex-col items-stretch sm:items-end gap-1 max-w-full sm:max-w-[min(100%,280px)]">
-                      {row.canRequestDelivery ? (
+                      {canRequestDelivery ? (
                         <button
                           type="button"
                           onClick={() => openContainerRequest(row)}

@@ -241,7 +241,7 @@ const ProfileRiderWorkspace = () => {
     }
   };
 
-  const renderRiderExpandedDetails = (j) => (
+  const renderRiderExpandedDetails = (j, { hideLiveMap = false } = {}) => (
     <>
       {j.status !== "arrived" ? (
         <>
@@ -249,17 +249,19 @@ const ProfileRiderWorkspace = () => {
             Your position is sent to the server every few seconds so the customer can see you
             on the map. Keep this tab open while you are on the way.
           </p>
-          <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white/70 dark:bg-gray-950/10 p-2">
-            <DeliverySimpleLiveMap
-              pickupLatitude={j.pickup_latitude}
-              pickupLongitude={j.pickup_longitude}
-              dropoffLatitude={j.dropoff_latitude}
-              dropoffLongitude={j.dropoff_longitude}
-              riderLatitude={liveGps?.lat}
-              riderLongitude={liveGps?.lng}
-              heightClassName="h-[min(40vh,260px)] min-h-[200px]"
-            />
-          </div>
+          {!hideLiveMap ? (
+            <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white/70 dark:bg-gray-950/10 p-2">
+              <DeliverySimpleLiveMap
+                pickupLatitude={j.pickup_latitude}
+                pickupLongitude={j.pickup_longitude}
+                dropoffLatitude={j.dropoff_latitude}
+                dropoffLongitude={j.dropoff_longitude}
+                riderLatitude={liveGps?.lat}
+                riderLongitude={liveGps?.lng}
+                heightClassName="h-[min(40vh,260px)] min-h-[200px]"
+              />
+            </div>
+          ) : null}
           {liveGps ? (
             <p className="text-xs font-mono text-gray-500 dark:text-gray-400">
               GPS: {liveGps.lat.toFixed(5)}, {liveGps.lng.toFixed(5)}
@@ -526,7 +528,7 @@ const ProfileRiderWorkspace = () => {
                   </div>
 
                   <MobileRiderSheet job={expandedJob} liveGps={liveGps}>
-                    {renderRiderExpandedDetails(expandedJob)}
+                    {renderRiderExpandedDetails(expandedJob, { hideLiveMap: true })}
                   </MobileRiderSheet>
                 </div>
               </div>
