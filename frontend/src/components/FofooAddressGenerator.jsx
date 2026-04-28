@@ -16,6 +16,7 @@ import { toast } from "../utils/toast";
 import "react-toastify/dist/ReactToastify.css";
 import API from "../api";
 import { CHINA_REGION_CODE, getRevealedRegions, setRegionRevealed } from "../utils/addressRevealedRegions";
+import { formatMarkIdForDisplay, formatMarkIdInText } from "../utils/markIdFormat";
 
 /**
  * How-to videos (SEA / AIR): local files only — no URLs / embed links.
@@ -286,7 +287,7 @@ const FofooAddressGenerator = () => {
     (fullName && fullName.trim()) || existingAddress?.name || "";
   const displayShippingMark =
     existingAddress?.markId && resolvedMarkName
-      ? `${existingAddress.markId}:${resolvedMarkName}`
+      ? `${formatMarkIdForDisplay(existingAddress.markId)}:${resolvedMarkName}`
       : existingAddress?.shippingMark;
   const defaultFullAddress =
     existingAddress?.fullAddress ||
@@ -300,6 +301,7 @@ const FofooAddressGenerator = () => {
     displayShippingMark
       ? `${baseChinaAddress}${displayShippingMark}${ghSuffix}`
       : defaultFullAddress;
+  const defaultAddressTextDisplay = formatMarkIdInText(defaultAddressText || defaultFullAddress);
   // Air address: fixed format for 8302专线 (Guangzhou) — uses full name
   const airAddressName =
     (resolvedMarkName && resolvedMarkName.trim()) || existingAddress?.name || "";
@@ -311,6 +313,7 @@ const FofooAddressGenerator = () => {
     displayShippingMark
       ? `${baseChinaAddress}${displayShippingMark}"REPACK"${ghSuffix}`
       : "";
+  const repackAddressTextDisplay = formatMarkIdInText(repackAddressText);
   const repackAddressParts = displayShippingMark
     ? {
         prefix: `${baseChinaAddress}${displayShippingMark}"`,
@@ -530,12 +533,12 @@ const FofooAddressGenerator = () => {
                       <div className="relative">
                         <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                           <p className="text-sm text-gray-900 dark:text-white break-all">
-                            {displayShippingMark}
+                            {formatMarkIdInText(displayShippingMark)}
                           </p>
                         </div>
                         <button
                           type="button"
-                          onClick={() => copyToClipboard("mark", displayShippingMark)}
+                          onClick={() => copyToClipboard("mark", formatMarkIdInText(displayShippingMark))}
                           className="absolute top-3 right-3 p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                           disabled={isLoading}
                         >
@@ -555,12 +558,17 @@ const FofooAddressGenerator = () => {
                       <div className="relative">
                         <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                           <p className="text-sm text-gray-900 dark:text-white break-all whitespace-pre-line">
-                            {defaultAddressText || defaultFullAddress}
+                            {defaultAddressTextDisplay || formatMarkIdInText(defaultFullAddress)}
                           </p>
                         </div>
                         <button
                           type="button"
-                          onClick={() => copyToClipboard("full", defaultAddressText || defaultFullAddress)}
+                          onClick={() =>
+                            copyToClipboard(
+                              "full",
+                              defaultAddressTextDisplay || formatMarkIdInText(defaultFullAddress)
+                            )
+                          }
                           className="absolute top-3 right-3 p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                           disabled={isLoading}
                         >
@@ -588,13 +596,13 @@ const FofooAddressGenerator = () => {
                                   {repackAddressParts.suffix}
                                 </>
                               ) : (
-                                repackAddressText
+                                repackAddressTextDisplay
                               )}
                             </p>
                           </div>
                           <button
                             type="button"
-                            onClick={() => copyToClipboard("repack", repackAddressText)}
+                            onClick={() => copyToClipboard("repack", repackAddressTextDisplay)}
                             className="absolute top-3 right-3 p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                             disabled={isLoading}
                           >

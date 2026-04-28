@@ -11,6 +11,7 @@ import { Link, useParams } from "react-router-dom";
 import { toast } from "../utils/toast";
 import API from "../api";
 import { getRevealedRegions, setRegionRevealed } from "../utils/addressRevealedRegions";
+import { formatMarkIdForDisplay, formatMarkIdInText } from "../utils/markIdFormat";
 
 // Same key as China address / profile shipping mark tab – one mark for all regions
 const USER_SHIPPING_MARK_KEY = "userShippingMark";
@@ -174,12 +175,12 @@ const RegionAddressGenerator = () => {
 
   const resolvedMarkName = (fullName && fullName.trim()) || existingAddress?.name || "";
   const displayShippingMark = existingAddress?.markId && resolvedMarkName
-    ? `${existingAddress.markId}:${resolvedMarkName}`
+    ? `${formatMarkIdForDisplay(existingAddress.markId)}:${resolvedMarkName}`
     : existingAddress?.shippingMark;
 
   const usaAddressLines = (() => {
     if (!useUsaFormat || !displayShippingMark) return [];
-    const recipient = `${existingAddress?.markId ?? ""} ${resolvedMarkName}`.trim();
+    const recipient = `${formatMarkIdForDisplay(existingAddress?.markId ?? "")} ${resolvedMarkName}`.trim();
     return [
       { label: "Recipient / Name", value: `${recipient} (FOFOOFO)` },
       addressLine ? { label: "Address Line", value: addressLine } : null,
@@ -202,7 +203,7 @@ const RegionAddressGenerator = () => {
     const addressLines = [baseAddressTrimmed];
     if (warehousePhone) addressLines.push(`Phone: ${warehousePhone}`);
     const fullAddressBody = addressLines.filter(Boolean).join("\n");
-    return `${displayShippingMark}\n${fullAddressBody}`;
+    return formatMarkIdInText(`${displayShippingMark}\n${fullAddressBody}`);
   })();
 
   if (loadingWarehouse || !code) {
@@ -331,9 +332,11 @@ const RegionAddressGenerator = () => {
                       <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Shipping mark (ID)</p>
                       <div className="relative">
                         <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                          <p className="text-sm text-gray-900 dark:text-white break-all">{displayShippingMark}</p>
+                          <p className="text-sm text-gray-900 dark:text-white break-all">
+                            {formatMarkIdInText(displayShippingMark)}
+                          </p>
                         </div>
-                        <button type="button" onClick={() => copyToClipboard("mark", displayShippingMark)} className="absolute top-3 right-3 p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-200">
+                        <button type="button" onClick={() => copyToClipboard("mark", formatMarkIdInText(displayShippingMark))} className="absolute top-3 right-3 p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-200">
                           {copiedId === "mark" ? <FaCheck className="w-5 h-5 text-green-500" /> : <FaCopy className="w-5 h-5" />}
                         </button>
                       </div>

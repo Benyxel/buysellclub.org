@@ -10,6 +10,7 @@ import {
 } from "react-icons/fa";
 import API, { claimLocalAgentRewards } from "../api";
 import { toast } from "../utils/toast";
+import { formatMarkIdForDisplay } from "../utils/markIdFormat";
 
 const LocalAgentDashboard = () => {
   const navigate = useNavigate();
@@ -282,7 +283,7 @@ const LocalAgentDashboard = () => {
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">MARK ID</p>
               <p className="text-base sm:text-lg font-semibold text-gray-800 dark:text-white">
-                {profile.mark_id || "Not assigned"}
+                {profile.mark_id ? formatMarkIdForDisplay(profile.mark_id) : "Not assigned"}
               </p>
             </div>
           </div>

@@ -77,6 +77,7 @@ import VendorSales from "../pages/VendorSales";
 import { normalizePhone } from "../utils/ghanaPhone";
 import ProfileRiderWorkspace from "./profile/ProfileRiderWorkspace";
 import ProfileCustomerDelivery from "./profile/ProfileCustomerDelivery";
+import { formatMarkIdForDisplay, formatMarkIdInText } from "../utils/markIdFormat";
 
 const MyProfile = () => {
   // Status mapping from backend values to display labels
@@ -3130,7 +3131,7 @@ const MyProfile = () => {
                         "";
                       const displayShippingMark =
                         mark.markId && resolvedMarkName
-                          ? `${mark.markId}:${resolvedMarkName}`
+                          ? `${formatMarkIdForDisplay(mark.markId)}:${resolvedMarkName}`
                           : mark.shippingMark;
                       const defaultFullAddress =
                         mark.fullAddress || mark.full_address || "";
@@ -3141,6 +3142,9 @@ const MyProfile = () => {
                         displayShippingMark
                           ? `${baseChinaAddress}${displayShippingMark}${ghSuffix}`
                           : defaultFullAddress;
+                      const defaultAddressTextDisplay = formatMarkIdInText(
+                        defaultAddressText || defaultFullAddress
+                      );
                       // Air address: fixed format for 8302专线 (Guangzhou) — uses full name
                       const airAddressName =
                         resolvedMarkName?.trim() || mark.name || "";
@@ -3152,6 +3156,7 @@ const MyProfile = () => {
                         displayShippingMark
                           ? `${baseChinaAddress}${displayShippingMark}"REPACK"${ghSuffix}`
                           : "";
+                      const repackAddressTextDisplay = formatMarkIdInText(repackAddressText);
                       const repackAddressParts = displayShippingMark
                         ? {
                             prefix: `${baseChinaAddress}${displayShippingMark}"`,
@@ -3219,11 +3224,16 @@ const MyProfile = () => {
                             <div className="relative">
                               <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                                 <p className="text-sm text-gray-900 dark:text-white break-all">
-                                  {displayShippingMark}
+                                  {formatMarkIdInText(displayShippingMark)}
                                 </p>
                               </div>
                               <button
-                                onClick={() => copyToClipboard(displayShippingMark, `${copyId}-mark`)}
+                                onClick={() =>
+                                  copyToClipboard(
+                                    formatMarkIdInText(displayShippingMark),
+                                    `${copyId}-mark`
+                                  )
+                                }
                                 className="absolute top-3 right-3 p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                               >
                                 {copiedId === `${copyId}-mark` ? (
@@ -3242,12 +3252,17 @@ const MyProfile = () => {
                             <div className="relative">
                               <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                                 <p className="text-sm text-gray-900 dark:text-white break-all whitespace-pre-line">
-                                  {defaultAddressText || mark.fullAddress || mark.address}
+                                  {defaultAddressTextDisplay ||
+                                    formatMarkIdInText(mark.fullAddress || mark.address)}
                                 </p>
                               </div>
                               <button
                                 onClick={() =>
-                                  copyToClipboard(defaultAddressText || mark.fullAddress || mark.address, `${copyId}-full`)
+                                  copyToClipboard(
+                                    defaultAddressTextDisplay ||
+                                      formatMarkIdInText(mark.fullAddress || mark.address),
+                                    `${copyId}-full`
+                                  )
                                 }
                                 className="absolute top-3 right-3 p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                               >
@@ -3270,17 +3285,19 @@ const MyProfile = () => {
                                   <p className="text-sm text-gray-900 dark:text-white break-all whitespace-pre-line">
                                     {repackAddressParts ? (
                                       <>
-                                        {repackAddressParts.prefix}
+                                      {formatMarkIdInText(repackAddressParts.prefix)}
                                         <span className="font-semibold">REPACK</span>
-                                        {repackAddressParts.suffix}
+                                      {formatMarkIdInText(repackAddressParts.suffix)}
                                       </>
                                     ) : (
-                                      repackAddressText
+                                    repackAddressTextDisplay
                                     )}
                                   </p>
                                 </div>
                                 <button
-                                  onClick={() => copyToClipboard(repackAddressText, `${copyId}-repack`)}
+                                onClick={() =>
+                                  copyToClipboard(repackAddressTextDisplay, `${copyId}-repack`)
+                                }
                                   className="absolute top-3 right-3 p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                                 >
                                   {copiedId === `${copyId}-repack` ? (

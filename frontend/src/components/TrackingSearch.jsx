@@ -13,6 +13,7 @@ import {
 } from "react-icons/fa";
 import API from "../api";
 import { TemaPortVoyageMini } from "./ContainerShipmentWidget";
+import { formatMarkIdForDisplay, normalizeMarkIdInput } from "../utils/markIdFormat";
 
 const TrackingSearch = () => {
   const [searchMode, setSearchMode] = useState("tracking"); // "tracking" or "mark-container"
@@ -113,7 +114,7 @@ const TrackingSearch = () => {
     try {
       const response = await API.get("/buysellapi/trackings/by-mark-container/", {
         params: {
-          mark_id: markId.trim(),
+          mark_id: normalizeMarkIdInput(markId),
           container_id: selectedContainer,
         },
       });
@@ -441,7 +442,14 @@ const TrackingSearch = () => {
                   Container Summary
                 </h3>
                 <p className="text-gray-600 dark:text-gray-400 text-sm">
-                  Mark ID: <span className="font-semibold">{markContainerResult.mark_id}</span> | Container: <span className="font-semibold">{markContainerResult.container.container_number}</span>
+                  Mark ID:{" "}
+                  <span className="font-semibold">
+                    {formatMarkIdForDisplay(markContainerResult.mark_id)}
+                  </span>{" "}
+                  | Container:{" "}
+                  <span className="font-semibold">
+                    {markContainerResult.container.container_number}
+                  </span>
                 </p>
                 <p className="text-gray-600 dark:text-gray-400 text-sm">
                   Status:{" "}

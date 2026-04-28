@@ -12,6 +12,7 @@ import {
 } from "react-icons/fa";
 import API from "../api";
 import { toast } from "../utils/toast";
+import { formatMarkIdForDisplay, formatMarkIdInText } from "../utils/markIdFormat";
 
 const ShippingMarksDisplay = () => {
   const [shippingMarks, setShippingMarks] = useState([]);
@@ -518,7 +519,7 @@ const ShippingMarksDisplay = () => {
                       : selectedMark.name}
                   </p>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                    Mark ID: {selectedMark.markId}
+                    Mark ID: {formatMarkIdForDisplay(selectedMark.markId)}
                   </p>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     Email: {selectedMark.ownerEmail}
@@ -533,12 +534,12 @@ const ShippingMarksDisplay = () => {
                 <div className="relative">
                   <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                     <p className="text-gray-900 dark:text-white whitespace-pre-line break-words">
-                      {selectedMark.fullAddress}
+                      {formatMarkIdInText(selectedMark.fullAddress)}
                     </p>
                   </div>
                   <button
                     onClick={() =>
-                      copyToClipboard(selectedMark.fullAddress, "address")
+                      copyToClipboard(formatMarkIdInText(selectedMark.fullAddress), "address")
                     }
                     className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                   >

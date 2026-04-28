@@ -18,7 +18,9 @@ import { apiErrorMessage } from "../../utils/apiErrorMessage";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import API from "../../api";
+import { CACHE_DURATION } from "../../api";
 import ConfirmModal from "../../components/shared/ConfirmModal";
+import { formatMarkIdForDisplay, normalizeMarkIdInput } from "../../utils/markIdFormat";
 
 const statusOptions = [
   { value: "pending", label: "Pending" },
@@ -185,12 +187,36 @@ const AgentTrackingManagement = () => {
   ]);
 
   const fetchContainers = async () => {
+    // Speed up: render cached containers immediately, then refresh in background.
+    const LS_KEY = "bsc:adminContainers:v1";
+    const LS_TTL_MS = 30 * 60 * 1000; // 30 minutes
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const ts = Number(parsed?.ts) || 0;
+        const list = Array.isArray(parsed?.data) ? parsed.data : null;
+        if (list && Date.now() - ts < LS_TTL_MS) {
+          setContainers(list);
+        }
+      }
+    } catch {
+      // ignore cache read errors
+    }
+
     try {
       const response = await API.get("/api/admin/containers", {
         params: { limit: 1000 },
+        cacheDuration: CACHE_DURATION.LONG,
       });
       if (response.data && response.data.data) {
-        setContainers(response.data.data);
+        const list = response.data.data;
+        setContainers(list);
+        try {
+          localStorage.setItem(LS_KEY, JSON.stringify({ ts: Date.now(), data: list }));
+        } catch {
+          // ignore cache write errors
+        }
       }
     } catch (error) {
       console.error("Error fetching containers:", error);
@@ -1289,7 +1315,7 @@ const AgentTrackingManagement = () => {
                             setMarkLoading(true);
                             const resp = await API.get(
                               "/buysellapi/shipping-marks/",
-                              { params: { q: val, page_size: 10 } }
+                                { params: { q: normalizeMarkIdInput(val), page_size: 10 } }
                             );
                             const items = Array.isArray(resp.data?.results)
                               ? resp.data.results
@@ -1328,7 +1354,7 @@ const AgentTrackingManagement = () => {
                                 }}
                                 className="w-full text-left px-3 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-700"
                               >
-                                {(m.markId || m.mark_id) +
+                                {formatMarkIdForDisplay(m.markId || m.mark_id) +
                                   (m.name ? `: ${m.name}` : "")}
                               </button>
                             ))}
