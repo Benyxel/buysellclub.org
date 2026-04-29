@@ -1153,13 +1153,13 @@ const Buy4meAdmin = () => {
               <FaChevronLeft />
             </button>
             <span className="text-sm text-gray-600 dark:text-gray-400 px-3">
-              Page {currentPage} of {totalPages || 1}
+              Page {currentPage} of {effectiveTotalPages || 1}
             </span>
             <button
               onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage >= totalPages}
+              disabled={currentPage >= effectiveTotalPages}
               className={`px-3 py-1 rounded-lg border border-gray-300 dark:border-gray-600 ${
-                currentPage >= totalPages
+                currentPage >= effectiveTotalPages
                   ? "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-600 cursor-not-allowed"
                   : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
               }`}

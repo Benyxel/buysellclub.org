@@ -3,7 +3,7 @@ import { FaInfoCircle } from "react-icons/fa";
 import { toast } from "../../utils/toast";
 import { Link, useSearchParams } from "react-router-dom";
 import { Api } from "../../api";
-import { normalizePhone } from "../../utils/ghanaPhone";
+import CountryPhoneInput from "../../components/shared/CountryPhoneInput";
 
 const PAYER_GHANA = "ghana";
 const PAYER_ABROAD = "abroad";
@@ -20,7 +20,12 @@ const CommunityPayment = () => {
   const [requestType, setRequestType] = useState(null);
   const [requestProof, setRequestProof] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
-  const [guestContact, setGuestContact] = useState("");
+  const [guestPhone, setGuestPhone] = useState({
+    country: "GH",
+    nationalNumber: "",
+    e164: "",
+    isValid: false,
+  });
   const [payerLocation, setPayerLocation] = useState(PAYER_GHANA);
   const [abroadPaymentConfirmed, setAbroadPaymentConfirmed] = useState(false);
   const isLoggedIn = !!(
@@ -97,12 +102,11 @@ const CommunityPayment = () => {
     const emailVal = (guestEmail || "").trim().toLowerCase();
     if (emailVal) {
       payload.email = emailVal;
-      if ((guestContact || "").trim()) {
-        const normalized = normalizePhone(guestContact);
-        if (!normalized.ok) {
-          return { error: normalized.error || "Please enter a valid contact number." };
+      if ((guestPhone?.nationalNumber || "").trim()) {
+        if (!guestPhone?.isValid || !guestPhone?.e164) {
+          return { error: "Please enter a valid contact number for the selected country." };
         }
-        payload.contact = normalized.normalized;
+        payload.contact = guestPhone.e164;
       }
     }
     return { payload };
@@ -133,14 +137,13 @@ const CommunityPayment = () => {
       const emailVal = (guestEmail || "").trim().toLowerCase();
       if (emailVal) {
         payload.email = emailVal;
-        if ((guestContact || "").trim()) {
-          const normalized = normalizePhone(guestContact);
-          if (!normalized.ok) {
-            toast.error(normalized.error || "Please enter a valid contact number.");
+        if ((guestPhone?.nationalNumber || "").trim()) {
+          if (!guestPhone?.isValid || !guestPhone?.e164) {
+            toast.error("Please enter a valid contact number for the selected country.");
             setLoading(false);
             return;
           }
-          payload.contact = normalized.normalized;
+          payload.contact = guestPhone.e164;
         }
       }
       const res = await Api.community.initiatePayment(payload);
@@ -189,14 +192,13 @@ const CommunityPayment = () => {
           return;
         }
         Object.assign(payload, built.payload);
-      } else if ((guestContact || "").trim()) {
-        const normalized = normalizePhone(guestContact);
-        if (!normalized.ok) {
-          toast.error(normalized.error || "Please enter a valid contact number.");
+      } else if ((guestPhone?.nationalNumber || "").trim()) {
+        if (!guestPhone?.isValid || !guestPhone?.e164) {
+          toast.error("Please enter a valid contact number for the selected country.");
           setLoading(false);
           return;
         }
-        payload.contact = normalized.normalized;
+        payload.contact = guestPhone.e164;
       }
       await Api.community.submitInternationalMomo(payload);
       toast.success("Request submitted. Our team will verify your payment.");
@@ -347,13 +349,11 @@ const CommunityPayment = () => {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Contact (phone number)
                 </label>
-                <input
-                  type="text"
-                  value={guestContact}
-                  onChange={(e) => setGuestContact(e.target.value)}
-                  placeholder="e.g. 0244123456"
-                  maxLength={20}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary"
+                <CountryPhoneInput
+                  label={null}
+                  value={guestPhone}
+                  onChange={setGuestPhone}
+                  disabled={loading}
                 />
               </div>
             </div>
@@ -364,13 +364,11 @@ const CommunityPayment = () => {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Contact (optional — Ghana local or international, e.g. +44…)
               </label>
-              <input
-                type="text"
-                value={guestContact}
-                onChange={(e) => setGuestContact(e.target.value)}
-                placeholder="e.g. 0244123456 or +441234567890"
-                maxLength={20}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary"
+              <CountryPhoneInput
+                label={null}
+                value={guestPhone}
+                onChange={setGuestPhone}
+                disabled={loading}
               />
             </div>
           )}
