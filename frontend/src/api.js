@@ -631,6 +631,104 @@ const Api = {
     adminResendSetPasswordLink: (requestId) =>
       http.post(`/buysellapi/admin/community/requests/${requestId}/resend-set-password-link/`),
   },
+  digitalStore: {
+    /** Public list of digital products (PDFs, etc). */
+    products: (params) =>
+      http.get("/buysellapi/digital-store/products/", {
+        params,
+        cacheDuration: CACHE_DURATION.SHORT,
+      }),
+    /** Start Paystack checkout for a digital product purchase. */
+    initiatePaystack: (payload) =>
+      http.post(
+        "/buysellapi/digital-store/purchases/initiate-paystack/",
+        payload || {}
+      ),
+    /** Upload proof for manual MoMo payment */
+    uploadPaymentProof: (file) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      return http.post("/buysellapi/digital-store/uploads/payment-proof/", formData);
+    },
+    /** Submit manual MoMo payment for abroad (requires proof_url) */
+    submitManualMoMo: (payload) =>
+      http.post("/buysellapi/digital-store/purchases/manual-momo/", payload || {}),
+    /** Logged-in: list of purchased items available for download. */
+    library: (params) =>
+      http.get("/buysellapi/digital-store/purchases/me/", {
+        params,
+        cacheDuration: CACHE_DURATION.SHORT,
+      }),
+    /** Logged-in: get a one-time / expiring download link. */
+    downloadLink: (purchaseId) =>
+      http.get(`/buysellapi/digital-store/purchases/${purchaseId}/download/`, {
+        noCache: true,
+        cacheDuration: 0,
+      }),
+    /** Logged-in: resend download email for a paid purchase */
+    resendDownloadEmail: (purchaseId) =>
+      http.post(`/buysellapi/digital-store/purchases/${purchaseId}/resend-email/`, {}),
+    /** After Paystack: send receipt email if server has not recorded one yet (idempotent). */
+    ensureReceiptEmail: (purchaseId) =>
+      http.post(
+        `/buysellapi/digital-store/purchases/${purchaseId}/ensure-receipt-email/`,
+        {}
+      ),
+    /** Logged-in: download PDF receipt (own purchases only; same path as email attachment). */
+    async downloadReceipt(purchaseId) {
+      const path = `/buysellapi/digital-store/purchases/${purchaseId}/receipt/`;
+      const res = await api.get(normalizePath(path), { responseType: "blob" });
+      const blob = res.data;
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `receipt-digital-${purchaseId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    },
+    admin: {
+      listProducts: (params) =>
+        http.get("/buysellapi/admin/digital-store/products/", {
+          params,
+          noCache: true,
+          cacheDuration: 0,
+        }),
+      createProduct: (payload) =>
+        http.post("/buysellapi/admin/digital-store/products/", payload || {}),
+      updateProduct: (id, payload) =>
+        http.put(`/buysellapi/admin/digital-store/products/${id}/`, payload || {}),
+      deleteProduct: (id) =>
+        http.delete(`/buysellapi/admin/digital-store/products/${id}/`),
+      listPurchases: (params) =>
+        http.get("/buysellapi/admin/digital-store/purchases/", {
+          params,
+          noCache: true,
+          cacheDuration: 0,
+        }),
+      approvePurchase: (purchaseId) =>
+        http.post(
+          `/buysellapi/admin/digital-store/purchases/${purchaseId}/approve/`,
+          {}
+        ),
+      rejectPurchase: (purchaseId) =>
+        http.post(
+          `/buysellapi/admin/digital-store/purchases/${purchaseId}/reject/`,
+          {}
+        ),
+      updatePurchaseStatus: (purchaseId, payload) =>
+        http.post(
+          `/buysellapi/admin/digital-store/purchases/${purchaseId}/status/`,
+          payload || {}
+        ),
+      sendReceiptEmail: (purchaseId) =>
+        http.post(
+          `/buysellapi/admin/digital-store/purchases/${purchaseId}/send-receipt-email/`,
+          {}
+        ),
+    },
+  },
   communityContent: {
     winningProducts: {
       list: (config = {}) =>

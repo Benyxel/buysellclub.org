@@ -22,21 +22,21 @@ const SupportWidget = ({
   return (
     <>
       <LiveChatWidget hideLauncher />
-      <div className="fixed bottom-4 right-4 md:bottom-6 md:right-6 z-[1100] rounded-full shadow-xl overflow-hidden flex">
+      <div className="fixed bottom-5 right-4 z-[1100] flex overflow-hidden rounded-full shadow-xl md:bottom-6 md:right-6">
         <button
           type="button"
           onClick={handleWhatsAppClick}
-          className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2.5 text-sm font-semibold transition-colors"
+          className="flex h-12 items-center gap-2 bg-green-500 px-5 text-sm font-semibold text-white transition-colors hover:bg-green-600"
         >
-          <FaWhatsapp className="text-base" />
+          <FaWhatsapp className="shrink-0 text-white" />
           <span className="hidden sm:inline">{whatsappLabel}</span>
         </button>
         <button
           type="button"
           onClick={handleChatClick}
-          className="flex items-center gap-2 bg-pink-500 hover:bg-pink-600 text-white px-4 py-2.5 text-sm font-semibold transition-colors"
+          className="flex h-12 items-center gap-2 bg-pink-500 px-5 text-sm font-semibold text-white transition-colors hover:bg-pink-600"
         >
-          <FaRegCommentDots className="text-base" />
+          <FaRegCommentDots className="shrink-0 text-white" />
           <span className="hidden sm:inline">{chatLabel}</span>
         </button>
       </div>

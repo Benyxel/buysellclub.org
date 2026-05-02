@@ -30,10 +30,12 @@ const PaymentCallback = () => {
               const isCommunity = payType === 'community';
               const isBuy4me = payType === 'buy4me';
               const isDonation = payType === 'donation';
+              const isDigitalStore = payType === 'digital_store';
               const bookingId = response.data.booking_id;
               const orderId = response.data.order_id;
               const requestId = response.data.request_id || response.data.community_request_id;
-              setVerifiedOrderId(orderId || bookingId || requestId);
+              const digitalPurchaseId = response.data.purchase_id;
+              setVerifiedOrderId(orderId || bookingId || requestId || digitalPurchaseId);
               setPaymentType(payType || (isTraining ? 'training' : 'order'));
               setStatus('success');
               if (isDonation) {
@@ -48,6 +50,17 @@ const PaymentCallback = () => {
                 setMessage(`Sourcing fee paid! You can now submit your Buy4me order on the next page.`);
                 toast.success(`Sourcing fee paid! Submit your order details.`);
                 setTimeout(() => navigate('/Buy4me'), 2000);
+              } else if (isDigitalStore) {
+                const digitalPid = response.data.purchase_id;
+                setMessage("Payment successful! Your digital download is now available.");
+                toast.success("Payment confirmed! Your download is ready.");
+                setTimeout(() => {
+                  if (digitalPid) {
+                    navigate(`/DigitalStore?paid=1&purchase_id=${digitalPid}`);
+                  } else {
+                    navigate("/DigitalStore?paid=1");
+                  }
+                }, 2000);
               } else if (isTraining && bookingId) {
                 setMessage(`Payment successful! Your training booking #${bookingId} has been confirmed.`);
                 toast.success(`Training booking #${bookingId} confirmed!`);
@@ -158,6 +171,11 @@ const PaymentCallback = () => {
                     navigate('/');
                     return;
                   }
+                  if (paymentType === 'digital_store') {
+                    const pid = verifiedOrderId;
+                    navigate(pid ? `/DigitalStore?paid=1&purchase_id=${pid}` : '/DigitalStore?paid=1');
+                    return;
+                  }
                   const orderId = verifiedOrderId || searchParams.get('order-id') || searchParams.get('order_id');
                   if (orderId && !String(orderId).startsWith('training_') && !String(orderId).startsWith('buy4me_') && !String(orderId).startsWith('course_')) {
                     navigate(`/Orders?order=${orderId}`);
@@ -169,7 +187,7 @@ const PaymentCallback = () => {
                 }}
                 className="flex-1 px-6 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors font-medium"
               >
-                View {paymentType === 'training' ? 'Training' : paymentType === 'community' ? 'Profile' : paymentType === 'buy4me' ? 'Buy4me' : paymentType === 'donation' ? 'Home' : (verifiedOrderId ? 'Order' : 'Details')}
+                View {paymentType === 'training' ? 'Training' : paymentType === 'community' ? 'Profile' : paymentType === 'buy4me' ? 'Buy4me' : paymentType === 'donation' ? 'Home' : paymentType === 'digital_store' ? 'Digital Store' : (verifiedOrderId ? 'Order' : 'Details')}
               </button>
               <button
                 onClick={() => navigate('/')}

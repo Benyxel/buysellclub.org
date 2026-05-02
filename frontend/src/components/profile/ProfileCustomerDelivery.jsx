@@ -398,7 +398,7 @@ const ProfileCustomerDelivery = ({ embeddedInWidget = false } = {}) => {
         </div>
 
         {/* Keep the delivery tab compact: internal scroll instead of growing page. */}
-        <div className="max-h-[72vh] overflow-y-auto pr-1 space-y-4">
+        <div className="widget-scrollable max-h-[72vh] min-h-0 overflow-y-auto pr-1 space-y-4">
           {fetchError && (
             <p className="text-sm text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-2">
               {fetchError}
@@ -419,7 +419,7 @@ const ProfileCustomerDelivery = ({ embeddedInWidget = false } = {}) => {
                 No requests yet. Submit one using the buttons below.
               </p>
             ) : (
-              <ul className="space-y-2 max-h-[160px] overflow-y-auto pr-1 text-sm">
+              <ul className="widget-scrollable max-h-[160px] min-h-0 overflow-y-auto pr-1 text-sm">
                 {myRequests.map((r) => (
                   <li
                     key={r.id}
@@ -537,7 +537,7 @@ const ProfileCustomerDelivery = ({ embeddedInWidget = false } = {}) => {
               )}
             </p>
           ) : (
-            <div className="max-h-[260px] sm:max-h-[320px] overflow-y-auto pr-1">
+            <div className="widget-scrollable max-h-[260px] min-h-0 overflow-y-auto pr-1 sm:max-h-[320px]">
               <ul className="space-y-2">
                 {visibleContainers.map((row) => {
                 const cid = Number(row.containerId);
@@ -660,7 +660,7 @@ const ProfileCustomerDelivery = ({ embeddedInWidget = false } = {}) => {
       {showRequestModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div
-            className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-200 dark:border-gray-700"
+            className="widget-scrollable bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] min-h-0 overflow-y-auto border border-gray-200 dark:border-gray-700"
             role="dialog"
             aria-modal="true"
             aria-labelledby="delivery-req-title"

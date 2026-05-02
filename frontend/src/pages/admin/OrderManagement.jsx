@@ -1,12 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { FaSearch, FaSortAmountDown, FaSortAmountUp, FaFilter, FaDownload, FaEye, FaCheck, FaTimes, FaChevronLeft, FaChevronRight, FaTrash, FaSpinner } from 'react-icons/fa';
+import { FaSearch, FaSortAmountDown, FaSortAmountUp, FaFilter, FaDownload, FaEye, FaCheck, FaTimes, FaChevronLeft, FaChevronRight, FaTrash, FaSpinner, FaEnvelope } from 'react-icons/fa';
 import { toast } from '../../utils/toast';
 import API, { Api, getOrders, downloadOrderReceipt } from '../../api';
 import BulkActions from '../../components/shared/BulkActions';
 import { getApiUrl } from '../../config/api';
 import { getPlaceholderImagePath } from '../../utils/paths';
 
-const OrderManagement = () => {
+const OrderManagement = ({ onDigitalUnreadInvalidate }) => {
+  const [orderTab, setOrderTab] = useState(() => {
+    try {
+      const raw = localStorage.getItem('admin_orders_last_tab');
+      return raw === 'digital' ? 'digital' : 'shop';
+    } catch {
+      return 'shop';
+    }
+  }); // shop | digital
   const [orders, setOrders] = useState([]);
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -23,15 +31,132 @@ const OrderManagement = () => {
   const [selectedOrders, setSelectedOrders] = useState([]);
   const [selectAll, setSelectAll] = useState(false);
   const [downloadingReceiptId, setDownloadingReceiptId] = useState(null);
+  const [digitalOrders, setDigitalOrders] = useState([]);
+  const [digitalLoading, setDigitalLoading] = useState(false);
+  const [digitalStatusFilter, setDigitalStatusFilter] = useState(() => {
+    try {
+      return localStorage.getItem('admin_digital_orders_status') || 'all';
+    } catch {
+      return 'all';
+    }
+  });
+  const [digitalPage, setDigitalPage] = useState(() => {
+    try {
+      const n = Number(localStorage.getItem('admin_digital_orders_page') || '');
+      return n && n > 0 ? n : 1;
+    } catch {
+      return 1;
+    }
+  });
+  const [digitalPageSize, setDigitalPageSize] = useState(() => {
+    try {
+      const n = Number(localStorage.getItem('admin_digital_orders_page_size') || '');
+      return n && n > 0 ? n : 20;
+    } catch {
+      return 20;
+    }
+  });
+  const [digitalTotal, setDigitalTotal] = useState(0);
+  const [approvingDigitalId, setApprovingDigitalId] = useState(null);
+  const [selectedDigitalOrder, setSelectedDigitalOrder] = useState(null);
+  const [showDigitalDetails, setShowDigitalDetails] = useState(false);
+  const [digitalStatusDraft, setDigitalStatusDraft] = useState('');
+  const [savingDigitalStatus, setSavingDigitalStatus] = useState(false);
+  const [sendingDigitalReceiptId, setSendingDigitalReceiptId] = useState(null);
+  const [downloadingDigitalReceiptId, setDownloadingDigitalReceiptId] = useState(null);
+
+  const resolveMediaUrl = (rawUrl) => {
+    const url = String(rawUrl || '').trim();
+    if (!url) return '';
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    // Use the same helper used across admin (Alipay) to resolve /media/... to backend host
+    return getApiUrl(url);
+  };
+
+  const isImageUrl = (url) => {
+    const u = String(url || '').split('?')[0].toLowerCase();
+    return u.endsWith('.png') || u.endsWith('.jpg') || u.endsWith('.jpeg') || u.endsWith('.webp') || u.endsWith('.gif');
+  };
+
+  const getDigitalPurchaseStatusBadge = (status) => {
+    const s = String(status || '').toLowerCase();
+    const base =
+      'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium';
+    switch (s) {
+      case 'pending':
+        return (
+          <span className={`${base} bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-200`}>
+            Pending
+          </span>
+        );
+      case 'pending_review':
+        return (
+          <span className={`${base} bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200`}>
+            Pending review
+          </span>
+        );
+      case 'paid':
+        return (
+          <span className={`${base} bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200`}>
+            Paid
+          </span>
+        );
+      case 'rejected':
+        return (
+          <span className={`${base} bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200`}>
+            Rejected
+          </span>
+        );
+      case 'cancelled':
+        return (
+          <span className={`${base} bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200`}>
+            Cancelled
+          </span>
+        );
+      default:
+        return (
+          <span className={`${base} bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200`}>
+            {status || '—'}
+          </span>
+        );
+    }
+  };
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
+  const totalDigitalPages = Math.max(1, Math.ceil((digitalTotal || 0) / (digitalPageSize || 20)));
 
   useEffect(() => {
-    fetchOrders(currentPage, pageSize);
-  }, [currentPage, pageSize]);
+    try {
+      localStorage.setItem('admin_orders_last_tab', orderTab);
+    } catch {
+      // ignore
+    }
+  }, [orderTab]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('admin_digital_orders_page', String(digitalPage));
+      localStorage.setItem('admin_digital_orders_page_size', String(digitalPageSize));
+      localStorage.setItem('admin_digital_orders_status', String(digitalStatusFilter));
+    } catch {
+      // ignore
+    }
+  }, [digitalPage, digitalPageSize, digitalStatusFilter]);
+
+  useEffect(() => {
+    if (orderTab === 'shop') {
+      fetchOrders(currentPage, pageSize);
+    }
+  }, [currentPage, pageSize, orderTab]);
+
+  useEffect(() => {
+    if (orderTab === 'digital') {
+      fetchDigitalOrders(digitalPage, digitalPageSize, digitalStatusFilter);
+    }
+  }, [orderTab, digitalPage, digitalPageSize, digitalStatusFilter]);
 
   // Pagination handlers
   const totalPages = Math.ceil(total / pageSize);
@@ -87,6 +212,90 @@ const OrderManagement = () => {
       setTotal(0);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchDigitalOrders = async (page = digitalPage, size = digitalPageSize, status = digitalStatusFilter) => {
+    setDigitalLoading(true);
+    try {
+      const params = { page: page || 1, page_size: size || 20 };
+      if (status && status !== 'all') params.status = status;
+      const res = await Api.digitalStore.admin.listPurchases(params);
+      const list = res.data?.results || [];
+      setDigitalOrders(list);
+      setDigitalTotal(res.data?.count || 0);
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || e?.response?.data?.error || 'Failed to load digital orders');
+      setDigitalOrders([]);
+      setDigitalTotal(0);
+    } finally {
+      setDigitalLoading(false);
+    }
+  };
+
+  const approveDigitalOrder = async (purchaseId) => {
+    try {
+      setApprovingDigitalId(purchaseId);
+      await Api.digitalStore.admin.approvePurchase(purchaseId);
+      toast.success('Digital purchase approved.');
+      onDigitalUnreadInvalidate?.();
+      fetchDigitalOrders(digitalPage, digitalPageSize, digitalStatusFilter);
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || e?.response?.data?.error || 'Approval failed');
+    } finally {
+      setApprovingDigitalId(null);
+    }
+  };
+
+  const sendDigitalReceiptEmailToCustomer = async (purchaseId) => {
+    try {
+      setSendingDigitalReceiptId(purchaseId);
+      await Api.digitalStore.admin.sendReceiptEmail(purchaseId);
+      toast.success('Receipt email sent to customer.');
+    } catch (e) {
+      toast.error(e?.response?.data?.error || e?.response?.data?.detail || 'Could not send receipt email.');
+    } finally {
+      setSendingDigitalReceiptId(null);
+    }
+  };
+
+  const downloadDigitalPurchaseReceipt = async (purchaseId) => {
+    try {
+      setDownloadingDigitalReceiptId(purchaseId);
+      await Api.digitalStore.downloadReceipt(purchaseId);
+      toast.success('Receipt downloaded.');
+    } catch (e) {
+      const msg =
+        e?.response?.data?.error ||
+        e?.response?.data?.detail ||
+        e?.message ||
+        'Failed to download receipt';
+      toast.error(typeof msg === 'string' ? msg : 'Failed to download receipt');
+    } finally {
+      setDownloadingDigitalReceiptId(null);
+    }
+  };
+
+  const saveDigitalStatus = async () => {
+    if (!selectedDigitalOrder?.id) return;
+    const next = String(digitalStatusDraft || '').trim();
+    if (!next || next === selectedDigitalOrder.status) {
+      toast.info('No changes to save');
+      return;
+    }
+    try {
+      setSavingDigitalStatus(true);
+      await Api.digitalStore.admin.updatePurchaseStatus(selectedDigitalOrder.id, { status: next });
+      toast.success('Status updated.');
+      onDigitalUnreadInvalidate?.();
+      // Refresh list + update modal copy
+      await fetchDigitalOrders(digitalPage, digitalPageSize, digitalStatusFilter);
+      setSelectedDigitalOrder((prev) => (prev ? { ...prev, status: next } : prev));
+      setDigitalStatusDraft(next);
+    } catch (e) {
+      toast.error(e?.response?.data?.error || e?.response?.data?.detail || 'Status update failed');
+    } finally {
+      setSavingDigitalStatus(false);
     }
   };
 
@@ -266,7 +475,7 @@ const OrderManagement = () => {
     }
   };
 
-  if (loading) {
+  if (loading && orderTab === 'shop') {
     return (
       <div className="flex justify-center items-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
@@ -283,7 +492,483 @@ const OrderManagement = () => {
         </p>
       </div>
 
+      <div className="mb-5 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setOrderTab('shop')}
+          className={`rounded-lg px-3 py-2 text-sm font-semibold border ${
+            orderTab === 'shop'
+              ? 'bg-primary text-white border-primary'
+              : 'bg-white text-gray-900 border-gray-200 hover:bg-gray-50 dark:bg-gray-900 dark:text-white dark:border-gray-700 dark:hover:bg-gray-950/40'
+          }`}
+        >
+          Shop Orders
+        </button>
+        <button
+          type="button"
+          onClick={() => setOrderTab('digital')}
+          className={`rounded-lg px-3 py-2 text-sm font-semibold border ${
+            orderTab === 'digital'
+              ? 'bg-primary text-white border-primary'
+              : 'bg-white text-gray-900 border-gray-200 hover:bg-gray-50 dark:bg-gray-900 dark:text-white dark:border-gray-700 dark:hover:bg-gray-950/40'
+          }`}
+        >
+          Digital Store Orders
+        </button>
+      </div>
+
+      {orderTab === 'digital' ? (
+        <div className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
+          <div className="border-b border-gray-100 px-5 py-4 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <p className="text-sm font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                Digital purchases
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Paystack purchases auto-complete. Manual MoMo needs approval.
+              </p>
+            </div>
+            <select
+              value={digitalStatusFilter}
+              onChange={(e) => {
+                setDigitalStatusFilter(e.target.value);
+                setDigitalPage(1);
+              }}
+              className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white"
+            >
+              <option value="all">All</option>
+              <option value="pending_review">Pending review</option>
+              <option value="paid">Paid</option>
+              <option value="rejected">Rejected</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+
+          {digitalLoading ? (
+            <div className="p-6 flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+              <FaSpinner className="animate-spin" />
+              Loading…
+            </div>
+          ) : digitalOrders.length === 0 ? (
+            <div className="p-6 text-sm text-gray-600 dark:text-gray-300">
+              No digital purchases yet.
+            </div>
+          ) : (
+            <div className="overflow-auto">
+              <table className="min-w-full text-sm">
+                <thead className="bg-gray-50 dark:bg-gray-900/40 text-gray-600 dark:text-gray-300">
+                  <tr>
+                    <th className="px-4 py-3 text-left">ID</th>
+                    <th className="px-4 py-3 text-left">Product</th>
+                    <th className="px-4 py-3 text-left">User</th>
+                    <th className="px-4 py-3 text-left">Status</th>
+                    <th className="px-4 py-3 text-left">Payment</th>
+                    <th className="px-4 py-3 text-left">Proof</th>
+                    <th className="px-4 py-3 text-left">Created</th>
+                    <th className="px-4 py-3 text-left">Paid</th>
+                    <th className="px-4 py-3 text-left">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                  {digitalOrders.map((o) => (
+                    <tr key={o.id} className="text-gray-800 dark:text-gray-100">
+                      <td className="px-4 py-3">{o.id}</td>
+                      <td className="px-4 py-3">{o.product_title}</td>
+                      <td className="px-4 py-3">
+                        <div className="min-w-[160px]">
+                          <p className="font-semibold text-gray-900 dark:text-white">
+                            {o.user_name || '-'}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                            {o.user_email || o.user_contact || ''}
+                          </p>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">{o.status}</td>
+                      <td className="px-4 py-3">{o.payment_provider || o.payment_method || '-'}</td>
+                      <td className="px-4 py-3">
+                        {o.proof_url ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedDigitalOrder(o);
+                              setDigitalStatusDraft(o.status || '');
+                              setShowDigitalDetails(true);
+                            }}
+                            className="text-xs font-semibold text-primary hover:underline"
+                          >
+                            View proof
+                          </button>
+                        ) : (
+                          <span className="text-xs text-gray-500 dark:text-gray-400">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">{o.created_at ? new Date(o.created_at).toLocaleString() : '-'}</td>
+                      <td className="px-4 py-3">{o.paid_at ? new Date(o.paid_at).toLocaleString() : '-'}</td>
+                      <td className="px-4 py-3">
+                        {o.status === 'pending_review' ? (
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedDigitalOrder(o);
+                                setDigitalStatusDraft(o.status || '');
+                                setShowDigitalDetails(true);
+                              }}
+                              className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-900 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:hover:bg-gray-950/40"
+                              title="View details"
+                            >
+                              <FaEye />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => approveDigitalOrder(o.id)}
+                              disabled={approvingDigitalId === o.id}
+                              className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:opacity-95 disabled:opacity-60"
+                            >
+                              {approvingDigitalId === o.id ? 'Approving…' : 'Approve'}
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedDigitalOrder(o);
+                                setDigitalStatusDraft(o.status || '');
+                                setShowDigitalDetails(true);
+                              }}
+                              className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-900 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:hover:bg-gray-950/40"
+                              title="View details"
+                            >
+                              <FaEye />
+                            </button>
+                            {o.status === 'paid' ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => sendDigitalReceiptEmailToCustomer(o.id)}
+                                  disabled={sendingDigitalReceiptId === o.id}
+                                  className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900 hover:bg-emerald-100 disabled:opacity-60 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-100 dark:hover:bg-emerald-900/60"
+                                  title="Email receipt to customer"
+                                >
+                                  {sendingDigitalReceiptId === o.id ? (
+                                    <FaSpinner className="animate-spin" />
+                                  ) : (
+                                    <FaEnvelope />
+                                  )}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => downloadDigitalPurchaseReceipt(o.id)}
+                                  disabled={downloadingDigitalReceiptId === o.id}
+                                  className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-900 hover:bg-gray-50 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:hover:bg-gray-950/40"
+                                  title="Download receipt PDF"
+                                >
+                                  {downloadingDigitalReceiptId === o.id ? (
+                                    <FaSpinner className="animate-spin" />
+                                  ) : (
+                                    <FaDownload />
+                                  )}
+                                </button>
+                              </>
+                            ) : null}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <div className="border-t border-gray-100 dark:border-gray-700 px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="text-xs text-gray-500 dark:text-gray-400">
+              Page {digitalPage} of {totalDigitalPages} • Total {digitalTotal}
+            </div>
+            <div className="flex items-center gap-2">
+              <select
+                value={digitalPageSize}
+                onChange={(e) => {
+                  setDigitalPageSize(Number(e.target.value || 20));
+                  setDigitalPage(1);
+                }}
+                className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white"
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+              <button
+                type="button"
+                onClick={() => setDigitalPage((p) => Math.max(1, p - 1))}
+                disabled={digitalPage <= 1}
+                className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:hover:bg-gray-950/40"
+              >
+                <FaChevronLeft />
+              </button>
+              <button
+                type="button"
+                onClick={() => setDigitalPage((p) => Math.min(totalDigitalPages, p + 1))}
+                disabled={digitalPage >= totalDigitalPages}
+                className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50 disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:hover:bg-gray-950/40"
+              >
+                <FaChevronRight />
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {showDigitalDetails && selectedDigitalOrder ? (
+        <div
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-black bg-opacity-50 p-3 sm:p-6"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowDigitalDetails(false);
+              setSelectedDigitalOrder(null);
+            }
+          }}
+        >
+          <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-xl">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                  Payment Details
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDigitalDetails(false);
+                    setSelectedDigitalOrder(null);
+                  }}
+                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                  aria-label="Close"
+                >
+                  <FaTimes />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                      User Information
+                    </h4>
+                    <p className="text-gray-900 dark:text-white">
+                      {selectedDigitalOrder.user_name || '-'}
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Email: {selectedDigitalOrder.user_email || '-'}
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Contact: {selectedDigitalOrder.user_contact || '-'}
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                      Product
+                    </h4>
+                    <p className="text-gray-900 dark:text-white">
+                      {selectedDigitalOrder.product_title || '-'}
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Purchase ID: #{selectedDigitalOrder.id}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                      Product Thumbnail
+                    </h4>
+                    <div className="mt-2 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-gray-50 dark:bg-gray-950">
+                      {selectedDigitalOrder.product_thumbnail_url ? (
+                        <img
+                          src={resolveMediaUrl(selectedDigitalOrder.product_thumbnail_url)}
+                          alt="Product thumbnail"
+                          className="w-full max-h-48 object-contain"
+                        />
+                      ) : (
+                        <div className="p-6 text-sm text-gray-500 dark:text-gray-400 text-center">
+                          No thumbnail
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                      Proof of Payment
+                    </h4>
+                    <div className="mt-2 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-gray-50 dark:bg-gray-950">
+                      {!selectedDigitalOrder.proof_url ? (
+                        <div className="p-6 text-sm text-gray-500 dark:text-gray-400 text-center">
+                          No proof uploaded
+                        </div>
+                      ) : isImageUrl(selectedDigitalOrder.proof_url) ? (
+                        <img
+                          src={resolveMediaUrl(selectedDigitalOrder.proof_url)}
+                          alt="Proof of Payment"
+                          className="w-full max-h-48 object-contain"
+                        />
+                      ) : (
+                        <iframe
+                          title="Proof document"
+                          src={resolveMediaUrl(selectedDigitalOrder.proof_url)}
+                          className="w-full h-48 bg-white dark:bg-gray-950"
+                        />
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                      Payment Amount
+                    </h4>
+                    <p className="text-lg font-bold text-gray-900 dark:text-white">
+                      ₵{' '}
+                      {Number(
+                        selectedDigitalOrder.amount_ghs ??
+                          selectedDigitalOrder.amountGhs ??
+                          0
+                      ).toFixed(2)}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Provider: {selectedDigitalOrder.payment_provider || '-'} • Method:{' '}
+                      {selectedDigitalOrder.payment_method || '-'}
+                    </p>
+                    {selectedDigitalOrder.paystack_reference ? (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 break-all mt-2">
+                        Ref: {selectedDigitalOrder.paystack_reference}
+                      </p>
+                    ) : null}
+                  </div>
+
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                      Status Information
+                    </h4>
+                    <div className="mt-1">{getDigitalPurchaseStatusBadge(digitalStatusDraft)}</div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                      Submitted:{' '}
+                      {selectedDigitalOrder.created_at
+                        ? new Date(selectedDigitalOrder.created_at).toLocaleString()
+                        : '-'}
+                    </p>
+                    {selectedDigitalOrder.paid_at ? (
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Paid: {new Date(selectedDigitalOrder.paid_at).toLocaleString()}
+                      </p>
+                    ) : null}
+
+                    <div className="mt-3 space-y-2">
+                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">
+                        Update status
+                      </label>
+                      <select
+                        value={digitalStatusDraft}
+                        onChange={(e) => setDigitalStatusDraft(e.target.value)}
+                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                      >
+                        <option value="pending">pending</option>
+                        <option value="pending_review">pending_review</option>
+                        <option value="paid">paid</option>
+                        <option value="rejected">rejected</option>
+                        <option value="cancelled">cancelled</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {(selectedDigitalOrder.manual_sender_name ||
+                  selectedDigitalOrder.manual_sender_number ||
+                  selectedDigitalOrder.manual_note) ? (
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                      Additional Information
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
+                      <p className="text-gray-900 dark:text-white">
+                        Sender: {selectedDigitalOrder.manual_sender_name || '-'}
+                      </p>
+                      <p className="text-gray-900 dark:text-white">
+                        Sender #: {selectedDigitalOrder.manual_sender_number || '-'}
+                      </p>
+                      <div className="md:col-span-2">
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Note</p>
+                        <p className="text-gray-900 dark:text-white p-2 bg-gray-50 dark:bg-gray-700 rounded mt-1 whitespace-pre-wrap">
+                          {selectedDigitalOrder.manual_note || '-'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+
+                {digitalStatusDraft === 'paid' || selectedDigitalOrder.status === 'paid' ? (
+                  <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+                    <button
+                      type="button"
+                      onClick={() => sendDigitalReceiptEmailToCustomer(selectedDigitalOrder.id)}
+                      disabled={sendingDigitalReceiptId === selectedDigitalOrder.id}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-md border border-emerald-200 bg-emerald-50 text-emerald-900 text-sm font-semibold hover:bg-emerald-100 disabled:opacity-60 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-100 dark:hover:bg-emerald-900/60"
+                    >
+                      {sendingDigitalReceiptId === selectedDigitalOrder.id ? (
+                        <FaSpinner className="animate-spin" />
+                      ) : (
+                        <FaEnvelope />
+                      )}
+                      Email receipt to customer
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => downloadDigitalPurchaseReceipt(selectedDigitalOrder.id)}
+                      disabled={downloadingDigitalReceiptId === selectedDigitalOrder.id}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-sm font-semibold hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-60"
+                    >
+                      {downloadingDigitalReceiptId === selectedDigitalOrder.id ? (
+                        <FaSpinner className="animate-spin" />
+                      ) : (
+                        <FaDownload />
+                      )}
+                      Download receipt PDF
+                    </button>
+                  </div>
+                ) : null}
+
+                <div className="flex justify-end mt-6 space-x-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowDigitalDetails(false);
+                      setSelectedDigitalOrder(null);
+                    }}
+                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="button"
+                    onClick={saveDigitalStatus}
+                    disabled={savingDigitalStatus}
+                    className="px-4 py-2 bg-pink-600 text-white rounded-md hover:bg-pink-700 disabled:opacity-60"
+                  >
+                    {savingDigitalStatus ? 'Saving…' : 'Update Status'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {/* Filters and Search */}
+      {orderTab === 'digital' ? null : (
       <div className="mb-6 flex flex-col sm:flex-row gap-4">
         <div className="flex-1">
           <div className="relative">
@@ -310,7 +995,10 @@ const OrderManagement = () => {
           <option value="cancelled">Cancelled</option>
         </select>
       </div>
+      )}
 
+      {orderTab === 'digital' ? null : (
+      <>
       {/* Orders Table */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
         <div className="overflow-x-auto">
@@ -467,6 +1155,8 @@ const OrderManagement = () => {
           </table>
         </div>
       </div>
+      </>
+      )}
 
       {/* Order Details Modal */}
       {showOrderDetails && selectedOrder && (

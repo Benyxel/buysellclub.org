@@ -16,10 +16,10 @@ const WhatsAppWidget = ({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className={`fixed bottom-4 right-4 md:bottom-6 md:right-6 z-[1090] flex items-center gap-2 rounded-full bg-green-500 hover:bg-green-600 px-4 py-2.5 md:px-5 md:py-3 text-sm font-semibold text-white shadow-xl transition-all hover:scale-105 ${className}`}
+      className={`fixed bottom-5 right-4 z-[1090] flex h-12 items-center gap-2 rounded-full bg-green-500 px-5 text-sm font-semibold text-white shadow-xl transition-all hover:scale-105 hover:bg-green-600 md:bottom-6 md:right-6 ${className}`}
       aria-label={label}
     >
-      <FaWhatsapp className="text-base md:text-lg" />
+      <FaWhatsapp className="shrink-0 text-white" />
       <span className="hidden sm:inline">{label}</span>
     </a>
   );

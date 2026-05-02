@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import React, { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { toast } from "../../utils/toast";
 import API, { getLiveChatUnreadCount, markAllLiveChatRead, getCachedData, setCachedData, CACHE_DURATION, clearCache } from "../../api";
@@ -42,10 +43,15 @@ import {
   FaGift,
   FaEnvelope,
   FaMotorcycle,
+  FaFilePdf,
+  FaChevronDown,
+  FaThList,
+  FaShoppingBag,
 } from "react-icons/fa";
 
 import UsersManagement from "./UsersManagement";
 import AdminProducts from "./AdminProducts";
+import AdminDigitalProducts from "./AdminDigitalProducts";
 import TrackingManagement from "./TrackingManagement";
 import QuickTrackingNotesManagement from "./QuickTrackingNotesManagement";
 import ShippingMarksAdmin from "./ShippingMarksAdmin";
@@ -92,6 +98,21 @@ import StaffClockRecords from "./StaffClockRecords";
 import RiderManagementPanel from "./delivery/RiderManagementPanel";
 import DeliveryRequestsPanel from "./delivery/DeliveryRequestsPanel";
 import "react-toastify/dist/ReactToastify.css";
+
+/** Sections grouped under sidebar "Quick Tabs" (Shipping through Agent Management). */
+const QUICK_TABS_SECTIONS = [
+  "shipping",
+  "delivery",
+  "alipay-payments",
+  "alipay-buying-rate",
+  "buy4me",
+  "agents",
+];
+const quickTabsSectionSet = new Set(QUICK_TABS_SECTIONS);
+
+/** Sections grouped under sidebar "E-commerce" (Shop, Quick Orders, Orders). */
+const ECOMMERCE_SECTIONS = ["shop", "quick-orders", "orders"];
+const ecommerceSectionSet = new Set(ECOMMERCE_SECTIONS);
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -219,6 +240,7 @@ const AdminDashboard = () => {
     alipay: 0,
     buy4me: 0,
     orders: 0,
+    digital_orders: 0,
     training: 0,
     community: 0,
     agentRequests: 0,
@@ -235,6 +257,16 @@ const AdminDashboard = () => {
   const [currentUser, setCurrentUser] = useState(null);
   const [allowedTabs, setAllowedTabs] = useState(null); // null = not loaded, [] = loaded but none
   const [allowedTabsMeta, setAllowedTabsMeta] = useState({});
+  const [quickTabsOpen, setQuickTabsOpen] = useState(false);
+  const quickTabsWrapRef = useRef(null);
+  const quickTabsTriggerRef = useRef(null);
+  const quickTabsFlyoutRef = useRef(null);
+  const [quickFlyoutPos, setQuickFlyoutPos] = useState(null);
+  const [ecommerceOpen, setEcommerceOpen] = useState(false);
+  const ecommerceWrapRef = useRef(null);
+  const ecommerceTriggerRef = useRef(null);
+  const ecommerceFlyoutRef = useRef(null);
+  const [ecommerceFlyoutPos, setEcommerceFlyoutPos] = useState(null);
 
   // Refs to prevent duplicate toasts in StrictMode
   const welcomeToastShown = useRef(false);
@@ -380,6 +412,7 @@ const AdminDashboard = () => {
           alipay: response.data.alipay || 0,
           buy4me: response.data.buy4me || 0,
           orders: response.data.orders || 0,
+          digital_orders: response.data.digital_orders || 0,
           training: response.data.training || 0,
           community: response.data.community_pending || 0,
           agentRequests: response.data.agent_requests || 0,
@@ -437,6 +470,8 @@ const AdminDashboard = () => {
       setDashboardData({
         totalUsers: data.totalUsers || 0,
         totalOrders: data.totalOrders || 0,
+        totalDigitalPurchases: data.totalDigitalPurchases || 0,
+        totalDigitalSalesGHS: data.totalDigitalSalesGHS ?? 0,
         totalAlipayPaymentsGHS: data.totalAlipayPaymentsGHS ?? 0,
         totalAlipayPaymentsCNY: data.totalAlipayPaymentsCNY ?? 0,
         totalBuy4meRequests: data.totalBuy4meRequests || 0,
@@ -551,6 +586,92 @@ const AdminDashboard = () => {
   useEffect(() => {
     localStorage.setItem("adminAnalyticsTab", analyticsTab);
   }, [analyticsTab]);
+
+  useEffect(() => {
+    if (!quickTabsOpen) return;
+    const onDocMouseDown = (e) => {
+      const t = e.target;
+      if (quickTabsWrapRef.current?.contains(t)) return;
+      if (quickTabsFlyoutRef.current?.contains(t)) return;
+      setQuickTabsOpen(false);
+    };
+    document.addEventListener("mousedown", onDocMouseDown);
+    return () => document.removeEventListener("mousedown", onDocMouseDown);
+  }, [quickTabsOpen]);
+
+  useLayoutEffect(() => {
+    if (!quickTabsOpen || isSidebarOpen) {
+      setQuickFlyoutPos(null);
+      return;
+    }
+    const el = quickTabsTriggerRef.current;
+    if (!el) {
+      setQuickFlyoutPos(null);
+      return;
+    }
+    const update = () => {
+      const r = el.getBoundingClientRect();
+      const gap = 10;
+      const panelWidth = 268;
+      let left = r.right + gap;
+      if (left + panelWidth > window.innerWidth - 12) {
+        left = Math.max(12, r.left - panelWidth - gap);
+      }
+      let top = r.top;
+      const maxH = Math.max(160, window.innerHeight - top - 16);
+      setQuickFlyoutPos({ top, left, maxHeight: maxH });
+    };
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+    };
+  }, [quickTabsOpen, isSidebarOpen]);
+
+  useEffect(() => {
+    if (!ecommerceOpen) return;
+    const onDocMouseDown = (e) => {
+      const t = e.target;
+      if (ecommerceWrapRef.current?.contains(t)) return;
+      if (ecommerceFlyoutRef.current?.contains(t)) return;
+      setEcommerceOpen(false);
+    };
+    document.addEventListener("mousedown", onDocMouseDown);
+    return () => document.removeEventListener("mousedown", onDocMouseDown);
+  }, [ecommerceOpen]);
+
+  useLayoutEffect(() => {
+    if (!ecommerceOpen || isSidebarOpen) {
+      setEcommerceFlyoutPos(null);
+      return;
+    }
+    const el = ecommerceTriggerRef.current;
+    if (!el) {
+      setEcommerceFlyoutPos(null);
+      return;
+    }
+    const update = () => {
+      const r = el.getBoundingClientRect();
+      const gap = 10;
+      const panelWidth = 268;
+      let left = r.right + gap;
+      if (left + panelWidth > window.innerWidth - 12) {
+        left = Math.max(12, r.left - panelWidth - gap);
+      }
+      let top = r.top;
+      const maxH = Math.max(160, window.innerHeight - top - 16);
+      setEcommerceFlyoutPos({ top, left, maxHeight: maxH });
+    };
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+    };
+  }, [ecommerceOpen, isSidebarOpen]);
 
   useEffect(() => {
     // Only fetch dashboard data the first time we visit the dashboard
@@ -799,6 +920,25 @@ const AdminDashboard = () => {
                     </p>
                   ),
                   accent: "bg-green-100 dark:bg-green-900",
+                },
+                {
+                  id: "digital-store",
+                  title: "Digital Store Sales",
+                  icon: <FaFilePdf className="text-2xl text-emerald-600 dark:text-emerald-400" />,
+                  value: (
+                    <div className="space-y-1">
+                      <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                        ₵{Number(dashboardData.totalDigitalSalesGHS || 0).toLocaleString("en-US", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Purchases: {dashboardData.totalDigitalPurchases || 0}
+                      </p>
+                    </div>
+                  ),
+                  accent: "bg-emerald-100 dark:bg-emerald-900",
                 },
                 {
                   id: "alipay",
@@ -1623,7 +1763,14 @@ const AdminDashboard = () => {
           </div>
         );
       case "orders":
-        return <OrderManagement />;
+        return (
+          <OrderManagement
+            onDigitalUnreadInvalidate={() => {
+              clearCache('admin-unread-counts');
+              fetchUnreadCounts();
+            }}
+          />
+        );
       case "shop":
         return (
           <div className="p-6">
@@ -1645,6 +1792,19 @@ const AdminDashboard = () => {
                   <div className="flex items-center gap-2">
                     <FaBox className="w-4 h-4" />
                     <span>Products</span>
+                  </div>
+                </button>
+                <button
+                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
+                    shopSubMenu === "digital-products"
+                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                  onClick={() => setShopSubMenu("digital-products")}
+                >
+                  <div className="flex items-center gap-2">
+                    <FaFilePdf className="w-4 h-4" />
+                    <span>Digital products</span>
                   </div>
                 </button>
                 <button
@@ -1702,6 +1862,8 @@ const AdminDashboard = () => {
             {/* Shop Content */}
             {shopSubMenu === "products" ? (
               <AdminProducts />
+            ) : shopSubMenu === "digital-products" ? (
+              <AdminDigitalProducts />
             ) : shopSubMenu === "vendors" ? (
               <VendorManagement />
             ) : shopSubMenu === "vendor-payout-requests" ? (
@@ -1726,6 +1888,7 @@ const AdminDashboard = () => {
                   { key: "alipay", label: "Alipay" },
                   { key: "buy4me", label: "Buy4me" },
                   { key: "orders", label: "Orders" },
+                  { key: "digital_store", label: "Digital store" },
                   { key: "training", label: "Training" },
                   { key: "community", label: "Community" },
                 ].map((tab) => (
@@ -1836,6 +1999,70 @@ const AdminDashboard = () => {
     }
   };
 
+  const tabUnreadCountForSection = (section) => {
+    if (section === "alipay-payments") return unreadCounts.alipay;
+    if (section === "buy4me") return unreadCounts.buy4me;
+    if (section === "orders") {
+      return (unreadCounts.orders || 0) + (unreadCounts.digital_orders || 0);
+    }
+    if (section === "training") return unreadCounts.training;
+    if (section === "community") return unreadCounts.community;
+    if (section === "delivery") return unreadCounts.delivery;
+    if (section === "shop") {
+      return (unreadCounts.vendorApplications || 0) + (unreadCounts.vendorPayoutRequests || 0);
+    }
+    if (section === "agents") {
+      return (
+        (unreadCounts.agentRequests || 0) +
+        (unreadCounts.localAgentRequests || 0) +
+        (unreadCounts.rewardClaims || 0)
+      );
+    }
+    return 0;
+  };
+
+  const openSidebarSection = (item) => {
+    const tabUnreadCount = tabUnreadCountForSection(item.section);
+    setActiveSection(item.section);
+    // Keep the parent dropdown open when navigating within that group
+    if (!quickTabsSectionSet.has(item.section)) {
+      setQuickTabsOpen(false);
+    }
+    if (!ecommerceSectionSet.has(item.section)) {
+      setEcommerceOpen(false);
+    }
+    if (tabUnreadCount > 0) {
+      if (item.section === "alipay-payments") {
+        setUnreadCounts((prev) => ({ ...prev, alipay: 0 }));
+      } else if (item.section === "buy4me") {
+        setUnreadCounts((prev) => ({ ...prev, buy4me: 0 }));
+      } else if (item.section === "orders") {
+        setUnreadCounts((prev) => ({
+          ...prev,
+          orders: 0,
+          digital_orders: 0,
+        }));
+      } else if (item.section === "training") {
+        setUnreadCounts((prev) => ({ ...prev, training: 0 }));
+      } else if (item.section === "community") {
+        setUnreadCounts((prev) => ({ ...prev, community: 0 }));
+      } else if (item.section === "agents") {
+        setUnreadCounts((prev) => ({
+          ...prev,
+          agentRequests: 0,
+          localAgentRequests: 0,
+          rewardClaims: 0,
+        }));
+      } else if (item.section === "shop") {
+        setUnreadCounts((prev) => ({
+          ...prev,
+          vendorApplications: 0,
+          vendorPayoutRequests: 0,
+        }));
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
@@ -1860,7 +2087,11 @@ const AdminDashboard = () => {
             </h1>
           )}
           <button
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            onClick={() => {
+              setIsSidebarOpen(!isSidebarOpen);
+              setQuickTabsOpen(false);
+              setEcommerceOpen(false);
+            }}
             className="text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white"
           >
             {isSidebarOpen ? <FaTimes /> : <FaBars />}
@@ -1881,8 +2112,6 @@ const AdminDashboard = () => {
           <div className="p-4">
             <div className="space-y-2">
               {(() => {
-                // Decide which menu items to show based on allowedTabs.
-                // Dashboard is always visible. If allowedTabs === null (not loaded), show the default menu.
                 const itemsToRender =
                   allowedTabs === null
                     ? menuItems
@@ -1899,88 +2128,441 @@ const AdminDashboard = () => {
                         return allowedTabs.includes(item.section);
                       });
 
-                return itemsToRender.map((item, index) => {
+                const quickItemsOrdered = QUICK_TABS_SECTIONS.map((slug) =>
+                  itemsToRender.find((i) => i.section === slug)
+                ).filter(Boolean);
+
+                const ecommerceItemsOrdered = ECOMMERCE_SECTIONS.map((slug) =>
+                  itemsToRender.find((i) => i.section === slug)
+                ).filter(Boolean);
+
+                const mainItems = itemsToRender.filter(
+                  (i) =>
+                    !quickTabsSectionSet.has(i.section) &&
+                    !ecommerceSectionSet.has(i.section)
+                );
+                const headItems = mainItems.filter(
+                  (i) => i.section === "dashboard" || i.section === "users"
+                );
+                const tailItems = mainItems.filter(
+                  (i) => i.section !== "dashboard" && i.section !== "users"
+                );
+
+                const quickGroupActive = quickItemsOrdered.some(
+                  (i) => i.section === activeSection
+                );
+                const ecommerceGroupActive = ecommerceItemsOrdered.some(
+                  (i) => i.section === activeSection
+                );
+                const ecommerceBadgeTotal = ecommerceItemsOrdered.reduce(
+                  (sum, it) => sum + tabUnreadCountForSection(it.section),
+                  0
+                );
+                const quickTabsBadgeTotal = quickItemsOrdered.reduce(
+                  (sum, it) => sum + tabUnreadCountForSection(it.section),
+                  0
+                );
+
+                const renderNavButton = (item, key) => {
                   const showChatBadge =
                     item.section === "messages" && chatUnreadCount > 0;
-                  
-                  // Get unread count for this tab
-                  let tabUnreadCount = 0;
-                  if (item.section === "alipay-payments") {
-                    tabUnreadCount = unreadCounts.alipay;
-                  } else if (item.section === "buy4me") {
-                    tabUnreadCount = unreadCounts.buy4me;
-                  } else if (item.section === "orders") {
-                    tabUnreadCount = unreadCounts.orders;
-                  } else if (item.section === "training") {
-                    tabUnreadCount = unreadCounts.training;
-                  } else if (item.section === "community") {
-                    tabUnreadCount = unreadCounts.community;
-                  } else if (item.section === "delivery") {
-                    tabUnreadCount = unreadCounts.delivery;
-                  } else if (item.section === "shop") {
-                    tabUnreadCount =
-                      (unreadCounts.vendorApplications || 0) +
-                      (unreadCounts.vendorPayoutRequests || 0);
-                  } else if (item.section === "agents") {
-                    tabUnreadCount = 0;
-                  }
-                  
+                  const tabUnreadCount = tabUnreadCountForSection(item.section);
                   const showTabBadge = tabUnreadCount > 0;
-                  
                   return (
                     <button
-                      key={index}
-                      onClick={() => {
-                        setActiveSection(item.section);
-                        // Clear unread count when tab is opened
-                        if (tabUnreadCount > 0) {
-                          if (item.section === "alipay-payments") {
-                            setUnreadCounts(prev => ({ ...prev, alipay: 0 }));
-                          } else if (item.section === "buy4me") {
-                            setUnreadCounts(prev => ({ ...prev, buy4me: 0 }));
-                          } else if (item.section === "orders") {
-                            setUnreadCounts(prev => ({ ...prev, orders: 0 }));
-                          } else if (item.section === "training") {
-                            setUnreadCounts(prev => ({ ...prev, training: 0 }));
-                          } else if (item.section === "community") {
-                            setUnreadCounts(prev => ({ ...prev, community: 0 }));
-                          } else if (item.section === "agents") {
-                            setUnreadCounts(prev => ({
-                              ...prev,
-                              agentRequests: 0,
-                              rewardClaims: 0,
-                            }));
-                          }
-                        }
-                      }}
+                      key={key}
+                      type="button"
+                      onClick={() => openSidebarSection(item)}
                       className={`w-full flex items-center space-x-3 p-3 rounded-lg transition-colors ${
                         activeSection === item.section
                           ? "bg-blue-50 dark:bg-blue-900 text-blue-600 dark:text-blue-400"
                           : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                       }`}
                     >
-                      <span className="text-xl">{item.icon}</span>
+                      <span className="text-xl shrink-0">{item.icon}</span>
                       {isSidebarOpen && (
-                        <span className="flex items-center space-x-2">
-                          <span>{item.label}</span>
+                        <span className="flex items-center space-x-2 min-w-0">
+                          <span className="truncate">{item.label}</span>
                           {showChatBadge && (
-                            <span className="ml-2 text-xs font-semibold text-white bg-red-500 rounded-full px-2 py-0.5">
+                            <span className="ml-2 text-xs font-semibold text-white bg-red-500 rounded-full px-2 py-0.5 shrink-0">
                               {chatUnreadCount}
                             </span>
                           )}
                           {showTabBadge && (
-                            <span className="ml-2 text-xs font-semibold text-white bg-red-500 rounded-full px-2 py-0.5">
+                            <span className="ml-2 text-xs font-semibold text-white bg-red-500 rounded-full px-2 py-0.5 shrink-0">
                               {tabUnreadCount > 99 ? "99+" : tabUnreadCount}
                             </span>
                           )}
                           {allowedTabsMeta[item.section]?.assigned && (
-                            <span className="ml-2 w-2 h-2 rounded-full bg-green-500 inline-block" />
+                            <span className="ml-2 w-2 h-2 rounded-full bg-green-500 inline-block shrink-0" />
                           )}
                         </span>
                       )}
                     </button>
                   );
-                });
+                };
+
+                return (
+                  <>
+                    {headItems.map((item) =>
+                      renderNavButton(item, `nav-${item.section}`)
+                    )}
+
+                    {ecommerceItemsOrdered.length > 0 ? (
+                      <div className="space-y-1" ref={ecommerceWrapRef}>
+                        {isSidebarOpen ? (
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 px-3 pt-1">
+                            E-commerce
+                          </p>
+                        ) : null}
+                        <button
+                          ref={ecommerceTriggerRef}
+                          type="button"
+                          title="E-commerce: Shop, Quick Orders, Orders"
+                          onClick={() => {
+                            setQuickTabsOpen(false);
+                            setEcommerceOpen((o) => !o);
+                          }}
+                          className={`w-full flex items-center relative ${
+                            isSidebarOpen ? "justify-between gap-2" : "justify-center"
+                          } p-3 rounded-lg transition-colors ${
+                            ecommerceGroupActive && !isSidebarOpen
+                              ? "border-l-4 border-blue-500 bg-gray-900/30 dark:bg-gray-950 text-blue-600 dark:text-blue-400"
+                              : ecommerceGroupActive && isSidebarOpen
+                              ? "bg-blue-50 dark:bg-blue-900 text-blue-600 dark:text-blue-400 ring-1 ring-blue-200/80 dark:ring-blue-700"
+                              : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                          }`}
+                          aria-expanded={ecommerceOpen}
+                        >
+                          <span
+                            className={`flex items-center min-w-0 ${
+                              isSidebarOpen ? "flex-1 gap-3" : ""
+                            }`}
+                          >
+                            <span className="relative shrink-0 inline-flex">
+                              <FaShoppingBag className="text-xl shrink-0" />
+                              {!isSidebarOpen && ecommerceBadgeTotal > 0 ? (
+                                <span className="absolute -right-1.5 -top-1 flex h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-red-500 px-0.5 text-[9px] font-bold leading-none text-white">
+                                  {ecommerceBadgeTotal > 99
+                                    ? "99+"
+                                    : ecommerceBadgeTotal}
+                                </span>
+                              ) : null}
+                            </span>
+                            {isSidebarOpen ? (
+                              <>
+                                <span className="text-sm font-semibold truncate flex-1 min-w-0 text-left">
+                                  E-commerce
+                                </span>
+                                {ecommerceBadgeTotal > 0 ? (
+                                  <span className="shrink-0 text-xs font-semibold text-white bg-red-500 rounded-full px-2 py-0.5 min-w-[1.5rem] text-center">
+                                    {ecommerceBadgeTotal > 99
+                                      ? "99+"
+                                      : ecommerceBadgeTotal}
+                                  </span>
+                                ) : null}
+                              </>
+                            ) : null}
+                          </span>
+                          {isSidebarOpen ? (
+                            <FaChevronDown
+                              className={`text-sm shrink-0 transition-transform ${
+                                ecommerceOpen ? "rotate-180" : ""
+                              }`}
+                            />
+                          ) : null}
+                        </button>
+                        {ecommerceOpen && isSidebarOpen ? (
+                          <div className="ml-2 pl-2 border-l-2 border-blue-200 dark:border-blue-800 space-y-1 pb-1">
+                            {ecommerceItemsOrdered.map((item) => {
+                              const n = tabUnreadCountForSection(item.section);
+                              const showB = n > 0;
+                              return (
+                                <button
+                                  key={item.section}
+                                  type="button"
+                                  onClick={() => openSidebarSection(item)}
+                                  className={`w-full flex items-center space-x-3 px-2 py-2 rounded-md text-sm transition-colors ${
+                                    activeSection === item.section
+                                      ? "bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300"
+                                      : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/80"
+                                  }`}
+                                >
+                                  <span className="text-lg shrink-0">{item.icon}</span>
+                                  <span className="flex flex-1 items-center justify-between gap-2 min-w-0">
+                                    <span className="truncate text-left">{item.label}</span>
+                                    <span className="flex items-center gap-1 shrink-0">
+                                      {showB ? (
+                                        <span className="text-xs font-semibold text-white bg-red-500 rounded-full px-2 py-0.5">
+                                          {n > 99 ? "99+" : n}
+                                        </span>
+                                      ) : null}
+                                      {allowedTabsMeta[item.section]?.assigned ? (
+                                        <span className="w-2 h-2 rounded-full bg-green-500" />
+                                      ) : null}
+                                    </span>
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ) : null}
+                        {ecommerceOpen &&
+                        !isSidebarOpen &&
+                        ecommerceFlyoutPos &&
+                        typeof document !== "undefined"
+                          ? createPortal(
+                              <div
+                                ref={ecommerceFlyoutRef}
+                                className="w-[268px] rounded-xl border border-blue-500/60 bg-gray-900 text-gray-100 shadow-2xl overflow-hidden flex flex-col"
+                                style={{
+                                  position: "fixed",
+                                  top: ecommerceFlyoutPos.top,
+                                  left: ecommerceFlyoutPos.left,
+                                  maxHeight: ecommerceFlyoutPos.maxHeight,
+                                  zIndex: 10050,
+                                }}
+                                role="menu"
+                              >
+                                <div className="flex items-center gap-2 px-3 py-2.5 border-b border-blue-500/35 bg-gray-950/80">
+                                  <FaShoppingBag className="text-lg text-blue-400 shrink-0" />
+                                  <span className="text-[11px] font-bold uppercase tracking-wider text-blue-400 flex-1 min-w-0">
+                                    E-commerce
+                                  </span>
+                                  {ecommerceBadgeTotal > 0 ? (
+                                    <span className="shrink-0 text-[10px] font-bold text-white bg-red-500 rounded-full px-1.5 py-0.5 min-w-[1.25rem] text-center">
+                                      {ecommerceBadgeTotal > 99
+                                        ? "99+"
+                                        : ecommerceBadgeTotal}
+                                    </span>
+                                  ) : null}
+                                </div>
+                                <div className="overflow-y-auto py-1 flex-1 min-h-0">
+                                  {ecommerceItemsOrdered.map((item) => {
+                                    const n = tabUnreadCountForSection(item.section);
+                                    const showB = n > 0;
+                                    const active = activeSection === item.section;
+                                    return (
+                                      <button
+                                        key={item.section}
+                                        type="button"
+                                        role="menuitem"
+                                        onClick={() => openSidebarSection(item)}
+                                        className={`w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm transition-colors rounded-md mx-1 ${
+                                          active
+                                            ? "bg-blue-600/25 text-white ring-1 ring-inset ring-blue-500/45"
+                                            : "text-gray-200 hover:bg-gray-800"
+                                        }`}
+                                      >
+                                        <span className="text-lg shrink-0 opacity-90">
+                                          {item.icon}
+                                        </span>
+                                        <span className="flex flex-1 items-center justify-between gap-2 min-w-0">
+                                          <span className="truncate font-medium">
+                                            {item.label}
+                                          </span>
+                                          <span className="flex items-center gap-1 shrink-0">
+                                            {showB ? (
+                                              <span className="text-[10px] font-bold text-white bg-red-500 rounded-full px-1.5 py-0.5 min-w-[1.25rem] text-center">
+                                                {n > 99 ? "99+" : n}
+                                              </span>
+                                            ) : null}
+                                            {allowedTabsMeta[item.section]?.assigned ? (
+                                              <span className="w-2 h-2 rounded-full bg-green-500" />
+                                            ) : null}
+                                          </span>
+                                        </span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>,
+                              document.body
+                            )
+                          : null}
+                      </div>
+                    ) : null}
+
+                    {quickItemsOrdered.length > 0 ? (
+                      <div className="space-y-1" ref={quickTabsWrapRef}>
+                        {isSidebarOpen ? (
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 px-3 pt-1">
+                            Quick Tabs
+                          </p>
+                        ) : null}
+                        <button
+                          ref={quickTabsTriggerRef}
+                          type="button"
+                          title="Quick Tabs: Shipping → Agent Management"
+                          onClick={() => {
+                            setEcommerceOpen(false);
+                            setQuickTabsOpen((o) => !o);
+                          }}
+                          className={`w-full flex items-center relative ${
+                            isSidebarOpen ? "justify-between gap-2" : "justify-center"
+                          } p-3 rounded-lg transition-colors ${
+                            quickGroupActive && !isSidebarOpen
+                              ? "border-l-4 border-blue-500 bg-gray-900/30 dark:bg-gray-950 text-blue-600 dark:text-blue-400"
+                              : quickGroupActive && isSidebarOpen
+                              ? "bg-blue-50 dark:bg-blue-900 text-blue-600 dark:text-blue-400 ring-1 ring-blue-200/80 dark:ring-blue-700"
+                              : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                          }`}
+                          aria-expanded={quickTabsOpen}
+                        >
+                          <span
+                            className={`flex items-center min-w-0 ${
+                              isSidebarOpen ? "flex-1 gap-3" : ""
+                            }`}
+                          >
+                            <span className="relative shrink-0 inline-flex">
+                              <FaThList className="text-xl shrink-0" />
+                              {!isSidebarOpen && quickTabsBadgeTotal > 0 ? (
+                                <span className="absolute -right-1.5 -top-1 flex h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-red-500 px-0.5 text-[9px] font-bold leading-none text-white">
+                                  {quickTabsBadgeTotal > 99
+                                    ? "99+"
+                                    : quickTabsBadgeTotal}
+                                </span>
+                              ) : null}
+                            </span>
+                            {isSidebarOpen ? (
+                              <>
+                                <span className="text-sm font-semibold truncate flex-1 min-w-0 text-left">
+                                  Quick Tabs
+                                </span>
+                                {quickTabsBadgeTotal > 0 ? (
+                                  <span className="shrink-0 text-xs font-semibold text-white bg-red-500 rounded-full px-2 py-0.5 min-w-[1.5rem] text-center">
+                                    {quickTabsBadgeTotal > 99
+                                      ? "99+"
+                                      : quickTabsBadgeTotal}
+                                  </span>
+                                ) : null}
+                              </>
+                            ) : null}
+                          </span>
+                          {isSidebarOpen ? (
+                            <FaChevronDown
+                              className={`text-sm shrink-0 transition-transform ${
+                                quickTabsOpen ? "rotate-180" : ""
+                              }`}
+                            />
+                          ) : null}
+                        </button>
+                        {quickTabsOpen && isSidebarOpen ? (
+                          <div className="ml-2 pl-2 border-l-2 border-blue-200 dark:border-blue-800 space-y-1 pb-1">
+                            {quickItemsOrdered.map((item) => {
+                              const n = tabUnreadCountForSection(item.section);
+                              const showB = n > 0;
+                              return (
+                                <button
+                                  key={item.section}
+                                  type="button"
+                                  onClick={() => openSidebarSection(item)}
+                                  className={`w-full flex items-center space-x-3 px-2 py-2 rounded-md text-sm transition-colors ${
+                                    activeSection === item.section
+                                      ? "bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300"
+                                      : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/80"
+                                  }`}
+                                >
+                                  <span className="text-lg shrink-0">{item.icon}</span>
+                                  <span className="flex flex-1 items-center justify-between gap-2 min-w-0">
+                                    <span className="truncate text-left">{item.label}</span>
+                                    <span className="flex items-center gap-1 shrink-0">
+                                      {showB ? (
+                                        <span className="text-xs font-semibold text-white bg-red-500 rounded-full px-2 py-0.5">
+                                          {n > 99 ? "99+" : n}
+                                        </span>
+                                      ) : null}
+                                      {allowedTabsMeta[item.section]?.assigned ? (
+                                        <span className="w-2 h-2 rounded-full bg-green-500" />
+                                      ) : null}
+                                    </span>
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ) : null}
+                        {quickTabsOpen &&
+                        !isSidebarOpen &&
+                        quickFlyoutPos &&
+                        typeof document !== "undefined"
+                          ? createPortal(
+                              <div
+                                ref={quickTabsFlyoutRef}
+                                className="w-[268px] rounded-xl border border-blue-500/60 bg-gray-900 text-gray-100 shadow-2xl overflow-hidden flex flex-col"
+                                style={{
+                                  position: "fixed",
+                                  top: quickFlyoutPos.top,
+                                  left: quickFlyoutPos.left,
+                                  maxHeight: quickFlyoutPos.maxHeight,
+                                  zIndex: 10050,
+                                }}
+                                role="menu"
+                              >
+                                <div className="flex items-center gap-2 px-3 py-2.5 border-b border-blue-500/35 bg-gray-950/80">
+                                  <FaThList className="text-lg text-blue-400 shrink-0" />
+                                  <span className="text-[11px] font-bold uppercase tracking-wider text-blue-400 flex-1 min-w-0">
+                                    Quick Tabs
+                                  </span>
+                                  {quickTabsBadgeTotal > 0 ? (
+                                    <span className="shrink-0 text-[10px] font-bold text-white bg-red-500 rounded-full px-1.5 py-0.5 min-w-[1.25rem] text-center">
+                                      {quickTabsBadgeTotal > 99
+                                        ? "99+"
+                                        : quickTabsBadgeTotal}
+                                    </span>
+                                  ) : null}
+                                </div>
+                                <div className="overflow-y-auto py-1 flex-1 min-h-0">
+                                  {quickItemsOrdered.map((item) => {
+                                    const n = tabUnreadCountForSection(item.section);
+                                    const showB = n > 0;
+                                    const active = activeSection === item.section;
+                                    return (
+                                      <button
+                                        key={item.section}
+                                        type="button"
+                                        role="menuitem"
+                                        onClick={() => openSidebarSection(item)}
+                                        className={`w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm transition-colors rounded-md mx-1 ${
+                                          active
+                                            ? "bg-blue-600/25 text-white ring-1 ring-inset ring-blue-500/45"
+                                            : "text-gray-200 hover:bg-gray-800"
+                                        }`}
+                                      >
+                                        <span className="text-lg shrink-0 opacity-90">
+                                          {item.icon}
+                                        </span>
+                                        <span className="flex flex-1 items-center justify-between gap-2 min-w-0">
+                                          <span className="truncate font-medium">
+                                            {item.label}
+                                          </span>
+                                          <span className="flex items-center gap-1 shrink-0">
+                                            {showB ? (
+                                              <span className="text-[10px] font-bold text-white bg-red-500 rounded-full px-1.5 py-0.5 min-w-[1.25rem] text-center">
+                                                {n > 99 ? "99+" : n}
+                                              </span>
+                                            ) : null}
+                                            {allowedTabsMeta[item.section]?.assigned ? (
+                                              <span className="w-2 h-2 rounded-full bg-green-500" />
+                                            ) : null}
+                                          </span>
+                                        </span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>,
+                              document.body
+                            )
+                          : null}
+                      </div>
+                    ) : null}
+
+                    {tailItems.map((item) =>
+                      renderNavButton(item, `nav-${item.section}`)
+                    )}
+                  </>
+                );
               })()}
             </div>
 

@@ -191,11 +191,8 @@ const DeliveryRequestWidget = ({ launcherHidden = false } = {}) => {
               </button>
             </div>
 
-            <div className="flex-1 overflow-hidden bg-white dark:bg-gray-900">
-              <div
-                className="h-full overflow-y-scroll px-5 py-5"
-                style={{ scrollbarGutter: "stable" }}
-              >
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white dark:bg-gray-900">
+              <div className="widget-scrollable min-h-0 flex-1 overflow-y-auto px-5 py-5">
                 {isRider ? <ProfileRiderWorkspace /> : <ProfileCustomerDelivery embeddedInWidget />}
               </div>
             </div>

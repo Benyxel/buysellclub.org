@@ -70,6 +70,42 @@
   display: none;
 }
 
+/* Scroll areas: show scrollbars (overrides global ::-webkit-scrollbar hide) */
+.mobile-nav-scrollable,
+.widget-scrollable {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(148 163 184) rgb(243 244 246);
+  overscroll-behavior: contain;
+}
+.mobile-nav-scrollable::-webkit-scrollbar,
+.widget-scrollable::-webkit-scrollbar {
+  display: block;
+  width: 8px;
+  height: 8px;
+}
+.mobile-nav-scrollable::-webkit-scrollbar-track,
+.widget-scrollable::-webkit-scrollbar-track {
+  background: rgb(243 244 246);
+  border-radius: 9999px;
+}
+.mobile-nav-scrollable::-webkit-scrollbar-thumb,
+.widget-scrollable::-webkit-scrollbar-thumb {
+  background: rgb(148 163 184);
+  border-radius: 9999px;
+}
+.dark .mobile-nav-scrollable,
+.dark .widget-scrollable {
+  scrollbar-color: rgb(82 82 91) rgb(24 24 27);
+}
+.dark .mobile-nav-scrollable::-webkit-scrollbar-track,
+.dark .widget-scrollable::-webkit-scrollbar-track {
+  background: rgb(24 24 27);
+}
+.dark .mobile-nav-scrollable::-webkit-scrollbar-thumb,
+.dark .widget-scrollable::-webkit-scrollbar-thumb {
+  background: rgb(82 82 91);
+}
+
 /* Chrome/Rainbow Border Animation */
 @keyframes chrome-border {
   0% {

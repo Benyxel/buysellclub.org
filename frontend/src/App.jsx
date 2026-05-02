@@ -36,6 +36,7 @@ import CommunitySetPassword from "./pages/Community/CommunitySetPassword";
 import ResetPassword from "./pages/ResetPassword";
 import PaymentCallback from "./pages/PaymentCallback";
 import Donation from "./pages/Donation";
+import DigitalStore from "./pages/DigitalStore";
 import Favorites from "./pages/Favorites";
 import MyProfile from "./components/MyProfile";
 import Login from "./pages/Login";
@@ -230,6 +231,7 @@ function App() {
                       <Route path="reset-password" element={<ResetPassword />} />
                       {/* Donation: Paystack; not linked in nav */}
                       <Route path="donation" element={<Donation />} />
+                      <Route path="DigitalStore" element={<DigitalStore />} />
 
                       {/* Protected routes - require login */}
                       <Route

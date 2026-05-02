@@ -331,7 +331,7 @@ const ProfileRiderWorkspace = () => {
       )}
 
       <div className="rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <div className="overflow-x-auto overflow-y-auto max-h-[520px]">
+        <div className="widget-scrollable max-h-[520px] min-h-0 overflow-x-auto overflow-y-auto">
         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
           <thead className="bg-gray-50 dark:bg-gray-900/50">
             <tr>
@@ -558,7 +558,7 @@ function MobileRiderSheet({ job, liveGps, children }) {
         >
           <div className="h-1.5 w-10 rounded-full bg-gray-200 dark:bg-gray-700" />
         </button>
-        <div className="px-4 pb-4 max-h-[65dvh] overflow-y-auto space-y-2">
+        <div className="widget-scrollable max-h-[65dvh] min-h-0 overflow-y-auto space-y-2 px-4 pb-4">
           {job.dropoff_address ? (
             <p className="text-xs text-gray-600 dark:text-gray-300 flex items-start gap-1">
               <FaMapMarkerAlt className="w-3.5 h-3.5 mt-0.5 shrink-0 text-primary" />

@@ -522,10 +522,10 @@ const LiveChatWidget = ({ hideLauncher = false }) => {
       {!hideLauncher && (
         <button
           onClick={() => setOpen(!open)}
-          className="fixed bottom-4 left-4 md:bottom-6 md:left-auto md:right-6 z-[1100] flex items-center gap-2 rounded-full bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 px-4 py-2.5 md:px-5 md:py-3 text-sm font-semibold text-white shadow-xl transition-all"
+          className="fixed bottom-5 left-4 z-[1100] flex h-12 items-center gap-2 rounded-full bg-gradient-to-r from-pink-500 to-pink-600 px-5 text-sm font-semibold text-white shadow-xl transition-all hover:from-pink-600 hover:to-pink-700 md:bottom-6 md:left-auto md:right-6"
           aria-label="Open chat"
         >
-          <FaRegCommentDots className="text-base md:text-lg" />
+          <FaRegCommentDots className="shrink-0 text-white" />
           <span className="hidden sm:inline">Chat with us</span>
         </button>
       )}

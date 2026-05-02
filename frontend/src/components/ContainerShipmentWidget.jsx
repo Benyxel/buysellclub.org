@@ -536,6 +536,18 @@ const ContainerShipmentWidget = ({ launcherHidden = false } = {}) => {
               </button>
             </div>
 
+            <div className="px-4 py-3 border-b border-red-800/60 bg-red-600 dark:bg-red-700 dark:border-red-900/50">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-white">
+                Note
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-white/95">
+                Fofoofo Import does not determine when a vessel or container arrives—the{" "}
+                <span className="font-semibold text-white">shipping line</span> does. Every ETA shown
+                here is an estimate; in practice ETAs often change (expect on the order of{" "}
+                <span className="font-semibold text-white">~80%</span> likelihood of change).
+              </p>
+            </div>
+
             <div className="px-5 py-5 bg-white dark:bg-gray-800 max-h-[70vh] overflow-auto">
               {loading && (
                 <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/20 p-5">

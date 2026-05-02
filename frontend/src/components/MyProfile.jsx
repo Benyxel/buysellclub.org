@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   FaUser,
   FaEnvelope,
@@ -47,6 +47,10 @@ import {
   FaDownload,
   FaWhatsapp,
   FaMotorcycle,
+  FaVideo,
+  FaTelegramPlane,
+  FaTrophy,
+  FaArrowRight,
 } from "react-icons/fa";
 import { trackingSystem } from "../utils/trackingSystem";
 import { NOTE_MESSAGE } from "./ShippingTrackingNote";
@@ -172,6 +176,7 @@ const MyProfile = () => {
   const [orders, setOrders] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const profileUnreadBroadcastReady = useRef(false);
   const [showAllNotifications, setShowAllNotifications] = useState(false);
   const [showAllShipments, setShowAllShipments] = useState(false);
   const [showNotificationModal, setShowNotificationModal] = useState(false);
@@ -327,6 +332,14 @@ const MyProfile = () => {
     return () => mq.removeEventListener("change", set);
   }, []);
 
+  // Deep link e.g. /Profile?tab=community: show tab content on mobile (overlay)
+  useEffect(() => {
+    if (!isMobile) return;
+    const params = new URLSearchParams(location.search);
+    const t = params.get("tab");
+    if (t && t !== "profile") setShowTabModal(true);
+  }, [isMobile, location.search]);
+
   // Ensure trackings are loaded whenever user opens the Tracking tab
   useEffect(() => {
     if (activeTab === "tracking") {
@@ -431,12 +444,24 @@ const MyProfile = () => {
 
       setNotifications(notificationList);
       setUnreadCount(data.unread_count || 0);
+      profileUnreadBroadcastReady.current = true;
     } catch (error) {
       console.error("Error fetching notifications:", error);
       setNotifications([]);
       setUnreadCount(0);
+      profileUnreadBroadcastReady.current = true;
     }
   };
+
+  // After first notification fetch, keep mobile nav Updates badge in sync
+  useEffect(() => {
+    if (!profileUnreadBroadcastReady.current) return;
+    window.dispatchEvent(
+      new CustomEvent("buysellNotificationsUnread", {
+        detail: { unread: unreadCount },
+      })
+    );
+  }, [unreadCount]);
 
   // Add a specific useEffect for user data fetching
   useEffect(() => {
@@ -2436,7 +2461,7 @@ const MyProfile = () => {
   };
 
   return (
-    <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
+    <div className="container mx-auto my-4 mb-10 px-4 sm:my-6 sm:mb-12 sm:px-6 lg:px-8 py-5 sm:py-10">
       <div className="max-w-6xl mx-auto">
         {/* Profile Header */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-8">
@@ -2709,12 +2734,8 @@ const MyProfile = () => {
                 </button>
                 <button
                   onClick={() => {
-                    if (isCommunityMember) {
-                      setActiveTab("community");
-                      if (isMobile) setShowTabModal(true);
-                    } else {
-                      navigate("/Community");
-                    }
+                    setActiveTab("community");
+                    if (isMobile) setShowTabModal(true);
                   }}
                   className={`w-full flex items-center gap-2.5 sm:gap-3 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-lg transition-colors text-base ${
                     activeTab === "community"
@@ -2785,14 +2806,14 @@ const MyProfile = () => {
             className={`lg:col-span-3 ${
               isMobile
                 ? showTabModal
-                  ? "fixed inset-0 z-50 bg-white dark:bg-gray-900 overflow-y-auto lg:relative lg:inset-auto lg:z-auto"
+                  ? "fixed inset-0 z-50 overflow-y-auto bg-white px-4 pb-10 pt-1 dark:bg-gray-900 sm:px-5 lg:relative lg:inset-auto lg:z-auto"
                   : "hidden lg:block"
                 : ""
             }`}
           >
             {/* Mobile: sticky close bar for tab popup */}
             {isMobile && showTabModal && (
-              <div className="sticky top-0 z-10 flex items-center justify-between gap-2 px-3 py-2 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-sm">
+              <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-gray-200 bg-white px-4 py-2 shadow-sm dark:border-gray-700 dark:bg-gray-900 sm:px-5">
                 <span className="text-base font-semibold text-gray-800 dark:text-white truncate">
                   {{
                     profile: "Profile",
@@ -3007,77 +3028,210 @@ const MyProfile = () => {
               </div>
             )}
 
-            {/* Community Tab – member card when approved; otherwise prompt to join */}
+            {/* Community Tab – redesigned hub for members; join CTA for others */}
             {activeTab === "community" && (
               <>
                 {isCommunityMember ? (
-                  <div className="space-y-4 sm:space-y-6">
-                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-green-200 dark:border-green-700 overflow-hidden">
-                      <div className="p-4 sm:p-6">
-                        <div className="flex flex-wrap items-center gap-2 mb-3">
-                          <h2 className="text-lg font-semibold text-gray-800 dark:text-white">
-                            You&apos;re approved
-                          </h2>
-                          <span className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200">
-                            Community Member
-                          </span>
+                  <div className="space-y-6 sm:space-y-8">
+                    <div className="relative overflow-hidden rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50 via-white to-teal-50/80 dark:from-emerald-950/40 dark:via-gray-900 dark:to-gray-900 dark:border-emerald-800/60">
+                      <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-emerald-400/20 blur-3xl dark:bg-emerald-500/10" />
+                      <div className="pointer-events-none absolute -bottom-12 -left-12 h-40 w-40 rounded-full bg-teal-400/15 blur-2xl dark:bg-teal-500/10" />
+                      <div className="relative p-5 sm:p-8">
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex items-start gap-4">
+                            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-500 text-white shadow-lg shadow-emerald-500/25">
+                              <FaUsers className="h-7 w-7" />
+                            </div>
+                            <div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <h2 className="text-xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-2xl">
+                                  Community hub
+                                </h2>
+                                <span className="inline-flex items-center rounded-full bg-emerald-600/10 px-3 py-0.5 text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300">
+                                  Member
+                                </span>
+                              </div>
+                              <p className="mt-2 max-w-xl text-sm leading-relaxed text-gray-600 dark:text-gray-300 sm:text-base">
+                                Your membership is active. Use the shortcuts below for
+                                suppliers, the Telegram group, curated products, and
+                                learning resources.
+                              </p>
+                            </div>
+                          </div>
                         </div>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                          You have access to supplier contacts, exclusive content and the community Telegram group.
-                        </p>
-                        <div className="flex flex-wrap gap-3">
-                          {communityHasSheetAccess && (
-                            <Link
-                              to="/Community/Suppliers"
-                              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm"
-                            >
-                              View supplier contact
-                            </Link>
-                          )}
-                          {communityTelegramLink && (
-                            <a
-                              href={communityTelegramLink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-green-600 hover:bg-green-700 text-white font-medium text-sm"
-                            >
-                              Join Telegram
-                            </a>
-                          )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                        Resources
+                      </h3>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        {communityHasSheetAccess && (
                           <Link
-                            to="/Community/WinningProducts"
-                            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-medium text-sm"
+                            to="/Community/Suppliers"
+                            className="group flex rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-all hover:border-sky-300 hover:shadow-md dark:border-gray-600 dark:bg-gray-800/90 dark:hover:border-sky-600"
                           >
-                            Winning products
+                            <div className="flex w-full items-start gap-4">
+                              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-sky-500/15 text-sky-600 dark:bg-sky-400/20 dark:text-sky-300">
+                                <FaHandshake className="h-6 w-6" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <h4 className="font-semibold text-gray-900 transition-colors group-hover:text-sky-600 dark:text-white dark:group-hover:text-sky-400">
+                                  Supplier contacts
+                                </h4>
+                                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                  Approved supplier list and contact details.
+                                </p>
+                                <span className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-sky-600 dark:text-sky-400">
+                                  Open directory
+                                  <FaArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                                </span>
+                              </div>
+                            </div>
                           </Link>
-                          <Link
-                            to="/Community/VideoTutorials"
-                            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-medium text-sm"
+                        )}
+                        {communityTelegramLink && (
+                          <a
+                            href={communityTelegramLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="group flex rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-all hover:border-emerald-300 hover:shadow-md dark:border-gray-600 dark:bg-gray-800/90 dark:hover:border-emerald-600"
                           >
-                            Video tutorials
-                          </Link>
-                          <Link
-                            to="/Community/ToolsDownloads"
-                            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm"
-                          >
-                            Tools &amp; downloads
-                          </Link>
-                        </div>
+                            <div className="flex w-full items-start gap-4">
+                              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:bg-emerald-400/20 dark:text-emerald-300">
+                                <FaTelegramPlane className="h-6 w-6" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <h4 className="font-semibold text-gray-900 transition-colors group-hover:text-emerald-600 dark:text-white dark:group-hover:text-emerald-400">
+                                  Telegram group
+                                </h4>
+                                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                  Chat with members and get updates in real time.
+                                </p>
+                                <span className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-400">
+                                  Join on Telegram
+                                  <FaArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                                </span>
+                              </div>
+                            </div>
+                          </a>
+                        )}
+                        <Link
+                          to="/Community/WinningProducts"
+                          className="group flex rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-all hover:border-amber-300 hover:shadow-md dark:border-gray-600 dark:bg-gray-800/90 dark:hover:border-amber-600"
+                        >
+                          <div className="flex w-full items-start gap-4">
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 text-amber-600 dark:bg-amber-400/20 dark:text-amber-300">
+                              <FaTrophy className="h-6 w-6" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <h4 className="font-semibold text-gray-900 transition-colors group-hover:text-amber-600 dark:text-white dark:group-hover:text-amber-400">
+                                Winning products
+                              </h4>
+                              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                Ideas and picks shared with the community.
+                              </p>
+                              <span className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-amber-600 dark:text-amber-400">
+                                Browse products
+                                <FaArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                              </span>
+                            </div>
+                          </div>
+                        </Link>
+                        <Link
+                          to="/Community/VideoTutorials"
+                          className="group flex rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-all hover:border-violet-300 hover:shadow-md dark:border-gray-600 dark:bg-gray-800/90 dark:hover:border-violet-600"
+                        >
+                          <div className="flex w-full items-start gap-4">
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-violet-500/15 text-violet-600 dark:bg-violet-400/20 dark:text-violet-300">
+                              <FaVideo className="h-6 w-6" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <h4 className="font-semibold text-gray-900 transition-colors group-hover:text-violet-600 dark:text-white dark:group-hover:text-violet-400">
+                                Video tutorials
+                              </h4>
+                              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                Step-by-step guides for sourcing and shipping.
+                              </p>
+                              <span className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-violet-600 dark:text-violet-400">
+                                Watch videos
+                                <FaArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                              </span>
+                            </div>
+                          </div>
+                        </Link>
+                        <Link
+                          to="/Community/ToolsDownloads"
+                          className="group flex rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-all hover:border-indigo-300 hover:shadow-md dark:border-gray-600 dark:bg-gray-800/90 dark:hover:border-indigo-600"
+                        >
+                          <div className="flex w-full items-start gap-4">
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-indigo-500/15 text-indigo-600 dark:bg-indigo-400/20 dark:text-indigo-300">
+                              <FaDownload className="h-6 w-6" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <h4 className="font-semibold text-gray-900 transition-colors group-hover:text-indigo-600 dark:text-white dark:group-hover:text-indigo-400">
+                                Tools &amp; downloads
+                              </h4>
+                              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                Files and utilities shared with members.
+                              </p>
+                              <span className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-indigo-600 dark:text-indigo-400">
+                                View downloads
+                                <FaArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                              </span>
+                            </div>
+                          </div>
+                        </Link>
                       </div>
                     </div>
                   </div>
                 ) : (
-                  <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-600 p-6 text-center">
-                    <p className="text-gray-600 dark:text-gray-400 mb-4">
-                      You&apos;re not a community member yet. Join to get supplier contacts and access the Telegram group.
-                    </p>
-                    <Link
-                      to="/Community"
-                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-white font-medium hover:opacity-90"
-                    >
-                      <FaUsers className="w-4 h-4" />
-                      Go to Community page
-                    </Link>
+                  <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-md dark:border-gray-600 dark:bg-gray-800">
+                    <div className="relative bg-gradient-to-r from-primary/90 to-primary px-6 py-10 text-white sm:px-10 sm:py-12">
+                      <div className="pointer-events-none absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%220.06%22%3E%3Cpath%20d%3D%22M36%2034v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6%2034v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6%204V0H4v4H0v2h4v4h2V6h4V4H6z%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E')] opacity-80" />
+                      <div className="relative mx-auto max-w-lg text-center">
+                        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-sm">
+                          <FaUsers className="h-8 w-8 text-white" />
+                        </div>
+                        <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+                          Join the BuySell Club community
+                        </h2>
+                        <p className="mt-3 text-sm leading-relaxed text-white/90 sm:text-base">
+                          Unlock supplier contacts, member-only content, and our
+                          Telegram group when your application is approved.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="px-6 py-8 sm:px-10">
+                      <ul className="mx-auto max-w-md space-y-3 text-left text-sm text-gray-700 dark:text-gray-300 sm:text-base">
+                        <li className="flex gap-3">
+                          <FaCheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
+                          <span>Curated supplier directory and sourcing support</span>
+                        </li>
+                        <li className="flex gap-3">
+                          <FaCheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
+                          <span>Winning products, tutorials, and shared tools</span>
+                        </li>
+                        <li className="flex gap-3">
+                          <FaCheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
+                          <span>Private Telegram channel for members</span>
+                        </li>
+                      </ul>
+                      <div className="mt-8 flex justify-center">
+                        <Link
+                          to="/Community"
+                          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3.5 text-base font-semibold text-white shadow-lg shadow-primary/25 transition hover:bg-primary/90 sm:w-auto"
+                        >
+                          <FaUsers className="h-5 w-5" />
+                          Apply or view community
+                        </Link>
+                      </div>
+                      <p className="mt-4 text-center text-xs text-gray-500 dark:text-gray-400">
+                        Pricing, application steps, and approval status are on the
+                        main community page.
+                      </p>
+                    </div>
                   </div>
                 )}
               </>

@@ -14,6 +14,7 @@ import {
   FaCalendarAlt,
   FaUsers,
   FaTimes,
+  FaFilePdf,
 } from "react-icons/fa";
 import {
   ResponsiveContainer,
@@ -36,11 +37,13 @@ const Analytics = ({ activeTab = "overview" }) => {
   const [alipayPeriod, setAlipayPeriod] = useState("daily");
   const [buy4mePeriod, setBuy4mePeriod] = useState("monthly");
   const [ordersPeriod, setOrdersPeriod] = useState("monthly");
+  const [digitalStorePeriod, setDigitalStorePeriod] = useState("monthly");
   const [trainingPeriod, setTrainingPeriod] = useState("all");
   const [communityPeriod, setCommunityPeriod] = useState("daily");
   const [alipayPage, setAlipayPage] = useState(1);
   const [buy4mePage, setBuy4mePage] = useState(1);
   const [ordersPage, setOrdersPage] = useState(1);
+  const [digitalStorePage, setDigitalStorePage] = useState(1);
   const [trainingPage, setTrainingPage] = useState(1);
   const [communityPage, setCommunityPage] = useState(1);
   const [trends, setTrends] = useState(null);
@@ -52,7 +55,7 @@ const Analytics = ({ activeTab = "overview" }) => {
 
   useEffect(() => {
     fetchAnalytics();
-  }, [selectedPeriod, activeTab, buy4mePeriod, ordersPeriod, trainingPeriod, communityPeriod]);
+  }, [selectedPeriod, activeTab, buy4mePeriod, ordersPeriod, digitalStorePeriod, trainingPeriod, communityPeriod]);
 
   useEffect(() => {
     setAlipayPage(1);
@@ -65,6 +68,10 @@ const Analytics = ({ activeTab = "overview" }) => {
   useEffect(() => {
     setOrdersPage(1);
   }, [ordersPeriod]);
+
+  useEffect(() => {
+    setDigitalStorePage(1);
+  }, [digitalStorePeriod]);
 
   useEffect(() => {
     setTrainingPage(1);
@@ -131,6 +138,16 @@ const Analytics = ({ activeTab = "overview" }) => {
         }
       } else if (activeTab === "orders") {
         const range = getDateRange(ordersPeriod);
+        if (range) {
+          const startDate = toDateParam(range.startDate);
+          const endDate = toDateParam(range.endDate);
+          if (startDate && endDate) {
+            params.start_date = startDate;
+            params.end_date = endDate;
+          }
+        }
+      } else if (activeTab === "digital_store") {
+        const range = getDateRange(digitalStorePeriod);
         if (range) {
           const startDate = toDateParam(range.startDate);
           const endDate = toDateParam(range.endDate);
@@ -2045,6 +2062,235 @@ const Analytics = ({ activeTab = "overview" }) => {
                   onChange={setOrdersPage}
                 />
                 </>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Digital Store Analytics */}
+      {activeTab === "digital_store" && (
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <FaFilePdf className="text-2xl text-rose-600" />
+            <h3 className="text-xl font-semibold text-gray-800 dark:text-white">
+              Digital Store Analytics
+            </h3>
+          </div>
+          <div className="flex flex-wrap gap-2 mb-6">
+            <button
+              type="button"
+              onClick={() => setDigitalStorePeriod("all")}
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
+                digitalStorePeriod === "all"
+                  ? "bg-rose-600 text-white"
+                  : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+              }`}
+            >
+              All Time
+            </button>
+            <button
+              type="button"
+              onClick={() => setDigitalStorePeriod("daily")}
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
+                digitalStorePeriod === "daily"
+                  ? "bg-rose-600 text-white"
+                  : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+              }`}
+            >
+              <FaCalendarDay /> Daily
+            </button>
+            <button
+              type="button"
+              onClick={() => setDigitalStorePeriod("weekly")}
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
+                digitalStorePeriod === "weekly"
+                  ? "bg-rose-600 text-white"
+                  : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+              }`}
+            >
+              <FaCalendarWeek /> Weekly
+            </button>
+            <button
+              type="button"
+              onClick={() => setDigitalStorePeriod("monthly")}
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
+                digitalStorePeriod === "monthly"
+                  ? "bg-rose-600 text-white"
+                  : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+              }`}
+            >
+              <FaCalendarAlt /> Monthly
+            </button>
+            <button
+              type="button"
+              onClick={() => setDigitalStorePeriod("yearly")}
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
+                digitalStorePeriod === "yearly"
+                  ? "bg-rose-600 text-white"
+                  : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+              }`}
+            >
+              <FaCalendarAlt /> Yearly
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                Total purchases
+              </p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-white">
+                {analytics.digital_store?.total_purchases ?? 0}
+              </p>
+              {analytics.digital_store?.status_breakdown && (
+                <div className="mt-4 space-y-2">
+                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                    Status breakdown
+                  </p>
+                  {Object.entries(analytics.digital_store.status_breakdown).map(
+                    ([status, count]) => (
+                      <div
+                        key={status}
+                        className="flex justify-between text-sm"
+                      >
+                        <span className="text-gray-600 dark:text-gray-400 capitalize">
+                          {status.replace(/_/g, " ")}:
+                        </span>
+                        <span className="font-medium text-gray-900 dark:text-white">
+                          {count}
+                        </span>
+                      </div>
+                    )
+                  )}
+                </div>
+              )}
+              {analytics.digital_store?.payment_method_breakdown && (
+                <div className="mt-4 space-y-2">
+                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                    Payment method
+                  </p>
+                  {Object.entries(
+                    analytics.digital_store.payment_method_breakdown
+                  ).map(([method, count]) => (
+                    <div
+                      key={method}
+                      className="flex justify-between text-sm"
+                    >
+                      <span className="text-gray-600 dark:text-gray-400">
+                        {method === "unknown" ? "(unset)" : method}:
+                      </span>
+                      <span className="font-medium text-gray-900 dark:text-white">
+                        {count}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                Revenue (paid, GHS)
+              </p>
+              {analytics.digital_store?.revenue && (
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">
+                      Total revenue:
+                    </span>
+                    <span className="text-2xl font-bold text-green-600 dark:text-green-400">
+                      {formatCurrency(
+                        analytics.digital_store.revenue.total,
+                        "GHS"
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600 dark:text-gray-400">
+                      Paid purchases:
+                    </span>
+                    <span className="font-medium text-gray-900 dark:text-white">
+                      {analytics.digital_store.revenue.paid_count}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600 dark:text-gray-400">
+                      Average per paid purchase:
+                    </span>
+                    <span className="font-medium text-gray-900 dark:text-white">
+                      {formatCurrency(
+                        analytics.digital_store.revenue.average_order_value,
+                        "GHS"
+                      )}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {analytics.digital_store?.time_series && digitalStorePeriod !== "all" && (
+            <div className="mt-6">
+              <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-3">
+                Digital purchases
+              </h4>
+              <div className="overflow-x-auto">
+                {(() => {
+                  const { rows, page, totalPages } = paginateRows(
+                    analytics.digital_store.time_series[digitalStorePeriod] || [],
+                    digitalStorePage
+                  );
+                  const periodKey =
+                    digitalStorePeriod === "yearly"
+                      ? "year"
+                      : digitalStorePeriod === "monthly"
+                        ? "month"
+                        : digitalStorePeriod === "weekly"
+                          ? "week"
+                          : "date";
+                  return (
+                    <>
+                      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                        <thead className="bg-gray-50 dark:bg-gray-700">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                              Period
+                            </th>
+                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                              Count
+                            </th>
+                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                              Revenue (GHS)
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                          {rows.map((row, idx) => (
+                            <tr key={idx}>
+                              <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                                {new Date(row[periodKey]).toLocaleDateString()}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-right text-gray-600 dark:text-gray-400">
+                                {row.count}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">
+                                ₵
+                                {Number(row.total || 0).toLocaleString("en-US", {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      <PaginationControls
+                        page={page}
+                        totalPages={totalPages}
+                        onChange={setDigitalStorePage}
+                      />
+                    </>
                   );
                 })()}
               </div>

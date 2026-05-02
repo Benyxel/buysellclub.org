@@ -36,7 +36,7 @@ const HomeWidgetsHub = () => {
               dispatchOpen("containers");
               setOpen(false);
             }}
-            className="flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 px-5 py-3 text-sm font-semibold text-white shadow-xl transition-all"
+            className="flex h-12 items-center gap-2 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 px-5 text-sm font-semibold text-white shadow-xl transition-all hover:from-blue-600 hover:to-blue-700"
           >
             <FaShip className="text-white" />
             Containers
@@ -47,7 +47,7 @@ const HomeWidgetsHub = () => {
               dispatchOpen("shippingInfo");
               setOpen(false);
             }}
-            className="flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 px-5 py-3 text-sm font-semibold text-white shadow-xl transition-all"
+            className="flex h-12 items-center gap-2 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 px-5 text-sm font-semibold text-white shadow-xl transition-all hover:from-blue-600 hover:to-blue-700"
           >
             <FaInfoCircle className="text-white" />
             Shipping info
@@ -58,7 +58,7 @@ const HomeWidgetsHub = () => {
               dispatchOpen("delivery");
               setOpen(false);
             }}
-            className="flex items-center gap-2 rounded-full bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 px-5 py-3 text-sm font-semibold text-white shadow-xl transition-all"
+            className="flex h-12 items-center gap-2 rounded-full bg-gradient-to-r from-pink-500 to-pink-600 px-5 text-sm font-semibold text-white shadow-xl transition-all hover:from-pink-600 hover:to-pink-700"
           >
             <FaMotorcycle className="text-white" />
             Delivery
@@ -69,7 +69,7 @@ const HomeWidgetsHub = () => {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 rounded-full bg-gradient-to-r from-pink-600 to-fuchsia-600 hover:from-pink-700 hover:to-fuchsia-700 text-white shadow-xl px-5 py-3 text-sm font-semibold transition-all"
+        className="flex h-12 items-center gap-2 rounded-full bg-gradient-to-r from-pink-600 to-fuchsia-600 px-5 text-sm font-semibold text-white shadow-xl transition-all hover:from-pink-700 hover:to-fuchsia-700"
         aria-expanded={open}
         aria-label="Open quick widgets"
       >
