@@ -658,15 +658,15 @@ const DigitalStore = () => {
 
       {viewingProduct ? (
         <div
-          className="fixed inset-0 z-[85] flex items-center justify-center bg-black/50 p-3 sm:p-6"
+          className="fixed inset-0 z-[85] flex items-start justify-center overflow-y-auto bg-black/50 p-4 py-8 sm:items-center sm:p-6 sm:py-10"
           onMouseDown={(e) => {
             if (e.target === e.currentTarget) setViewingProduct(null);
           }}
         >
-          <div className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-xl dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
-            <div className="flex items-start justify-between gap-3 border-b border-gray-100 px-5 py-4 dark:border-gray-800">
-              <div className="min-w-0">
-                <p className="text-sm font-bold text-gray-900 dark:text-white">
+          <div className="my-auto flex max-h-[88dvh] w-full min-h-[min(360px,55dvh)] max-w-2xl flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl dark:border-gray-800 dark:bg-gray-900 sm:max-w-3xl">
+            <div className="flex shrink-0 items-start justify-between gap-3 border-b border-gray-100 px-5 py-4 dark:border-gray-800">
+              <div className="min-w-0 flex-1 pr-2">
+                <p className="text-base font-bold text-gray-900 dark:text-white sm:text-lg">
                   {viewingProduct?.title || viewingProduct?.name || "Digital product"}
                 </p>
                 <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
@@ -676,24 +676,26 @@ const DigitalStore = () => {
               <button
                 type="button"
                 onClick={() => setViewingProduct(null)}
-                className="rounded-lg px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800"
+                className="shrink-0 rounded-lg px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800"
               >
                 Close
               </button>
             </div>
 
-            <div className="p-5">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 sm:px-6 sm:py-6">
               {viewingProduct?.thumbnail_url ? (
-                <div className="mb-4 flex justify-center rounded-2xl border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-950/50">
-                  <img
-                    src={resolveAssetUrl(viewingProduct.thumbnail_url)}
-                    alt={viewingProduct?.title || "Digital product"}
-                    className="h-[256px] w-[160px] object-contain"
-                    loading="lazy"
-                  />
+                <div className="mb-4 flex justify-center overflow-x-auto rounded-2xl border border-gray-200 bg-gray-50 py-2 dark:border-gray-800 dark:bg-gray-950/50">
+                  <div className="relative h-[min(320px,40vh)] w-[min(200px,45vw)] shrink-0 sm:h-[min(360px,45vh)] sm:w-[min(220px,40vw)]">
+                    <img
+                      src={resolveAssetUrl(viewingProduct.thumbnail_url)}
+                      alt={viewingProduct?.title || "Digital product"}
+                      className="h-full w-full object-contain"
+                      loading="lazy"
+                    />
+                  </div>
                 </div>
               ) : null}
-              <p className="text-sm leading-relaxed text-gray-700 dark:text-gray-200 whitespace-pre-wrap">
+              <p className="text-sm leading-relaxed text-gray-700 dark:text-gray-200 whitespace-pre-wrap break-words">
                 {String(viewingProduct?.description || "").trim() ||
                   "No description provided."}
               </p>

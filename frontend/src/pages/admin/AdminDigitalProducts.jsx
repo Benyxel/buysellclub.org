@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Api } from "../../api";
 import { toast } from "../../utils/toast";
+import ConfirmModal from "../../components/shared/ConfirmModal";
 import { FaEdit, FaFilePdf, FaImage, FaPlus, FaSave, FaTimes, FaUpload } from "react-icons/fa";
 
 const resolveAssetUrl = (rawUrl) => {
@@ -33,6 +34,8 @@ const slugify = (s) =>
     .replace(/[\s_-]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
+const productRowId = (x) => x?.id ?? x?.pk ?? null;
+
 export default function AdminDigitalProducts() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -44,6 +47,9 @@ export default function AdminDigitalProducts() {
   const [uploadingFile, setUploadingFile] = useState(false);
   const [uploadingThumb, setUploadingThumb] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const pdfInputRef = useRef(null);
   const thumbInputRef = useRef(null);
 
@@ -127,7 +133,7 @@ export default function AdminDigitalProducts() {
             : null,
         is_active: !!form.is_active,
         file_url: String(form.file_url || "").trim(),
-        thumbnail_url: String(form.thumbnail_url || "").trim() || null,
+        thumbnail_url: String(form.thumbnail_url || "").trim(),
       };
 
       if (editing?.id) {
@@ -194,21 +200,45 @@ export default function AdminDigitalProducts() {
     }
   };
 
-  const removeProduct = async (id) => {
-    if (!id) return;
-    const ok = window.confirm("Delete this digital product? This cannot be undone.");
-    if (!ok) return;
+  const openDeleteModal = (x) => {
+    setDeleteTarget(x);
+    setShowDeleteModal(true);
+  };
+
+  const closeDeleteModal = () => {
+    if (!deleteLoading) {
+      setShowDeleteModal(false);
+      setDeleteTarget(null);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    const id = productRowId(deleteTarget);
+    if (id == null) {
+      toast.error("Could not determine product id.");
+      return;
+    }
     try {
+      setDeleteLoading(true);
       setDeletingId(id);
       await Api.digitalStore.admin.deleteProduct(id);
       toast.success("Digital product deleted.");
       await load();
+      setShowDeleteModal(false);
+      setDeleteTarget(null);
     } catch (e) {
-      toast.error(
-        e?.response?.data?.detail || e?.response?.data?.error || "Delete failed."
-      );
+      const msg =
+        e?.response?.data?.error ||
+        e?.response?.data?.detail ||
+        (Array.isArray(e?.response?.data?.detail)
+          ? e.response.data.detail.join(" ")
+          : null) ||
+        e?.message ||
+        "Delete failed.";
+      toast.error(typeof msg === "string" ? msg : "Delete failed.");
     } finally {
       setDeletingId(null);
+      setDeleteLoading(false);
     }
   };
 
@@ -516,7 +546,7 @@ export default function AdminDigitalProducts() {
         ) : (
           <ul className="divide-y divide-gray-100 dark:divide-gray-700">
             {items.map((x) => (
-              <li key={x.id} className="p-5 flex items-start justify-between gap-4">
+              <li key={productRowId(x) ?? x.slug} className="p-5 flex items-start justify-between gap-4">
                 <div className="min-w-0 flex items-start gap-3">
                   {String(x.thumbnail_url || "").trim() ? (
                     <img
@@ -564,11 +594,11 @@ export default function AdminDigitalProducts() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => removeProduct(x.id)}
-                    disabled={deletingId === x.id}
+                    onClick={() => openDeleteModal(x)}
+                    disabled={deleteLoading && productRowId(deleteTarget) === productRowId(x)}
                     className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60 dark:border-red-900/40 dark:bg-gray-900 dark:text-red-300 dark:hover:bg-red-950/30"
                   >
-                    {deletingId === x.id ? "Deleting…" : "Delete"}
+                    {deletingId === productRowId(x) ? "Deleting…" : "Delete"}
                   </button>
                 </div>
               </li>
@@ -576,6 +606,22 @@ export default function AdminDigitalProducts() {
           </ul>
         )}
       </div>
+
+      <ConfirmModal
+        isOpen={showDeleteModal}
+        onClose={closeDeleteModal}
+        onConfirm={handleConfirmDelete}
+        title="Delete digital product"
+        message={
+          deleteTarget
+            ? `Delete “${deleteTarget.title || deleteTarget.name || "this product"}” (${deleteTarget.slug || "no slug"})? This cannot be undone. If this product has any purchases, delete will be blocked until those records are handled.`
+            : "Delete this digital product?"
+        }
+        confirmText={deleteLoading ? "Deleting…" : "Delete"}
+        cancelText="Cancel"
+        type="danger"
+        disabled={deleteLoading}
+      />
     </div>
   );
 }
