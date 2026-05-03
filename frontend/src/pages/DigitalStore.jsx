@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { FaEye, FaFileAlt, FaFilePdf, FaLock, FaShoppingCart, FaSpinner, FaTag } from "react-icons/fa";
+import { useLocation, useNavigate } from "react-router-dom";
+import { FaDownload, FaEye, FaFileAlt, FaFilePdf, FaShoppingCart, FaSpinner, FaTag } from "react-icons/fa";
 import { toast } from "../utils/toast";
 import { Api } from "../api";
 
@@ -17,8 +17,27 @@ const resolveAssetUrl = (rawUrl) => {
   return url;
 };
 
+/** Effective list price for digital product cards / modal (GHS). */
+const getDigitalProductPricing = (p) => {
+  if (!p) return { displayPrice: null, computedSale: null, basePrice: null };
+  const basePrice = p?.price != null ? Number(p.price) : null;
+  const saleEnabled = !!p?.sale_enabled;
+  const salePrice = p?.sale_price != null ? Number(p.sale_price) : null;
+  const discountPercent = p?.discount_percent != null ? Number(p.discount_percent) : null;
+  const computedSale =
+    saleEnabled && salePrice
+      ? salePrice
+      : saleEnabled && discountPercent && basePrice
+        ? Math.max(0, basePrice * (1 - discountPercent / 100))
+        : null;
+  const displayPrice =
+    computedSale != null ? computedSale : basePrice != null ? basePrice : null;
+  return { displayPrice, computedSale, basePrice };
+};
+
 const DigitalStore = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState([]);
   const [hasMoreProducts, setHasMoreProducts] = useState(true);
@@ -136,6 +155,17 @@ const DigitalStore = () => {
     return map;
   }, [library]);
 
+  const viewingPurchase = useMemo(() => {
+    if (!viewingProduct) return null;
+    const pid = viewingProduct?.id ?? viewingProduct?._id;
+    return pid != null ? purchaseByProductId.get(Number(pid)) ?? null : null;
+  }, [viewingProduct, purchaseByProductId]);
+
+  const viewingPricing = useMemo(
+    () => getDigitalProductPricing(viewingProduct),
+    [viewingProduct]
+  );
+
   useEffect(() => {
     fetchProducts();
     if (readHasCustomerToken()) {
@@ -202,18 +232,25 @@ const DigitalStore = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadMoreRef, hasMoreProducts, productOffset, loadingMore, loading]);
 
-  const handleBuy = async (product) => {
+  const goToShopperLogin = () => {
+    setViewingProduct(null);
+    setCheckoutProduct(null);
+    navigate("/Login", { state: { redirectTo: "/DigitalStore" } });
+  };
+
+  const handleBuy = (product) => {
     if (!readHasCustomerToken()) {
-      toast.error("Create an account or log in with your shopper account to purchase.");
+      goToShopperLogin();
       return;
     }
+    setViewingProduct(null);
     setCheckoutProduct(product);
     setManualForm({ note: "", proof_url: "" });
   };
 
   const startPaystackCheckout = async (product) => {
     if (!readHasCustomerToken()) {
-      toast.error("Create an account or log in with your shopper account to pay.");
+      goToShopperLogin();
       return;
     }
     try {
@@ -253,7 +290,7 @@ const DigitalStore = () => {
 
   const uploadManualProof = async (file) => {
     if (!readHasCustomerToken()) {
-      toast.error("Log in with your shopper account to upload payment proof.");
+      goToShopperLogin();
       return;
     }
     try {
@@ -275,7 +312,7 @@ const DigitalStore = () => {
 
   const submitManualMoMo = async () => {
     if (!readHasCustomerToken()) {
-      toast.error("Log in with your shopper account to submit payment.");
+      goToShopperLogin();
       return;
     }
     if (!checkoutProduct?.id && !checkoutProduct?._id) return;
@@ -303,7 +340,7 @@ const DigitalStore = () => {
 
   const handleDownload = async (purchaseId) => {
     if (!readHasCustomerToken()) {
-      toast.error("Log in with your shopper account to download.");
+      goToShopperLogin();
       return;
     }
     try {
@@ -328,7 +365,7 @@ const DigitalStore = () => {
 
   const handleDownloadReceipt = async (purchaseId) => {
     if (!readHasCustomerToken()) {
-      toast.error("Log in with your shopper account to download your receipt.");
+      goToShopperLogin();
       return;
     }
     try {
@@ -380,25 +417,6 @@ const DigitalStore = () => {
                   ) : null}
                 </button>
               ) : null}
-              {!hasCustomerToken ? (
-                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                  <Link
-                    to="/Signup"
-                    state={{ redirectTo: "/DigitalStore" }}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:opacity-95"
-                  >
-                    Sign up to purchase
-                  </Link>
-                  <Link
-                    to="/Login"
-                    state={{ redirectTo: "/DigitalStore" }}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white hover:opacity-95 dark:bg-white dark:text-gray-900"
-                  >
-                    <FaLock />
-                    Log in
-                  </Link>
-                </div>
-              ) : null}
             </div>
           </div>
           {hasAdminTokenOnly ? (
@@ -427,23 +445,10 @@ const DigitalStore = () => {
                       ? purchaseByProductId.get(Number(productId))
                       : null;
 
-                    const basePrice = p?.price != null ? Number(p.price) : null;
                     const saleEnabled = !!p?.sale_enabled;
-                    const salePrice = p?.sale_price != null ? Number(p.sale_price) : null;
                     const discountPercent =
                       p?.discount_percent != null ? Number(p.discount_percent) : null;
-                    const computedSale =
-                      saleEnabled && salePrice
-                        ? salePrice
-                        : saleEnabled && discountPercent && basePrice
-                          ? Math.max(0, basePrice * (1 - discountPercent / 100))
-                          : null;
-                    const displayPrice =
-                      computedSale != null
-                        ? computedSale
-                        : basePrice != null
-                          ? basePrice
-                          : null;
+                    const { displayPrice, computedSale, basePrice } = getDigitalProductPricing(p);
 
                     return (
                       <div
@@ -469,16 +474,6 @@ const DigitalStore = () => {
                           )}
                           <div className="pointer-events-none absolute inset-0 bg-black/5" />
 
-                          <button
-                            type="button"
-                            onClick={() => setViewingProduct(p)}
-                            className="absolute right-3 bottom-3 inline-flex h-9 w-9 items-center justify-center rounded-xl bg-black/55 text-white shadow-lg ring-1 ring-white/25 backdrop-blur hover:bg-black/65"
-                            aria-label="View details"
-                            title="View details"
-                          >
-                            <FaEye />
-                          </button>
-
                           {saleEnabled && discountPercent ? (
                             <div className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-red-600 px-2.5 py-1 text-xs font-extrabold text-white shadow-lg ring-1 ring-red-400/60 backdrop-blur dark:bg-red-600 dark:ring-red-300/50">
                               <FaTag className="text-[11px]" />
@@ -502,48 +497,62 @@ const DigitalStore = () => {
                             {p?.description || "Instant PDF download after payment."}
                           </p>
 
-                          <div className="mt-auto pt-4 flex items-end justify-between gap-3">
-                            <div className="min-h-[42px] flex flex-col justify-end">
-                              {displayPrice != null ? (
-                                <>
-                                  <p className="text-lg font-extrabold text-gray-900 dark:text-white">
-                                    ₵{Number(displayPrice).toFixed(2)}
-                                  </p>
-                                  {computedSale != null && basePrice != null ? (
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 line-through">
-                                      ₵{Number(basePrice).toFixed(2)}
+                          <div className="mt-auto pt-4 flex flex-col gap-2">
+                            <div className="flex items-end justify-between gap-3">
+                              <div className="min-h-[42px] flex flex-col justify-end">
+                                {displayPrice != null ? (
+                                  <>
+                                    <p className="text-lg font-extrabold text-gray-900 dark:text-white">
+                                      ₵{Number(displayPrice).toFixed(2)}
                                     </p>
-                                  ) : (
-                                    <p className="text-xs text-gray-500 dark:text-gray-400">&nbsp;</p>
-                                  )}
-                                </>
+                                    {computedSale != null && basePrice != null ? (
+                                      <p className="text-xs text-gray-500 dark:text-gray-400 line-through">
+                                        ₵{Number(basePrice).toFixed(2)}
+                                      </p>
+                                    ) : (
+                                      <p className="text-xs text-gray-500 dark:text-gray-400">&nbsp;</p>
+                                    )}
+                                  </>
+                                ) : (
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    Price not set
+                                  </p>
+                                )}
+                              </div>
+
+                              {owned ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDownload(owned.id)}
+                                  disabled={downloadingId === owned.id}
+                                  className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white shadow-sm ring-1 ring-emerald-500/30 hover:bg-emerald-700 disabled:opacity-60 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                                >
+                                  <FaDownload className="text-[11px]" />
+                                  {downloadingId === owned.id ? "Opening…" : "Download"}
+                                </button>
                               ) : (
-                                <p className="text-xs text-gray-500 dark:text-gray-400">
-                                  Price not set
-                                </p>
+                                <button
+                                  type="button"
+                                  onClick={() => handleBuy(p)}
+                                  disabled={buyingId === (p?.id ?? p?._id ?? p?.slug)}
+                                  className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white hover:opacity-95 disabled:opacity-60"
+                                >
+                                  <FaDownload className="text-[11px]" />
+                                  Download
+                                </button>
                               )}
                             </div>
 
-                            {owned ? (
-                              <button
-                                type="button"
-                                onClick={() => handleDownload(owned.id)}
-                                disabled={downloadingId === owned.id}
-                                className="inline-flex items-center justify-center rounded-lg bg-gray-900 px-3 py-2 text-xs font-semibold text-white hover:opacity-95 disabled:opacity-60 dark:bg-white dark:text-gray-900"
-                              >
-                                {downloadingId === owned.id ? "Opening…" : "Download"}
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => handleBuy(p)}
-                                disabled={buyingId === (p?.id ?? p?._id ?? p?.slug)}
-                                className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white hover:opacity-95 disabled:opacity-60"
-                              >
-                                <FaShoppingCart />
-                                Buy
-                              </button>
-                            )}
+                            <button
+                              type="button"
+                              onClick={() => setViewingProduct(p)}
+                              className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white py-2 text-xs font-semibold text-gray-800 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800/80 dark:text-gray-100 dark:hover:bg-gray-800"
+                              aria-label="View full product details"
+                              title="View full details"
+                            >
+                              <FaEye className="text-sm" />
+                              View details
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -591,24 +600,8 @@ const DigitalStore = () => {
             </div>
 
             {!hasCustomerToken ? (
-              <div className="p-5 text-sm text-gray-600 dark:text-gray-300 space-y-3">
+              <div className="p-5 text-sm text-gray-600 dark:text-gray-300">
                 <p>Log in with your shopper account to see receipts and purchases.</p>
-                <div className="flex flex-wrap gap-2">
-                  <Link
-                    to="/Signup"
-                    state={{ redirectTo: "/DigitalStore" }}
-                    className="inline-flex rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white hover:opacity-95"
-                  >
-                    Sign up
-                  </Link>
-                  <Link
-                    to="/Login"
-                    state={{ redirectTo: "/DigitalStore" }}
-                    className="inline-flex rounded-lg border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-800 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-100 dark:hover:bg-gray-800"
-                  >
-                    Log in
-                  </Link>
-                </div>
               </div>
             ) : libraryLoading ? (
               <div className="p-5 flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
@@ -631,10 +624,10 @@ const DigitalStore = () => {
                         type="button"
                         onClick={() => handleDownload(x.id)}
                         disabled={downloadingId === x.id}
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-60 dark:bg-white dark:text-gray-900"
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm ring-1 ring-emerald-500/30 hover:bg-emerald-700 disabled:opacity-60 dark:bg-emerald-600 dark:hover:bg-emerald-500"
                         title="Open product file"
                       >
-                        <FaFilePdf />
+                        <FaDownload />
                         {downloadingId === x.id ? "Opening…" : "Download"}
                       </button>
                       <button
@@ -699,6 +692,50 @@ const DigitalStore = () => {
                 {String(viewingProduct?.description || "").trim() ||
                   "No description provided."}
               </p>
+            </div>
+
+            <div className="shrink-0 border-t border-gray-100 bg-gray-50/90 px-5 py-4 dark:border-gray-800 dark:bg-gray-950/50 sm:px-6">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div className="min-h-[42px] flex flex-col justify-end">
+                  {viewingPricing.displayPrice != null ? (
+                    <>
+                      <p className="text-xl font-extrabold text-gray-900 dark:text-white">
+                        ₵{Number(viewingPricing.displayPrice).toFixed(2)}
+                      </p>
+                      {viewingPricing.computedSale != null && viewingPricing.basePrice != null ? (
+                        <p className="text-xs text-gray-500 line-through dark:text-gray-400">
+                          ₵{Number(viewingPricing.basePrice).toFixed(2)}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-gray-500 dark:text-gray-400">&nbsp;</p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Price not set</p>
+                  )}
+                </div>
+                {viewingPurchase ? (
+                  <button
+                    type="button"
+                    onClick={() => handleDownload(viewingPurchase.id)}
+                    disabled={downloadingId === viewingPurchase.id}
+                    className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-sm ring-1 ring-emerald-500/30 hover:bg-emerald-700 disabled:opacity-60 dark:bg-emerald-600 dark:hover:bg-emerald-500 sm:w-auto sm:min-w-[180px]"
+                  >
+                    <FaDownload />
+                    {downloadingId === viewingPurchase.id ? "Opening…" : "Download"}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleBuy(viewingProduct)}
+                    disabled={buyingId === (viewingProduct?.id ?? viewingProduct?._id ?? viewingProduct?.slug)}
+                    className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-60 sm:w-auto sm:min-w-[180px]"
+                  >
+                    <FaDownload />
+                    Download
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
