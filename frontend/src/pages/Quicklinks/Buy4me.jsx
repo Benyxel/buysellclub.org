@@ -60,11 +60,11 @@ const Buy4me = () => {
     description: "",
     shippingMethod: "sea",
     products: [
-      { url: "", quantity: 0, image: "" },
-      { url: "", quantity: 0, image: "" },
-      { url: "", quantity: 0, image: "" },
-      { url: "", quantity: 0, image: "" },
-      { url: "", quantity: 0, image: "" },
+      { name: "", url: "", quantity: 0, image: "" },
+      { name: "", url: "", quantity: 0, image: "" },
+      { name: "", url: "", quantity: 0, image: "" },
+      { name: "", url: "", quantity: 0, image: "" },
+      { name: "", url: "", quantity: 0, image: "" },
     ],
   });
 
@@ -269,6 +269,7 @@ const Buy4me = () => {
 
       if (allInAdditional) {
         products = rawLinks.slice(0, 5).map((link, i) => ({
+          name: link?.name || link?.product_name || "",
           url: link.url || "",
           quantity: Number(link.quantity) || 0,
           image: images[i] || "",
@@ -276,8 +277,8 @@ const Buy4me = () => {
       } else if (mainUrl && hasObjectLinks) {
         const restSum = rawLinks.reduce((s, l) => s + (Number(l.quantity) || 0), 0);
         products = [
-          { url: mainUrl, quantity: Math.max(0, totalQty - restSum), image: images[0] || "" },
-          ...rawLinks.slice(0, 4).map((l, i) => ({ url: l.url || "", quantity: Number(l.quantity) || 0, image: images[i + 1] || "" })),
+          { name: "", url: mainUrl, quantity: Math.max(0, totalQty - restSum), image: images[0] || "" },
+          ...rawLinks.slice(0, 4).map((l, i) => ({ name: l?.name || l?.product_name || "", url: l.url || "", quantity: Number(l.quantity) || 0, image: images[i + 1] || "" })),
         ];
       } else if (mainUrl) {
         const linkStrings = Array.isArray(rawLinks) && typeof rawLinks[0] === "string"
@@ -285,16 +286,16 @@ const Buy4me = () => {
           : [];
         const restSum = linkStrings.reduce((s, l) => s + (Number(l.quantity) || 20), 0);
         products = [
-          { url: mainUrl, quantity: Math.max(0, totalQty - restSum), image: images[0] || "" },
-          ...linkStrings.map((l, i) => ({ url: l.url, quantity: Number(l.quantity) || 20, image: images[i + 1] || "" })),
+          { name: "", url: mainUrl, quantity: Math.max(0, totalQty - restSum), image: images[0] || "" },
+          ...linkStrings.map((l, i) => ({ name: "", url: l.url, quantity: Number(l.quantity) || 20, image: images[i + 1] || "" })),
         ];
       } else {
         const linkStrings = Array.isArray(rawLinks) && typeof rawLinks[0] === "string"
           ? rawLinks.map((url) => ({ url, quantity: 20 }))
           : [];
-        products = linkStrings.map((l, i) => ({ url: l.url || "", quantity: Number(l.quantity) || 20, image: images[i] || "" }));
+        products = linkStrings.map((l, i) => ({ name: "", url: l.url || "", quantity: Number(l.quantity) || 20, image: images[i] || "" }));
       }
-      while (products.length < 5) products.push({ url: "", quantity: 0, image: "" });
+      while (products.length < 5) products.push({ name: "", url: "", quantity: 0, image: "" });
       products = products.slice(0, 5);
 
       setFormData({
@@ -404,6 +405,7 @@ const Buy4me = () => {
       // Links are optional; image-only slots are valid (admin can use images to create invoice).
       const productsWithLinkOrImage = formData.products
         .map((p) => ({
+          name: (p.name || "").trim(),
           url: (p.url || "").trim(),
           quantity: Math.max(0, Number(p.quantity) || 0),
           hasImage: !!(p.image && p.image.trim() !== ""),
@@ -413,6 +415,9 @@ const Buy4me = () => {
       const additional_links = productsWithLinkOrImage.map((p) => ({
         url: p.url || "",
         quantity: p.quantity,
+        // Send both keys for compatibility with backend serializers
+        name: p.name || "",
+        product_name: p.name || "",
       }));
       const totalQty = additional_links.reduce((sum, p) => sum + p.quantity, 0);
       const firstWithUrl = additional_links.find((p) => p.url && p.url.trim() !== "");
@@ -461,11 +466,11 @@ const Buy4me = () => {
           description: "",
           shippingMethod: "sea",
           products: [
-            { url: "", quantity: 0, image: "" },
-            { url: "", quantity: 0, image: "" },
-            { url: "", quantity: 0, image: "" },
-            { url: "", quantity: 0, image: "" },
-            { url: "", quantity: 0, image: "" },
+            { name: "", url: "", quantity: 0, image: "" },
+            { name: "", url: "", quantity: 0, image: "" },
+            { name: "", url: "", quantity: 0, image: "" },
+            { name: "", url: "", quantity: 0, image: "" },
+            { name: "", url: "", quantity: 0, image: "" },
           ],
         });
       } else {
@@ -484,11 +489,11 @@ const Buy4me = () => {
             description: "",
             shippingMethod: "sea",
             products: [
-              { url: "", quantity: 0, image: "" },
-              { url: "", quantity: 0, image: "" },
-              { url: "", quantity: 0, image: "" },
-              { url: "", quantity: 0, image: "" },
-              { url: "", quantity: 0, image: "" },
+              { name: "", url: "", quantity: 0, image: "" },
+              { name: "", url: "", quantity: 0, image: "" },
+              { name: "", url: "", quantity: 0, image: "" },
+              { name: "", url: "", quantity: 0, image: "" },
+              { name: "", url: "", quantity: 0, image: "" },
             ],
           });
         } catch (error) {
@@ -635,67 +640,58 @@ const Buy4me = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Products (link, image, and quantity per row)
+                    Products (name, link, quantity, and optional image per row)
                   </label>
                   <div className="space-y-4">
                     {formData.products.map((product, index) => (
                       <div
                         key={index}
-                        className="p-4 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-700/30 space-y-3"
+                        className="rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-700/30 p-3 sm:p-4"
                       >
-                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                          Product {index + 1}
+                        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                          Item {index + 1}
                         </p>
-                        <div className="flex flex-wrap items-start gap-3">
-                          <div className="flex-1 min-w-[180px] flex items-center gap-2">
-                            <FaLink className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                            <input
-                              type="url"
-                              value={product.url}
-                              onChange={(e) =>
-                                handleProductChange(index, "url", e.target.value)
-                              }
-                              className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
-                              placeholder="Product link"
-                            />
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <FaImage className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                            <label className="cursor-pointer">
-                              <span className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm hover:bg-gray-50 dark:hover:bg-gray-600">
-                                {product.image ? "Change image" : "Add image"}
-                              </span>
-                              <input
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={(e) =>
-                                  handleProductImageUpload(index, e)
-                                }
-                              />
+                        {/* Mobile: stack; sm+: 12-col grid — name full width, link + qty row, image full width */}
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-12 sm:gap-x-3 sm:gap-y-3">
+                          <div className="sm:col-span-12">
+                            <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                              Product name
                             </label>
-                            {product.image && (
-                              <div className="relative">
-                                <img
-                                  src={product.image}
-                                  alt=""
-                                  className="w-12 h-12 object-cover rounded border"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleProductChange(index, "image", "")
-                                  }
-                                  className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center text-xs"
-                                >
-                                  <FaTimes />
-                                </button>
-                              </div>
-                            )}
+                            <div className="flex items-center gap-2">
+                              <FaBox className="h-4 w-4 shrink-0 text-gray-400" aria-hidden />
+                              <input
+                                type="text"
+                                value={product.name || ""}
+                                onChange={(e) =>
+                                  handleProductChange(index, "name", e.target.value)
+                                }
+                                className="min-w-0 flex-1 px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                                placeholder="e.g. White sneakers"
+                                autoComplete="off"
+                              />
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <label className="text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
-                              Qty
+                          <div className="sm:col-span-8 lg:col-span-9">
+                            <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                              Product link
+                            </label>
+                            <div className="flex items-center gap-2">
+                              <FaLink className="h-4 w-4 shrink-0 text-gray-400" aria-hidden />
+                              <input
+                                type="url"
+                                value={product.url}
+                                onChange={(e) =>
+                                  handleProductChange(index, "url", e.target.value)
+                                }
+                                className="min-w-0 flex-1 px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                                placeholder="https://…"
+                                inputMode="url"
+                              />
+                            </div>
+                          </div>
+                          <div className="sm:col-span-4 lg:col-span-3">
+                            <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                              Quantity
                             </label>
                             <input
                               type="number"
@@ -708,9 +704,49 @@ const Buy4me = () => {
                                   parseInt(e.target.value, 10) || 0
                                 )
                               }
-                              className="w-20 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                              className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-primary focus:border-transparent sm:max-w-[140px] sm:min-w-0"
                               placeholder="0"
                             />
+                          </div>
+                          <div className="sm:col-span-12">
+                            <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                              Reference image (optional)
+                            </label>
+                            <div className="flex flex-wrap items-center gap-3">
+                              <label className="cursor-pointer inline-flex">
+                                <span className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600">
+                                  <FaImage className="h-4 w-4 text-gray-400 shrink-0" aria-hidden />
+                                  {product.image ? "Change image" : "Add image"}
+                                </span>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={(e) =>
+                                    handleProductImageUpload(index, e)
+                                  }
+                                />
+                              </label>
+                              {product.image && (
+                                <div className="relative shrink-0">
+                                  <img
+                                    src={product.image}
+                                    alt=""
+                                    className="h-14 w-14 rounded-lg border border-gray-200 object-cover dark:border-gray-600 sm:h-16 sm:w-16"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleProductChange(index, "image", "")
+                                    }
+                                    className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-xs text-white shadow"
+                                    aria-label="Remove image"
+                                  >
+                                    <FaTimes />
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { FaInfoCircle, FaTimes, FaShip, FaBoxes, FaYenSign, FaGripVertical, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { Link } from "react-router-dom";
 import { Api } from "../api";
+import forkliftIcon from "../assets/forklift.png";
 
 const ContainerInfoWidget = ({ launcherHidden = false } = {}) => {
   const [open, setOpen] = useState(false);
@@ -323,17 +324,29 @@ const ContainerInfoWidget = ({ launcherHidden = false } = {}) => {
               {(containerInfo.status || containerInfo.notes) && (
                 <div className="mt-2 relative z-10 flex flex-wrap items-center gap-2">
                   {containerInfo.status && (
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      containerInfo.status === "loading" 
-                        ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300"
-                        : containerInfo.status === "in_transit"
-                        ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
-                        : containerInfo.status === "arrived_port"
-                        ? "bg-cyan-100 text-cyan-900 dark:bg-cyan-900/30 dark:text-cyan-200"
-                        : containerInfo.status === "offloaded"
-                        ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
-                        : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
-                    }`}>
+                    <span
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        containerInfo.status === "loading"
+                          ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300"
+                          : containerInfo.status === "in_transit"
+                            ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
+                            : containerInfo.status === "arrived_port"
+                              ? "bg-cyan-100 text-cyan-900 dark:bg-cyan-900/30 dark:text-cyan-200"
+                              : containerInfo.status === "offloaded"
+                                ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                                : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
+                      }`}
+                    >
+                      {containerInfo.status === "loading" ? (
+                        <img
+                          src={forkliftIcon}
+                          alt=""
+                          className="h-4 w-4 shrink-0 object-contain sm:h-[18px] sm:w-[18px]"
+                          width={18}
+                          height={18}
+                          aria-hidden="true"
+                        />
+                      ) : null}
                       {containerInfo.statusDisplay ||
                         (
                           {

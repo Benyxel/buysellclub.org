@@ -51,6 +51,7 @@ import {
   FaTelegramPlane,
   FaTrophy,
   FaArrowRight,
+  FaFilePdf,
 } from "react-icons/fa";
 import { trackingSystem } from "../utils/trackingSystem";
 import { NOTE_MESSAGE } from "./ShippingTrackingNote";
@@ -155,6 +156,14 @@ const MyProfile = () => {
 
   const [activeTab, setActiveTab] = useState(getInitialTab());
   const location = useLocation();
+  const hasCustomerToken =
+    typeof window !== "undefined" && !!localStorage.getItem("token");
+
+  // Digital Store downloads (purchased items)
+  const [digitalLibraryLoading, setDigitalLibraryLoading] = useState(false);
+  const [digitalLibrary, setDigitalLibrary] = useState([]);
+  const [digitalDownloadingId, setDigitalDownloadingId] = useState(null);
+  const [digitalReceiptingId, setDigitalReceiptingId] = useState(null);
 
   // When navigating to Profile with ?tab=... (e.g. back from Community pages), open that tab
   useEffect(() => {
@@ -164,6 +173,70 @@ const MyProfile = () => {
       setActiveTab(tabFromUrl);
     }
   }, [location.search]);
+
+  const fetchDigitalLibrary = async () => {
+    if (!hasCustomerToken) {
+      setDigitalLibrary([]);
+      return;
+    }
+    try {
+      setDigitalLibraryLoading(true);
+      const res = await Api.digitalStore.library();
+      const list = Array.isArray(res.data) ? res.data : res.data?.results || [];
+      setDigitalLibrary(list);
+    } catch {
+      setDigitalLibrary([]);
+    } finally {
+      setDigitalLibraryLoading(false);
+    }
+  };
+
+  const handleDigitalDownload = async (purchaseId) => {
+    if (!hasCustomerToken) {
+      navigate("/Login", { state: { redirectTo: "/Profile?tab=profile" } });
+      return;
+    }
+    try {
+      setDigitalDownloadingId(purchaseId);
+      const res = await Api.digitalStore.downloadLink(purchaseId);
+      const url = res?.data?.url || res?.data?.download_url || "";
+      if (url) {
+        window.open(url, "_blank", "noopener,noreferrer");
+      } else {
+        toast.error("Download link not available yet.");
+      }
+    } catch (e) {
+      toast.error(
+        e?.response?.data?.detail ||
+          e?.response?.data?.error ||
+          e?.message ||
+          "Failed to open download"
+      );
+    } finally {
+      setDigitalDownloadingId(null);
+    }
+  };
+
+  const handleDigitalReceipt = async (purchaseId) => {
+    if (!hasCustomerToken) {
+      navigate("/Login", { state: { redirectTo: "/Profile?tab=profile" } });
+      return;
+    }
+    try {
+      setDigitalReceiptingId(purchaseId);
+      await Api.digitalStore.downloadReceipt(purchaseId);
+      toast.success("Receipt downloaded.");
+    } catch (e) {
+      toast.error(
+        e?.response?.data?.detail ||
+          e?.response?.data?.error ||
+          e?.message ||
+          "Failed to download receipt"
+      );
+    } finally {
+      setDigitalReceiptingId(null);
+    }
+  };
 
   const [showTabModal, setShowTabModal] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -345,6 +418,14 @@ const MyProfile = () => {
     if (activeTab === "tracking") {
       fetchUserTrackings();
     }
+  }, [activeTab]);
+
+  // Load Digital Store library when user opens Digital Downloads tab
+  useEffect(() => {
+    if (activeTab === "digitalDownloads") {
+      fetchDigitalLibrary();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
   // Fetch Alipay payments when Alipay Payment tab is opened
@@ -2701,6 +2782,20 @@ const MyProfile = () => {
                 </button>
                 <button
                   onClick={() => {
+                    setActiveTab("digitalDownloads");
+                    if (isMobile) setShowTabModal(true);
+                  }}
+                  className={`w-full flex items-center gap-2.5 sm:gap-3 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-lg transition-colors text-base ${
+                    activeTab === "digitalDownloads"
+                      ? "bg-primary text-white"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                >
+                  <FaFilePdf className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+                  Digital downloads
+                </button>
+                <button
+                  onClick={() => {
                     setActiveTab("updates");
                     if (isMobile) setShowTabModal(true);
                   }}
@@ -2817,6 +2912,7 @@ const MyProfile = () => {
                 <span className="text-base font-semibold text-gray-800 dark:text-white truncate">
                   {{
                     profile: "Profile",
+                    digitalDownloads: "Digital downloads",
                     tracking: "Tracking",
                     alipay: "Alipay Payment",
                     buy4me: "Buy4Me",
@@ -2956,6 +3052,86 @@ const MyProfile = () => {
                     )}
                   </div>
                 </div>
+
+              </div>
+            )}
+
+            {/* Digital downloads Tab */}
+            {activeTab === "digitalDownloads" && (
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
+                <div className="flex items-center justify-between gap-3 mb-4 sm:mb-6">
+                  <div>
+                    <h2 className="text-base sm:text-xl font-semibold text-gray-800 dark:text-white">
+                      My digital downloads
+                    </h2>
+                    <p className="mt-1 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                      Download purchased files and receipt PDFs.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={fetchDigitalLibrary}
+                    disabled={!hasCustomerToken || digitalLibraryLoading}
+                    className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+                    title="Refresh"
+                  >
+                    <FaSyncAlt className={digitalLibraryLoading ? "animate-spin" : ""} />
+                    Refresh
+                  </button>
+                </div>
+
+                {!hasCustomerToken ? (
+                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-300">
+                    Log in with your shopper account to see your digital purchases.
+                  </div>
+                ) : digitalLibraryLoading ? (
+                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-300 flex items-center gap-2">
+                    <FaSyncAlt className="animate-spin" />
+                    Loading downloads…
+                  </div>
+                ) : (digitalLibrary || []).filter((x) => x?.status === "paid" || x?.is_paid).length === 0 ? (
+                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-300">
+                    <p>No digital downloads yet.</p>
+                    <Link
+                      to="/DigitalStore"
+                      className="mt-2 inline-flex items-center gap-2 text-primary hover:underline font-semibold"
+                    >
+                      Go to Digital Store <FaArrowRight className="h-3.5 w-3.5" />
+                    </Link>
+                  </div>
+                ) : (
+                  <ul className="divide-y divide-gray-200 rounded-xl border border-gray-200 overflow-hidden dark:divide-gray-700 dark:border-gray-700 sm:max-h-[70vh] sm:overflow-auto sm:overscroll-contain">
+                    {(digitalLibrary || [])
+                      .filter((x) => x?.status === "paid" || x?.is_paid)
+                      .map((x) => (
+                        <li key={x?.id} className="bg-white p-4 dark:bg-gray-800">
+                          <p className="font-semibold text-gray-900 dark:text-white">
+                            {x?.product_title || x?.title || "Purchased item"}
+                          </p>
+                          <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                            <button
+                              type="button"
+                              onClick={() => handleDigitalDownload(x.id)}
+                              disabled={digitalDownloadingId === x.id}
+                              className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60 whitespace-nowrap"
+                            >
+                              <FaDownload />
+                              {digitalDownloadingId === x.id ? "Opening…" : "Download"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDigitalReceipt(x.id)}
+                              disabled={digitalReceiptingId === x.id}
+                              className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 hover:bg-gray-50 disabled:opacity-60 whitespace-nowrap dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:hover:bg-gray-950/40"
+                            >
+                              <FaFileInvoiceDollar />
+                              {digitalReceiptingId === x.id ? "Preparing…" : "Receipt"}
+                            </button>
+                          </div>
+                        </li>
+                      ))}
+                  </ul>
+                )}
               </div>
             )}
 
@@ -3178,6 +3354,28 @@ const MyProfile = () => {
                               </p>
                               <span className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-indigo-600 dark:text-indigo-400">
                                 View downloads
+                                <FaArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                              </span>
+                            </div>
+                          </div>
+                        </Link>
+                        <Link
+                          to="/DigitalStore?downloads=1"
+                          className="group flex rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-all hover:border-emerald-300 hover:shadow-md dark:border-gray-600 dark:bg-gray-800/90 dark:hover:border-emerald-600"
+                        >
+                          <div className="flex w-full items-start gap-4">
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:bg-emerald-400/20 dark:text-emerald-300">
+                              <FaStore className="h-6 w-6" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <h4 className="font-semibold text-gray-900 transition-colors group-hover:text-emerald-600 dark:text-white dark:group-hover:text-emerald-400">
+                                Digital Store downloads
+                              </h4>
+                              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                Open your purchased digital items and receipt PDFs.
+                              </p>
+                              <span className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-400">
+                                Open my downloads
                                 <FaArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
                               </span>
                             </div>

@@ -1,6 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { FaShip, FaTimes, FaGripVertical } from "react-icons/fa";
 import API from "../api";
+import atPortStatusIcon from "../assets/image.png";
+import ladenStatusIcon from "../assets/laden.png";
+import vesselIcon from "../assets/vessel.png";
 
 const ORIGIN_PORT = "Nansha Port";
 const DEST_PORT = "Tema Port";
@@ -39,123 +42,6 @@ function calcProgress({ departureDate, arrivalDate }) {
   if (total <= 0) return null;
   const now = Date.now();
   return clamp01((now - dep.getTime()) / total);
-}
-
-function ContainerShipIcon({ className = "" }) {
-  // Lightweight animated ship inspired by the Login page ship.
-  return (
-    <svg
-      className={className}
-      width="64"
-      height="40"
-      viewBox="0 0 80 48"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-    >
-      <path
-        d="M10 32L14 28H66L70 32L68 38H12L10 32Z"
-        fill="#2C3E50"
-        stroke="#1A252F"
-        strokeWidth="1.5"
-      />
-      <path d="M14 30H66L68 32H12L14 30Z" fill="#34495E" />
-      <rect
-        x="14"
-        y="26"
-        width="52"
-        height="2"
-        fill="#7F8C8D"
-        stroke="#6C7A7B"
-        strokeWidth="0.5"
-      />
-      <rect
-        x="58"
-        y="14"
-        width="10"
-        height="12"
-        fill="#E74C3C"
-        stroke="#C0392B"
-        strokeWidth="1"
-      />
-      <rect
-        x="58"
-        y="10"
-        width="10"
-        height="4"
-        fill="#C0392B"
-        stroke="#A93226"
-        strokeWidth="1"
-      />
-      <rect x="59.5" y="16" width="2" height="2" fill="#87CEEB" />
-      <rect x="62.5" y="16" width="2" height="2" fill="#87CEEB" />
-      <rect x="65" y="16" width="2" height="2" fill="#87CEEB" />
-      <rect
-        x="62"
-        y="6"
-        width="3"
-        height="4"
-        fill="#E67E22"
-        stroke="#D35400"
-        strokeWidth="1"
-      />
-      <ellipse cx="63.5" cy="6" rx="1.5" ry="0.8" fill="#34495E" />
-      <rect
-        x="18"
-        y="20"
-        width="8"
-        height="6"
-        fill="#3498DB"
-        stroke="#2980B9"
-        strokeWidth="1"
-      />
-      <rect
-        x="18"
-        y="14"
-        width="8"
-        height="6"
-        fill="#E74C3C"
-        stroke="#C0392B"
-        strokeWidth="1"
-      />
-      <rect
-        x="28"
-        y="20"
-        width="8"
-        height="6"
-        fill="#2ECC71"
-        stroke="#27AE60"
-        strokeWidth="1"
-      />
-      <rect
-        x="28"
-        y="14"
-        width="8"
-        height="6"
-        fill="#F1C40F"
-        stroke="#D4AC0D"
-        strokeWidth="1"
-      />
-      <rect
-        x="38"
-        y="20"
-        width="8"
-        height="6"
-        fill="#9B59B6"
-        stroke="#8E44AD"
-        strokeWidth="1"
-      />
-      <rect
-        x="38"
-        y="14"
-        width="8"
-        height="6"
-        fill="#E67E22"
-        stroke="#D35400"
-        strokeWidth="1"
-      />
-    </svg>
-  );
 }
 
 function WaveStrip({ fill = "rgba(59,130,246,0.25)", className = "" }) {
@@ -231,12 +117,14 @@ export function TemaPortVoyageMini({
   const pct = progress == null ? null : Math.round(progress * 100);
   const daysLeft = daysUntil(arr);
   const shipLeft = progress == null ? 0.08 : progress;
+  const isAtPort = arr != null && daysLeft <= 0;
+  const noEta = arr == null;
 
   const countdownLabel =
-    arr == null
-      ? "ETA not set"
-      : daysLeft <= 0
-        ? "Arrived or due at Tema Port"
+    noEta
+      ? "Laden"
+      : isAtPort
+        ? "Docked"
         : daysLeft === 1
           ? "1 day to Tema Port"
           : `${daysLeft} days to Tema Port`;
@@ -293,29 +181,88 @@ export function TemaPortVoyageMini({
             />
           </div>
           <div
-            className="absolute top-1/2 -translate-y-1/2 z-[1] scale-[0.5] origin-center"
-            style={{
-              left: `calc(${shipLeft * 100}% - 16px)`,
-              transition: "left 600ms ease",
-            }}
+            className={`absolute top-1/2 z-[1] -translate-y-1/2 ${
+              isAtPort
+                ? "right-1 max-w-[min(72px,28%)]"
+                : noEta
+                  ? "left-1 max-w-[min(72px,30%)]"
+                  : "origin-center scale-[0.5]"
+            }`}
+            style={
+              isAtPort
+                ? { transition: "right 600ms ease" }
+                : noEta
+                  ? undefined
+                  : {
+                      left: `calc(${shipLeft * 100}% - 16px)`,
+                      transition: "left 600ms ease",
+                    }
+            }
           >
-            <ContainerShipIcon className="drop-shadow-sm animate-[shipBob_2.2s_ease-in-out_infinite]" />
+            {isAtPort ? (
+              <img
+                src={atPortStatusIcon}
+                alt="Docked"
+                className="h-7 w-auto max-h-7 object-contain object-right drop-shadow-sm"
+                width={72}
+                height={28}
+              />
+            ) : noEta ? (
+              <img
+                src={ladenStatusIcon}
+                alt="Laden"
+                className="h-7 w-auto max-h-7 object-contain object-left drop-shadow-sm"
+                width={72}
+                height={28}
+              />
+            ) : (
+              <img
+                src={vesselIcon}
+                alt=""
+                className="h-7 w-auto max-h-7 object-contain drop-shadow-sm animate-[shipBob_2.2s_ease-in-out_infinite]"
+                width={72}
+                height={40}
+                aria-hidden="true"
+              />
+            )}
           </div>
         </div>
-        <div className="flex flex-nowrap items-center justify-center gap-x-1.5 text-center leading-tight min-w-0 overflow-hidden">
-          <span className="min-w-0 truncate text-xs font-bold text-gray-900 dark:text-white sm:text-sm">
-            {formatDateShort(arr)}
-          </span>
-          <span
-            className="shrink-0 text-gray-300 dark:text-gray-600 select-none"
-            aria-hidden="true"
-          >
-            ·
-          </span>
-          <span className="shrink-0 text-xs font-semibold text-blue-600 dark:text-blue-300">
-            {countdownLabel}
-          </span>
-        </div>
+        {noEta ? (
+          <div className="flex items-center justify-center gap-1.5 overflow-hidden text-center leading-tight">
+            <img
+              src={ladenStatusIcon}
+              alt=""
+              className="h-4 w-4 shrink-0 object-contain sm:h-5 sm:w-5"
+              width={20}
+              height={20}
+              aria-hidden="true"
+            />
+            <span className="text-xs font-semibold text-amber-800 dark:text-amber-200 sm:text-sm">
+              Laden
+            </span>
+          </div>
+        ) : (
+          <div className="flex min-w-0 flex-nowrap items-center justify-center gap-x-1.5 overflow-hidden text-center leading-tight">
+            <span className="min-w-0 truncate text-xs font-bold text-gray-900 dark:text-white sm:text-sm">
+              {formatDateShort(arr)}
+            </span>
+            <span
+              className="shrink-0 text-gray-300 dark:text-gray-600 select-none"
+              aria-hidden="true"
+            >
+              ·
+            </span>
+            <span
+              className={`shrink-0 text-xs font-semibold ${
+                isAtPort
+                  ? "text-emerald-700 dark:text-emerald-400"
+                  : "text-blue-600 dark:text-blue-300"
+              }`}
+            >
+              {countdownLabel}
+            </span>
+          </div>
+        )}
       </div>
     </>
   );
@@ -496,7 +443,7 @@ const ContainerShipmentWidget = ({ launcherHidden = false } = {}) => {
           />
           {/* Centered popup */}
           <div
-            className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[92%] max-w-3xl z-[1100] rounded-2xl bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden"
+            className="fixed top-1/2 left-1/2 z-[1100] flex min-h-0 w-[92%] max-w-3xl -translate-x-1/2 -translate-y-1/2 transform flex-col overflow-hidden rounded-2xl border border-gray-200 bg-gradient-to-br from-white to-gray-50 shadow-2xl max-h-[min(72dvh,calc(100dvh-6rem))] dark:border-gray-700 dark:from-gray-800 dark:to-gray-900 sm:max-h-[min(80dvh,calc(100dvh-4rem))] md:max-h-[min(88dvh,calc(100dvh-3rem))]"
             style={{ animation: "fadeInScale 0.3s ease-out" }}
             role="dialog"
             aria-modal="true"
@@ -510,7 +457,7 @@ const ContainerShipmentWidget = ({ launcherHidden = false } = {}) => {
               }
             `}</style>
 
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-600 to-indigo-600">
+            <div className="flex shrink-0 items-center justify-between border-b border-gray-200 bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 dark:border-gray-700 sm:px-5 sm:py-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-white/20 rounded-lg">
                   <FaShip className="text-white text-lg" />
@@ -536,11 +483,11 @@ const ContainerShipmentWidget = ({ launcherHidden = false } = {}) => {
               </button>
             </div>
 
-            <div className="px-4 py-3 border-b border-red-800/60 bg-red-600 dark:bg-red-700 dark:border-red-900/50">
+            <div className="shrink-0 border-b border-red-800/60 bg-red-600 px-4 py-2.5 dark:border-red-900/50 dark:bg-red-700 sm:py-3">
               <p className="text-[11px] font-bold uppercase tracking-wide text-white">
                 Note
               </p>
-              <p className="mt-1 text-xs leading-relaxed text-white/95">
+              <p className="mt-1 text-[11px] leading-relaxed text-white/95 sm:text-xs">
                 Fofoofo Import does not determine when a vessel or container arrives—the{" "}
                 <span className="font-semibold text-white">shipping line</span> does. Every ETA shown
                 here is an estimate; in practice ETAs often change (expect on the order of{" "}
@@ -548,7 +495,7 @@ const ContainerShipmentWidget = ({ launcherHidden = false } = {}) => {
               </p>
             </div>
 
-            <div className="px-5 py-5 bg-white dark:bg-gray-800 max-h-[70vh] overflow-auto">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white px-4 py-4 dark:bg-gray-800 sm:px-5 sm:py-5">
               {loading && (
                 <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/20 p-5">
                   <p className="text-sm text-gray-700 dark:text-gray-300">
@@ -582,6 +529,8 @@ const ContainerShipmentWidget = ({ launcherHidden = false } = {}) => {
                 const daysLeft = daysUntil(arr);
 
                 const shipLeft = progress == null ? 0.08 : progress;
+                const isAtPort = arr != null && daysLeft <= 0;
+                const noEta = arr == null;
 
                 return (
                   <div
@@ -601,9 +550,23 @@ const ContainerShipmentWidget = ({ launcherHidden = false } = {}) => {
                         <p className="text-xs text-gray-500 dark:text-gray-400">
                           ETA
                         </p>
-                        <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                          {formatDateShort(arr)}
-                        </p>
+                        {noEta ? (
+                          <p className="mt-0.5 inline-flex items-center justify-end gap-1.5 text-sm font-semibold text-amber-800 dark:text-amber-200">
+                            <img
+                              src={ladenStatusIcon}
+                              alt=""
+                              className="h-5 w-5 object-contain"
+                              width={20}
+                              height={20}
+                              aria-hidden="true"
+                            />
+                            Laden
+                          </p>
+                        ) : (
+                          <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                            {formatDateShort(arr)}
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -625,13 +588,48 @@ const ContainerShipmentWidget = ({ launcherHidden = false } = {}) => {
                       </div>
 
                       <div
-                        className="absolute top-1/2 -translate-y-1/2"
-                        style={{
-                          left: `calc(${shipLeft * 100}% - 32px)`,
-                          transition: "left 600ms ease",
-                        }}
+                        className={`absolute top-1/2 -translate-y-1/2 ${
+                          isAtPort
+                            ? "right-2 max-w-[min(120px,36%)]"
+                            : noEta
+                              ? "left-2 max-w-[min(120px,36%)]"
+                              : ""
+                        }`}
+                        style={
+                          isAtPort || noEta
+                            ? undefined
+                            : {
+                                left: `calc(${shipLeft * 100}% - 32px)`,
+                                transition: "left 600ms ease",
+                              }
+                        }
                       >
-                        <ContainerShipIcon className="drop-shadow-sm animate-[shipBob_2.2s_ease-in-out_infinite]" />
+                        {isAtPort ? (
+                          <img
+                            src={atPortStatusIcon}
+                            alt="Docked"
+                            className="h-12 w-auto max-h-12 object-contain object-right drop-shadow-sm"
+                            width={120}
+                            height={48}
+                          />
+                        ) : noEta ? (
+                          <img
+                            src={ladenStatusIcon}
+                            alt="Laden"
+                            className="h-12 w-auto max-h-12 object-contain object-left drop-shadow-sm"
+                            width={120}
+                            height={48}
+                          />
+                        ) : (
+                          <img
+                            src={vesselIcon}
+                            alt=""
+                            className="h-12 w-auto max-h-12 object-contain drop-shadow-sm animate-[shipBob_2.2s_ease-in-out_infinite]"
+                            width={120}
+                            height={48}
+                            aria-hidden="true"
+                          />
+                        )}
                       </div>
                     </div>
 
@@ -642,17 +640,43 @@ const ContainerShipmentWidget = ({ launcherHidden = false } = {}) => {
                           {formatDateShort(dep)}
                         </span>
                       </span>
-                      <span className="font-semibold text-blue-700 dark:text-blue-200">
+                      <span
+                        className={`inline-flex items-center gap-1.5 font-semibold ${
+                          noEta
+                            ? "text-amber-800 dark:text-amber-200"
+                            : "text-blue-700 dark:text-blue-200"
+                        }`}
+                      >
                         {arr ? (
-                          daysLeft <= 0 ? (
-                            "Arrived"
+                          isAtPort ? (
+                            <>
+                              <img
+                                src={atPortStatusIcon}
+                                alt=""
+                                className="h-5 w-5 shrink-0 object-contain"
+                                width={20}
+                                height={20}
+                                aria-hidden="true"
+                              />
+                              Docked
+                            </>
                           ) : daysLeft === 1 ? (
                             "1 day to Tema"
                           ) : (
                             `${daysLeft} days to Tema`
                           )
                         ) : (
-                          "ETA not set"
+                          <>
+                            <img
+                              src={ladenStatusIcon}
+                              alt=""
+                              className="h-5 w-5 shrink-0 object-contain"
+                              width={20}
+                              height={20}
+                              aria-hidden="true"
+                            />
+                            Laden
+                          </>
                         )}
                       </span>
                     </div>

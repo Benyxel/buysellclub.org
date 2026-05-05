@@ -60,6 +60,7 @@ const Buy4meAdmin = () => {
     client_name: '',
     client_contact: '',
     title: '',
+    product_names: [''],
     product_costs_rmb: [''],
     quantities: [1],
     rmb_to_ghs_rate: '',
@@ -557,6 +558,7 @@ const Buy4meAdmin = () => {
       client_name: '',
       client_contact: '',
       title: '',
+      product_names: [''],
       product_costs_rmb: [''],
       quantities: [1],
       rmb_to_ghs_rate: '',
@@ -617,8 +619,16 @@ const Buy4meAdmin = () => {
     }
     setCreateInvoiceSubmitting(true);
     try {
+      const names = (createInvoiceForm.product_names || [])
+        .slice(0, costs.length)
+        .map((n) => String(n || "").trim());
+      if (names.length !== costs.length) {
+        const pad = Array(costs.length - names.length).fill("");
+        names.push(...pad);
+      }
       const payload = {
         client_email: email,
+        product_names: names,
         product_costs_rmb: costs,
         quantities,
         rmb_to_ghs_rate: parseFloat(createInvoiceForm.rmb_to_ghs_rate),
@@ -1411,10 +1421,18 @@ const Buy4meAdmin = () => {
                               <div className="space-y-3">
                                 {productRows.map((link, index) => {
                                   const linkUrl = typeof link === 'string' ? link : (link && link.url) || null;
+                                  const raw = selectedRequest?.additional_links?.[index];
+                                  const nameFromRequest =
+                                    raw && typeof raw === "object"
+                                      ? (raw.name || raw.product_name || raw.title || "")
+                                      : "";
+                                  const labelText =
+                                    String(nameFromRequest || "").trim() ||
+                                    (linkUrl ? `${linkUrl.substring(0, 50)}${linkUrl.length > 50 ? '...' : ''}` : 'Unnamed product');
                                   return (
                                     <div key={index}>
                                       <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
-                                        {linkUrl ? `${linkUrl.substring(0, 50)}${linkUrl.length > 50 ? '...' : ''}` : `Product ${index + 1}`}
+                                        {labelText}
                                       </label>
                                       <div className="flex gap-2">
                                         <div className="flex-1 flex rounded-md shadow-sm">
@@ -1520,7 +1538,24 @@ const Buy4meAdmin = () => {
                                 <div className="space-y-1 text-sm text-blue-800 dark:text-blue-300">
                                   {productCostsWithQty.map((item, index) => (
                                     <div key={index} className="flex justify-between text-xs">
-                                      <span>Product {index + 1} (¥{item.cost.toFixed(2)} × {item.qty}):</span>
+                                      <span>
+                                        {(() => {
+                                          const raw = selectedRequest?.additional_links?.[index];
+                                          const seeded =
+                                            raw && typeof raw === "object"
+                                              ? (raw.name || raw.product_name || raw.title || "")
+                                              : "";
+                                          const rawUrl =
+                                            raw && typeof raw === "object"
+                                              ? (raw.url || raw.link || "")
+                                              : (typeof raw === "string" ? raw : "");
+                                          const urlLabel = String(rawUrl || "").trim()
+                                            ? `${String(rawUrl).trim().slice(0, 40)}${String(rawUrl).trim().length > 40 ? '...' : ''}`
+                                            : "";
+                                          const label = String(seeded || "").trim() || urlLabel || "Unnamed product";
+                                          return `${label} (¥${item.cost.toFixed(2)} × ${item.qty}):`;
+                                        })()}
+                                      </span>
                                       <span>¥{item.total.toFixed(2)}</span>
                                     </div>
                                   ))}
@@ -2070,6 +2105,17 @@ const Buy4meAdmin = () => {
                     <div key={idx} className="flex gap-2 items-center mb-2">
                       <span className="text-gray-500 w-8">#{idx + 1}</span>
                       <input
+                        type="text"
+                        value={createInvoiceForm.product_names?.[idx] ?? ''}
+                        onChange={(e) => {
+                          const next = [...(createInvoiceForm.product_names || [])];
+                          next[idx] = e.target.value;
+                          setCreateInvoiceForm((prev) => ({ ...prev, product_names: next }));
+                        }}
+                        className="flex-[1.2] px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        placeholder="Product name (optional)"
+                      />
+                      <input
                         type="number"
                         step="0.01"
                         min="0"
@@ -2100,6 +2146,7 @@ const Buy4meAdmin = () => {
                           onClick={() => {
                             setCreateInvoiceForm((prev) => ({
                               ...prev,
+                              product_names: (prev.product_names || []).filter((_, i) => i !== idx),
                               product_costs_rmb: prev.product_costs_rmb.filter((_, i) => i !== idx),
                               quantities: prev.quantities.filter((_, i) => i !== idx),
                             }));
@@ -2115,6 +2162,7 @@ const Buy4meAdmin = () => {
                     type="button"
                     onClick={() => setCreateInvoiceForm((prev) => ({
                       ...prev,
+                      product_names: [...(prev.product_names || []), ''],
                       product_costs_rmb: [...prev.product_costs_rmb, ''],
                       quantities: [...prev.quantities, 1],
                     }))}

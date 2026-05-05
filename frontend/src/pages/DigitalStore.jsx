@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { FaDownload, FaEye, FaFileAlt, FaFilePdf, FaShoppingCart, FaSpinner, FaTag } from "react-icons/fa";
+import { FaDownload, FaEye, FaFileAlt, FaFilePdf, FaShoppingCart, FaSpinner, FaTag, FaTimes } from "react-icons/fa";
 import { toast } from "../utils/toast";
 import { Api } from "../api";
 
@@ -50,6 +50,7 @@ const DigitalStore = () => {
   const [receiptingId, setReceiptingId] = useState(null);
   const [showDownloads, setShowDownloads] = useState(false);
   const [viewingProduct, setViewingProduct] = useState(null);
+  const [thumbnailLightbox, setThumbnailLightbox] = useState(null);
   const [checkoutProduct, setCheckoutProduct] = useState(null);
   const [manualProofUploading, setManualProofUploading] = useState(false);
   const [manualSubmitting, setManualSubmitting] = useState(false);
@@ -59,6 +60,7 @@ const DigitalStore = () => {
   });
   const loadMoreRef = useRef(null);
   const payReturnHandledRef = useRef(false);
+  const deepLinkHandledRef = useRef(false);
 
   const PRODUCTS_PAGE_SIZE = 12;
 
@@ -174,6 +176,44 @@ const DigitalStore = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Allow opening "My downloads" from external pages (e.g. Profile)
+  // Example: /DigitalStore?downloads=1
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const wantsDownloads = params.get("downloads") === "1";
+    if (!wantsDownloads) {
+      deepLinkHandledRef.current = false;
+      return;
+    }
+    if (deepLinkHandledRef.current) return;
+    deepLinkHandledRef.current = true;
+
+    if (!readHasCustomerToken()) {
+      navigate("/Login", { state: { redirectTo: "/DigitalStore?downloads=1" } });
+      return;
+    }
+
+    setShowDownloads(true);
+    fetchLibrary();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search]);
+
+  // If deep-linked to downloads but nothing is available, keep users on the store page.
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const wantsDownloads = params.get("downloads") === "1";
+    if (!wantsDownloads) return;
+    if (!readHasCustomerToken()) return;
+    if (libraryLoading) return;
+
+    if (paidLibrary.length === 0) {
+      setShowDownloads(false);
+      toast.info("No downloads yet. Browse the Digital Store to buy and download.");
+      navigate("/DigitalStore", { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [libraryLoading, paidLibrary.length, location.search]);
+
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     if (params.get("paid") !== "1") {
@@ -232,8 +272,18 @@ const DigitalStore = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadMoreRef, hasMoreProducts, productOffset, loadingMore, loading]);
 
+  useEffect(() => {
+    if (!thumbnailLightbox) return;
+    const onKey = (e) => {
+      if (e.key === "Escape") setThumbnailLightbox(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [thumbnailLightbox]);
+
   const goToShopperLogin = () => {
     setViewingProduct(null);
+    setThumbnailLightbox(null);
     setCheckoutProduct(null);
     navigate("/Login", { state: { redirectTo: "/DigitalStore" } });
   };
@@ -244,6 +294,7 @@ const DigitalStore = () => {
       return;
     }
     setViewingProduct(null);
+    setThumbnailLightbox(null);
     setCheckoutProduct(product);
     setManualForm({ note: "", proof_url: "" });
   };
@@ -453,43 +504,62 @@ const DigitalStore = () => {
                     return (
                       <div
                         key={p?.id ?? p?.slug ?? String(Math.random())}
-                        className="group overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition hover:shadow-md dark:border-gray-700 dark:bg-gray-800"
+                        className="group flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition hover:shadow-md dark:border-gray-700 dark:bg-gray-800"
                       >
-                        <div className="flex justify-center bg-gray-100 dark:bg-gray-950/50">
-                          <div className="relative h-[256px] w-[160px] shrink-0">
-                          {p?.thumbnail_url ? (
-                            <img
-                              src={resolveAssetUrl(p.thumbnail_url)}
-                              alt={p?.title || "Digital product"}
-                              className="h-full w-full object-contain"
-                              loading="lazy"
-                              onError={(e) => {
-                                e.currentTarget.style.display = "none";
-                              }}
-                            />
-                          ) : (
-                            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-red-50 to-orange-50 dark:from-gray-900 dark:to-gray-800 text-primary">
-                              <FaFilePdf className="text-4xl" />
-                            </div>
-                          )}
-                          <div className="pointer-events-none absolute inset-0 bg-black/5" />
+                        <div className="relative w-full bg-gray-100 dark:bg-gray-950/50">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (p?.thumbnail_url) {
+                                setThumbnailLightbox({
+                                  src: resolveAssetUrl(p.thumbnail_url),
+                                  title: String(p?.title || p?.name || "Digital product").trim(),
+                                });
+                              } else {
+                                setViewingProduct(p);
+                              }
+                            }}
+                            className="relative flex w-full cursor-zoom-in items-center justify-center px-3 pb-4 pt-3 sm:px-4 sm:pb-5 sm:pt-4"
+                            aria-label={
+                              p?.thumbnail_url
+                                ? `View full image: ${p?.title || "Digital product"}`
+                                : `View product: ${p?.title || "Digital product"}`
+                            }
+                            title={p?.thumbnail_url ? "Tap to view full image" : "View product"}
+                          >
+                            <div className="pointer-events-none absolute inset-0 bg-black/[0.03] dark:bg-white/[0.03]" />
+                            {p?.thumbnail_url ? (
+                              <img
+                                src={resolveAssetUrl(p.thumbnail_url)}
+                                alt={p?.title || "Digital product"}
+                                className="relative z-[1] max-h-[min(320px,62vw)] w-full max-w-[220px] object-contain sm:max-h-[min(340px,50vw)] sm:max-w-[260px]"
+                                loading="lazy"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = "none";
+                                }}
+                              />
+                            ) : (
+                              <div className="relative z-[1] flex min-h-[160px] w-full max-w-[220px] items-center justify-center bg-gradient-to-br from-red-50 to-orange-50 dark:from-gray-900 dark:to-gray-800 text-primary sm:min-h-[180px] sm:max-w-[260px]">
+                                <FaFilePdf className="text-4xl" />
+                              </div>
+                            )}
+                          </button>
 
                           {saleEnabled && discountPercent ? (
-                            <div className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-red-600 px-2.5 py-1 text-xs font-extrabold text-white shadow-lg ring-1 ring-red-400/60 backdrop-blur dark:bg-red-600 dark:ring-red-300/50">
+                            <div className="pointer-events-none absolute left-3 top-3 z-[2] inline-flex items-center gap-1 rounded-full bg-red-600 px-2.5 py-1 text-xs font-extrabold text-white shadow-lg ring-1 ring-red-400/60 backdrop-blur dark:bg-red-600 dark:ring-red-300/50">
                               <FaTag className="text-[11px]" />
                               {Number(discountPercent).toFixed(0)}% off
                             </div>
                           ) : null}
 
                           {owned ? (
-                            <div className="absolute right-3 top-3 rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white shadow-sm">
+                            <div className="pointer-events-none absolute right-3 top-3 z-[2] rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white shadow-sm">
                               Owned
                             </div>
                           ) : null}
-                          </div>
                         </div>
 
-                        <div className="p-5 flex flex-col min-h-[170px]">
+                        <div className="flex flex-1 flex-col p-4 sm:p-5">
                           <p className="text-base font-semibold text-gray-900 dark:text-white line-clamp-2">
                             {p?.title || p?.name || "Digital product"}
                           </p>
@@ -497,62 +567,63 @@ const DigitalStore = () => {
                             {p?.description || "Instant PDF download after payment."}
                           </p>
 
-                          <div className="mt-auto pt-4 flex flex-col gap-2">
-                            <div className="flex items-end justify-between gap-3">
-                              <div className="min-h-[42px] flex flex-col justify-end">
-                                {displayPrice != null ? (
-                                  <>
-                                    <p className="text-lg font-extrabold text-gray-900 dark:text-white">
-                                      ₵{Number(displayPrice).toFixed(2)}
-                                    </p>
-                                    {computedSale != null && basePrice != null ? (
-                                      <p className="text-xs text-gray-500 dark:text-gray-400 line-through">
-                                        ₵{Number(basePrice).toFixed(2)}
-                                      </p>
-                                    ) : (
-                                      <p className="text-xs text-gray-500 dark:text-gray-400">&nbsp;</p>
-                                    )}
-                                  </>
-                                ) : (
-                                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                                    Price not set
+                          <div className="mt-auto flex flex-col gap-3 pt-4">
+                            <div className="min-h-[42px]">
+                              {displayPrice != null ? (
+                                <>
+                                  <p className="text-lg font-extrabold text-gray-900 dark:text-white">
+                                    ₵{Number(displayPrice).toFixed(2)}
                                   </p>
-                                )}
-                              </div>
+                                  {computedSale != null && basePrice != null ? (
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 line-through">
+                                      ₵{Number(basePrice).toFixed(2)}
+                                    </p>
+                                  ) : (
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">&nbsp;</p>
+                                  )}
+                                </>
+                              ) : (
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                  Price not set
+                                </p>
+                              )}
+                            </div>
 
+                            <div className="flex items-stretch gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setViewingProduct(p)}
+                                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white text-[11px] font-semibold leading-tight text-gray-800 hover:bg-gray-50 sm:text-xs dark:border-gray-600 dark:bg-gray-800/80 dark:text-gray-100 dark:hover:bg-gray-800"
+                                aria-label="View full product details"
+                                title="View full details"
+                              >
+                                <FaEye className="shrink-0 text-sm" />
+                                <span className="sr-only">View details</span>
+                              </button>
                               {owned ? (
                                 <button
                                   type="button"
                                   onClick={() => handleDownload(owned.id)}
                                   disabled={downloadingId === owned.id}
-                                  className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white shadow-sm ring-1 ring-emerald-500/30 hover:bg-emerald-700 disabled:opacity-60 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                                  className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-center text-[11px] font-semibold leading-tight text-white shadow-sm ring-1 ring-emerald-500/30 hover:bg-emerald-700 disabled:opacity-60 sm:text-xs dark:bg-emerald-600 dark:hover:bg-emerald-500 whitespace-nowrap"
                                 >
-                                  <FaDownload className="text-[11px]" />
-                                  {downloadingId === owned.id ? "Opening…" : "Download"}
+                                  <FaDownload className="shrink-0 text-[11px]" />
+                                  <span className="min-w-0">
+                                    {downloadingId === owned.id ? "Opening…" : "Download"}
+                                  </span>
                                 </button>
                               ) : (
                                 <button
                                   type="button"
                                   onClick={() => handleBuy(p)}
                                   disabled={buyingId === (p?.id ?? p?._id ?? p?.slug)}
-                                  className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white hover:opacity-95 disabled:opacity-60"
+                                  className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-center text-[11px] font-semibold leading-tight text-white hover:opacity-95 disabled:opacity-60 sm:text-xs whitespace-nowrap"
                                 >
-                                  <FaDownload className="text-[11px]" />
-                                  Download
+                                  <FaDownload className="shrink-0 text-[11px]" />
+                                  <span className="min-w-0">Download</span>
                                 </button>
                               )}
                             </div>
-
-                            <button
-                              type="button"
-                              onClick={() => setViewingProduct(p)}
-                              className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white py-2 text-xs font-semibold text-gray-800 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800/80 dark:text-gray-100 dark:hover:bg-gray-800"
-                              aria-label="View full product details"
-                              title="View full details"
-                            >
-                              <FaEye className="text-sm" />
-                              View details
-                            </button>
                           </div>
                         </div>
                       </div>
@@ -649,6 +720,50 @@ const DigitalStore = () => {
         </div>
       ) : null}
 
+      {thumbnailLightbox ? (
+        <div
+          className="fixed inset-0 z-[95]"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Cover full size"
+        >
+          <button
+            type="button"
+            className="absolute inset-0 z-0 bg-black/92"
+            onClick={() => setThumbnailLightbox(null)}
+            aria-label="Close — tap empty space"
+          />
+          <div className="pointer-events-none relative z-10 flex h-full w-full flex-col p-3 sm:p-6">
+            <div className="flex shrink-0 justify-end pointer-events-auto">
+              <button
+                type="button"
+                onClick={() => setThumbnailLightbox(null)}
+                className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/20"
+                aria-label="Close cover view"
+              >
+                <FaTimes className="text-base" />
+                Close
+              </button>
+            </div>
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 py-2">
+              <img
+                src={thumbnailLightbox.src}
+                alt={thumbnailLightbox.title || "Product cover"}
+                className="pointer-events-auto max-h-[min(82dvh,calc(100dvh-10rem))] max-w-[min(95vw,920px)] object-contain object-center shadow-2xl ring-1 ring-white/10"
+              />
+              {thumbnailLightbox.title ? (
+                <p className="max-w-full truncate px-2 text-center text-sm font-medium text-white/90 sm:text-base">
+                  {thumbnailLightbox.title}
+                </p>
+              ) : null}
+              <p className="text-center text-xs text-white/55">
+                Tap dark area or Esc to close
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {viewingProduct ? (
         <div
           className="fixed inset-0 z-[85] flex items-start justify-center overflow-y-auto bg-black/50 p-4 py-8 sm:items-center sm:p-6 sm:py-10"
@@ -677,15 +792,35 @@ const DigitalStore = () => {
 
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 sm:px-6 sm:py-6">
               {viewingProduct?.thumbnail_url ? (
-                <div className="mb-4 flex justify-center overflow-x-auto rounded-2xl border border-gray-200 bg-gray-50 py-2 dark:border-gray-800 dark:bg-gray-950/50">
-                  <div className="relative h-[min(320px,40vh)] w-[min(200px,45vw)] shrink-0 sm:h-[min(360px,45vh)] sm:w-[min(220px,40vw)]">
-                    <img
-                      src={resolveAssetUrl(viewingProduct.thumbnail_url)}
-                      alt={viewingProduct?.title || "Digital product"}
-                      className="h-full w-full object-contain"
-                      loading="lazy"
-                    />
+                <div className="mb-4 rounded-2xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-950/50 sm:p-4">
+                  <div className="flex justify-center">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setThumbnailLightbox({
+                          src: resolveAssetUrl(viewingProduct.thumbnail_url),
+                          title: String(
+                            viewingProduct?.title || viewingProduct?.name || "Digital product"
+                          ).trim(),
+                        })
+                      }
+                      className="group/cover cursor-zoom-in rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                      aria-label="Tap to view full image"
+                      title="Tap to view full image"
+                    >
+                      <div className="relative mx-auto flex h-[220px] w-[140px] items-center justify-center sm:h-[256px] sm:w-[160px]">
+                        <img
+                          src={resolveAssetUrl(viewingProduct.thumbnail_url)}
+                          alt={viewingProduct?.title || "Digital product"}
+                          className="max-h-full max-w-full object-contain transition group-hover/cover:opacity-95"
+                          loading="lazy"
+                        />
+                      </div>
+                    </button>
                   </div>
+                  <p className="mt-2 text-center text-[11px] text-gray-500 dark:text-gray-400">
+                    Tap to view full image
+                  </p>
                 </div>
               ) : null}
               <p className="text-sm leading-relaxed text-gray-700 dark:text-gray-200 whitespace-pre-wrap break-words">

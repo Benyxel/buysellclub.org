@@ -232,10 +232,30 @@ const Invoice = memo(({ invoice, request, printable = false, invoiceId, customer
                     const qty = invoice.productQuantities && invoice.productQuantities[index] ? invoice.productQuantities[index] : 0;
                     const costPerUnit = parseFloat(cost || 0);
                     const totalCost = costPerUnit * qty;
+                    const invoiceName =
+                      Array.isArray(invoice?.productNames) && invoice.productNames[index] != null
+                        ? String(invoice.productNames[index] || "").trim()
+                        : "";
+                    const rawLink = request?.additional_links?.[index];
+                    const requestName =
+                      (rawLink && typeof rawLink === "object"
+                        ? (rawLink.name || rawLink.product_name || rawLink.title || "")
+                        : "") ||
+                      (request?.products?.[index]?.name || request?.products?.[index]?.product_name || "") ||
+                      "";
+                    const rawUrl =
+                      rawLink && typeof rawLink === "object"
+                        ? (rawLink.url || rawLink.link || "")
+                        : (typeof rawLink === "string" ? rawLink : "");
+                    const urlLabel = String(rawUrl || "").trim()
+                      ? String(rawUrl).trim().slice(0, 60) + (String(rawUrl).trim().length > 60 ? "…" : "")
+                      : "";
+                    const productLabel =
+                      (invoiceName || requestName || urlLabel || "").trim() || "Unnamed product";
                     return (
                       <tr key={index}>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                          Product {index + 1} Cost (RMB) {qty > 0 ? `× ${qty}` : ''}
+                          {productLabel} Cost (RMB) {qty > 0 ? `× ${qty}` : ''}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 dark:text-white">
                           {qty > 0 ? (
