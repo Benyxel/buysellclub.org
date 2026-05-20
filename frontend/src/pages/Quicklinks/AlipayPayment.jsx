@@ -445,10 +445,7 @@ const AlipayPayment = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <WhatsAppWidget
-        phone="+233535377248"
-        label="WhatsApp (Alipay Support)"
-      />
+      <WhatsAppWidget phone="+233535377248" label="WhatsApp now" />
       <div className="container mx-auto px-4 py-6">
         <div className="max-w-3xl mx-auto">
           {/* Payment Steps */}

@@ -48,7 +48,9 @@ const TrackingSearch = () => {
     if (!code) return null;
     const map = {
       preparing: "Preparing",
+      receiving_goods: "Receiving Goods",
       loading: "Loading",
+      laden: "Laden",
       in_transit: "In Transit",
       clearing: "Clearing",
       arrived_port: "Arrived at Port",

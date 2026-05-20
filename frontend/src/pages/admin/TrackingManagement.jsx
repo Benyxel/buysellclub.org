@@ -264,7 +264,6 @@ const TrackingManagement = () => {
   };
 
   const handleApplyRate = async (row) => {
-    const goodsType = rateSelections[row.id] || row.GoodsType || "normal";
     // Use the tracking's container ID so we apply that container's rate (not global)
     const raw = row.container_id ?? row.container ?? row.Container;
     const containerId = raw != null && raw !== "" ? Number(raw) : null;
@@ -273,39 +272,76 @@ const TrackingManagement = () => {
       toast.error("No active shipping rates found. Set rates first.");
       return;
     }
-    const cbmForRate =
-      row.bulkGroupId != null && row.bulkTotalCbm != null
-        ? parseFloat(row.bulkTotalCbm)
-        : parseFloat(row.CBM);
-    if (!cbmForRate || cbmForRate <= 0) {
-      toast.error("CBM is required and must be greater than 0 to calculate.");
-      return;
+
+    // If the row is part of a bulk group, cascade to every member of that
+    // bulk so all rows get a per-row fee in one click. Otherwise just this row.
+    const triggerGoodsType =
+      rateSelections[row.id] || row.GoodsType || "normal";
+    const targetRows =
+      row.bulkGroupId != null
+        ? trackings.filter((t) => t.bulkGroupId === row.bulkGroupId)
+        : [row];
+
+    const updates = [];
+    const skipped = [];
+    for (const target of targetRows) {
+      const goodsType =
+        rateSelections[target.id] || target.GoodsType || triggerGoodsType;
+      const cbmForRate = parseFloat(target.CBM);
+      if (!cbmForRate || cbmForRate <= 0) {
+        skipped.push(target.TrackingNum);
+        continue;
+      }
+      const fee = calculateFeeUsingRates(cbmForRate, goodsType, rates);
+      if (fee === null) {
+        skipped.push(target.TrackingNum);
+        continue;
+      }
+      updates.push({
+        id: target.id,
+        shipping_fee: parseFloat(fee.toFixed(2)),
+        goods_type: goodsType,
+      });
     }
-    const fee = calculateFeeUsingRates(cbmForRate, goodsType, rates);
-    if (fee === null) {
+
+    if (updates.length === 0) {
       toast.error(
-        "Unable to calculate fee with current rates. Check settings."
+        "Unable to calculate fee. Check CBM values and active rates."
       );
       return;
     }
+
     try {
-      const payload = {
-        shipping_fee: parseFloat(fee.toFixed(2)),
-        goods_type: goodsType,
-      };
-      await API.patch(`/buysellapi/trackings/${row.id}/`, payload);
-      toast.success("Shipping fee updated");
-      // Update locally to avoid reloading the whole table
-      setTrackings((prev) =>
-        prev.map((t) =>
-          t.id === row.id
-            ? {
-                ...t,
-                ShippingFee: payload.shipping_fee,
-                GoodsType: payload.goods_type,
-              }
-            : t
+      await Promise.all(
+        updates.map((u) =>
+          API.patch(`/buysellapi/trackings/${u.id}/`, {
+            shipping_fee: u.shipping_fee,
+            goods_type: u.goods_type,
+          })
         )
+      );
+
+      if (targetRows.length > 1) {
+        toast.success(
+          skipped.length
+            ? `Applied rate to ${updates.length} of ${targetRows.length} bulk trackings (${skipped.length} skipped)`
+            : `Applied rate to ${updates.length} bulk trackings`
+        );
+      } else {
+        toast.success("Shipping fee updated");
+      }
+
+      const updateMap = new Map(updates.map((u) => [u.id, u]));
+      setTrackings((prev) =>
+        prev.map((t) => {
+          const u = updateMap.get(t.id);
+          if (!u) return t;
+          return {
+            ...t,
+            ShippingFee: u.shipping_fee,
+            GoodsType: u.goods_type,
+          };
+        })
       );
     } catch (e) {
       console.error("apply rate error", e);

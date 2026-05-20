@@ -43,7 +43,7 @@ const PaymentCallback = () => {
                 toast.success('Donation received. Thank you!');
                 setTimeout(() => navigate('/'), 2000);
               } else if (isCommunity) {
-                setMessage('Payment successful! Check your email (Gmail) for a link to set your username and password so you can log in.');
+                setMessage('Payment successful! Check your email for a link to set your username and password so you can log in.');
                 toast.success('Payment confirmed! Check your email to set your username and password.');
                 setTimeout(() => navigate('/Profile?tab=community'), 4000);
               } else if (isBuy4me && requestId) {

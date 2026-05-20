@@ -15,7 +15,7 @@ export const getBasePath = () => BASE_PATH;
 /**
  * Convert a public asset path to include the base path
  * Use this for assets in the public folder
- * @param {string} path - Path starting with '/' (e.g., '/buysellt.jpg')
+ * @param {string} path - Path starting with '/' (e.g., '/buysellt.png')
  * @returns {string} Path with base path prepended
  */
 export const getPublicAssetPath = (path) => {

@@ -8,12 +8,14 @@ import {
   FaUsers,
   FaEnvelope,
   FaSpinner,
+  FaDownload,
 } from "react-icons/fa";
 import { toast } from "../../utils/toast";
 import API from "../../api";
 import ConfirmModal from "../../components/shared/ConfirmModal";
 import BulkActions from "../../components/shared/BulkActions";
 import { normalizePhone } from "../../utils/ghanaPhone";
+import { isConsumerGmailEmail } from "../../utils/registrationEmail";
 
 const UsersManagement = () => {
   const [users, setUsers] = useState([]);
@@ -31,6 +33,7 @@ const UsersManagement = () => {
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [selectAll, setSelectAll] = useState(false);
   const [resendLinkUserId, setResendLinkUserId] = useState(null);
+  const [exportingUsers, setExportingUsers] = useState(false);
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -51,6 +54,7 @@ const UsersManagement = () => {
     email: "",
     role: "user",
     status: "active",
+    account_suspension_reason: "",
     contact: "",
     location: "",
     is_rider: false,
@@ -492,6 +496,12 @@ const UsersManagement = () => {
         toast.error(normalized.error || "Please enter a valid contact number");
         return;
       }
+      if (!isConsumerGmailEmail(addForm.email)) {
+        toast.error(
+          "Email must be Gmail, Yahoo, or Apple mail (e.g. @gmail.com, @yahoo.com, @icloud.com)."
+        );
+        return;
+      }
       const payload = { ...addForm, contact: normalized.normalized };
       const resp = await API.post("/buysellapi/user/register/", payload);
       toast.success(resp.data?.message || "User added successfully");
@@ -532,6 +542,13 @@ const UsersManagement = () => {
           return;
         }
         payload.contact = normalized.normalized;
+      }
+      if (payload.status === "suspended") {
+        const r = (payload.account_suspension_reason || "").trim();
+        if (!r) {
+          toast.error("Please enter a suspension reason for deactivated accounts.");
+          return;
+        }
       }
       await API.put(`/buysellapi/users/${selectedUser.id}/update/`, payload);
       toast.success("User updated successfully");
@@ -654,6 +671,46 @@ const UsersManagement = () => {
     }
   };
 
+  const handleExportRegistrations = async () => {
+    if (!isAdmin) {
+      toast.error("Only admins can export user registrations.");
+      return;
+    }
+    setExportingUsers(true);
+    try {
+      const resp = await API.get("/buysellapi/admin/users/export/", {
+        isAdmin: true,
+        params: { q: debouncedSearchTerm?.trim() || undefined },
+        responseType: "blob",
+      });
+      const blob = new Blob([resp.data], { type: "text/csv;charset=utf-8" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      const cd = resp.headers?.["content-disposition"];
+      let filename = `user_registrations_${new Date().toISOString().slice(0, 10)}.csv`;
+      if (cd) {
+        const match = /filename="?([^";\n]+)"?/.exec(cd);
+        if (match?.[1]) filename = match[1];
+      }
+      link.setAttribute("download", filename);
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success("Registration export downloaded (open in Excel).");
+    } catch (error) {
+      const msg =
+        error.response?.data?.detail ||
+        (typeof error.response?.data === "string" ? error.response.data : null) ||
+        "Failed to export registrations.";
+      toast.error(msg);
+    } finally {
+      setExportingUsers(false);
+    }
+  };
+
   const handleBulkUpdateStatus = async (selectedIds, newStatus) => {
     if (!isAdmin) {
       toast.error("Only admins can update user status");
@@ -679,13 +736,30 @@ const UsersManagement = () => {
         <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
           Users Management
         </h2>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2"
-        >
-          <FaUserPlus />
-          <span>Add User</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={handleExportRegistrations}
+              disabled={exportingUsers}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 disabled:opacity-50"
+            >
+              {exportingUsers ? (
+                <FaSpinner className="animate-spin" />
+              ) : (
+                <FaDownload />
+              )}
+              <span>{exportingUsers ? "Exporting…" : "Export to Excel"}</span>
+            </button>
+          )}
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2"
+          >
+            <FaUserPlus />
+            <span>Add User</span>
+          </button>
+        </div>
       </div>
 
       {/* Search Bar */}
@@ -704,6 +778,11 @@ const UsersManagement = () => {
           />
           <FaSearch className="absolute left-3 top-3 text-gray-400" />
         </div>
+        {isAdmin && (
+          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+            Export includes all matching users (not only this page). Use search to narrow the export.
+          </p>
+        )}
       </div>
 
       {/* Bulk Actions */}
@@ -829,7 +908,9 @@ const UsersManagement = () => {
                       className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full uppercase ${
                         user.status === "active"
                           ? "bg-gradient-to-r from-green-400 to-emerald-500 text-white shadow-sm"
-                          : "bg-gradient-to-r from-red-400 to-rose-500 text-white shadow-sm"
+                          : user.status === "inactive"
+                            ? "bg-gradient-to-r from-amber-400 to-yellow-500 text-white shadow-sm"
+                            : "bg-gradient-to-r from-red-400 to-rose-500 text-white shadow-sm"
                       }`}
                     >
                       {user.status}
@@ -849,6 +930,8 @@ const UsersManagement = () => {
                           email: user.email || "",
                           role: user.role || "user",
                           status: user.status || "active",
+                          account_suspension_reason:
+                            user.account_suspension_reason || "",
                           contact: user.contact || "",
                           location: user.location || "",
                           is_rider: Boolean(user.is_rider),
@@ -990,7 +1073,10 @@ const UsersManagement = () => {
                   </div>
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Email *
+                      Email *{" "}
+                      <span className="font-normal text-gray-500">
+                        (Gmail, Yahoo, or Apple mail)
+                      </span>
                     </label>
                     <input
                       type="email"
@@ -999,6 +1085,7 @@ const UsersManagement = () => {
                         setAddForm({ ...addForm, email: e.target.value })
                       }
                       className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="you@gmail.com or you@icloud.com"
                       required
                     />
                   </div>
@@ -1085,7 +1172,7 @@ const UsersManagement = () => {
       {/* Edit User Modal */}
       {showEditModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-full max-w-md">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-white">
               Edit User
             </h3>
@@ -1140,15 +1227,42 @@ const UsersManagement = () => {
                   </label>
                   <select
                     value={editForm.status}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, status: e.target.value })
-                    }
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setEditForm((prev) => ({
+                        ...prev,
+                        status: v,
+                        account_suspension_reason:
+                          v === "suspended" ? prev.account_suspension_reason : "",
+                      }));
+                    }}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                   >
                     <option value="active">Active</option>
                     <option value="inactive">Inactive</option>
+                    <option value="suspended">Suspended (deactivated)</option>
                   </select>
                 </div>
+                {editForm.status === "suspended" && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Suspension reason (shown to user on login) *
+                    </label>
+                    <textarea
+                      value={editForm.account_suspension_reason}
+                      onChange={(e) =>
+                        setEditForm({
+                          ...editForm,
+                          account_suspension_reason: e.target.value,
+                        })
+                      }
+                      rows={4}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                      placeholder="Explain why this account was deactivated…"
+                      required={editForm.status === "suspended"}
+                    />
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                     Contact

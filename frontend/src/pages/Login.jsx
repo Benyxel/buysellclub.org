@@ -5,6 +5,7 @@ import { FaEye, FaEyeSlash } from "react-icons/fa";
 import { FcGoogle } from "react-icons/fc";
 import API from "../api";
 import { normalizePhone } from "../utils/ghanaPhone";
+import WhatsAppWidget from "../components/WhatsAppWidget";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -46,6 +47,23 @@ const Login = () => {
   const [googleContactError, setGoogleContactError] = useState("");
   const [googleContactLoading, setGoogleContactLoading] = useState(false);
   const [googleLoginUsername, setGoogleLoginUsername] = useState("");
+  const [suspendedModal, setSuspendedModal] = useState({ open: false, reason: "" });
+
+  const openSuspendedModal = (reason) => {
+    const text =
+      (reason || "").trim() ||
+      "Your account has been suspended. Please contact support.";
+    setSuspendedModal({ open: true, reason: text });
+    setErrors((p) => ({ ...p, form: "" }));
+  };
+
+  const suspendedReasonFromResponse = (data) => {
+    if (!data || !data.account_suspended) return null;
+    return (
+      (data.suspension_reason || data.detail || "").trim() ||
+      "Your account has been suspended. Please contact support."
+    );
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -102,6 +120,12 @@ const Login = () => {
       console.error("Login error:", err);
       console.error("Error response:", err.response?.data);
       console.error("Error status:", err.response?.status);
+
+      const suspended = suspendedReasonFromResponse(err.response?.data);
+      if (suspended) {
+        openSuspendedModal(suspended);
+        return;
+      }
 
       let errorMsg = "Login failed. Please try again.";
 
@@ -178,6 +202,11 @@ const Login = () => {
       setOtpSent(true);
       toast.success("OTP sent! Check your email");
     } catch (err) {
+      const suspended = suspendedReasonFromResponse(err.response?.data);
+      if (suspended) {
+        openSuspendedModal(suspended);
+        return;
+      }
       const msg = err.response?.data?.detail || "Failed to send OTP";
       toast.error(msg);
     } finally {
@@ -207,6 +236,11 @@ const Login = () => {
       toast.success("Logged in with OTP!");
       navigate(redirectTo || "/");
     } catch (err) {
+      const suspended = suspendedReasonFromResponse(err.response?.data);
+      if (suspended) {
+        openSuspendedModal(suspended);
+        return;
+      }
       const msg =
         err.response?.data?.detail || "Invalid code. Please try again.";
       toast.error(msg);
@@ -281,6 +315,12 @@ const Login = () => {
           statusText: err.response?.statusText,
           url: err.config?.url,
         });
+        const suspended = suspendedReasonFromResponse(err.response?.data);
+        if (suspended) {
+          openSuspendedModal(suspended);
+          setGoogleError("");
+          return;
+        }
         const message =
           err.response?.data?.detail ||
           err.response?.data?.form ||
@@ -1140,6 +1180,49 @@ const Login = () => {
                 </div>
               </div>
             </div>
+          )}
+
+          {suspendedModal.open && (
+            <>
+              <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/50 p-4">
+                <div
+                  className="max-w-md w-full rounded-xl bg-white dark:bg-gray-800 shadow-xl border border-red-200 dark:border-red-900/50 p-6"
+                  role="alertdialog"
+                  aria-labelledby="suspended-title"
+                  aria-describedby="suspended-desc"
+                >
+                  <h3
+                    id="suspended-title"
+                    className="text-lg font-semibold text-red-700 dark:text-red-400 mb-2"
+                  >
+                    Account suspended
+                  </h3>
+                  <p
+                    id="suspended-desc"
+                    className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap mb-4"
+                  >
+                    {suspendedModal.reason}
+                  </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+                    Questions or think this is a mistake? Tap{" "}
+                    <strong className="text-gray-900 dark:text-white">WhatsApp now</strong>{" "}
+                    to reach us.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setSuspendedModal({ open: false, reason: "" })}
+                    className="w-full py-2.5 rounded-lg bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900 font-medium hover:opacity-90 transition-opacity"
+                  >
+                    OK
+                  </button>
+                </div>
+              </div>
+              <WhatsAppWidget
+                phone="+233535377248"
+                label="WhatsApp now"
+                className="!z-[2100]"
+              />
+            </>
           )}
 
           <div className="mt-4 text-sm text-gray-600 dark:text-gray-300">

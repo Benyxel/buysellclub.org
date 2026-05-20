@@ -26,6 +26,7 @@ import {
   initiateBuy4meSourcingFee,
   submitBuy4meDetails,
 } from "../../api";
+import WhatsAppWidget from "../../components/WhatsAppWidget";
 
 // Removed placeholder products - only show products from backend API
 
@@ -552,6 +553,7 @@ const Buy4me = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <WhatsAppWidget phone="+233535377248" label="WhatsApp now" />
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">

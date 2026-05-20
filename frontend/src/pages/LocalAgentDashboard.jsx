@@ -25,7 +25,9 @@ const LocalAgentDashboard = () => {
   const statusLabel = (status) => {
     const map = {
       preparing: "Preparing",
+      receiving_goods: "Receiving Goods",
       loading: "Loading",
+      laden: "Laden",
       in_transit: "In Transit",
       clearing: "Clearing",
       arrived_port: "Arrived at Port",

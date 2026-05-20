@@ -6,6 +6,7 @@ import { FcGoogle } from "react-icons/fc";
 import API from "../api";
 import { trackSignUp } from "../utils/ga4";
 import { normalizePhone } from "../utils/ghanaPhone";
+import { isConsumerGmailEmail } from "../utils/registrationEmail";
 
 const Signup = () => {
   const navigate = useNavigate();
@@ -84,11 +85,14 @@ const Signup = () => {
       }
     }
 
-    // Email validation
+    // Email validation (allowed consumer domains; matches backend)
     if (form.email) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(form.email)) {
         newErrors.email = "Please enter a valid email address";
+      } else if (!isConsumerGmailEmail(form.email)) {
+        newErrors.email =
+          "Use Gmail, Yahoo, or Apple mail (e.g. @gmail.com, @yahoo.com, @icloud.com).";
       }
     }
 
@@ -809,7 +813,10 @@ const Signup = () => {
 
               <div className="md:col-span-2">
                 <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
-                  Email *
+                  Email *{" "}
+                  <span className="font-normal text-gray-500">
+                    (Gmail, Yahoo, or Apple mail)
+                  </span>
                 </label>
                 <input
                   type="email"
@@ -821,7 +828,8 @@ const Signup = () => {
                       ? "border-red-500"
                       : "border-gray-300 dark:border-gray-600"
                   } bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent`}
-                  placeholder="you@example.com"
+                  placeholder="you@gmail.com or name@icloud.com"
+                  autoComplete="email"
                   required
                 />
                 {errors.email && (

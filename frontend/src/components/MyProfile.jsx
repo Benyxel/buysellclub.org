@@ -52,6 +52,7 @@ import {
   FaTrophy,
   FaArrowRight,
   FaFilePdf,
+  FaLock,
 } from "react-icons/fa";
 import { trackingSystem } from "../utils/trackingSystem";
 import { NOTE_MESSAGE } from "./ShippingTrackingNote";
@@ -81,7 +82,7 @@ import AvatarSVG from "./AvatarSVG";
 import VendorSales from "../pages/VendorSales";
 import { normalizePhone } from "../utils/ghanaPhone";
 import ProfileRiderWorkspace from "./profile/ProfileRiderWorkspace";
-import ProfileCustomerDelivery from "./profile/ProfileCustomerDelivery";
+import { DeliveryComingSoonContent } from "./DeliveryComingSoon";
 import { formatMarkIdForDisplay, formatMarkIdInText } from "../utils/markIdFormat";
 
 const MyProfile = () => {
@@ -2735,7 +2736,8 @@ const MyProfile = () => {
                     }`}
                   >
                     <FaShippingFast className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
-                    Delivery
+                    <FaLock className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0 text-amber-200" aria-hidden />
+                    <span className="flex-1 text-left">Delivery</span>
                   </button>
                 )}
                 <button
@@ -5447,7 +5449,9 @@ const MyProfile = () => {
             )}
 
             {activeTab === "delivery" && currentUser && currentUser.is_rider !== true && (
-              <ProfileCustomerDelivery />
+              <div className="rounded-lg bg-white p-4 shadow-md dark:bg-gray-800 sm:p-6">
+                <DeliveryComingSoonContent />
+              </div>
             )}
 
             {activeTab === "seller" && (

@@ -48,7 +48,9 @@ const ContainerManagement = () => {
 
   const statusOptions = [
     { value: "preparing", label: "Preparing" },
+    { value: "receiving_goods", label: "Receiving Goods" },
     { value: "loading", label: "Loading" },
+    { value: "laden", label: "Laden" },
     { value: "in_transit", label: "In Transit" },
     { value: "clearing", label: "Clearing" },
     { value: "arrived_port", label: "Arrived at Port" },
@@ -179,6 +181,25 @@ const ContainerManagement = () => {
         : formData.display_cbm,
   });
 
+  const formatBackendError = (data) => {
+    // Backend returns either a plain string under `error`, or a DRF
+    // validation dict like { error: { status: ["\"laden\" is not a valid choice."] } }.
+    // Flatten it to a readable single-line message so the toast is useful.
+    if (!data) return null;
+    const root = data.error ?? data.detail ?? data;
+    if (typeof root === "string") return root;
+    if (Array.isArray(root)) return root.join(" ");
+    if (typeof root === "object") {
+      const parts = [];
+      for (const [field, val] of Object.entries(root)) {
+        const text = Array.isArray(val) ? val.join(" ") : String(val);
+        parts.push(`${field}: ${text}`);
+      }
+      return parts.join(" | ");
+    }
+    return String(root);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -200,7 +221,11 @@ const ContainerManagement = () => {
       fetchContainers();
     } catch (error) {
       console.error("Error saving container:", error);
-      toast.error(error.response?.data?.error || "Failed to save container");
+      const message =
+        formatBackendError(error.response?.data) ||
+        error.message ||
+        "Failed to save container";
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -281,8 +306,12 @@ const ContainerManagement = () => {
     const colors = {
       preparing:
         "bg-gradient-to-r from-yellow-400 to-amber-500 text-white shadow-sm",
+      receiving_goods:
+        "bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-sm",
       loading:
         "bg-gradient-to-r from-blue-400 to-cyan-500 text-white shadow-sm",
+      laden:
+        "bg-gradient-to-r from-indigo-400 to-blue-500 text-white shadow-sm",
       in_transit:
         "bg-gradient-to-r from-purple-400 to-pink-500 text-white shadow-sm",
       clearing:

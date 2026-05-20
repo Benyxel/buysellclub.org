@@ -391,8 +391,14 @@ const ContainerShipmentWidget = ({ launcherHidden = false } = {}) => {
     };
   }, [isDragging, dragStart.x, dragStart.y, position.x, position.y]);
 
+  // Containers shown in this widget: in_transit AND laden.
+  // Laden = container is loaded but has not departed yet (no ETA), so it
+  // re-uses the same icons/labels as an in_transit container with no ETA.
   const inTransit = useMemo(
-    () => containers.filter((c) => c?.status === "in_transit"),
+    () =>
+      containers.filter(
+        (c) => c?.status === "in_transit" || c?.status === "laden"
+      ),
     [containers]
   );
 
@@ -511,6 +517,7 @@ const ContainerShipmentWidget = ({ launcherHidden = false } = {}) => {
                   </p>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                     When a container status is set to{" "}
+                    <span className="font-semibold">Laden</span> or{" "}
                     <span className="font-semibold">In Transit</span>, it will
                     appear here automatically.
                   </p>
@@ -519,12 +526,16 @@ const ContainerShipmentWidget = ({ launcherHidden = false } = {}) => {
 
               <div className="grid gap-5">
                 {inTransit.map((c) => {
+                const isLaden = c?.status === "laden";
+                // For laden containers, ignore any arrival_date so the laden
+                // icons/labels (the "no ETA" path) are used consistently.
+                const arrivalForCalc = isLaden ? null : c.arrival_date;
                 const progress = calcProgress({
                   departureDate: c.departure_date,
-                  arrivalDate: c.arrival_date,
+                  arrivalDate: arrivalForCalc,
                 });
                 const dep = parseISODate(c.departure_date);
-                const arr = parseISODate(c.arrival_date);
+                const arr = parseISODate(arrivalForCalc);
                 const pct = progress == null ? null : Math.round(progress * 100);
                 const daysLeft = daysUntil(arr);
 

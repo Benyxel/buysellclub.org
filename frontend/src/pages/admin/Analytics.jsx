@@ -543,7 +543,7 @@ const Analytics = ({ activeTab = "overview" }) => {
         </>
       )}
 
-      {/* Site analytics: daily signups, daily visitors, Quick Links & Community pages */}
+      {/* Site analytics: daily signups, daily visitors, Quick Links, Digital Store & Community pages */}
       {activeTab === "site" && (
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
           <div className="flex items-center gap-3 mb-6">
@@ -619,7 +619,7 @@ const Analytics = ({ activeTab = "overview" }) => {
           </div>
 
           <h4 className="text-lg font-medium text-gray-800 dark:text-white mb-3 flex items-center gap-2">
-            <FaChartLine className="text-purple-600" /> Quick Links & Community page views
+            <FaChartLine className="text-purple-600" /> Quick Links, Digital Store & Community page views
           </h4>
           <div className="border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden">
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">

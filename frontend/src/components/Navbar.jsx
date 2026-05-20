@@ -26,6 +26,7 @@ import {
   FaVideo,
   FaDownload,
   FaFilePdf,
+  FaLock,
 } from "react-icons/fa";
 import { IoMdArrowDropdown, IoMdMenu } from "react-icons/io";
 import DarkMode from "./DarkMode";
@@ -506,9 +507,12 @@ export default function Navbar() {
                         <li key={index}>
                           <Link
                             to={data.href || "/"}
-                            className="text-gray-500 hover:text-black dark:hover:text-white p-1 duration-200 inline-block w-full hover:bg-brandGreen/20 rounded-md"
+                            className="inline-flex w-full items-center gap-2 rounded-md p-1 text-gray-500 duration-200 hover:bg-brandGreen/20 hover:text-black dark:hover:text-white dark:text-gray-300"
                           >
-                            {data.name}
+                            {data.name === "Delivery" && (
+                              <FaLock className="shrink-0 text-xs text-amber-600 dark:text-amber-400" aria-hidden />
+                            )}
+                            <span>{data.name}</span>
                           </Link>
                         </li>
                       ))}
@@ -753,8 +757,14 @@ export default function Navbar() {
                     >
                       <it.Icon className="text-base" />
                     </span>
-                    <span className="text-sm font-bold leading-tight text-inherit">
-                      {it.label}
+                    <span className="text-sm font-bold leading-tight text-inherit flex items-center gap-1.5 min-w-0">
+                      {it.label === "Delivery" && (
+                        <FaLock
+                          className="h-3.5 w-3.5 shrink-0 text-amber-800 dark:text-amber-300"
+                          aria-hidden
+                        />
+                      )}
+                      <span className="min-w-0 truncate">{it.label}</span>
                     </span>
                   </Link>
                 ))}
@@ -821,7 +831,15 @@ export default function Navbar() {
                         >
                           <it.Icon className="text-sm" />
                         </span>
-                        <span className="min-w-0 truncate">{it.label}</span>
+                        <span className="flex min-w-0 flex-1 items-center gap-2 truncate">
+                          {it.label === "Delivery" && (
+                            <FaLock
+                              className="h-3.5 w-3.5 shrink-0 text-amber-700 dark:text-amber-300"
+                              aria-hidden
+                            />
+                          )}
+                          <span className="truncate">{it.label}</span>
+                        </span>
                       </Link>
                     </li>
                   ))}

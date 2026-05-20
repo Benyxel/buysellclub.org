@@ -3,6 +3,8 @@ import { FaInfoCircle, FaTimes, FaShip, FaBoxes, FaYenSign, FaGripVertical, FaCh
 import { Link } from "react-router-dom";
 import { Api } from "../api";
 import forkliftIcon from "../assets/forklift.png";
+import warehouseIcon from "../assets/warehouse.png";
+import carIcon from "../assets/car.png";
 
 const ContainerInfoWidget = ({ launcherHidden = false } = {}) => {
   const [open, setOpen] = useState(false);
@@ -117,9 +119,12 @@ const ContainerInfoWidget = ({ launcherHidden = false } = {}) => {
     try {
       const response = await Api.containers.list();
       const containersList = response?.data || [];
-      // Filter to only show preparing and loading containers (backend should already filter, but double-check)
+      // Filter to only show preparing/receiving/loading containers (backend should already filter, but double-check)
       const filteredContainers = containersList.filter(
-        c => c.status === "preparing" || c.status === "loading"
+        c =>
+          c.status === "preparing" ||
+          c.status === "receiving_goods" ||
+          c.status === "loading"
       );
       setContainers(filteredContainers);
       
@@ -328,13 +333,17 @@ const ContainerInfoWidget = ({ launcherHidden = false } = {}) => {
                       className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${
                         containerInfo.status === "loading"
                           ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300"
-                          : containerInfo.status === "in_transit"
-                            ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
-                            : containerInfo.status === "arrived_port"
-                              ? "bg-cyan-100 text-cyan-900 dark:bg-cyan-900/30 dark:text-cyan-200"
-                              : containerInfo.status === "offloaded"
-                                ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
-                                : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
+                          : containerInfo.status === "receiving_goods"
+                            ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
+                            : containerInfo.status === "laden"
+                              ? "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300"
+                              : containerInfo.status === "in_transit"
+                                ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
+                                : containerInfo.status === "arrived_port"
+                                  ? "bg-cyan-100 text-cyan-900 dark:bg-cyan-900/30 dark:text-cyan-200"
+                                  : containerInfo.status === "offloaded"
+                                    ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                                    : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
                       }`}
                     >
                       {containerInfo.status === "loading" ? (
@@ -351,7 +360,9 @@ const ContainerInfoWidget = ({ launcherHidden = false } = {}) => {
                         (
                           {
                             preparing: "Preparing",
+                            receiving_goods: "Receiving Goods",
                             loading: "Loading",
+                            laden: "Laden",
                             in_transit: "In Transit",
                             clearing: "Clearing",
                             arrived_port: "Arrived at Port",
@@ -368,6 +379,64 @@ const ContainerInfoWidget = ({ launcherHidden = false } = {}) => {
                       {containerInfo.notes}
                     </span>
                   )}
+                </div>
+              )}
+
+              {containerInfo.status === "receiving_goods" && (
+                <div className="mt-3 relative z-10 overflow-hidden rounded-lg border border-amber-200 dark:border-amber-700/50 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 px-3 py-2.5">
+                  <style>{`
+                    @keyframes carDrive {
+                      0% { left: -22%; opacity: 1; }
+                      72% { left: calc(100% - 70px); opacity: 1; }
+                      78% { left: calc(100% - 50px); opacity: 0; }
+                      79% { left: -22%; opacity: 0; }
+                      100% { left: -22%; opacity: 1; }
+                    }
+                    @keyframes carBob {
+                      0%, 100% { transform: translateY(0); }
+                      50% { transform: translateY(-1.5px); }
+                    }
+                    @keyframes warehouseGlow {
+                      0%, 100% { filter: drop-shadow(0 0 0 rgba(245,158,11,0)); }
+                      50% { filter: drop-shadow(0 0 6px rgba(245,158,11,0.45)); }
+                    }
+                  `}</style>
+                  <div className="relative h-10">
+                    {/* dashed road */}
+                    <div
+                      className="absolute left-0 top-1/2 -translate-y-1/2 border-t-2 border-dashed border-amber-400/60 dark:border-amber-500/50"
+                      style={{ right: "56px" }}
+                      aria-hidden="true"
+                    ></div>
+
+                    {/* warehouse pinned to the right */}
+                    <img
+                      src={warehouseIcon}
+                      alt="Warehouse"
+                      className="absolute right-0 top-1/2 -translate-y-1/2 h-10 w-auto max-h-10 object-contain"
+                      style={{ animation: "warehouseGlow 2.4s ease-in-out infinite" }}
+                      width={56}
+                      height={40}
+                    />
+
+                    {/* car driving in */}
+                    <div
+                      className="absolute top-1/2 -translate-y-1/2"
+                      style={{ animation: "carDrive 3.6s ease-in-out infinite" }}
+                    >
+                      <img
+                        src={carIcon}
+                        alt="Car delivering goods"
+                        className="h-7 w-auto max-h-7 object-contain drop-shadow-sm"
+                        style={{ animation: "carBob 0.9s ease-in-out infinite" }}
+                        width={48}
+                        height={28}
+                      />
+                    </div>
+                  </div>
+                  <p className="mt-1 text-center text-[11px] font-semibold text-amber-800 dark:text-amber-200">
+                    Receiving goods at the warehouse
+                  </p>
                 </div>
               )}
             </div>

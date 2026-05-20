@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { FaLayerGroup, FaShip, FaInfoCircle, FaMotorcycle, FaTimes } from "react-icons/fa";
+import { FaLayerGroup, FaShip, FaInfoCircle, FaMotorcycle, FaTimes, FaLock } from "react-icons/fa";
 
 function dispatchOpen(name) {
   window.dispatchEvent(new CustomEvent("bsc:open-widget", { detail: { name } }));
@@ -58,9 +58,15 @@ const HomeWidgetsHub = () => {
               dispatchOpen("delivery");
               setOpen(false);
             }}
-            className="flex h-12 items-center gap-2 rounded-full bg-gradient-to-r from-pink-500 to-pink-600 px-5 text-sm font-semibold text-white shadow-xl transition-all hover:from-pink-600 hover:to-pink-700"
+            className="flex h-12 items-center gap-2 rounded-full bg-gradient-to-r from-gray-500 to-gray-600 px-5 text-sm font-semibold text-white shadow-xl ring-2 ring-amber-400/60 transition-all hover:from-gray-600 hover:to-gray-700"
           >
-            <FaMotorcycle className="text-white" />
+            <span className="relative inline-flex shrink-0">
+              <FaMotorcycle className="text-white" />
+              <FaLock
+                className="absolute -bottom-0.5 -right-1 rounded-full bg-amber-100 p-px text-[9px] text-amber-900"
+                aria-hidden
+              />
+            </span>
             Delivery
           </button>
         </div>

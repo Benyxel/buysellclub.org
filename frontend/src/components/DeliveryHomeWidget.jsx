@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { FaMotorcycle, FaGripVertical } from "react-icons/fa";
+import { FaMotorcycle, FaGripVertical, FaLock } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 
 const DeliveryHomeWidget = ({ launcherHidden = false } = {}) => {
@@ -88,7 +88,7 @@ const DeliveryHomeWidget = ({ launcherHidden = false } = {}) => {
   useEffect(() => {
     const handler = (e) => {
       if (e?.detail?.name !== "delivery") return;
-      navigate("/Profile?tab=delivery");
+      navigate("/Delivery");
     };
     window.addEventListener("bsc:open-widget", handler);
     return () => window.removeEventListener("bsc:open-widget", handler);
@@ -112,17 +112,23 @@ const DeliveryHomeWidget = ({ launcherHidden = false } = {}) => {
     <button
       ref={buttonRef}
       onClick={() => {
-        if (!isDragging) navigate("/Profile?tab=delivery");
+        if (!isDragging) navigate("/Delivery");
       }}
       onMouseDown={handleMouseDown}
       style={buttonStyle}
-      className={`hidden md:flex fixed z-[1100] items-center gap-2 rounded-full bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 px-4 py-2.5 md:px-5 md:py-3 text-sm font-semibold text-white shadow-xl transition-all cursor-move ${
+      className={`hidden md:flex fixed z-[1100] cursor-move items-center gap-2 rounded-full bg-gradient-to-r from-gray-500 to-gray-600 px-4 py-2.5 text-sm font-semibold text-white shadow-xl ring-2 ring-amber-400/70 transition-all hover:from-gray-600 hover:to-gray-700 md:px-5 md:py-3 ${
         !hasCustomPosition ? "bottom-5 left-4 md:left-[29rem]" : ""
-      } ${isDragging ? "opacity-80 scale-95" : "hover:scale-105"}`}
-      aria-label="Open delivery"
+      } ${isDragging ? "scale-95 opacity-80" : "hover:scale-105"}`}
+      aria-label="Delivery — coming soon"
     >
-      <FaGripVertical className="text-base md:text-lg drag-handle opacity-70" />
-      <FaMotorcycle className="text-base md:text-lg" />
+      <FaGripVertical className="drag-handle text-base opacity-70 md:text-lg" />
+      <span className="relative inline-flex shrink-0">
+        <FaMotorcycle className="text-base md:text-lg" />
+        <FaLock
+          className="absolute -bottom-1 -right-1 rounded-full bg-amber-100 p-0.5 text-[10px] text-amber-900 shadow"
+          aria-hidden
+        />
+      </span>
       <span className="hidden sm:inline">Delivery</span>
     </button>
   );
