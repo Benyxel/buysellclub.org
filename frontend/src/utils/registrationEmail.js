@@ -1,8 +1,7 @@
 /**
  * Allowed registration / community guest domains (matches backend `registration_email.py`).
- * @param {string} email
- * @returns {boolean}
  */
+
 const ALLOWED = new Set([
   "gmail.com",
   "googlemail.com",
@@ -62,8 +61,50 @@ const ALLOWED = new Set([
   "mac.com",
 ]);
 
+/** @type {Record<string, string>} */
+const DOMAIN_TYPOS = {
+  "gmail.con": "gmail.com",
+  "gmail.cmo": "gmail.com",
+  "gmail.comm": "gmail.com",
+  "gmail.comn": "gmail.com",
+  "gmail.coom": "gmail.com",
+  "gmail.cm": "gmail.com",
+  "gmail.co": "gmail.com",
+  "gmial.com": "gmail.com",
+  "gmal.com": "gmail.com",
+  "gamil.com": "gmail.com",
+  "gnail.com": "gmail.com",
+  "googlemail.con": "googlemail.com",
+  "googlemail.cmo": "googlemail.com",
+  "yahoo.con": "yahoo.com",
+  "yahoo.cmo": "yahoo.com",
+  "yahoo.comm": "yahoo.com",
+  "yahooo.com": "yahoo.com",
+  "yaho.com": "yahoo.com",
+  "ymail.con": "ymail.com",
+  "rocketmail.con": "rocketmail.com",
+  "icloud.con": "icloud.com",
+  "icloud.cmo": "icloud.com",
+  "icloud.comm": "icloud.com",
+  "me.con": "me.com",
+  "mac.con": "mac.com",
+};
+
+const TLD_TYPO_REPLACEMENTS = [
+  [".con", ".com"],
+  [".cmo", ".com"],
+  [".comm", ".com"],
+  [".comn", ".com"],
+  [".coom", ".com"],
+  [".cm", ".com"],
+];
+
+export function normalizeRegistrationEmail(email) {
+  return (email || "").trim().toLowerCase().replace(/\.+$/, "");
+}
+
 export function isConsumerGmailEmail(email) {
-  const e = (email || "").trim().toLowerCase();
+  const e = normalizeRegistrationEmail(email);
   const at = e.lastIndexOf("@");
   if (at < 1) return false;
   const domain = e.slice(at + 1);
@@ -72,3 +113,48 @@ export function isConsumerGmailEmail(email) {
 
 /** Same check; clearer name for new code. */
 export const isAllowedRegistrationEmail = isConsumerGmailEmail;
+
+/**
+ * @param {string} email
+ * @returns {string|null} Corrected full email if domain looks like a typo
+ */
+export function suggestRegistrationEmailCorrection(email) {
+  const e = normalizeRegistrationEmail(email);
+  const at = e.lastIndexOf("@");
+  if (at < 1) return null;
+  const local = e.slice(0, at);
+  const domain = e.slice(at + 1);
+  if (ALLOWED.has(domain)) return null;
+
+  const mapped = DOMAIN_TYPOS[domain];
+  if (mapped && ALLOWED.has(mapped)) {
+    return `${local}@${mapped}`;
+  }
+
+  for (const [wrong, right] of TLD_TYPO_REPLACEMENTS) {
+    if (domain.endsWith(wrong)) {
+      const candidate = domain.slice(0, -wrong.length) + right;
+      if (ALLOWED.has(candidate)) {
+        return `${local}@${candidate}`;
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * @param {string} email
+ * @returns {string|null} Error message, or null if email is allowed
+ */
+export function registrationEmailError(email) {
+  const normalized = normalizeRegistrationEmail(email);
+  if (!normalized) return "Email address is required.";
+  if (!normalized.includes("@")) return "Please enter a valid email address.";
+  if (isConsumerGmailEmail(normalized)) return null;
+
+  const suggestion = suggestRegistrationEmailCorrection(normalized);
+  if (suggestion) {
+    return `Did you mean ${suggestion}? Check the domain spelling (for example .com, not .con).`;
+  }
+  return "Use Gmail, Yahoo, or Apple mail (e.g. @gmail.com, @yahoo.com, @icloud.com).";
+}

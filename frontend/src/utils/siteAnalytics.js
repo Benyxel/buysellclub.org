@@ -1,6 +1,6 @@
 /**
  * Custom site analytics: record page views to backend for admin dashboard.
- * Used for: daily visitors, Quick Links & Community page views.
+ * Used for: daily visitors, Shop, Quick Links & Community page views.
  */
 
 import API from "../api";

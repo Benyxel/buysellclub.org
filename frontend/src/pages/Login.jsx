@@ -1227,7 +1227,11 @@ const Login = () => {
 
           <div className="mt-4 text-sm text-gray-600 dark:text-gray-300">
             <span>Don&apos;t have an account? </span>
-            <Link to="/Signup" className="text-primary hover:underline">
+            <Link
+              to="/Signup"
+              state={redirectTo ? { redirectTo } : undefined}
+              className="text-primary hover:underline"
+            >
               Sign up
             </Link>
           </div>

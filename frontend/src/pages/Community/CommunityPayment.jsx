@@ -4,7 +4,7 @@ import { toast } from "../../utils/toast";
 import { Link, useSearchParams } from "react-router-dom";
 import { Api } from "../../api";
 import CountryPhoneInput from "../../components/shared/CountryPhoneInput";
-import { isConsumerGmailEmail } from "../../utils/registrationEmail";
+import { registrationEmailError } from "../../utils/registrationEmail";
 
 const PAYER_GHANA = "ghana";
 const PAYER_ABROAD = "abroad";
@@ -102,11 +102,9 @@ const CommunityPayment = () => {
     };
     const emailVal = (guestEmail || "").trim().toLowerCase();
     if (emailVal) {
-      if (!isConsumerGmailEmail(emailVal)) {
-        return {
-          error:
-            "Please use Gmail, Yahoo, or Apple mail (e.g. @gmail.com, @yahoo.com, @icloud.com).",
-        };
+      const emailErr = registrationEmailError(emailVal);
+      if (emailErr) {
+        return { error: emailErr };
       }
       payload.email = emailVal;
       if ((guestPhone?.nationalNumber || "").trim()) {
@@ -129,10 +127,9 @@ const CommunityPayment = () => {
         toast.error("Please enter a valid email address.");
         return;
       }
-      if (!isConsumerGmailEmail(email)) {
-        toast.error(
-          "Please use Gmail, Yahoo, or Apple mail (e.g. @gmail.com, @yahoo.com, @icloud.com)."
-        );
+      const emailErr = registrationEmailError(email);
+      if (emailErr) {
+        toast.error(emailErr);
         return;
       }
     }
@@ -190,10 +187,9 @@ const CommunityPayment = () => {
         toast.error("Please enter a valid email address.");
         return;
       }
-      if (!isConsumerGmailEmail(email)) {
-        toast.error(
-          "Please use Gmail, Yahoo, or Apple mail (e.g. @gmail.com, @yahoo.com, @icloud.com)."
-        );
+      const emailErr = registrationEmailError(email);
+      if (emailErr) {
+        toast.error(emailErr);
         return;
       }
     }

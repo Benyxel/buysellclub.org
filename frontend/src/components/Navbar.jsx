@@ -27,6 +27,7 @@ import {
   FaDownload,
   FaFilePdf,
   FaLock,
+  FaGraduationCap,
 } from "react-icons/fa";
 import { IoMdArrowDropdown, IoMdMenu } from "react-icons/io";
 import DarkMode from "./DarkMode";
@@ -53,6 +54,7 @@ const Quicklinks = [
   { name: "Tracking", href: "/tracking" },
   { name: "Quick Tracking", href: "/QuickTracking" },
   { name: "Delivery", href: "/Delivery" },
+  { name: "Training", href: "/Training" },
   { name: "Digital Store", href: "/DigitalStore" },
   { name: "Our Rates", href: "/OurRates" },
   { name: "Alipay Payment", href: "/AlipayPayment" },
@@ -146,6 +148,10 @@ const MOBILE_SHORTCUT_STYLES = {
     tile: "border border-slate-200 bg-gradient-to-br from-amber-50 via-white to-yellow-50 text-slate-900 shadow-sm hover:border-amber-300 hover:shadow-md dark:border-slate-600 dark:from-slate-900 dark:via-slate-900 dark:to-amber-950 dark:text-slate-100 dark:hover:border-amber-400",
     icon: "bg-gradient-to-br from-amber-500 to-yellow-500 text-white shadow-md ring-2 ring-amber-200 dark:ring-amber-900",
   },
+  Training: {
+    tile: "border border-slate-200 bg-gradient-to-br from-blue-50 via-white to-indigo-50 text-slate-900 shadow-sm hover:border-blue-300 hover:shadow-md dark:border-slate-600 dark:from-slate-900 dark:via-slate-900 dark:to-indigo-950 dark:text-slate-100 dark:hover:border-blue-400",
+    icon: "bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-md ring-2 ring-blue-200 dark:ring-indigo-950",
+  },
   Community: {
     tile: "border border-slate-200 bg-gradient-to-bl from-purple-50 via-white to-pink-50 text-slate-900 shadow-sm hover:border-purple-300 hover:shadow-md dark:border-slate-600 dark:from-slate-900 dark:via-slate-900 dark:to-purple-950 dark:text-slate-100 dark:hover:border-purple-400",
     icon: "bg-gradient-to-br from-purple-500 to-pink-600 text-white shadow-md ring-2 ring-purple-200 dark:ring-purple-950",
@@ -174,6 +180,7 @@ const MOBILE_LIST_ICON = {
   "Shipping Addresses": "bg-indigo-600 text-white",
   Tracking: "bg-blue-600 text-white",
   "Quick Tracking": "bg-amber-500 text-white",
+  Training: "bg-blue-600 text-white",
   Delivery: "bg-teal-600 text-white",
   "Our Rates": "bg-amber-700 text-white",
   "Alipay Payment": "bg-emerald-600 text-white",
@@ -376,6 +383,7 @@ export default function Navbar() {
       "Shipping Addresses": FaMapMarkerAlt,
       Tracking: FaRoute,
       "Quick Tracking": FaTruck,
+      Training: FaGraduationCap,
       Delivery: FaShippingFast,
       "Our Rates": FaInfoCircle,
       "Alipay Payment": FaWallet,
@@ -410,6 +418,7 @@ export default function Navbar() {
       isLoggedIn ? "/AlipayPayment" : "/Login"
     );
     add("shortcuts", "Quick Tracking", "/QuickTracking");
+    add("shortcuts", "Training", "/Training");
     add(
       "shortcuts",
       "Community",

@@ -566,7 +566,6 @@ const Api = {
     bookings: (params) =>
       http.get("/buysellapi/training-bookings/", { params }),
     book: (payload) => http.post("/buysellapi/training-bookings/", payload),
-    bookPublic: (payload) => http.post("/buysellapi/public/training-bookings/", payload),
     settings: () => http.get("/buysellapi/training-settings/"),
     updateSettings: (payload) => http.post("/buysellapi/training-settings/", payload),
     payment: (id, payload) => http.put(`/buysellapi/training-bookings/${id}/payment/`, payload),

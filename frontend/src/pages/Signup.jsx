@@ -6,7 +6,7 @@ import { FcGoogle } from "react-icons/fc";
 import API from "../api";
 import { trackSignUp } from "../utils/ga4";
 import { normalizePhone } from "../utils/ghanaPhone";
-import { isConsumerGmailEmail } from "../utils/registrationEmail";
+import { registrationEmailError } from "../utils/registrationEmail";
 
 const Signup = () => {
   const navigate = useNavigate();
@@ -85,14 +85,11 @@ const Signup = () => {
       }
     }
 
-    // Email validation (allowed consumer domains; matches backend)
+    // Email validation (allowed consumer domains + typo hints; matches backend)
     if (form.email) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(form.email)) {
-        newErrors.email = "Please enter a valid email address";
-      } else if (!isConsumerGmailEmail(form.email)) {
-        newErrors.email =
-          "Use Gmail, Yahoo, or Apple mail (e.g. @gmail.com, @yahoo.com, @icloud.com).";
+      const emailErr = registrationEmailError(form.email);
+      if (emailErr) {
+        newErrors.email = emailErr;
       }
     }
 

@@ -92,6 +92,7 @@ const TrainingManagement = ({ showCoursesTab = true }) => {
   });
   const [addBookingLookupLoading, setAddBookingLookupLoading] = useState(false);
   const [addBookingSubmitLoading, setAddBookingSubmitLoading] = useState(false);
+  const [addBookingClientVerified, setAddBookingClientVerified] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -457,6 +458,7 @@ const TrainingManagement = ({ showCoursesTab = true }) => {
       return;
     }
     setAddBookingLookupLoading(true);
+    setAddBookingClientVerified(false);
     try {
       const res = await API.get('/buysellapi/admin/users/by-email/', { params: { email } });
       const d = res.data;
@@ -466,10 +468,12 @@ const TrainingManagement = ({ showCoursesTab = true }) => {
         phone: d.contact || prev.phone,
         email: d.email || email,
       }));
-      toast.success('Client details loaded');
+      setAddBookingClientVerified(true);
+      toast.success('Registered client found');
     } catch (err) {
+      setAddBookingClientVerified(false);
       if (err.response?.status === 404) {
-        toast.error('No user found with this email. Client must have an account.');
+        toast.error('No registered user with this email. Ask the client to sign up first.');
       } else {
         toast.error(err.response?.data?.error || 'Failed to look up client');
       }
@@ -481,9 +485,12 @@ const TrainingManagement = ({ showCoursesTab = true }) => {
   const handleAddBookingSubmit = async (e) => {
     e.preventDefault();
     const email = (addBookingForm.email || '').trim().toLowerCase();
-    const name = (addBookingForm.name || '').trim();
-    if (!email && !name) {
-      toast.error('Enter client email (to look up) or name (for unregistered client)');
+    if (!email) {
+      toast.error('Enter the client email and click Look up');
+      return;
+    }
+    if (!addBookingClientVerified) {
+      toast.error('Look up the client email first — they must be registered');
       return;
     }
     if (!addBookingForm.booking_date) {
@@ -518,6 +525,7 @@ const TrainingManagement = ({ showCoursesTab = true }) => {
         notes: '',
         has_valid_passport: true,
       });
+      setAddBookingClientVerified(false);
       fetchBookings();
     } catch (err) {
       const msg = err.response?.data?.error || err.response?.data?.detail?.[0] || err.message || 'Failed to add booking';
@@ -571,6 +579,7 @@ const TrainingManagement = ({ showCoursesTab = true }) => {
             <div className="flex items-center gap-2">
               <button
                 onClick={async () => {
+                  setAddBookingClientVerified(false);
                   setShowAddBookingModal(true);
                   try {
                     const res = await Api.training.settings();
@@ -1138,13 +1147,16 @@ const TrainingManagement = ({ showCoursesTab = true }) => {
             <form onSubmit={handleAddBookingSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Client email (optional for unregistered)
+                  Client email *
                 </label>
                 <div className="flex gap-2">
                   <input
                     type="email"
                     value={addBookingForm.email}
-                    onChange={(e) => setAddBookingForm((prev) => ({ ...prev, email: e.target.value }))}
+                    onChange={(e) => {
+                      setAddBookingClientVerified(false);
+                      setAddBookingForm((prev) => ({ ...prev, email: e.target.value }));
+                    }}
                     className="flex-1 p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                     placeholder="client@gmail.com"
                   />
@@ -1158,17 +1170,23 @@ const TrainingManagement = ({ showCoursesTab = true }) => {
                   </button>
                 </div>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Registered: enter email and click Look up to auto-fill. Unregistered: leave email empty and enter name below.
+                  Client must have signed up. Enter their email and click Look up before adding the booking.
                 </p>
+                {addBookingClientVerified && (
+                  <p className="text-xs text-green-600 dark:text-green-400 mt-1 font-medium">
+                    Registered client verified
+                  </p>
+                )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name *</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
                 <input
                   type="text"
                   value={addBookingForm.name}
                   onChange={(e) => setAddBookingForm((prev) => ({ ...prev, name: e.target.value }))}
                   className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                  placeholder="Full name (required if client is not registered)"
+                  placeholder="Filled from lookup"
+                  readOnly={addBookingClientVerified}
                 />
               </div>
               <div>

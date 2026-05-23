@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import {
   FaCalendarAlt,
   FaClock,
@@ -29,8 +29,12 @@ import {
 } from "../../api";
 import { Api } from "../../api";
 
+const isUserLoggedIn = () =>
+  !!(localStorage.getItem("token") || localStorage.getItem("adminToken"));
+
 const Training = () => {
   const navigate = useNavigate();
+  const [isLoggedIn, setIsLoggedIn] = useState(isUserLoggedIn);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -64,6 +68,16 @@ const Training = () => {
   useEffect(() => {
     fetchContent();
     fetchTrainingSettings();
+  }, []);
+
+  useEffect(() => {
+    const syncAuth = () => setIsLoggedIn(isUserLoggedIn());
+    window.addEventListener("authChange", syncAuth);
+    window.addEventListener("storage", syncAuth);
+    return () => {
+      window.removeEventListener("authChange", syncAuth);
+      window.removeEventListener("storage", syncAuth);
+    };
   }, []);
 
   const fetchTrainingSettings = async () => {
@@ -182,16 +196,9 @@ const Training = () => {
   const handleProceedToPayment = async (e) => {
     e.preventDefault();
 
-    // Check if user is authenticated
-    const token = localStorage.getItem("token");
-    const adminToken = localStorage.getItem("adminToken");
-    if (!token && !adminToken) {
-      toast.error(
-        "You must be logged in to book a training session. Please log in and try again."
-      );
-      setTimeout(() => {
-        window.location.href = "/Login";
-      }, 2000);
+    if (!isUserLoggedIn()) {
+      toast.error("Please sign up or log in to book a training session.");
+      navigate("/Login", { state: { redirectTo: "/Training" } });
       return;
     }
 
@@ -245,20 +252,7 @@ const Training = () => {
         paymentStatus: "pending",
       };
 
-      let bookingResponse;
-      try {
-        bookingResponse = await createTrainingBooking(bookingData);
-      } catch (authError) {
-        // If authentication fails, try public endpoint
-        if (
-          authError.response?.status === 401 ||
-          authError.response?.status === 403
-        ) {
-          bookingResponse = await Api.training.bookPublic(bookingData);
-        } else {
-          throw authError;
-        }
-      }
+      const bookingResponse = await createTrainingBooking(bookingData);
 
       if (
         !bookingResponse ||
@@ -350,22 +344,7 @@ const Training = () => {
 
       console.log("Creating booking with data:", bookingData);
 
-      // Try authenticated endpoint first, fallback to public endpoint if auth fails
-      let response;
-      try {
-        response = await createTrainingBooking(bookingData);
-      } catch (authError) {
-        // If authentication fails, try public endpoint
-        if (
-          authError.response?.status === 401 ||
-          authError.response?.status === 403
-        ) {
-          console.log("Auth failed, trying public endpoint...");
-          response = await Api.training.bookPublic(bookingData);
-        } else {
-          throw authError; // Re-throw if it's not an auth error
-        }
-      }
+      const response = await createTrainingBooking(bookingData);
       console.log("Booking response:", response);
 
       // Verify the booking was created successfully
@@ -405,11 +384,12 @@ const Training = () => {
 
       // Handle authentication errors
       if (error.response?.status === 401 || error.response?.status === 403) {
-        errorMessage = "Please log in to complete your booking.";
+        errorMessage =
+          error.response?.data?.detail ||
+          error.response?.data?.error ||
+          "Your session expired. Please log in again.";
         toast.error(errorMessage);
-        setTimeout(() => {
-          navigate("/login");
-        }, 2000);
+        navigate("/Login", { state: { redirectTo: "/Training" } });
         setShowPayment(false);
         setSubmitting(false);
         return;
@@ -646,11 +626,38 @@ const Training = () => {
           </div>
         </div>
 
-        {/* Booking Form */}
+        {/* Booking Form — requires sign-up / login */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
           <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
             Book Your Session
           </h2>
+          {!isLoggedIn ? (
+            <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-6 text-center">
+              <FaLock className="w-10 h-10 text-amber-600 dark:text-amber-400 mx-auto mb-3" />
+              <p className="text-gray-800 dark:text-white font-medium mb-2">
+                Sign up or log in to book
+              </p>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                Create a free account first, then return here to schedule your session and pay.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Link
+                  to="/Signup"
+                  state={{ redirectTo: "/Training" }}
+                  className="inline-flex justify-center px-5 py-2.5 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90"
+                >
+                  Sign up
+                </Link>
+                <Link
+                  to="/Login"
+                  state={{ redirectTo: "/Training" }}
+                  className="inline-flex justify-center px-5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white text-sm font-semibold hover:bg-gray-50 dark:hover:bg-gray-700"
+                >
+                  Log in
+                </Link>
+              </div>
+            </div>
+          ) : (
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -861,6 +868,7 @@ const Training = () => {
               />
             )}
           </form>
+          )}
         </div>
       </div>
 

@@ -15,7 +15,7 @@ import API from "../../api";
 import ConfirmModal from "../../components/shared/ConfirmModal";
 import BulkActions from "../../components/shared/BulkActions";
 import { normalizePhone } from "../../utils/ghanaPhone";
-import { isConsumerGmailEmail } from "../../utils/registrationEmail";
+import { registrationEmailError } from "../../utils/registrationEmail";
 
 const UsersManagement = () => {
   const [users, setUsers] = useState([]);
@@ -496,10 +496,9 @@ const UsersManagement = () => {
         toast.error(normalized.error || "Please enter a valid contact number");
         return;
       }
-      if (!isConsumerGmailEmail(addForm.email)) {
-        toast.error(
-          "Email must be Gmail, Yahoo, or Apple mail (e.g. @gmail.com, @yahoo.com, @icloud.com)."
-        );
+      const addEmailErr = registrationEmailError(addForm.email);
+      if (addEmailErr) {
+        toast.error(addEmailErr);
         return;
       }
       const payload = { ...addForm, contact: normalized.normalized };
