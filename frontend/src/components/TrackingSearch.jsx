@@ -13,7 +13,15 @@ import {
 } from "react-icons/fa";
 import API from "../api";
 import { TemaPortVoyageMini } from "./ContainerShipmentWidget";
+import TrackingNumberLabel from "./TrackingNumberLabel";
 import { formatMarkIdForDisplay, normalizeMarkIdInput } from "../utils/markIdFormat";
+
+const mapRepackFields = (data) => ({
+  isRepack: !!data?.is_repack,
+  repackParentNumber: data?.repack_parent_number || null,
+  repackMemberCount: data?.repack_member_count ?? 0,
+  repackMemberNumbers: data?.repack_member_numbers || [],
+});
 
 const TrackingSearch = () => {
   const [searchMode, setSearchMode] = useState("tracking"); // "tracking" or "mark-container"
@@ -160,6 +168,7 @@ const TrackingSearch = () => {
         
         setTrackingResult({
           trackingNumber: backendData.tracking_number,
+          ...mapRepackFields(backendData),
           status: statusLabel,
           statusValue: backendData.status || "pending",
           sender: backendData.shipping_mark || "N/A",
@@ -521,25 +530,58 @@ const TrackingSearch = () => {
               </div>
             </div>
 
-            {markContainerResult.tracking_numbers && markContainerResult.tracking_numbers.length > 0 && (
-              <div className="mt-6">
-                <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-3">
-                  Tracking Numbers ({markContainerResult.tracking_numbers.length})
-                </h4>
-                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 max-h-60 overflow-y-auto">
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                    {markContainerResult.tracking_numbers.map((tn, idx) => (
-                      <div
-                        key={idx}
-                        className="bg-white dark:bg-gray-800 px-3 py-2 rounded text-sm font-mono text-gray-700 dark:text-gray-300"
-                      >
-                        {tn}
-                      </div>
-                    ))}
+            {(() => {
+              const packages =
+                markContainerResult.packages?.length > 0
+                  ? markContainerResult.packages
+                  : (markContainerResult.tracking_numbers || []).map((tn) => ({
+                      tracking_number: tn,
+                      is_repack: false,
+                    }));
+              if (!packages.length) return null;
+              const repackCount = markContainerResult.summary?.repack_count ?? 0;
+              return (
+                <div className="mt-6">
+                  <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-1">
+                    Your packages ({markContainerResult.summary?.total_packages ?? packages.length})
+                  </h4>
+                  {repackCount > 0 && (
+                    <p className="text-sm text-violet-700 dark:text-violet-300 mb-3">
+                      Includes {repackCount} repack
+                      {repackCount === 1 ? "" : "s"} — combined shipments billed as one package.
+                    </p>
+                  )}
+                  <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 max-h-72 overflow-y-auto">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {packages.map((pkg, idx) => (
+                        <div
+                          key={pkg.tracking_number || idx}
+                          className={`bg-white dark:bg-gray-800 px-3 py-3 rounded-lg border ${
+                            pkg.is_repack
+                              ? "border-violet-200 dark:border-violet-800"
+                              : pkg.repack_parent_number
+                              ? "border-amber-200 dark:border-amber-800"
+                              : "border-gray-200 dark:border-gray-600"
+                          }`}
+                        >
+                          <TrackingNumberLabel
+                            tracking={{
+                              tracking_number: pkg.tracking_number,
+                              ...mapRepackFields(pkg),
+                            }}
+                          />
+                          {pkg.cbm != null && (
+                            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                              CBM: {pkg.cbm}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
         )}
 
@@ -552,9 +594,18 @@ const TrackingSearch = () => {
                   <h3 className="text-xl font-bold text-gray-800 dark:text-white">
                     Tracking Details
                   </h3>
-                  <p className="text-gray-600 dark:text-gray-400 text-sm">
-                    Tracking Number: {trackingResult.trackingNumber}
-                  </p>
+                  <div className="text-gray-600 dark:text-gray-400 text-sm mt-1">
+                    <TrackingNumberLabel tracking={trackingResult} />
+                  </div>
+                  {trackingResult.isRepack &&
+                    trackingResult.repackMemberNumbers?.length > 0 && (
+                      <p className="mt-2 text-xs text-gray-600 dark:text-gray-400">
+                        Member tracking numbers:{" "}
+                        <span className="font-mono">
+                          {trackingResult.repackMemberNumbers.join(", ")}
+                        </span>
+                      </p>
+                    )}
                 </div>
                 <div
                   className={`px-4 py-2 rounded-full border shrink-0 self-start ${getStatusColor(
@@ -645,6 +696,11 @@ const TrackingSearch = () => {
                       {trackingResult.bulkGroupId ? (
                         <span className="ml-2 text-xs text-purple-700 dark:text-purple-300">
                           (total for your bulk shipment)
+                        </span>
+                      ) : null}
+                      {trackingResult.isRepack ? (
+                        <span className="ml-2 text-xs text-violet-700 dark:text-violet-300">
+                          (repack — from package dimensions)
                         </span>
                       ) : null}
                     </p>

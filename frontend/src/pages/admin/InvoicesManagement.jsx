@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState, useRef } from "react";
 import API, { Api } from "../../api";
 import { toast } from "../../utils/toast";
 import { FaTrash, FaTimes, FaExternalLinkAlt, FaPlus, FaEdit, FaSpinner, FaDownload } from "react-icons/fa";
+import { InvoiceItemTrackingLabel, InvoiceItemCbm } from "../../components/InvoiceItemDisplay";
 
 const statusOptions = [
   { value: "", label: "All" },
@@ -1213,10 +1214,12 @@ export default function InvoicesManagement() {
                             </tr>
                           ) : (
                             <tr>
-                              <td className="px-3 py-2 text-gray-900 dark:text-white">{item.tracking_number || "—"}</td>
+                              <td className="px-3 py-2 text-gray-900 dark:text-white">
+                                <InvoiceItemTrackingLabel item={item} compact />
+                              </td>
                               <td className="px-3 py-2 text-gray-900 dark:text-white">{item.description}</td>
                               <td className="px-3 py-2 text-right text-gray-900 dark:text-white">
-                                {Number(item.cbm || 0).toFixed(3)}
+                                <InvoiceItemCbm item={item} className="block text-right" />
                               </td>
                               <td className="px-3 py-2 text-right">
                                 <button

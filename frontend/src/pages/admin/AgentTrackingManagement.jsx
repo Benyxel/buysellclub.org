@@ -20,6 +20,8 @@ import html2canvas from "html2canvas";
 import API from "../../api";
 import { CACHE_DURATION } from "../../api";
 import ConfirmModal from "../../components/shared/ConfirmModal";
+import RepackTrackingModal from "../../components/admin/RepackTrackingModal";
+import TrackingNumberCell from "../../components/admin/TrackingNumberCell";
 import { formatMarkIdForDisplay, normalizeMarkIdInput } from "../../utils/markIdFormat";
 
 const statusOptions = [
@@ -55,6 +57,7 @@ const AgentTrackingManagement = () => {
   const [selectedTrackings, setSelectedTrackings] = useState([]);
   const [selectAll, setSelectAll] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showRepackForm, setShowRepackForm] = useState(false);
   const [editTracking, setEditTracking] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
   const [viewTracking, setViewTracking] = useState(null);
@@ -246,6 +249,10 @@ const AgentTrackingManagement = () => {
               : "",
           bulkGroupId: t.bulk_group_id || null,
           bulkTotalCbm: t.bulk_total_cbm,
+          isRepack: !!t.is_repack,
+          repackParentNumber: t.repack_parent_number || "",
+          repackMemberCount: t.repack_member_count || 0,
+          repackMemberNumbers: t.repack_member_numbers || [],
           ShippingFee: t.shipping_fee || "",
           GoodsType: t.goods_type || "",
           ETA: t.eta || "",
@@ -793,6 +800,13 @@ const AgentTrackingManagement = () => {
             <FaPlus /> Add Tracking
           </button>
           <button
+            type="button"
+            onClick={() => setShowRepackForm(true)}
+            className="px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition-colors flex items-center gap-2"
+          >
+            <FaPlus /> Repack tracking
+          </button>
+          <button
             onClick={exportToCSV}
             className="px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors flex items-center gap-2"
           >
@@ -957,7 +971,7 @@ const AgentTrackingManagement = () => {
                       />
                     </td>
                     <td className="py-3 px-4 font-medium">
-                      {tracking.TrackingNum}
+                      <TrackingNumberCell tracking={tracking} />
                     </td>
                     <td className="py-3 px-4">
                       {tracking.ShippingMark ? (
@@ -1148,6 +1162,14 @@ const AgentTrackingManagement = () => {
       </div>
 
       {/* Add/Edit Form Modal */}
+      <RepackTrackingModal
+        open={showRepackForm}
+        onClose={() => setShowRepackForm(false)}
+        onSuccess={() => fetchTrackings()}
+        forAgent
+        containers={containers}
+      />
+
       {showAddForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-2xl my-8">
@@ -1470,10 +1492,21 @@ const AgentTrackingManagement = () => {
                     <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
                       Tracking Number
                     </label>
-                    <p className="text-base font-semibold text-gray-900 dark:text-white">
-                      {viewTracking.TrackingNum}
-                    </p>
+                    <div className="mt-1">
+                      <TrackingNumberCell tracking={viewTracking} />
+                    </div>
                   </div>
+                  {viewTracking.isRepack &&
+                    viewTracking.repackMemberNumbers?.length > 0 && (
+                      <div className="md:col-span-2">
+                        <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                          All numbers in this repack ({viewTracking.repackMemberCount})
+                        </label>
+                        <p className="text-xs text-gray-700 dark:text-gray-300 mt-1 break-all font-mono">
+                          {viewTracking.repackMemberNumbers.join(", ")}
+                        </p>
+                      </div>
+                    )}
                   <div>
                     <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
                       Shipping Mark

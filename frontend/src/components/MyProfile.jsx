@@ -55,6 +55,7 @@ import {
   FaLock,
 } from "react-icons/fa";
 import { trackingSystem } from "../utils/trackingSystem";
+import TrackingNumberLabel from "./TrackingNumberLabel";
 import { NOTE_MESSAGE } from "./ShippingTrackingNote";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Link } from "react-router-dom";
@@ -1329,6 +1330,10 @@ const MyProfile = () => {
                 date_added: d.date_added || enriched.date_added,
                 action: d.action || enriched.action,
                 container_number: d.container_number || enriched.container_number || null,
+                isRepack: !!d.is_repack,
+                repackParentNumber: d.repack_parent_number || null,
+                repackMemberCount: d.repack_member_count ?? 0,
+                repackMemberNumbers: d.repack_member_numbers || [],
               };
               
               // Debug: log container_number if available
@@ -3910,11 +3915,12 @@ const MyProfile = () => {
                               className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-lg shadow-md hover:shadow-lg transition-shadow p-4 border border-gray-200 dark:border-gray-700"
                             >
                               <div className="flex items-start justify-between mb-3">
-                                <div className="flex items-center gap-2">
-                                  <FaBox className="text-primary" />
-                                  <span className="font-semibold text-gray-900 dark:text-white text-sm">
-                                    {shipment.tracking_number}
-                                  </span>
+                                <div className="flex items-start gap-2 min-w-0 flex-1">
+                                  <FaBox className="text-primary shrink-0 mt-0.5" />
+                                  <TrackingNumberLabel
+                                    tracking={shipment}
+                                    compact
+                                  />
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <button
@@ -4065,13 +4071,20 @@ const MyProfile = () => {
                                   Tracking Information
                                 </h4>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                                  <div className="flex justify-between">
-                                    <span className="text-gray-500 dark:text-gray-400">
+                                  <div className="md:col-span-2">
+                                    <span className="text-gray-500 dark:text-gray-400 block mb-1">
                                       Tracking Number:
                                     </span>
-                                    <span className="font-medium text-gray-900 dark:text-white">
-                                      {selectedTracking.tracking_number}
-                                    </span>
+                                    <TrackingNumberLabel tracking={selectedTracking} />
+                                    {selectedTracking.isRepack &&
+                                      selectedTracking.repackMemberNumbers?.length > 0 && (
+                                        <p className="mt-2 text-xs text-gray-600 dark:text-gray-400">
+                                          Member numbers:{" "}
+                                          <span className="font-mono">
+                                            {selectedTracking.repackMemberNumbers.join(", ")}
+                                          </span>
+                                        </p>
+                                      )}
                                   </div>
                                   <div className="flex justify-between">
                                     <span className="text-gray-500 dark:text-gray-400">

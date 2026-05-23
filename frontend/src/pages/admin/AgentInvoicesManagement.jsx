@@ -9,6 +9,7 @@ import {
   FaShip,
   FaCheckCircle,
 } from "react-icons/fa";
+import { InvoiceItemTrackingLabel, InvoiceItemCbm } from "../../components/InvoiceItemDisplay";
 
 const statusOptions = [
   { value: "", label: "All" },
@@ -308,11 +309,11 @@ const AgentInvoicesManagement = () => {
                     {invoicePreview.items.map((it) => (
                       <tr key={it.id}>
                         <td className="px-3 py-2 text-gray-900 dark:text-white">
-                          {it.tracking_number}
+                          <InvoiceItemTrackingLabel item={it} compact />
                         </td>
                         <td className="px-3 py-2 text-gray-900 dark:text-white">{it.status}</td>
                         <td className="px-3 py-2 text-right text-gray-900 dark:text-white">
-                          {Number(it.cbm || 0).toFixed(3)}
+                          <InvoiceItemCbm item={it} className="block text-right" />
                         </td>
                         <td className="px-3 py-2 text-right text-gray-900 dark:text-white">
                           {Number(it.shipping_fee || 0).toFixed(2)}

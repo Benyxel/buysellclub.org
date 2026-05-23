@@ -12,6 +12,7 @@ import {
   FaPrint,
 } from "react-icons/fa";
 import ConfirmModal from "./shared/ConfirmModal";
+import { InvoiceItemTrackingLabel, InvoiceItemCbm } from "./InvoiceItemDisplay";
 
 const ContainerManagement = () => {
   const [containers, setContainers] = useState([]);
@@ -838,11 +839,11 @@ const ContainerManagement = () => {
                           {invoicePreview.items.map((it) => (
                             <tr key={it.id}>
                               <td className="px-3 py-2 text-gray-900 dark:text-white">
-                                {it.tracking_number}
+                                <InvoiceItemTrackingLabel item={it} compact />
                               </td>
                               <td className="px-3 py-2 text-gray-900 dark:text-white">{it.status}</td>
                               <td className="px-3 py-2 text-right text-gray-900 dark:text-white">
-                                {Number(it.cbm || 0).toFixed(3)}
+                                <InvoiceItemCbm item={it} className="block text-right" />
                               </td>
                               <td className="px-3 py-2 text-right text-gray-900 dark:text-white">
                                 ${Math.ceil(Number(it.shipping_fee || 0))}

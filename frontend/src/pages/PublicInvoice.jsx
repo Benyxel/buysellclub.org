@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { FaSpinner, FaFilePdf, FaArrowLeft } from "react-icons/fa";
 import API, { Api } from "../api";
 import toast from "react-hot-toast";
+import { InvoiceItemTrackingLabel, InvoiceItemCbm } from "../components/InvoiceItemDisplay";
 
 const PublicInvoice = () => {
   const [searchParams] = useSearchParams();
@@ -225,14 +226,14 @@ const PublicInvoice = () => {
                         key={item.id}
                         className="hover:bg-gray-50 dark:hover:bg-gray-700"
                       >
-                        <td className="px-4 py-3 whitespace-nowrap text-gray-900 dark:text-white font-medium">
-                          {item.tracking_number || "N/A"}
+                        <td className="px-4 py-3 text-gray-900 dark:text-white">
+                          <InvoiceItemTrackingLabel item={item} />
                         </td>
                         <td className="px-4 py-3 text-gray-900 dark:text-white">
                           {item.description || "N/A"}
                         </td>
                         <td className="px-4 py-3 text-right text-gray-900 dark:text-white">
-                          {Number(item.cbm || 0).toFixed(3)}
+                          <InvoiceItemCbm item={item} className="block text-right" />
                         </td>
                       </tr>
                     ))}
