@@ -49,7 +49,8 @@ const ContainerExpensesManagement = () => {
         const expenseContainers = expRes.data?.containers || [];
         expenseContainers.forEach((c) => {
           expenseByContainerId[c.id] = {
-            total_amount_ghs: c.total_amount_ghs ?? c.total_shipping_fee ?? 0,
+            total_amount_ghs: c.total_amount_ghs ?? c.total_invoiced_ghs ?? c.total_shipping_fee ?? 0,
+            total_collected_ghs: c.total_collected_ghs ?? c.total_amount_ghs ?? 0,
             total_expenses: c.total_expenses ?? 0,
             gain: c.gain ?? 0,
             expenses: c.expenses || [],
@@ -65,6 +66,7 @@ const ContainerExpensesManagement = () => {
       const merged = containerList.map((c) => {
         const exp = expenseByContainerId[c.id] || {
           total_amount_ghs: 0,
+          total_collected_ghs: 0,
           total_expenses: 0,
           gain: 0,
           expenses: [],
@@ -74,6 +76,7 @@ const ContainerExpensesManagement = () => {
           container_number: c.container_number,
           status: c.status,
           total_amount_ghs: exp.total_amount_ghs,
+          total_collected_ghs: exp.total_collected_ghs,
           total_expenses: exp.total_expenses,
           gain: exp.gain,
           expenses: exp.expenses,
@@ -178,7 +181,7 @@ const ContainerExpensesManagement = () => {
           Container Expenses
         </h2>
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          All amounts in cedis (₵). Add expenses per container to see gain (total amount − expenses).
+          All amounts in cedis (₵). Gain = collected shipping fees (including part payments) − expenses.
         </p>
       </div>
 
@@ -192,8 +195,9 @@ const ContainerExpensesManagement = () => {
             <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Container</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Total amount (₵)</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Total expenses (₵)</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Invoiced (₵)</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Collected (₵)</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Expenses (₵)</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Gain (₵)</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Actions</th>
               </tr>
@@ -201,7 +205,7 @@ const ContainerExpensesManagement = () => {
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {containers.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan={6} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                     No containers yet. Create containers under the Containers tab first.
                   </td>
                 </tr>
@@ -214,6 +218,7 @@ const ContainerExpensesManagement = () => {
                         <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">({c.status})</span>
                       </td>
                       <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">{formatCedis(c.total_amount_ghs)}</td>
+                      <td className="px-4 py-3 text-right text-green-700 dark:text-green-400 font-medium">{formatCedis(c.total_collected_ghs)}</td>
                       <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">{formatCedis(c.total_expenses)}</td>
                       <td className="px-4 py-3 text-right">
                         <span className={c.gain >= 0 ? "text-green-600 dark:text-green-400 font-medium" : "text-red-600 dark:text-red-400 font-medium"}>
@@ -232,7 +237,7 @@ const ContainerExpensesManagement = () => {
                     </tr>
                     {c.expenses && c.expenses.length > 0 && (
                       <tr>
-                        <td colSpan={5} className="px-4 py-2 bg-gray-50 dark:bg-gray-700/30">
+                        <td colSpan={6} className="px-4 py-2 bg-gray-50 dark:bg-gray-700/30">
                           <div className="flex flex-wrap items-center gap-2 text-sm">
                             <span className="text-gray-500 dark:text-gray-400">Expenses:</span>
                             {c.expenses.map((ex) => (

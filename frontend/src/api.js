@@ -452,6 +452,24 @@ const Api = {
       http.patch(`/buysellapi/invoices/${invoiceId}/items/${itemId}/`, payload),
     removeItem: (invoiceId, itemId) =>
       http.delete(`/buysellapi/invoices/${invoiceId}/items/${itemId}/`),
+    recordPayment: (invoiceId, payload) =>
+      http.post(`/buysellapi/invoices/${invoiceId}/record-payment/`, payload),
+    /** Download shipping fee invoice PDF (admin only). */
+    async downloadReceipt(invoiceId) {
+      const res = await api.get(
+        normalizePath(`/buysellapi/admin/invoices/${invoiceId}/receipt/`),
+        { responseType: "blob" }
+      );
+      const blob = res.data;
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `shipping-invoice-${invoiceId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    },
   },
   alipay: {
     payments: (params = {}, options = {}) => {
@@ -910,6 +928,8 @@ export const deleteBuy4meRequest = Api.buy4me.remove;
 export const initiateBuy4mePayment = Api.buy4me.payment;
 export const downloadBuy4meInvoiceReceipt = (requestId, useAdminPath = false) =>
   Api.buy4me.downloadInvoiceReceipt(requestId, useAdminPath);
+export const downloadShippingInvoiceReceipt = (invoiceId) =>
+  Api.invoices.downloadReceipt(invoiceId);
 export const getAdminBuy4meRequests = Api.buy4me.admin.list;
 export const getAdminBuy4meRequest = Api.buy4me.admin.detail;
 export const updateAdminBuy4meRequest = Api.buy4me.update;

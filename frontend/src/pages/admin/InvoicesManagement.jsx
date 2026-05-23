@@ -1,12 +1,13 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
-import API from "../../api";
+import API, { Api } from "../../api";
 import { toast } from "../../utils/toast";
-import { FaTrash, FaTimes, FaExternalLinkAlt, FaPlus, FaEdit, FaSpinner } from "react-icons/fa";
+import { FaTrash, FaTimes, FaExternalLinkAlt, FaPlus, FaEdit, FaSpinner, FaDownload } from "react-icons/fa";
 
 const statusOptions = [
   { value: "", label: "All" },
   { value: "draft", label: "Draft" },
   { value: "pending", label: "Pending" },
+  { value: "partial", label: "Partially Paid" },
   { value: "paid", label: "Paid" },
   { value: "overdue", label: "Overdue" },
   { value: "cancelled", label: "Cancelled" },
@@ -34,6 +35,14 @@ export default function InvoicesManagement() {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [invoiceDetails, setInvoiceDetails] = useState(null);
   const [resending, setResending] = useState(false);
+  const [downloadingReceiptId, setDownloadingReceiptId] = useState(null);
+  const [recordingPayment, setRecordingPayment] = useState(false);
+  const [paymentForm, setPaymentForm] = useState({
+    amount_usd: "",
+    payment_method: "",
+    payment_reference: "",
+    notes: "",
+  });
   const [showRateModal, setShowRateModal] = useState(false);
   const [currentRate, setCurrentRate] = useState(null);
   const [newRate, setNewRate] = useState("");
@@ -259,6 +268,70 @@ export default function InvoicesManagement() {
       toast.error(err.response?.data?.detail || "Failed to remove item");
     } finally {
       setRemovingItemId(null);
+    }
+  };
+
+  const handleDownloadReceipt = async (invoiceId) => {
+    setDownloadingReceiptId(invoiceId);
+    try {
+      await Api.invoices.downloadReceipt(invoiceId);
+      toast.success("Invoice receipt downloaded");
+    } catch (err) {
+      let msg = "Failed to download invoice receipt";
+      if (err.response?.data instanceof Blob) {
+        try {
+          const text = await err.response.data.text();
+          const parsed = JSON.parse(text);
+          msg = parsed.error || parsed.detail || msg;
+        } catch {
+          /* use default */
+        }
+      } else {
+        msg =
+          err.response?.data?.error ||
+          err.response?.data?.detail ||
+          err.message ||
+          msg;
+      }
+      toast.error(typeof msg === "string" ? msg : "Failed to download invoice receipt");
+    } finally {
+      setDownloadingReceiptId(null);
+    }
+  };
+
+  const handleRecordPayment = async (e) => {
+    e?.preventDefault();
+    if (!invoiceDetails?.id) return;
+    const amount = parseFloat(paymentForm.amount_usd);
+    if (!amount || amount <= 0) {
+      toast.error("Enter a valid payment amount (USD)");
+      return;
+    }
+    setRecordingPayment(true);
+    try {
+      const resp = await Api.invoices.recordPayment(invoiceDetails.id, {
+        amount_usd: amount,
+        payment_method: paymentForm.payment_method || undefined,
+        payment_reference: paymentForm.payment_reference || undefined,
+        notes: paymentForm.notes || undefined,
+      });
+      setInvoiceDetails(resp.data?.invoice || resp.data);
+      setPaymentForm({
+        amount_usd: "",
+        payment_method: "",
+        payment_reference: "",
+        notes: "",
+      });
+      toast.success("Payment recorded");
+      fetchInvoices();
+    } catch (err) {
+      const msg =
+        err.response?.data?.error ||
+        err.response?.data?.detail ||
+        "Failed to record payment";
+      toast.error(typeof msg === "string" ? msg : "Failed to record payment");
+    } finally {
+      setRecordingPayment(false);
     }
   };
 
@@ -662,6 +735,8 @@ export default function InvoicesManagement() {
                       className={`px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ${
                         inv.status === "paid"
                           ? "bg-gradient-to-r from-green-400 to-emerald-500 text-white shadow-sm"
+                          : inv.status === "partial"
+                          ? "bg-gradient-to-r from-orange-400 to-amber-500 text-white shadow-sm"
                           : inv.status === "overdue"
                           ? "bg-gradient-to-r from-red-400 to-rose-500 text-white shadow-sm"
                           : inv.status === "pending"
@@ -692,6 +767,22 @@ export default function InvoicesManagement() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
                     <div className="flex items-center justify-center gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDownloadReceipt(inv.id);
+                        }}
+                        disabled={downloadingReceiptId === inv.id}
+                        className="text-blue-600 hover:text-blue-800 dark:text-blue-400 p-2 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded inline-flex items-center justify-center disabled:opacity-50"
+                        title="Download invoice receipt (PDF)"
+                      >
+                        {downloadingReceiptId === inv.id ? (
+                          <FaSpinner className="animate-spin" />
+                        ) : (
+                          <FaDownload />
+                        )}
+                      </button>
                       <a
                         href={`/invoice?invoice_number=${encodeURIComponent(inv.invoice_number || "")}&mark_id=${encodeURIComponent(inv.shipping_mark || "")}`}
                         target="_blank"
@@ -869,6 +960,8 @@ export default function InvoicesManagement() {
                   className={`px-3 py-1 rounded text-sm font-medium ${
                     invoiceDetails.status === "paid"
                       ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                      : invoiceDetails.status === "partial"
+                      ? "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300"
                       : invoiceDetails.status === "overdue"
                       ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
                       : invoiceDetails.status === "pending"
@@ -904,8 +997,151 @@ export default function InvoicesManagement() {
                 >
                   {resending ? "Sending..." : "Resend Invoice"}
                 </button>
+                <button
+                  type="button"
+                  onClick={() => handleDownloadReceipt(invoiceDetails.id)}
+                  disabled={downloadingReceiptId === invoiceDetails.id}
+                  className="inline-flex items-center gap-1.5 px-4 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                  title="Download invoice receipt (PDF) to share with client"
+                >
+                  {downloadingReceiptId === invoiceDetails.id ? (
+                    <FaSpinner className="animate-spin" />
+                  ) : (
+                    <FaDownload />
+                  )}
+                  Download receipt
+                </button>
               </div>
             </div>
+
+            {/* Part payments */}
+            {invoiceDetails.status !== "cancelled" && (
+              <div className="mb-6 p-4 border border-indigo-200 dark:border-indigo-800 rounded-lg bg-indigo-50/50 dark:bg-indigo-900/10">
+                <h4 className="font-semibold text-gray-800 dark:text-white mb-3">
+                  Payments
+                </h4>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4 text-sm">
+                  <div className="p-3 rounded bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600">
+                    <div className="text-gray-500 dark:text-gray-400">Invoice total</div>
+                    <div className="font-bold text-indigo-700 dark:text-indigo-300">
+                      ${Number(invoiceDetails.total_amount || 0).toFixed(2)}
+                      {invoiceDetails.total_amount_ghs != null && (
+                        <span className="block text-xs text-green-600 dark:text-green-400 font-medium">
+                          ₵{Number(invoiceDetails.total_amount_ghs || 0).toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="p-3 rounded bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600">
+                    <div className="text-gray-500 dark:text-gray-400">Paid so far</div>
+                    <div className="font-bold text-green-700 dark:text-green-300">
+                      ${Number(invoiceDetails.amount_paid_usd || 0).toFixed(2)}
+                      {(invoiceDetails.amount_paid_ghs > 0 || invoiceDetails.total_amount_ghs) && (
+                        <span className="block text-xs font-medium">
+                          ₵{Number(invoiceDetails.amount_paid_ghs || 0).toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="p-3 rounded bg-white dark:bg-gray-800 border border-orange-200 dark:border-orange-700 col-span-2 sm:col-span-2">
+                    <div className="text-gray-500 dark:text-gray-400">Remaining balance</div>
+                    <div className="font-bold text-orange-700 dark:text-orange-300">
+                      ${Number(invoiceDetails.amount_due_usd ?? Math.max(0, Number(invoiceDetails.total_amount || 0) - Number(invoiceDetails.amount_paid_usd || 0))).toFixed(2)}
+                      <span className="block text-xs font-medium">
+                        ₵{Number(invoiceDetails.amount_due_ghs ?? 0).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {Number(invoiceDetails.amount_due_usd ?? 1) > 0.01 && invoiceDetails.status !== "paid" && (
+                  <form onSubmit={handleRecordPayment} className="flex flex-wrap items-end gap-3 mb-4">
+                    <div>
+                      <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
+                        Payment amount (USD)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        max={Number(invoiceDetails.amount_due_usd || invoiceDetails.total_amount || 0)}
+                        value={paymentForm.amount_usd}
+                        onChange={(e) =>
+                          setPaymentForm((f) => ({ ...f, amount_usd: e.target.value }))
+                        }
+                        className="w-36 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
+                        Method
+                      </label>
+                      <input
+                        type="text"
+                        value={paymentForm.payment_method}
+                        onChange={(e) =>
+                          setPaymentForm((f) => ({ ...f, payment_method: e.target.value }))
+                        }
+                        className="w-32 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        placeholder="MoMo, Bank..."
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
+                        Reference
+                      </label>
+                      <input
+                        type="text"
+                        value={paymentForm.payment_reference}
+                        onChange={(e) =>
+                          setPaymentForm((f) => ({ ...f, payment_reference: e.target.value }))
+                        }
+                        className="w-36 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={recordingPayment}
+                      className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded disabled:opacity-50"
+                    >
+                      {recordingPayment ? "Saving..." : "Record payment"}
+                    </button>
+                  </form>
+                )}
+
+                {invoiceDetails.payments?.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="text-left text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-600">
+                          <th className="py-2 pr-2">Date</th>
+                          <th className="py-2 pr-2">USD</th>
+                          <th className="py-2 pr-2">GHS</th>
+                          <th className="py-2 pr-2">Method</th>
+                          <th className="py-2">Reference</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {invoiceDetails.payments.map((p) => (
+                          <tr key={p.id} className="border-b border-gray-100 dark:border-gray-700">
+                            <td className="py-2 pr-2">
+                              {p.paid_at ? new Date(p.paid_at).toLocaleString() : "—"}
+                            </td>
+                            <td className="py-2 pr-2">${Number(p.amount_usd || 0).toFixed(2)}</td>
+                            <td className="py-2 pr-2">₵{Number(p.amount_ghs || 0).toFixed(2)}</td>
+                            <td className="py-2 pr-2">{p.payment_method || "—"}</td>
+                            <td className="py-2">{p.payment_reference || "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-500 dark:text-gray-400">No payments recorded yet.</p>
+                )}
+              </div>
+            )}
 
             {/* Invoice Items */}
             <div className="mb-6">
