@@ -744,6 +744,10 @@ const Api = {
           `/buysellapi/admin/digital-store/purchases/${purchaseId}/send-receipt-email/`,
           {}
         ),
+      deletePurchase: (purchaseId) =>
+        http.delete(
+          `/buysellapi/admin/digital-store/purchases/${purchaseId}/`
+        ),
     },
   },
   communityContent: {

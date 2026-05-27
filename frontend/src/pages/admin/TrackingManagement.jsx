@@ -22,7 +22,10 @@ import ConfirmModal from "../../components/shared/ConfirmModal";
 import RepackTrackingModal from "../../components/admin/RepackTrackingModal";
 import TrackingNumberCell from "../../components/admin/TrackingNumberCell";
 import { usePersistedPagination } from "../../hooks/usePersistedPagination";
-import { formatMarkIdForDisplay, normalizeMarkIdInput } from "../../utils/markIdFormat";
+import {
+  formatShippingMarkForDisplay,
+  normalizeMarkIdInput,
+} from "../../utils/markIdFormat";
 
 // Status options aligned to backend Tracking model, UI stores labels in trackingSystem
 const statusOptions = [
@@ -1209,7 +1212,7 @@ const TrackingManagement = () => {
                           className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 underline flex items-center gap-1"
                           title="Search user with this mark ID"
                         >
-                          {tracking.ShippingMark}
+                          {formatShippingMarkForDisplay(tracking.ShippingMark)}
                           <FaExternalLinkAlt className="text-xs" />
                         </button>
                       ) : (
@@ -1595,7 +1598,7 @@ const TrackingManagement = () => {
                                 }}
                                 className="w-full text-left px-3 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-700"
                               >
-                                {formatMarkIdForDisplay(m.markId || m.mark_id) +
+                                {(m.markId || m.mark_id || "") +
                                   (m.name ? `: ${m.name}` : "")}
                               </button>
                             ))}
@@ -1885,7 +1888,7 @@ const TrackingManagement = () => {
                       Shipping Mark
                     </label>
                     <p className="text-sm text-gray-900 dark:text-white">
-                      {viewTracking.ShippingMark || "N/A"}
+                      {formatShippingMarkForDisplay(viewTracking.ShippingMark) || "N/A"}
                     </p>
                   </div>
                   <div>

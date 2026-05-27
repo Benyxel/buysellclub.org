@@ -373,14 +373,18 @@ const DigitalStore = () => {
     }
     try {
       setManualSubmitting(true);
-      await Api.digitalStore.submitManualMoMo({
+      const res = await Api.digitalStore.submitManualMoMo({
         product_id: checkoutProduct?.id ?? checkoutProduct?._id,
         proof_url: String(manualForm.proof_url || "").trim(),
         sender_name: "",
         sender_number: "",
         note: String(manualForm.note || "").trim(),
       });
-      toast.success("Submitted. Admin will review and approve your download.");
+      toast.success(
+        res.data?.updated
+          ? "Submission updated. Admin will review your payment."
+          : "Submitted. Admin will review and approve your download."
+      );
       setCheckoutProduct(null);
     } catch (e) {
       toast.error(e?.response?.data?.error || e?.response?.data?.detail || "Submission failed.");

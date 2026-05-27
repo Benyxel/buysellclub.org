@@ -1,3 +1,16 @@
+/** Strip optional ":Owner Name" suffix from stored shipping_mark values. */
+export function shippingMarkToMarkId(shippingMark) {
+  const raw = String(shippingMark || "").trim();
+  if (!raw) return "";
+  const idx = raw.indexOf(":");
+  return (idx === -1 ? raw : raw.slice(0, idx)).trim();
+}
+
+/** Mark id only for tables/lists — no hyphen (FIM1330, not FIM-1330). */
+export function formatShippingMarkForDisplay(shippingMark) {
+  return shippingMarkToMarkId(shippingMark);
+}
+
 export function formatMarkIdForDisplay(markId) {
   const raw = String(markId || "").trim();
   if (!raw) return "";

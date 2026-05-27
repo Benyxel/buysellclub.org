@@ -22,7 +22,10 @@ import { CACHE_DURATION } from "../../api";
 import ConfirmModal from "../../components/shared/ConfirmModal";
 import RepackTrackingModal from "../../components/admin/RepackTrackingModal";
 import TrackingNumberCell from "../../components/admin/TrackingNumberCell";
-import { formatMarkIdForDisplay, normalizeMarkIdInput } from "../../utils/markIdFormat";
+import {
+  formatShippingMarkForDisplay,
+  normalizeMarkIdInput,
+} from "../../utils/markIdFormat";
 
 const statusOptions = [
   { value: "pending", label: "Pending" },
@@ -982,7 +985,7 @@ const AgentTrackingManagement = () => {
                           className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 underline flex items-center gap-1"
                           title="Search user with this mark ID"
                         >
-                          {tracking.ShippingMark}
+                          {formatShippingMarkForDisplay(tracking.ShippingMark)}
                           <FaExternalLinkAlt className="text-xs" />
                         </button>
                       ) : (
@@ -1376,7 +1379,7 @@ const AgentTrackingManagement = () => {
                                 }}
                                 className="w-full text-left px-3 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-700"
                               >
-                                {formatMarkIdForDisplay(m.markId || m.mark_id) +
+                                {(m.markId || m.mark_id || "") +
                                   (m.name ? `: ${m.name}` : "")}
                               </button>
                             ))}

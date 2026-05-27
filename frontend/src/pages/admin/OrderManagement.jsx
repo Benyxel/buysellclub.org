@@ -64,6 +64,7 @@ const OrderManagement = ({ onDigitalUnreadInvalidate }) => {
   const [savingDigitalStatus, setSavingDigitalStatus] = useState(false);
   const [sendingDigitalReceiptId, setSendingDigitalReceiptId] = useState(null);
   const [downloadingDigitalReceiptId, setDownloadingDigitalReceiptId] = useState(null);
+  const [deletingDigitalId, setDeletingDigitalId] = useState(null);
 
   const resolveMediaUrl = (rawUrl) => {
     const url = String(rawUrl || '').trim();
@@ -273,6 +274,27 @@ const OrderManagement = ({ onDigitalUnreadInvalidate }) => {
       toast.error(typeof msg === 'string' ? msg : 'Failed to download receipt');
     } finally {
       setDownloadingDigitalReceiptId(null);
+    }
+  };
+
+  const handleDeleteDigitalOrder = async (order) => {
+    if (!window.confirm(`Delete digital purchase #${order.id}? This will permanently remove the record.`)) {
+      return;
+    }
+    try {
+      setDeletingDigitalId(order.id);
+      await Api.digitalStore.admin.deletePurchase(order.id);
+      toast.success('Digital purchase deleted.');
+      onDigitalUnreadInvalidate?.();
+      if (selectedDigitalOrder?.id === order.id) {
+        setShowDigitalDetails(false);
+        setSelectedDigitalOrder(null);
+      }
+      fetchDigitalOrders(digitalPage, digitalPageSize, digitalStatusFilter);
+    } catch (e) {
+      toast.error(e?.response?.data?.error || e?.response?.data?.detail || 'Failed to delete digital purchase');
+    } finally {
+      setDeletingDigitalId(null);
     }
   };
 
@@ -628,6 +650,19 @@ const OrderManagement = ({ onDigitalUnreadInvalidate }) => {
                             >
                               {approvingDigitalId === o.id ? 'Approving…' : 'Approve'}
                             </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteDigitalOrder(o)}
+                              disabled={deletingDigitalId === o.id}
+                              className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-60 dark:border-red-800 dark:bg-red-950 dark:text-red-200 dark:hover:bg-red-900/60"
+                              title="Delete purchase"
+                            >
+                              {deletingDigitalId === o.id ? (
+                                <FaSpinner className="animate-spin" />
+                              ) : (
+                                <FaTrash />
+                              )}
+                            </button>
                           </div>
                         ) : (
                           <div className="flex flex-wrap items-center gap-2">
@@ -673,6 +708,19 @@ const OrderManagement = ({ onDigitalUnreadInvalidate }) => {
                                 </button>
                               </>
                             ) : null}
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteDigitalOrder(o)}
+                              disabled={deletingDigitalId === o.id}
+                              className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-60 dark:border-red-800 dark:bg-red-950 dark:text-red-200 dark:hover:bg-red-900/60"
+                              title="Delete purchase"
+                            >
+                              {deletingDigitalId === o.id ? (
+                                <FaSpinner className="animate-spin" />
+                              ) : (
+                                <FaTrash />
+                              )}
+                            </button>
                           </div>
                         )}
                       </td>
