@@ -26,6 +26,7 @@ import {
   FaVideo,
   FaDownload,
   FaFilePdf,
+  FaFileInvoiceDollar,
   FaLock,
   FaGraduationCap,
 } from "react-icons/fa";
@@ -393,6 +394,7 @@ export default function Navbar() {
       Login: FaUser,
       Logout: FaUser,
       Community: FaUsers,
+      "Shipping fees": FaFileInvoiceDollar,
     };
 
     const add = (section, label, to) => {
@@ -419,6 +421,11 @@ export default function Navbar() {
     );
     add("shortcuts", "Quick Tracking", "/QuickTracking");
     add("shortcuts", "Training", "/Training");
+    add(
+      "shortcuts",
+      "Shipping fees",
+      isLoggedIn ? "/Profile?tab=shippingFees&shippingFeesSubTab=invoices" : "/Login"
+    );
     add(
       "shortcuts",
       "Community",

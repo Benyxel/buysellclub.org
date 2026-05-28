@@ -84,6 +84,7 @@ import VendorSales from "../pages/VendorSales";
 import { normalizePhone } from "../utils/ghanaPhone";
 import ProfileRiderWorkspace from "./profile/ProfileRiderWorkspace";
 import ProfileShippingFees from "./profile/ProfileShippingFees";
+import ProfileBulkDeliveryOutsideAccra from "./profile/ProfileBulkDeliveryOutsideAccra";
 import { DeliveryComingSoonContent } from "./DeliveryComingSoon";
 import { formatMarkIdForDisplay, formatMarkIdInText } from "../utils/markIdFormat";
 
@@ -158,6 +159,7 @@ const MyProfile = () => {
   };
 
   const [activeTab, setActiveTab] = useState(getInitialTab());
+  const [shippingFeesSubTab, setShippingFeesSubTab] = useState("invoices");
   const location = useLocation();
   const hasCustomerToken =
     typeof window !== "undefined" && !!localStorage.getItem("token");
@@ -174,6 +176,12 @@ const MyProfile = () => {
     const tabFromUrl = params.get("tab");
     if (tabFromUrl && tabFromUrl !== activeTab) {
       setActiveTab(tabFromUrl);
+    }
+
+    // Allow deep-linking to shipping fee submenus
+    const shippingSub = params.get("shippingFeesSubTab");
+    if (shippingSub && tabFromUrl === "shippingFees") {
+      setShippingFeesSubTab(shippingSub);
     }
   }, [location.search]);
 
@@ -3769,11 +3777,48 @@ const MyProfile = () => {
 
             {/* Tracking Tab */}
             {activeTab === "shippingFees" && (
-              <ProfileShippingFees
-                shippingMarkId={
-                  shippingMarks[0]?.markId || shippingMarks[0]?.mark_id || ""
-                }
-              />
+              <div className="space-y-4">
+                <div className="border-b border-gray-200 dark:border-gray-700">
+                  <div className="flex flex-wrap">
+                    <button
+                      type="button"
+                      className={`py-2 px-4 font-medium text-sm rounded-t-lg mr-2 ${
+                        shippingFeesSubTab === "invoices"
+                          ? "bg-white dark:bg-gray-800 text-primary border-b-2 border-primary"
+                          : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      }`}
+                      onClick={() => setShippingFeesSubTab("invoices")}
+                    >
+                      Shipping invoices
+                    </button>
+                    <button
+                      type="button"
+                      className={`py-2 px-4 font-medium text-sm rounded-t-lg mr-2 ${
+                        shippingFeesSubTab === "bulkDelivery"
+                          ? "bg-white dark:bg-gray-800 text-primary border-b-2 border-primary"
+                          : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      }`}
+                      onClick={() => setShippingFeesSubTab("bulkDelivery")}
+                    >
+                      Bulk delivery (Outside Accra)
+                    </button>
+                  </div>
+                </div>
+
+                {shippingFeesSubTab === "invoices" ? (
+                  <ProfileShippingFees
+                    shippingMarkId={
+                      shippingMarks[0]?.markId || shippingMarks[0]?.mark_id || ""
+                    }
+                  />
+                ) : (
+                  <ProfileBulkDeliveryOutsideAccra
+                    shippingMarkId={
+                      shippingMarks[0]?.markId || shippingMarks[0]?.mark_id || ""
+                    }
+                  />
+                )}
+              </div>
             )}
 
             {activeTab === "tracking" && (

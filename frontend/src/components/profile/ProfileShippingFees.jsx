@@ -42,6 +42,8 @@ function formatMoney(amount, currency = "USD") {
 export default function ProfileShippingFees({ shippingMarkId }) {
   const [loading, setLoading] = useState(true);
   const [invoices, setInvoices] = useState([]);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -71,6 +73,20 @@ export default function ProfileShippingFees({ shippingMarkId }) {
     }
     return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
   }, [invoices]);
+
+  const flatRows = useMemo(() => {
+    const out = [];
+    for (const [containerLabel, list] of groupedByContainer) {
+      for (const inv of list) out.push({ containerLabel, inv });
+    }
+    return out;
+  }, [groupedByContainer]);
+
+  const totalPages = Math.max(1, Math.ceil((flatRows.length || 0) / (pageSize || 1)));
+  const pagedRows = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return flatRows.slice(start, start + pageSize);
+  }, [flatRows, page, pageSize]);
 
   const markForLink = (inv) => {
     const raw = inv.shipping_mark || shippingMarkId || "";
@@ -124,91 +140,224 @@ export default function ProfileShippingFees({ shippingMarkId }) {
           </button>
         </div>
 
-        {groupedByContainer.map(([containerLabel, list]) => (
-          <div key={containerLabel} className="mb-8 last:mb-0">
-            <h3 className="text-sm font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-3 flex items-center gap-2">
-              <FaBox />
-              {containerLabel}
-            </h3>
-            <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
-              <table className="min-w-full text-sm">
-                <thead className="bg-gray-50 dark:bg-gray-900/50 text-gray-600 dark:text-gray-300">
-                  <tr>
-                    <th className="px-4 py-3 text-left font-semibold">Invoice</th>
-                    <th className="px-4 py-3 text-left font-semibold">Status</th>
-                    <th className="px-4 py-3 text-left font-semibold">Due date</th>
-                    <th className="px-4 py-3 text-right font-semibold">Amount (USD)</th>
-                    <th className="px-4 py-3 text-right font-semibold">Amount (GHS)</th>
-                    <th className="px-4 py-3 text-right font-semibold">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                  {list.map((inv) => {
-                    const statusKey = String(inv.status || "").toLowerCase();
-                    const badge =
-                      STATUS_STYLES[statusKey] ||
-                      "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200";
-                    const due = inv.due_date;
-                    const isOverdue =
-                      due &&
-                      statusKey !== "paid" &&
-                      statusKey !== "cancelled" &&
-                      new Date(due) < new Date(new Date().toDateString());
+        {/* Desktop table */}
+        <div className="hidden sm:block overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+          <table className="min-w-full text-sm">
+            <thead className="bg-gray-50 dark:bg-gray-900/50 text-gray-600 dark:text-gray-300">
+              <tr>
+                <th className="px-4 py-3 text-left font-semibold">Container</th>
+                <th className="px-4 py-3 text-left font-semibold">Invoice</th>
+                <th className="px-4 py-3 text-left font-semibold">Status</th>
+                <th className="px-4 py-3 text-left font-semibold">Due date</th>
+                <th className="px-4 py-3 text-right font-semibold">Amount (USD)</th>
+                <th className="px-4 py-3 text-right font-semibold">Amount (GHS)</th>
+                <th className="px-4 py-3 text-right font-semibold">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+              {pagedRows.map(({ containerLabel, inv }) => {
+                const statusKey = String(inv.status || "").toLowerCase();
+                const badge =
+                  STATUS_STYLES[statusKey] ||
+                  "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200";
+                const due = inv.due_date;
+                const isOverdue =
+                  due &&
+                  statusKey !== "paid" &&
+                  statusKey !== "cancelled" &&
+                  new Date(due) < new Date(new Date().toDateString());
 
-                    return (
-                      <tr key={inv.id} className="text-gray-800 dark:text-gray-100">
-                        <td className="px-4 py-3 font-mono font-semibold">
-                          {inv.invoice_number}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${badge}`}
-                          >
-                            {formatStatusLabel(inv.status)}
-                          </span>
-                          {isOverdue && statusKey !== "overdue" ? (
-                            <span className="ml-1 text-xs text-red-600 dark:text-red-400">
-                              (past due)
-                            </span>
-                          ) : null}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <span
-                            className={
-                              isOverdue ? "text-red-600 dark:text-red-400 font-semibold" : ""
-                            }
-                          >
-                            {formatDate(inv.due_date)}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-right whitespace-nowrap">
-                          {formatMoney(inv.amount_due_usd ?? inv.total_amount)}
-                        </td>
-                        <td className="px-4 py-3 text-right whitespace-nowrap">
-                          {formatMoney(
-                            inv.amount_due_ghs ?? inv.total_amount_ghs,
-                            "GHS"
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <Link
-                            to={`/invoice?invoice_number=${encodeURIComponent(
-                              inv.invoice_number || ""
-                            )}&mark_id=${encodeURIComponent(markForLink(inv))}`}
-                            className="inline-flex items-center gap-1 text-primary font-semibold hover:underline"
-                          >
-                            View
-                            <FaExternalLinkAlt className="text-xs" />
-                          </Link>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                return (
+                  <tr key={inv.id} className="text-gray-800 dark:text-gray-100">
+                    <td className="px-4 py-3 font-semibold flex items-center gap-2">
+                      <FaBox className="text-gray-400" />
+                      {containerLabel}
+                    </td>
+                    <td className="px-4 py-3 font-mono font-semibold">
+                      {inv.invoice_number}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${badge}`}
+                      >
+                        {formatStatusLabel(inv.status)}
+                      </span>
+                      {isOverdue && statusKey !== "overdue" ? (
+                        <span className="ml-1 text-xs text-red-600 dark:text-red-400">
+                          (past due)
+                        </span>
+                      ) : null}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span
+                        className={
+                          isOverdue ? "text-red-600 dark:text-red-400 font-semibold" : ""
+                        }
+                      >
+                        {formatDate(inv.due_date)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
+                      {formatMoney(inv.amount_due_usd ?? inv.total_amount)}
+                    </td>
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
+                      {formatMoney(inv.amount_due_ghs ?? inv.total_amount_ghs, "GHS")}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <Link
+                        to={`/invoice?invoice_number=${encodeURIComponent(
+                          inv.invoice_number || ""
+                        )}&mark_id=${encodeURIComponent(markForLink(inv))}`}
+                        className="inline-flex items-center gap-1 text-primary font-semibold hover:underline"
+                      >
+                        View
+                        <FaExternalLinkAlt className="text-xs" />
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile cards */}
+        <div className="sm:hidden space-y-3">
+          {pagedRows.map(({ containerLabel, inv }) => {
+            const statusKey = String(inv.status || "").toLowerCase();
+            const badge =
+              STATUS_STYLES[statusKey] ||
+              "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200";
+            const due = inv.due_date;
+            const isOverdue =
+              due &&
+              statusKey !== "paid" &&
+              statusKey !== "cancelled" &&
+              new Date(due) < new Date(new Date().toDateString());
+
+            return (
+              <div
+                key={inv.id}
+                className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      Container
+                    </div>
+                    <div className="font-semibold text-gray-900 dark:text-white truncate">
+                      {containerLabel}
+                    </div>
+                    <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                      Invoice
+                    </div>
+                    <div className="font-mono font-semibold text-gray-900 dark:text-white">
+                      {inv.invoice_number}
+                    </div>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <span
+                      className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${badge}`}
+                    >
+                      {formatStatusLabel(inv.status)}
+                    </span>
+                    {isOverdue && statusKey !== "overdue" ? (
+                      <div className="text-xs text-red-600 dark:text-red-400 font-semibold mt-1">
+                        past due
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 mt-3 text-sm">
+                  <div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      Due date
+                    </div>
+                    <div
+                      className={
+                        isOverdue
+                          ? "text-red-600 dark:text-red-400 font-semibold"
+                          : "text-gray-900 dark:text-white font-semibold"
+                      }
+                    >
+                      {formatDate(inv.due_date)}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      Amount (USD)
+                    </div>
+                    <div className="text-gray-900 dark:text-white font-semibold">
+                      {formatMoney(inv.amount_due_usd ?? inv.total_amount)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      Amount (GHS)
+                    </div>
+                    <div className="text-gray-900 dark:text-white font-semibold">
+                      {formatMoney(inv.amount_due_ghs ?? inv.total_amount_ghs, "GHS")}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <Link
+                      to={`/invoice?invoice_number=${encodeURIComponent(
+                        inv.invoice_number || ""
+                      )}&mark_id=${encodeURIComponent(markForLink(inv))}`}
+                      className="inline-flex items-center justify-center gap-1 text-primary font-semibold hover:underline"
+                    >
+                      View
+                      <FaExternalLinkAlt className="text-xs" />
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-2 mt-4 text-sm text-gray-700 dark:text-gray-200">
+          <div>
+            Showing page <strong>{page}</strong> of <strong>{totalPages}</strong> (total{" "}
+            <strong>{flatRows.length}</strong>)
           </div>
-        ))}
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+              Per page:
+            </label>
+            <select
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                setPage(1);
+              }}
+            >
+              {[5, 10, 20, 50].map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+            >
+              Prev
+            </button>
+            <button
+              type="button"
+              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+            >
+              Next
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

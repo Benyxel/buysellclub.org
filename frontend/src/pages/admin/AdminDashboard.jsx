@@ -97,6 +97,7 @@ import AdminVendorPayoutRequests from "./AdminVendorPayoutRequests";
 import StaffClockRecords from "./StaffClockRecords";
 import RiderManagementPanel from "./delivery/RiderManagementPanel";
 import DeliveryRequestsPanel from "./delivery/DeliveryRequestsPanel";
+import BulkOutsideAccraRequestsPanel from "./delivery/BulkOutsideAccraRequestsPanel";
 import "react-toastify/dist/ReactToastify.css";
 
 /** Sections grouped under sidebar "Quick Tabs" (Shipping through Agent Management). */
@@ -1266,11 +1267,27 @@ const AdminDashboard = () => {
                     <span>Delivery requests</span>
                   </div>
                 </button>
+                <button
+                  type="button"
+                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
+                    deliverySubMenu === "bulk-outside-accra"
+                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                  onClick={() => setDeliverySubMenu("bulk-outside-accra")}
+                >
+                  <div className="flex items-center gap-2">
+                    <FaClipboardList className="w-4 h-4" />
+                    <span>Bulk delivery (Outside Accra)</span>
+                  </div>
+                </button>
               </div>
             </div>
 
             {deliverySubMenu === "riders" ? (
               <RiderManagementPanel />
+            ) : deliverySubMenu === "bulk-outside-accra" ? (
+              <BulkOutsideAccraRequestsPanel />
             ) : (
               <DeliveryRequestsPanel />
             )}

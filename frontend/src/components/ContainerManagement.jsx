@@ -44,6 +44,9 @@ const ContainerManagement = () => {
     status: "preparing",
     departure_date: "",
     arrival_date: "",
+    bulk_delivery_outside_accra_date: "",
+    bulk_delivery_outside_accra_completed: false,
+    invoice_due_date: "",
     invoice_grace_days: "",
     display_cbm: "",
     notes: "",
@@ -179,10 +182,10 @@ const ContainerManagement = () => {
   };
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: type === "checkbox" ? checked : value,
     }));
   };
 
@@ -190,6 +193,18 @@ const ContainerManagement = () => {
     ...formData,
     departure_date: formData.departure_date || null,
     arrival_date: formData.arrival_date || null,
+    bulk_delivery_outside_accra_date:
+      formData.bulk_delivery_outside_accra_date === "" ||
+      formData.bulk_delivery_outside_accra_date == null
+        ? null
+        : formData.bulk_delivery_outside_accra_date,
+    bulk_delivery_outside_accra_completed: Boolean(
+      formData.bulk_delivery_outside_accra_completed
+    ),
+    invoice_due_date:
+      formData.invoice_due_date === "" || formData.invoice_due_date == null
+        ? null
+        : formData.invoice_due_date,
     display_cbm:
       formData.display_cbm === "" || formData.display_cbm == null
         ? null
@@ -259,6 +274,12 @@ const ContainerManagement = () => {
       status: container.status,
       departure_date: container.departure_date || "",
       arrival_date: container.arrival_date || "",
+      bulk_delivery_outside_accra_date:
+        container.bulk_delivery_outside_accra_date || "",
+      bulk_delivery_outside_accra_completed: Boolean(
+        container.bulk_delivery_outside_accra_completed
+      ),
+      invoice_due_date: container.invoice_due_date || "",
       invoice_grace_days:
         container.invoice_grace_days != null && container.invoice_grace_days !== undefined
           ? String(container.invoice_grace_days)
@@ -320,6 +341,9 @@ const ContainerManagement = () => {
       status: "preparing",
       departure_date: "",
       arrival_date: "",
+      bulk_delivery_outside_accra_date: "",
+      bulk_delivery_outside_accra_completed: false,
+      invoice_due_date: "",
       invoice_grace_days: "",
       display_cbm: "",
       notes: "",
@@ -674,21 +698,55 @@ const ContainerManagement = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Invoice due grace (days)
+                    Bulk delivery (Outside Accra) date{" "}
+                    <span className="text-gray-500 font-normal">(optional)</span>
                   </label>
                   <input
-                    type="number"
-                    min="0"
-                    step="1"
-                    name="invoice_grace_days"
-                    value={formData.invoice_grace_days}
+                    type="date"
+                    name="bulk_delivery_outside_accra_date"
+                    value={formData.bulk_delivery_outside_accra_date}
                     onChange={handleInputChange}
-                    placeholder={`Default: ${defaultGraceDays} days`}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Days until payment is due for invoices on this container (and before daily
-                    storage starts). Leave blank to use global default ({defaultGraceDays} days).
+                    Set the scheduled bulk delivery date for this container (outside Accra).
+                  </p>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <input
+                    id="bulk_delivery_outside_accra_completed"
+                    type="checkbox"
+                    name="bulk_delivery_outside_accra_completed"
+                    checked={!!formData.bulk_delivery_outside_accra_completed}
+                    onChange={handleInputChange}
+                    className="mt-1"
+                  />
+                  <label
+                    htmlFor="bulk_delivery_outside_accra_completed"
+                    className="text-sm font-medium text-gray-700 dark:text-gray-300"
+                  >
+                    Bulk delivery completed (hide announcement)
+                    <div className="text-xs text-gray-500 dark:text-gray-400 font-normal mt-1">
+                      Turn this on after bulk delivery is done for this container.
+                    </div>
+                  </label>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Invoice due date <span className="text-gray-500 font-normal">(optional)</span>
+                  </label>
+                  <input
+                    type="date"
+                    name="invoice_due_date"
+                    value={formData.invoice_due_date}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Pick a calendar date when invoices for this container become due (weekends included).
+                    Leave blank to use the grace days setting (default {defaultGraceDays} days).
                   </p>
                 </div>
 
@@ -1080,13 +1138,32 @@ const ContainerManagement = () => {
               </div>
               <div>
                 <div className="text-sm text-gray-600 dark:text-gray-400">
-                  Invoice due grace
+                  Invoice due
                 </div>
                 <div className="font-medium text-gray-900 dark:text-white">
-                  {containerDetails.invoice_grace_days != null &&
-                  containerDetails.invoice_grace_days !== ""
-                    ? `${containerDetails.invoice_grace_days} days (custom)`
-                    : `${containerDetails.effective_invoice_grace_days ?? defaultGraceDays} days (global default)`}
+                  {containerDetails.invoice_due_date
+                    ? new Date(containerDetails.invoice_due_date).toLocaleDateString()
+                    : containerDetails.invoice_grace_days != null &&
+                      containerDetails.invoice_grace_days !== ""
+                    ? `${containerDetails.invoice_grace_days} days (custom grace)`
+                    : `${containerDetails.effective_invoice_grace_days ?? defaultGraceDays} days (global default grace)`}
+                </div>
+              </div>
+              <div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  Bulk delivery (Outside Accra)
+                </div>
+                <div className="font-medium text-gray-900 dark:text-white">
+                  {containerDetails.bulk_delivery_outside_accra_date
+                    ? new Date(
+                        containerDetails.bulk_delivery_outside_accra_date
+                      ).toLocaleDateString()
+                    : "Not set"}
+                  {containerDetails.bulk_delivery_outside_accra_completed ? (
+                    <span className="ml-2 text-xs font-semibold text-green-700 dark:text-green-300">
+                      (completed)
+                    </span>
+                  ) : null}
                 </div>
               </div>
             </div>
