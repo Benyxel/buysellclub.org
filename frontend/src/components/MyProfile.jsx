@@ -83,6 +83,7 @@ import AvatarSVG from "./AvatarSVG";
 import VendorSales from "../pages/VendorSales";
 import { normalizePhone } from "../utils/ghanaPhone";
 import ProfileRiderWorkspace from "./profile/ProfileRiderWorkspace";
+import ProfileShippingFees from "./profile/ProfileShippingFees";
 import { DeliveryComingSoonContent } from "./DeliveryComingSoon";
 import { formatMarkIdForDisplay, formatMarkIdInText } from "../utils/markIdFormat";
 
@@ -2728,6 +2729,20 @@ const MyProfile = () => {
                   />
                   Tracking
                 </button>
+                <button
+                  onClick={() => {
+                    setActiveTab("shippingFees");
+                    if (isMobile) setShowTabModal(true);
+                  }}
+                  className={`w-full flex items-center gap-2.5 sm:gap-3 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-lg transition-colors text-base ${
+                    activeTab === "shippingFees"
+                      ? "bg-primary text-white"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                >
+                  <FaFileInvoiceDollar className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+                  Shipping fees
+                </button>
                 {currentUser && currentUser.is_rider !== true && (
                   <button
                     onClick={() => {
@@ -2921,6 +2936,7 @@ const MyProfile = () => {
                     profile: "Profile",
                     digitalDownloads: "Digital downloads",
                     tracking: "Tracking",
+                    shippingFees: "Shipping fees",
                     alipay: "Alipay Payment",
                     buy4me: "Buy4Me",
                     orders: "Orders",
@@ -3752,6 +3768,14 @@ const MyProfile = () => {
             )}
 
             {/* Tracking Tab */}
+            {activeTab === "shippingFees" && (
+              <ProfileShippingFees
+                shippingMarkId={
+                  shippingMarks[0]?.markId || shippingMarks[0]?.mark_id || ""
+                }
+              />
+            )}
+
             {activeTab === "tracking" && (
               <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
                 <div className="flex flex-wrap justify-between items-center gap-2 mb-4 sm:mb-6">

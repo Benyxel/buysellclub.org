@@ -4,6 +4,7 @@ import { FaSpinner, FaFilePdf, FaArrowLeft } from "react-icons/fa";
 import API, { Api } from "../api";
 import toast from "react-hot-toast";
 import { InvoiceItemTrackingLabel, InvoiceItemCbm } from "../components/InvoiceItemDisplay";
+import { getInvoiceGhsBreakdown, getInvoiceTotalCbm } from "../utils/invoiceGhsBreakdown";
 
 const PublicInvoice = () => {
   const [searchParams] = useSearchParams();
@@ -103,6 +104,9 @@ const PublicInvoice = () => {
   if (!invoice) {
     return null;
   }
+
+  const ghs = getInvoiceGhsBreakdown(invoice);
+  const totalCbm = getInvoiceTotalCbm(invoice.items);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4">
@@ -221,10 +225,17 @@ const PublicInvoice = () => {
                     </tr>
                   </thead>
                   <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                    {invoice.items.map((item) => (
+                    {invoice.items.map((item) => {
+                      const isStorage =
+                        String(item.tracking_number || "").toUpperCase() === "STORAGE";
+                      return (
                       <tr
                         key={item.id}
-                        className="hover:bg-gray-50 dark:hover:bg-gray-700"
+                        className={
+                          isStorage
+                            ? "bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/30"
+                            : "hover:bg-gray-50 dark:hover:bg-gray-700"
+                        }
                       >
                         <td className="px-4 py-3 text-gray-900 dark:text-white">
                           <InvoiceItemTrackingLabel item={item} />
@@ -236,16 +247,14 @@ const PublicInvoice = () => {
                           <InvoiceItemCbm item={item} className="block text-right" />
                         </td>
                       </tr>
-                    ))}
+                    );
+                    })}
                   </tbody>
                 </table>
               </div>
               <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600 flex justify-end">
                 <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                  Total CBM:{" "}
-                  {Number(
-                    invoice.items.reduce((s, i) => s + Number(i.cbm || 0), 0)
-                  ).toFixed(3)}
+                  Total CBM: {totalCbm.toFixed(3)}
                 </span>
               </div>
             </>
@@ -256,52 +265,87 @@ const PublicInvoice = () => {
           )}
         </div>
 
+        {/* Pay on time — before storage fees start */}
+        {invoice.storage_payment_reminder &&
+          invoice.status !== "paid" &&
+          invoice.status !== "cancelled" && (
+            <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 rounded-lg">
+              <p className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-1">
+                Pay on time
+              </p>
+              <p className="text-sm text-blue-800 dark:text-blue-200">
+                {invoice.storage_payment_reminder}
+              </p>
+            </div>
+          )}
+
         {/* Totals */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
           <div className="max-w-md ml-auto">
             <div className="space-y-2">
-              <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                <span>Subtotal:</span>
-                <span className="text-gray-900 dark:text-white">
-                  {formatCurrency(invoice.subtotal)}
-                </span>
-              </div>
-              {invoice.tax_amount &&
-                parseFloat(invoice.tax_amount) > 0 && (
-                  <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                    <span>Tax:</span>
-                    <span className="text-gray-900 dark:text-white">
-                      {formatCurrency(invoice.tax_amount)}
-                    </span>
-                  </div>
-                )}
-              {invoice.discount_amount &&
-                parseFloat(invoice.discount_amount) > 0 && (
-                  <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                    <span>Discount:</span>
-                    <span className="text-gray-900 dark:text-white">
-                      -{formatCurrency(invoice.discount_amount)}
-                    </span>
-                  </div>
-                )}
-              <div className="border-t border-gray-200 dark:border-gray-700 pt-2 mt-2">
-                <div className="flex justify-between text-lg font-bold text-gray-900 dark:text-white">
-                  <span>Total (USD):</span>
-                  <span>{formatCurrency(invoice.total_amount)}</span>
-                </div>
-              </div>
-              {invoice.exchange_rate && invoice.total_amount_ghs && (
-                <div className="border-t border-gray-200 dark:border-gray-700 pt-2 mt-2">
-                  <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-1">
-                    <span>Exchange Rate:</span>
-                    <span>1 USD = {parseFloat(invoice.exchange_rate).toFixed(4)} GHS</span>
-                  </div>
-                  <div className="flex justify-between text-lg font-bold text-green-600 dark:text-green-400">
-                    <span>Total (GHS):</span>
-                    <span>{formatCurrency(invoice.total_amount_ghs, "GHS")}</span>
-                  </div>
+              {invoice.items?.length > 0 && (
+                <div className="flex justify-between text-sm font-semibold text-gray-700 dark:text-gray-300 pb-2 border-b border-gray-200 dark:border-gray-600">
+                  <span>Total CBM:</span>
+                  <span>{totalCbm.toFixed(3)}</span>
                 </div>
               )}
+              <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
+                <span>Shipping fee (USD):</span>
+                <span className="text-gray-900 dark:text-white font-medium">
+                  {formatCurrency(ghs.freightUsd)}
+                </span>
+              </div>
+              {ghs.rate > 0 && (
+                <p className="text-xs text-gray-500 dark:text-gray-400 text-right">
+                  1 USD = {ghs.rate.toFixed(4)} GHS
+                </p>
+              )}
+
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-3 mt-2 space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  Amount in Ghana cedis
+                </p>
+                <div className="flex justify-between text-gray-800 dark:text-gray-100">
+                  <span>Shipping fee (GHS):</span>
+                  <span className="font-semibold">
+                    {formatCurrency(ghs.freightGhs, "GHS")}
+                  </span>
+                </div>
+                {ghs.storageGhs > 0 ? (
+                  <div className="flex justify-between text-amber-700 dark:text-amber-300">
+                    <span className="pr-4">
+                      Storage fee (GHS)
+                      <span className="block text-xs font-normal text-amber-600/90 dark:text-amber-400/90 mt-0.5">
+                        You are charged per day
+                        {invoice.storage_fee_detail ? (
+                          <span className="block mt-0.5">{invoice.storage_fee_detail}</span>
+                        ) : null}
+                      </span>
+                    </span>
+                    <span className="font-semibold text-right shrink-0">
+                      {formatCurrency(ghs.storageGhs, "GHS")}
+                    </span>
+                  </div>
+                ) : invoice.storage_not_yet_due ? (
+                  <p className="text-xs text-gray-500 dark:text-gray-400 italic">
+                    No storage fee yet — pay before the due date to avoid daily storage
+                    charges.
+                  </p>
+                ) : null}
+                <div className="flex justify-between text-lg font-bold text-green-600 dark:text-green-400 border-t border-gray-200 dark:border-gray-600 pt-2">
+                  <span>Total (GHS):</span>
+                  <span>{formatCurrency(ghs.totalGhs, "GHS")}</span>
+                </div>
+              </div>
+
+              {invoice.amount_due_ghs != null &&
+                parseFloat(invoice.amount_due_ghs) > 0 &&
+                Math.abs(parseFloat(invoice.amount_due_ghs) - ghs.totalGhs) > 0.01 && (
+                  <div className="flex justify-between text-sm font-semibold text-orange-600 dark:text-orange-400">
+                    <span>Balance due (GHS):</span>
+                    <span>{formatCurrency(invoice.amount_due_ghs, "GHS")}</span>
+                  </div>
+                )}
             </div>
           </div>
 

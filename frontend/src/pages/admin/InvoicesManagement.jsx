@@ -3,6 +3,7 @@ import API, { Api } from "../../api";
 import { toast } from "../../utils/toast";
 import { FaTrash, FaTimes, FaExternalLinkAlt, FaPlus, FaEdit, FaSpinner, FaDownload } from "react-icons/fa";
 import { InvoiceItemTrackingLabel, InvoiceItemCbm } from "../../components/InvoiceItemDisplay";
+import { getInvoiceGhsBreakdown, getInvoiceTotalCbm } from "../../utils/invoiceGhsBreakdown";
 
 const statusOptions = [
   { value: "", label: "All" },
@@ -22,6 +23,26 @@ const orderOptions = [
   { value: "-total_amount", label: "Amount (desc)" },
   { value: "total_amount", label: "Amount (asc)" },
 ];
+
+/** Default issue = today, due = 5 days (shipping fee invoices). */
+function invoiceDefaultDates() {
+  const issue = new Date();
+  const due = new Date(issue);
+  due.setDate(due.getDate() + 5);
+  const fmt = (d) => d.toISOString().split("T")[0];
+  return { issue_date: fmt(issue), due_date: fmt(due) };
+}
+
+const emptyCreateLineItem = () => ({
+  _key: `${Date.now()}-${Math.random()}`,
+  mode: "manual",
+  tracking_id: "",
+  description: "",
+  tracking_number: "",
+  cbm: "",
+  rate_per_cbm: "",
+  total_amount: "",
+});
 
 export default function InvoicesManagement() {
   const [loading, setLoading] = useState(false);
@@ -68,6 +89,9 @@ export default function InvoicesManagement() {
     notes: "",
   });
   const [creating, setCreating] = useState(false);
+  const [createLineItems, setCreateLineItems] = useState([]);
+  const [createAvailableTrackings, setCreateAvailableTrackings] = useState([]);
+  const [loadingCreateTrackings, setLoadingCreateTrackings] = useState(false);
   const [containers, setContainers] = useState([]);
   const [loadingContainers, setLoadingContainers] = useState(false);
   const [loadingMarkInfo, setLoadingMarkInfo] = useState(false);
@@ -405,18 +429,87 @@ export default function InvoicesManagement() {
     }
   };
 
+  const resetCreateForm = () => {
+    setCreateFormData({
+      shipping_mark: "",
+      container_id: "",
+      total_cbm: 0,
+      customer_name: "",
+      customer_email: "",
+      total_amount: 0,
+      status: "pending",
+      issue_date: "",
+      due_date: "",
+      payment_method: "",
+      payment_reference: "",
+      notes: "",
+    });
+    setCreateLineItems([]);
+    setCreateAvailableTrackings([]);
+  };
+
+  const buildCreateItemsPayload = () => {
+    const out = [];
+    for (const row of createLineItems) {
+      if (row.mode === "tracking" && row.tracking_id) {
+        out.push({ tracking_id: parseInt(row.tracking_id, 10) });
+        continue;
+      }
+      if (row.mode === "manual") {
+        const desc = (row.description || "").trim();
+        const amount = parseFloat(row.total_amount);
+        if (!desc || Number.isNaN(amount)) continue;
+        out.push({
+          description: desc,
+          tracking_number: (row.tracking_number || "").trim() || undefined,
+          cbm: row.cbm ? parseFloat(row.cbm) : 0,
+          rate_per_cbm: row.rate_per_cbm ? parseFloat(row.rate_per_cbm) : 0,
+          total_amount: amount,
+        });
+      }
+    }
+    return out;
+  };
+
+  const createItemsPayload = useMemo(() => buildCreateItemsPayload(), [createLineItems]);
+
+  const createItemsSubtotal = useMemo(() => {
+    let sum = 0;
+    for (const row of createLineItems) {
+      if (row.mode === "tracking" && row.tracking_id) {
+        const t = createAvailableTrackings.find(
+          (tr) => String(tr.id) === String(row.tracking_id)
+        );
+        sum += Number(t?.shipping_fee || 0);
+      } else if (row.mode === "manual") {
+        const amount = parseFloat(row.total_amount);
+        if (!Number.isNaN(amount)) sum += amount;
+      }
+    }
+    return sum;
+  }, [createLineItems, createAvailableTrackings]);
+
   const handleCreateInvoice = async () => {
-    if (!createFormData.shipping_mark || !createFormData.total_amount) {
-      toast.error("Shipping Mark and Total Amount are required");
+    const itemsPayload = buildCreateItemsPayload();
+    const hasLineItems = itemsPayload.length > 0;
+    const totalAmount = hasLineItems
+      ? createItemsSubtotal
+      : parseFloat(createFormData.total_amount);
+
+    if (!createFormData.shipping_mark) {
+      toast.error("Shipping Mark is required");
+      return;
+    }
+    if (!hasLineItems && (!totalAmount || totalAmount <= 0)) {
+      toast.error("Enter a total amount or add at least one line item");
       return;
     }
 
     setCreating(true);
     try {
-      // Fetch current exchange rate
       const rateResp = await API.get("/buysellapi/currency-rate/");
       const exchangeRate = rateResp.data?.usd_to_ghs || 12.0;
-      const totalAmountGhs = Math.ceil(parseFloat(createFormData.total_amount) * parseFloat(exchangeRate));
+      const totalAmountGhs = Math.ceil(totalAmount * parseFloat(exchangeRate));
 
       const payload = {
         shipping_mark: createFormData.shipping_mark,
@@ -424,37 +517,28 @@ export default function InvoicesManagement() {
         total_cbm: parseFloat(createFormData.total_cbm) || 0,
         customer_name: createFormData.customer_name || "",
         customer_email: createFormData.customer_email || "",
-        subtotal: parseFloat(createFormData.total_amount),
+        subtotal: totalAmount,
         tax_amount: 0,
         discount_amount: 0,
-        total_amount: parseFloat(createFormData.total_amount),
+        total_amount: totalAmount,
         exchange_rate: exchangeRate,
         total_amount_ghs: totalAmountGhs,
         status: createFormData.status || "pending",
-        issue_date: createFormData.issue_date || new Date().toISOString().split('T')[0],
-        due_date: createFormData.due_date || "",
+        issue_date:
+          createFormData.issue_date || invoiceDefaultDates().issue_date,
+        due_date: createFormData.due_date || invoiceDefaultDates().due_date,
         payment_method: createFormData.payment_method || "",
         payment_reference: createFormData.payment_reference || "",
         notes: createFormData.notes || "",
       };
+      if (hasLineItems) {
+        payload.items = itemsPayload;
+      }
 
       const response = await API.post("/buysellapi/invoices/", payload);
-      toast.success(`Invoice ${response.data?.invoice_number || 'created'} created successfully`);
+      toast.success(`Invoice ${response.data?.invoice_number || "created"} created successfully`);
       setShowCreateModal(false);
-      setCreateFormData({
-        shipping_mark: "",
-        container_id: "",
-        total_cbm: 0,
-        customer_name: "",
-        customer_email: "",
-        total_amount: 0,
-        status: "pending",
-        issue_date: "",
-        due_date: "",
-        payment_method: "",
-        payment_reference: "",
-        notes: "",
-      });
+      resetCreateForm();
       fetchInvoices();
     } catch (err) {
       console.error("Failed to create invoice", err);
@@ -560,6 +644,35 @@ export default function InvoicesManagement() {
     fetchContainers();
   }, []);
 
+  useEffect(() => {
+    if (!showCreateModal || !createFormData.shipping_mark?.trim() || !createFormData.container_id) {
+      setCreateAvailableTrackings([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setLoadingCreateTrackings(true);
+      try {
+        const res = await API.get("/buysellapi/invoices/preview/", {
+          params: {
+            mark_id: createFormData.shipping_mark.trim(),
+            container_id: createFormData.container_id,
+          },
+        });
+        if (!cancelled) {
+          setCreateAvailableTrackings(res.data?.items || []);
+        }
+      } catch {
+        if (!cancelled) setCreateAvailableTrackings([]);
+      } finally {
+        if (!cancelled) setLoadingCreateTrackings(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [showCreateModal, createFormData.shipping_mark, createFormData.container_id]);
+
   return (
     <div className="p-4">
       <div className="flex items-center justify-between mb-4">
@@ -578,7 +691,15 @@ export default function InvoicesManagement() {
             </div>
           )}
           <button
-            onClick={() => setShowCreateModal(true)}
+            onClick={() => {
+              const dates = invoiceDefaultDates();
+              setCreateFormData((prev) => ({
+                ...prev,
+                issue_date: dates.issue_date,
+                due_date: dates.due_date,
+              }));
+              setShowCreateModal(true);
+            }}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
           >
             Create Invoice
@@ -1025,12 +1146,20 @@ export default function InvoicesManagement() {
                   <div className="p-3 rounded bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600">
                     <div className="text-gray-500 dark:text-gray-400">Invoice total</div>
                     <div className="font-bold text-indigo-700 dark:text-indigo-300">
-                      ${Number(invoiceDetails.total_amount || 0).toFixed(2)}
-                      {invoiceDetails.total_amount_ghs != null && (
-                        <span className="block text-xs text-green-600 dark:text-green-400 font-medium">
-                          ₵{Number(invoiceDetails.total_amount_ghs || 0).toFixed(2)}
-                        </span>
-                      )}
+                      ${Number(invoiceDetails.total_amount || 0).toFixed(2)} USD
+                      {invoiceDetails.exchange_rate && (() => {
+                        const g = getInvoiceGhsBreakdown(invoiceDetails);
+                        return (
+                          <>
+                            <span className="block text-xs text-gray-600 dark:text-gray-300 font-medium">
+                              ₵{g.freightGhs.toFixed(2)} shipping + ₵{g.storageGhs.toFixed(2)} storage
+                            </span>
+                            <span className="block text-xs text-green-600 dark:text-green-400 font-medium">
+                              ₵{g.totalGhs.toFixed(2)} total GHS
+                            </span>
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
                   <div className="p-3 rounded bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600">
@@ -1370,18 +1499,29 @@ export default function InvoicesManagement() {
               </div>
             )}
 
+            {invoiceDetails.storage_payment_reminder &&
+              invoiceDetails.status !== "paid" &&
+              invoiceDetails.status !== "cancelled" && (
+                <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 rounded-lg">
+                  <p className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-1">
+                    Pay on time
+                  </p>
+                  <p className="text-sm text-blue-800 dark:text-blue-200">
+                    {invoiceDetails.storage_payment_reminder}
+                  </p>
+                </div>
+              )}
+
             {/* Totals */}
             <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
               <div className="space-y-2">
                 {invoiceDetails.items && invoiceDetails.items.length > 0 && (
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between text-sm font-semibold">
                     <span className="text-gray-600 dark:text-gray-400">
                       Total CBM:
                     </span>
                     <span className="font-medium text-gray-900 dark:text-white">
-                      {Number(
-                        invoiceDetails.items.reduce((s, i) => s + Number(i.cbm || 0), 0)
-                      ).toFixed(3)}
+                      {getInvoiceTotalCbm(invoiceDetails.items).toFixed(3)}
                     </span>
                   </div>
                 )}
@@ -1415,30 +1555,60 @@ export default function InvoicesManagement() {
                     ${Number(invoiceDetails.total_amount || 0).toFixed(2)}
                   </span>
                 </div>
-                {invoiceDetails.exchange_rate &&
-                  invoiceDetails.total_amount_ghs && (
+                {invoiceDetails.exchange_rate && (() => {
+                  const ghs = getInvoiceGhsBreakdown(invoiceDetails);
+                  return (
                     <>
                       <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 italic mt-1">
                         <span>Exchange Rate:</span>
-                        <span>
-                          1 USD ={" "}
-                          {Number(invoiceDetails.exchange_rate || 0).toFixed(4)}{" "}
-                          GHS
-                        </span>
+                        <span>1 USD = {ghs.rate.toFixed(4)} GHS</span>
                       </div>
-                      <div className="flex justify-between border-t border-gray-200 dark:border-gray-600 pt-2 mt-2">
-                        <span className="font-semibold text-green-700 dark:text-green-400">
-                          Total (GHS):
-                        </span>
-                        <span className="font-bold text-lg text-green-700 dark:text-green-400">
-                          ₵
-                          {Number(invoiceDetails.total_amount_ghs || 0).toFixed(
-                            2
-                          )}
-                        </span>
+                      <div className="border-t border-gray-200 dark:border-gray-600 pt-2 mt-2 space-y-1.5">
+                        <p className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
+                          Ghana cedis (GH₵)
+                        </p>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600 dark:text-gray-400">
+                            Shipping fee (GHS):
+                          </span>
+                          <span className="font-medium text-gray-900 dark:text-white">
+                            ₵{ghs.freightGhs.toFixed(2)}
+                          </span>
+                        </div>
+                        {ghs.storageGhs > 0 ? (
+                          <div className="flex justify-between text-sm gap-3">
+                            <span className="text-amber-700 dark:text-amber-300">
+                              Storage fee (GHS)
+                              <span className="block text-xs font-normal mt-0.5">
+                                You are charged per day
+                                {invoiceDetails.storage_fee_detail ? (
+                                  <span className="block mt-0.5">
+                                    {invoiceDetails.storage_fee_detail}
+                                  </span>
+                                ) : null}
+                              </span>
+                            </span>
+                            <span className="font-medium text-amber-700 dark:text-amber-300 shrink-0">
+                              ₵{ghs.storageGhs.toFixed(2)}
+                            </span>
+                          </div>
+                        ) : invoiceDetails.storage_not_yet_due ? (
+                          <p className="text-xs text-gray-500 dark:text-gray-400 italic">
+                            No storage fee yet — customer should pay before the due date.
+                          </p>
+                        ) : null}
+                        <div className="flex justify-between border-t border-gray-200 dark:border-gray-600 pt-2">
+                          <span className="font-semibold text-green-700 dark:text-green-400">
+                            Total (GHS):
+                          </span>
+                          <span className="font-bold text-lg text-green-700 dark:text-green-400">
+                            ₵{ghs.totalGhs.toFixed(2)}
+                          </span>
+                        </div>
                       </div>
                     </>
-                  )}
+                  );
+                })()}
               </div>
             </div>
 
@@ -1642,20 +1812,7 @@ export default function InvoicesManagement() {
                 <button
                   onClick={() => {
                     setShowCreateModal(false);
-                    setCreateFormData({
-                      shipping_mark: "",
-                      container_id: "",
-                      total_cbm: 0,
-                      customer_name: "",
-                      customer_email: "",
-                      total_amount: 0,
-                      status: "pending",
-                      issue_date: "",
-                      due_date: "",
-                      payment_method: "",
-                      payment_reference: "",
-                      notes: "",
-                    });
+                    resetCreateForm();
                   }}
                   className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                 >
@@ -1798,21 +1955,203 @@ export default function InvoicesManagement() {
                 </div>
               </div>
 
+              <div className="border border-gray-200 dark:border-gray-600 rounded-lg p-4 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="text-sm font-semibold text-gray-800 dark:text-white">
+                    Invoice line items
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCreateLineItems((rows) => [...rows, emptyCreateLineItem()])
+                    }
+                    className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
+                  >
+                    <FaPlus className="text-xs" /> Add line
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Optional. Add manual lines or pick trackings when a container is selected.
+                  Totals update from line items when at least one line is added.
+                </p>
+                {createLineItems.length === 0 ? (
+                  <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+                    No line items — enter total amount below instead.
+                  </p>
+                ) : (
+                  <div className="space-y-4 max-h-64 overflow-y-auto pr-1">
+                    {createLineItems.map((row, idx) => (
+                      <div
+                        key={row._key}
+                        className="p-3 rounded-lg bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-700 space-y-2"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                            Line {idx + 1}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setCreateLineItems((rows) =>
+                                rows.filter((r) => r._key !== row._key)
+                              )
+                            }
+                            className="text-red-600 hover:text-red-800 text-xs"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                        <select
+                          value={row.mode}
+                          onChange={(e) =>
+                            setCreateLineItems((rows) =>
+                              rows.map((r) =>
+                                r._key === row._key
+                                  ? { ...r, mode: e.target.value, tracking_id: "" }
+                                  : r
+                              )
+                            )
+                          }
+                          className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        >
+                          <option value="manual">Manual line</option>
+                          <option
+                            value="tracking"
+                            disabled={!createFormData.container_id}
+                          >
+                            From tracking
+                            {!createFormData.container_id ? " (select container)" : ""}
+                          </option>
+                        </select>
+                        {row.mode === "tracking" ? (
+                          <select
+                            value={row.tracking_id}
+                            onChange={(e) =>
+                              setCreateLineItems((rows) =>
+                                rows.map((r) =>
+                                  r._key === row._key
+                                    ? { ...r, tracking_id: e.target.value }
+                                    : r
+                                )
+                              )
+                            }
+                            disabled={loadingCreateTrackings}
+                            className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                          >
+                            <option value="">Select tracking</option>
+                            {createAvailableTrackings.map((t) => (
+                              <option key={t.id} value={t.id}>
+                                {t.tracking_number} (CBM: {Number(t.cbm || 0).toFixed(3)}, $
+                                {Number(t.shipping_fee || 0).toFixed(2)})
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <>
+                            <input
+                              placeholder="Description *"
+                              value={row.description}
+                              onChange={(e) =>
+                                setCreateLineItems((rows) =>
+                                  rows.map((r) =>
+                                    r._key === row._key
+                                      ? { ...r, description: e.target.value }
+                                      : r
+                                  )
+                                )
+                              }
+                              className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            />
+                            <div className="grid grid-cols-2 gap-2">
+                              <input
+                                type="number"
+                                step="0.01"
+                                placeholder="Amount USD *"
+                                value={row.total_amount}
+                                onChange={(e) =>
+                                  setCreateLineItems((rows) =>
+                                    rows.map((r) =>
+                                      r._key === row._key
+                                        ? { ...r, total_amount: e.target.value }
+                                        : r
+                                    )
+                                  )
+                                }
+                                className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                              />
+                              <input
+                                type="number"
+                                step="0.001"
+                                placeholder="CBM"
+                                value={row.cbm}
+                                onChange={(e) =>
+                                  setCreateLineItems((rows) =>
+                                    rows.map((r) =>
+                                      r._key === row._key
+                                        ? { ...r, cbm: e.target.value }
+                                        : r
+                                    )
+                                  )
+                                }
+                                className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                              />
+                            </div>
+                            <input
+                              placeholder="Tracking # (optional)"
+                              value={row.tracking_number}
+                              onChange={(e) =>
+                                setCreateLineItems((rows) =>
+                                  rows.map((r) =>
+                                    r._key === row._key
+                                      ? { ...r, tracking_number: e.target.value }
+                                      : r
+                                  )
+                                )
+                              }
+                              className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            />
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {createItemsPayload.length > 0 && (
+                  <p className="text-sm font-medium text-indigo-700 dark:text-indigo-300">
+                    Lines subtotal: ${createItemsSubtotal.toFixed(2)} (invoice total will use line
+                    items)
+                  </p>
+                )}
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Total Amount (USD) <span className="text-red-500">*</span>
+                    Total Amount (USD){" "}
+                    {createItemsPayload.length > 0 ? (
+                      <span className="text-gray-400 font-normal">(from lines)</span>
+                    ) : (
+                      <span className="text-red-500">*</span>
+                    )}
                   </label>
                   <input
                     type="number"
                     step="0.01"
-                    value={createFormData.total_amount}
+                    value={
+                      createItemsPayload.length > 0
+                        ? createItemsSubtotal
+                        : createFormData.total_amount
+                    }
                     onChange={(e) => {
+                      if (createItemsPayload.length > 0) return;
                       const totalAmount = parseFloat(e.target.value) || 0;
                       setCreateFormData({ ...createFormData, total_amount: totalAmount });
                     }}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    required
+                    readOnly={createItemsPayload.length > 0}
+                    className={`w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${
+                      createItemsPayload.length > 0 ? "opacity-75 cursor-not-allowed" : ""
+                    }`}
+                    required={createItemsPayload.length === 0}
                   />
                 </div>
                 <div>
@@ -1829,7 +2168,9 @@ export default function InvoicesManagement() {
                 </div>
               </div>
 
-              {createFormData.total_amount > 0 && currentRate && (
+              {(createItemsPayload.length > 0 ? createItemsSubtotal : createFormData.total_amount) >
+                0 &&
+                currentRate && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Total Amount (GHS)
@@ -1837,7 +2178,11 @@ export default function InvoicesManagement() {
                   <input
                     type="number"
                     step="0.01"
-                    value={Math.ceil(createFormData.total_amount * parseFloat(currentRate.usd_to_ghs))}
+                    value={Math.ceil(
+                      (createItemsPayload.length > 0
+                        ? createItemsSubtotal
+                        : createFormData.total_amount) * parseFloat(currentRate.usd_to_ghs)
+                    )}
                     readOnly
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 font-semibold"
                   />
@@ -1922,7 +2267,11 @@ export default function InvoicesManagement() {
               <div className="flex gap-3 mt-6">
                 <button
                   onClick={handleCreateInvoice}
-                  disabled={creating || !createFormData.shipping_mark || !createFormData.total_amount}
+                  disabled={
+                    creating ||
+                    !createFormData.shipping_mark ||
+                    (createItemsPayload.length === 0 && !createFormData.total_amount)
+                  }
                   className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
                 >
                   {creating ? "Creating..." : "Create Invoice"}
@@ -1930,20 +2279,7 @@ export default function InvoicesManagement() {
                 <button
                   onClick={() => {
                     setShowCreateModal(false);
-                    setCreateFormData({
-                      shipping_mark: "",
-                      container_id: "",
-                      total_cbm: 0,
-                      customer_name: "",
-                      customer_email: "",
-                      total_amount: 0,
-                      status: "pending",
-                      issue_date: "",
-                      due_date: "",
-                      payment_method: "",
-                      payment_reference: "",
-                      notes: "",
-                    });
+                    resetCreateForm();
                   }}
                   className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
                 >

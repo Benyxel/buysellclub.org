@@ -443,6 +443,11 @@ const Api = {
     list: () => http.get("/buysellapi/containers/public/"),
   },
   invoices: {
+    meList: () =>
+      http.get("/buysellapi/me/shipping-invoices/", {
+        noCache: true,
+        cacheDuration: 0,
+      }),
     public: (params) => http.get("/buysellapi/invoices/public/", { params }),
     availableTrackings: (invoiceId) =>
       http.get(`/buysellapi/invoices/${invoiceId}/available-trackings/`),

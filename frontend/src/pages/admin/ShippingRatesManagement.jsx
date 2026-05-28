@@ -24,9 +24,16 @@ const ShippingRatesManagement = () => {
     special_goods_rate_lt1: "",
   });
   const [savingContainerRate, setSavingContainerRate] = useState(false);
+  const [storageFees, setStorageFees] = useState({
+    fee_below_1_cbm: "",
+    fee_1_cbm_and_above: "",
+    grace_days: "5",
+  });
+  const [savingStorageFees, setSavingStorageFees] = useState(false);
 
   useEffect(() => {
     fetchCurrentRate();
+    fetchStorageFees();
   }, []);
 
   useEffect(() => {
@@ -66,6 +73,59 @@ const ShippingRatesManagement = () => {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchStorageFees = async () => {
+    try {
+      const response = await API.get("/buysellapi/storage-fee-settings/");
+      if (response.data) {
+        setStorageFees({
+          fee_below_1_cbm: String(response.data.fee_below_1_cbm ?? ""),
+          fee_1_cbm_and_above: String(response.data.fee_1_cbm_and_above ?? ""),
+          grace_days: String(response.data.grace_days ?? "5"),
+        });
+      }
+    } catch (error) {
+      if (error.response?.status !== 404) {
+        console.error("Error fetching storage fees:", error);
+      }
+    }
+  };
+
+  const handleStorageFeesSubmit = async (e) => {
+    e.preventDefault();
+    const below = parseFloat(storageFees.fee_below_1_cbm);
+    const gte = parseFloat(storageFees.fee_1_cbm_and_above);
+    const grace = parseInt(storageFees.grace_days, 10);
+    if (
+      Number.isNaN(below) ||
+      Number.isNaN(gte) ||
+      Number.isNaN(grace) ||
+      below < 0 ||
+      gte < 0 ||
+      grace < 0
+    ) {
+      toast.error("Enter valid storage fee amounts and grace days (0 or more)");
+      return;
+    }
+    try {
+      setSavingStorageFees(true);
+      await API.post("/buysellapi/storage-fee-settings/", {
+        fee_below_1_cbm: below,
+        fee_1_cbm_and_above: gte,
+        grace_days: grace,
+        is_active: true,
+      });
+      toast.success("Storage fee settings saved");
+      fetchStorageFees();
+    } catch (error) {
+      console.error("Error saving storage fees:", error);
+      toast.error(
+        error?.response?.data?.error || "Failed to save storage fee settings"
+      );
+    } finally {
+      setSavingStorageFees(false);
     }
   };
 
@@ -439,6 +499,90 @@ const ShippingRatesManagement = () => {
               </div>
             </div>
           )}
+      </div>
+
+      {/* Storage fees (past container arrival + grace days) */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
+        <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">
+          Storage fees
+        </h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+          Charged on open shipping invoices when <strong>either</strong> the invoice
+          payment due date has passed <strong>or</strong> the container arrival date in
+          Ghana plus grace days has passed. Set container arrival dates where used. Fee
+          tier uses total CBM: <strong>0–0.9 CBM</strong> vs <strong>1 CBM and above</strong>.
+          Rates are <strong>per day (daily add-on)</strong> in Ghana cedis (GH₵). Total storage
+          on an invoice = daily rate × number of days past due. Freight stays in USD.{" "}
+          <strong>Grace days</strong> below are the default for containers that do not set
+          their own invoice due period.
+        </p>
+        <form onSubmit={handleStorageFeesSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Daily rate — 0 to 0.9 CBM (GH₵/day)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                required
+                value={storageFees.fee_below_1_cbm}
+                onChange={(e) =>
+                  setStorageFees({ ...storageFees, fee_below_1_cbm: e.target.value })
+                }
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Daily rate — 1 CBM and above (GH₵/day)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                required
+                value={storageFees.fee_1_cbm_and_above}
+                onChange={(e) =>
+                  setStorageFees({
+                    ...storageFees,
+                    fee_1_cbm_and_above: e.target.value,
+                  })
+                }
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Grace days after arrival
+              </label>
+              <input
+                type="number"
+                step="1"
+                min="0"
+                required
+                value={storageFees.grace_days}
+                onChange={(e) =>
+                  setStorageFees({ ...storageFees, grace_days: e.target.value })
+                }
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Storage applies after this many days from container arrival date
+              </p>
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              disabled={savingStorageFees}
+              className="px-6 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 flex items-center gap-2 font-medium disabled:opacity-50"
+            >
+              <FaSave /> {savingStorageFees ? "Saving..." : "Save storage fees"}
+            </button>
+          </div>
+        </form>
       </div>
 
       {/* Per-container customer rates */}

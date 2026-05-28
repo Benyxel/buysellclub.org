@@ -35,6 +35,7 @@ const ContainerManagement = () => {
   const [sortBy, setSortBy] = useState("-created_at");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [containerToDelete, setContainerToDelete] = useState(null);
+  const [defaultGraceDays, setDefaultGraceDays] = useState(5);
 
   const [formData, setFormData] = useState({
     container_number: "",
@@ -43,6 +44,7 @@ const ContainerManagement = () => {
     status: "preparing",
     departure_date: "",
     arrival_date: "",
+    invoice_grace_days: "",
     display_cbm: "",
     notes: "",
   });
@@ -85,7 +87,19 @@ const ContainerManagement = () => {
     fetchContainers();
     fetchShippingRates();
     fetchAgentShippingRates();
+    fetchStorageGraceDefault();
   }, [fetchContainers]);
+
+  const fetchStorageGraceDefault = async () => {
+    try {
+      const res = await api.get("/buysellapi/storage-fee-settings/");
+      if (res?.data?.grace_days != null) {
+        setDefaultGraceDays(Number(res.data.grace_days) || 5);
+      }
+    } catch {
+      /* use 5 */
+    }
+  };
 
   const fetchShippingRates = async () => {
     try {
@@ -180,6 +194,10 @@ const ContainerManagement = () => {
       formData.display_cbm === "" || formData.display_cbm == null
         ? null
         : formData.display_cbm,
+    invoice_grace_days:
+      formData.invoice_grace_days === "" || formData.invoice_grace_days == null
+        ? null
+        : parseInt(formData.invoice_grace_days, 10),
   });
 
   const formatBackendError = (data) => {
@@ -241,6 +259,10 @@ const ContainerManagement = () => {
       status: container.status,
       departure_date: container.departure_date || "",
       arrival_date: container.arrival_date || "",
+      invoice_grace_days:
+        container.invoice_grace_days != null && container.invoice_grace_days !== undefined
+          ? String(container.invoice_grace_days)
+          : "",
       display_cbm:
         container.display_cbm !== null && container.display_cbm !== undefined
           ? String(container.display_cbm)
@@ -298,6 +320,7 @@ const ContainerManagement = () => {
       status: "preparing",
       departure_date: "",
       arrival_date: "",
+      invoice_grace_days: "",
       display_cbm: "",
       notes: "",
     });
@@ -649,6 +672,26 @@ const ContainerManagement = () => {
                   </p>
                 </div>
 
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Invoice due grace (days)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    name="invoice_grace_days"
+                    value={formData.invoice_grace_days}
+                    onChange={handleInputChange}
+                    placeholder={`Default: ${defaultGraceDays} days`}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Days until payment is due for invoices on this container (and before daily
+                    storage starts). Leave blank to use global default ({defaultGraceDays} days).
+                  </p>
+                </div>
+
                 <div className="col-span-2">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Notes
@@ -886,6 +929,97 @@ const ContainerManagement = () => {
                               ))}
                             </td>
                           </tr>
+                          {Number(
+                            invoicePreview.totals?.storage_fee_ghs ||
+                              invoicePreview.totals?.storage_fee ||
+                              0
+                          ) > 0 ? (
+                            <tr className="font-semibold bg-amber-50 dark:bg-amber-900/20">
+                              <td className="px-3 py-2 text-right text-gray-900 dark:text-white" colSpan={2}>
+                                Storage (daily, GHS)
+                                {invoicePreview.totals?.storage?.daily_rate_ghs != null ? (
+                                  <span className="block text-xs font-normal text-gray-500 dark:text-gray-400">
+                                    GH₵{Number(invoicePreview.totals.storage.daily_rate_ghs).toFixed(2)}/day
+                                    × {invoicePreview.totals.storage.days_charged || 1} day(s)
+                                    {invoicePreview.totals.storage.tier_label
+                                      ? ` · ${invoicePreview.totals.storage.tier_label}`
+                                      : ""}
+                                  </span>
+                                ) : invoicePreview.totals?.storage?.tier_label ? (
+                                  <span className="block text-xs font-normal text-gray-500 dark:text-gray-400">
+                                    {invoicePreview.totals.storage.tier_label}
+                                  </span>
+                                ) : null}
+                              </td>
+                              <td className="px-3 py-2 text-right text-gray-500 dark:text-gray-400 text-xs">
+                                {invoicePreview.container?.arrival_date
+                                  ? `Due ${invoicePreview.totals?.storage?.storage_due_date || ""}`
+                                  : "Set arrival date"}
+                              </td>
+                              <td className="px-3 py-2 text-right text-amber-700 dark:text-amber-300">
+                                GH₵
+                                {Math.ceil(
+                                  Number(
+                                    invoicePreview.totals.storage_fee_ghs ||
+                                      invoicePreview.totals.storage_fee
+                                  )
+                                )}
+                              </td>
+                            </tr>
+                          ) : invoicePreview.totals?.storage?.reason === "not_yet_due" ? (
+                            <tr className="text-sm text-gray-500 dark:text-gray-400">
+                              <td colSpan={4} className="px-3 py-2">
+                                No storage fee yet — due date{" "}
+                                {invoicePreview.totals.storage.storage_due_date || "—"}
+                              </td>
+                            </tr>
+                          ) : invoicePreview.totals?.storage?.reason === "no_arrival_date" ? (
+                            <tr className="text-sm text-amber-600 dark:text-amber-400">
+                              <td colSpan={4} className="px-3 py-2">
+                                Set container arrival date to calculate storage fees
+                              </td>
+                            </tr>
+                          ) : null}
+                          {(Number(invoicePreview.totals?.shipping_fee || 0) > 0 ||
+                            Number(invoicePreview.totals?.total_amount_ghs || 0) > 0) && (
+                            <>
+                              <tr className="font-bold bg-gray-100 dark:bg-gray-700">
+                                <td
+                                  className="px-3 py-2 text-right text-gray-900 dark:text-white"
+                                  colSpan={3}
+                                >
+                                  Freight total (USD)
+                                </td>
+                                <td className="px-3 py-2 text-right text-gray-900 dark:text-white">
+                                  $
+                                  {Math.ceil(
+                                    Number(
+                                      invoicePreview.totals?.invoice_total_usd ||
+                                        invoicePreview.totals?.invoice_total ||
+                                        invoicePreview.totals?.shipping_fee ||
+                                        0
+                                    )
+                                  )}
+                                </td>
+                              </tr>
+                              {Number(invoicePreview.totals?.total_amount_ghs || 0) > 0 && (
+                                <tr className="font-bold bg-green-50 dark:bg-green-900/20">
+                                  <td
+                                    className="px-3 py-2 text-right text-gray-900 dark:text-white"
+                                    colSpan={3}
+                                  >
+                                    Invoice total (GHS)
+                                  </td>
+                                  <td className="px-3 py-2 text-right text-green-700 dark:text-green-300">
+                                    GH₵
+                                    {Math.ceil(
+                                      Number(invoicePreview.totals.total_amount_ghs)
+                                    )}
+                                  </td>
+                                </tr>
+                              )}
+                            </>
+                          )}
                         </tfoot>
                       </table>
                     </div>
@@ -942,6 +1076,17 @@ const ContainerManagement = () => {
                         containerDetails.arrival_date
                       ).toLocaleDateString()
                     : "Not set"}
+                </div>
+              </div>
+              <div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  Invoice due grace
+                </div>
+                <div className="font-medium text-gray-900 dark:text-white">
+                  {containerDetails.invoice_grace_days != null &&
+                  containerDetails.invoice_grace_days !== ""
+                    ? `${containerDetails.invoice_grace_days} days (custom)`
+                    : `${containerDetails.effective_invoice_grace_days ?? defaultGraceDays} days (global default)`}
                 </div>
               </div>
             </div>
@@ -1106,7 +1251,7 @@ const ContainerManagement = () => {
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  ${containerDetails.mark_id_stats.map((stat, index) => `
+                                  ${containerDetails.mark_id_stats.map((stat) => `
                                     <tr>
                                       <td style="font-weight: bold;">${stat.shipping_mark || "-"}</td>
                                       <td>${stat.full_name || stat.username || stat.client_username || "-"}</td>

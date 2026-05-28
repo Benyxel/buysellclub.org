@@ -191,7 +191,7 @@ const policySections = [
           </h3>
           <ul className="list-disc list-inside space-y-2 ml-4">
             <li>Fragile items must be <strong>wooden-framed, otherwise the client accepts full risk</strong>.</li>
-            <li><strong>Shipping mark must include "M856" + client name</strong>.</li>
+            <li><strong>Shipping mark must be in the format "FIM-###" + client name</strong>.</li>
             <li><strong>No cash payments accepted</strong> — only approved electronic payment methods.</li>
             <li>Our <strong>air shipping address is the same as our sea shipping address</strong>.</li>
             <li>Clients must <strong>notify us in advance</strong> of any items intended for <strong>air shipping</strong>.</li>
