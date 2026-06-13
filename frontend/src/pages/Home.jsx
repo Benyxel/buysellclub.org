@@ -29,6 +29,11 @@ const Home = () => {
   const [dueInvoice, setDueInvoice] = useState(null);
   const [showDueReminder, setShowDueReminder] = useState(false);
 
+  const dismissDueReminder = () => {
+    setShowDueReminder(false);
+    window.setTimeout(() => setDueInvoice(null), 350);
+  };
+
   useEffect(() => {
     let cancelled = false;
     const applyRates = (response) => {
@@ -99,9 +104,7 @@ const Home = () => {
         if (firstDue) {
           setDueInvoice(firstDue);
           setShowDueReminder(true);
-          hideTimer = window.setTimeout(() => {
-            setShowDueReminder(false);
-          }, 10000);
+          hideTimer = window.setTimeout(dismissDueReminder, 10000);
         } else {
           setDueInvoice(null);
           setShowDueReminder(false);
@@ -163,22 +166,26 @@ const Home = () => {
       </Suspense>
 
       {/* Due invoice reminder slide card */}
+      {dueInvoice && (
       <div
         className={[
-          "fixed left-0 right-0 bottom-0 z-[9999] px-4 pb-4 pointer-events-none",
-          showDueReminder ? "" : "",
+          "fixed left-0 right-0 bottom-0 z-[9999] px-4 pb-4",
+          showDueReminder ? "pointer-events-auto" : "pointer-events-none",
         ].join(" ")}
       >
         <div
           className={[
-            "mx-auto max-w-xl pointer-events-auto",
+            "mx-auto max-w-xl",
             "transform transition-all duration-300 ease-out",
-            showDueReminder ? "translate-y-0 opacity-100" : "translate-y-24 opacity-0",
+            showDueReminder
+              ? "translate-y-0 opacity-100"
+              : "translate-y-24 opacity-0 pointer-events-none",
           ].join(" ")}
           role="status"
           aria-live="polite"
+          aria-hidden={!showDueReminder}
         >
-          {dueInvoice ? (
+          {showDueReminder ? (
             <div className="rounded-2xl border border-red-200 dark:border-red-900/50 bg-white dark:bg-gray-900 shadow-xl overflow-hidden">
               <div className="px-4 py-3 bg-red-50 dark:bg-red-900/20 flex items-start justify-between gap-3">
                 <div>
@@ -191,7 +198,7 @@ const Home = () => {
                 </div>
                 <button
                   type="button"
-                  onClick={() => setShowDueReminder(false)}
+                  onClick={dismissDueReminder}
                   className="text-red-700 dark:text-red-200 text-sm font-bold px-2 py-1 rounded hover:bg-red-100/70 dark:hover:bg-red-900/30"
                   aria-label="Dismiss reminder"
                 >
@@ -262,6 +269,7 @@ const Home = () => {
           ) : null}
         </div>
       </div>
+      )}
     </div>
   );
 };

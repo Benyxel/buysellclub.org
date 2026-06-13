@@ -97,16 +97,8 @@ const ShippingRatesManagement = () => {
     e.preventDefault();
     const below = parseFloat(storageFees.fee_below_1_cbm);
     const gte = parseFloat(storageFees.fee_1_cbm_and_above);
-    const grace = parseInt(storageFees.grace_days, 10);
-    if (
-      Number.isNaN(below) ||
-      Number.isNaN(gte) ||
-      Number.isNaN(grace) ||
-      below < 0 ||
-      gte < 0 ||
-      grace < 0
-    ) {
-      toast.error("Enter valid storage fee amounts and grace days (0 or more)");
+    if (Number.isNaN(below) || Number.isNaN(gte) || below < 0 || gte < 0) {
+      toast.error("Enter valid storage fee amounts (0 or more)");
       return;
     }
     try {
@@ -114,7 +106,7 @@ const ShippingRatesManagement = () => {
       await API.post("/buysellapi/storage-fee-settings/", {
         fee_below_1_cbm: below,
         fee_1_cbm_and_above: gte,
-        grace_days: grace,
+        grace_days: 0,
         is_active: true,
       });
       toast.success("Storage fee settings saved");
@@ -501,23 +493,21 @@ const ShippingRatesManagement = () => {
           )}
       </div>
 
-      {/* Storage fees (past container arrival + grace days) */}
+      {/* Storage fees (past container invoice due date) */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
         <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">
           Storage fees
         </h3>
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-          Charged on open shipping invoices when <strong>either</strong> the invoice
-          payment due date has passed <strong>or</strong> the container arrival date in
-          Ghana plus grace days has passed. Set container arrival dates where used. Fee
-          tier uses total CBM: <strong>0–0.9 CBM</strong> vs <strong>1 CBM and above</strong>.
-          Rates are <strong>per day (daily add-on)</strong> in Ghana cedis (GH₵). Total storage
-          on an invoice = daily rate × number of days past due. Freight stays in USD.{" "}
-          <strong>Grace days</strong> below are the default for containers that do not set
-          their own invoice due period.
+          Charged on open shipping invoices when the container <strong>invoice due date</strong>{" "}
+          has passed. Set that date on each container in Container Management. Fee tier uses
+          total CBM: <strong>0–0.9 CBM</strong> vs <strong>1 CBM and above</strong>. Rates are{" "}
+          <strong>per day (daily add-on)</strong> in Ghana cedis (GH₵). Total storage on an
+          invoice = daily rate × number of days past the container invoice due date. Freight
+          stays in USD.
         </p>
         <form onSubmit={handleStorageFeesSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Daily rate — 0 to 0.9 CBM (GH₵/day)
@@ -552,25 +542,6 @@ const ShippingRatesManagement = () => {
                 }
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Grace days after arrival
-              </label>
-              <input
-                type="number"
-                step="1"
-                min="0"
-                required
-                value={storageFees.grace_days}
-                onChange={(e) =>
-                  setStorageFees({ ...storageFees, grace_days: e.target.value })
-                }
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              />
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Storage applies after this many days from container arrival date
-              </p>
             </div>
           </div>
           <div className="flex justify-end">

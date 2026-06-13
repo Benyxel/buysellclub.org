@@ -24,13 +24,11 @@ const orderOptions = [
   { value: "total_amount", label: "Amount (asc)" },
 ];
 
-/** Default issue = today, due = 5 days (shipping fee invoices). */
+/** Default issue date = today; due date comes from container invoice due date (or N/A). */
 function invoiceDefaultDates() {
   const issue = new Date();
-  const due = new Date(issue);
-  due.setDate(due.getDate() + 5);
   const fmt = (d) => d.toISOString().split("T")[0];
-  return { issue_date: fmt(issue), due_date: fmt(due) };
+  return { issue_date: fmt(issue), due_date: "" };
 }
 
 const emptyCreateLineItem = () => ({
@@ -59,6 +57,7 @@ export default function InvoicesManagement() {
   const [resending, setResending] = useState(false);
   const [downloadingReceiptId, setDownloadingReceiptId] = useState(null);
   const [recordingPayment, setRecordingPayment] = useState(false);
+  const [savingStorageWaived, setSavingStorageWaived] = useState(false);
   const [paymentForm, setPaymentForm] = useState({
     amount_usd: "",
     payment_method: "",
@@ -399,6 +398,36 @@ export default function InvoicesManagement() {
     }
   };
 
+  const handleToggleStorageWaived = async (waived) => {
+    if (!invoiceDetails?.id) return;
+    if (invoiceDetails.status === "paid" || invoiceDetails.status === "cancelled") {
+      toast.error("Storage waiver cannot be changed on paid or cancelled invoices");
+      return;
+    }
+    try {
+      setSavingStorageWaived(true);
+      const resp = await API.patch(`/buysellapi/invoices/${invoiceDetails.id}/`, {
+        storage_fee_waived: waived,
+      });
+      setInvoiceDetails(resp.data);
+      toast.success(
+        waived
+          ? "Storage fee waived — client will not be charged storage on this invoice"
+          : "Storage fee waiver removed — storage will apply if past due"
+      );
+      fetchInvoices();
+    } catch (err) {
+      console.error("Failed to update storage waiver", err);
+      toast.error(
+        err.response?.data?.detail ||
+          err.response?.data?.error ||
+          "Failed to update storage fee setting"
+      );
+    } finally {
+      setSavingStorageWaived(false);
+    }
+  };
+
 
   const handleDeleteClick = (invoice) => {
     setDeletingInvoice(invoice);
@@ -526,7 +555,9 @@ export default function InvoicesManagement() {
         status: createFormData.status || "pending",
         issue_date:
           createFormData.issue_date || invoiceDefaultDates().issue_date,
-        due_date: createFormData.due_date || invoiceDefaultDates().due_date,
+        ...(createFormData.due_date
+          ? { due_date: createFormData.due_date }
+          : {}),
         payment_method: createFormData.payment_method || "",
         payment_reference: createFormData.payment_reference || "",
         notes: createFormData.notes || "",
@@ -1064,7 +1095,7 @@ export default function InvoicesManagement() {
                   Due Date
                 </div>
                 <div className="font-medium text-gray-900 dark:text-white">
-                  {invoiceDetails.due_date || "-"}
+                  {invoiceDetails.due_date || "N/A"}
                 </div>
               </div>
             </div>
@@ -1501,7 +1532,8 @@ export default function InvoicesManagement() {
 
             {invoiceDetails.storage_payment_reminder &&
               invoiceDetails.status !== "paid" &&
-              invoiceDetails.status !== "cancelled" && (
+              invoiceDetails.status !== "cancelled" &&
+              !invoiceDetails.storage_fee_waived && (
                 <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 rounded-lg">
                   <p className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-1">
                     Pay on time
@@ -1509,6 +1541,48 @@ export default function InvoicesManagement() {
                   <p className="text-sm text-blue-800 dark:text-blue-200">
                     {invoiceDetails.storage_payment_reminder}
                   </p>
+                </div>
+              )}
+
+            {invoiceDetails.status !== "paid" &&
+              invoiceDetails.status !== "cancelled" && (
+                <div className="mb-6 p-4 border border-amber-200 dark:border-amber-800/50 bg-amber-50/60 dark:bg-amber-900/10 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <input
+                      id="storage-fee-waived"
+                      type="checkbox"
+                      checked={Boolean(invoiceDetails.storage_fee_waived)}
+                      disabled={savingStorageWaived}
+                      onChange={(e) => handleToggleStorageWaived(e.target.checked)}
+                      className="mt-1 h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                    />
+                    <label htmlFor="storage-fee-waived" className="min-w-0 flex-1 cursor-pointer">
+                      <span className="block text-sm font-semibold text-gray-900 dark:text-white">
+                        Waive storage fee for this invoice
+                      </span>
+                      <span className="block text-xs text-gray-600 dark:text-gray-300 mt-1">
+                        When checked, the client is not charged storage even if the system
+                        calculates a daily storage amount. Freight (USD) is unchanged.
+                      </span>
+                      {invoiceDetails.storage_fee_waived &&
+                      Number(invoiceDetails.storage_fee_calculated_ghs || 0) > 0 ? (
+                        <span className="block text-xs text-amber-800 dark:text-amber-200 mt-2 font-medium">
+                          Calculated storage (waived): ₵
+                          {Number(invoiceDetails.storage_fee_calculated_ghs).toFixed(2)}
+                          {invoiceDetails.storage_fee_calculated_detail ? (
+                            <span className="block font-normal mt-0.5">
+                              {invoiceDetails.storage_fee_calculated_detail}
+                            </span>
+                          ) : null}
+                        </span>
+                      ) : null}
+                      {savingStorageWaived ? (
+                        <span className="inline-flex items-center gap-1 text-xs text-gray-500 mt-2">
+                          <FaSpinner className="animate-spin" /> Updating…
+                        </span>
+                      ) : null}
+                    </label>
+                  </div>
                 </div>
               )}
 
@@ -1592,6 +1666,13 @@ export default function InvoicesManagement() {
                               ₵{ghs.storageGhs.toFixed(2)}
                             </span>
                           </div>
+                        ) : invoiceDetails.storage_fee_waived &&
+                          Number(invoiceDetails.storage_fee_calculated_ghs || 0) > 0 ? (
+                          <p className="text-xs text-emerald-700 dark:text-emerald-300 italic">
+                            Storage fee waived for this invoice (calculated ₵
+                            {Number(invoiceDetails.storage_fee_calculated_ghs).toFixed(2)} not
+                            charged).
+                          </p>
                         ) : invoiceDetails.storage_not_yet_due ? (
                           <p className="text-xs text-gray-500 dark:text-gray-400 italic">
                             No storage fee yet — customer should pay before the due date.
@@ -2208,7 +2289,7 @@ export default function InvoicesManagement() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Due Date
+                    Due Date <span className="text-gray-500 font-normal">(optional)</span>
                   </label>
                   <input
                     type="date"
@@ -2218,6 +2299,10 @@ export default function InvoicesManagement() {
                     }
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Leave blank to use the container invoice due date, or N/A if the container
+                    has none set.
+                  </p>
                 </div>
               </div>
 

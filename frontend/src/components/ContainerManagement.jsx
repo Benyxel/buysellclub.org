@@ -35,7 +35,6 @@ const ContainerManagement = () => {
   const [sortBy, setSortBy] = useState("-created_at");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [containerToDelete, setContainerToDelete] = useState(null);
-  const [defaultGraceDays, setDefaultGraceDays] = useState(5);
 
   const [formData, setFormData] = useState({
     container_number: "",
@@ -90,19 +89,7 @@ const ContainerManagement = () => {
     fetchContainers();
     fetchShippingRates();
     fetchAgentShippingRates();
-    fetchStorageGraceDefault();
   }, [fetchContainers]);
-
-  const fetchStorageGraceDefault = async () => {
-    try {
-      const res = await api.get("/buysellapi/storage-fee-settings/");
-      if (res?.data?.grace_days != null) {
-        setDefaultGraceDays(Number(res.data.grace_days) || 5);
-      }
-    } catch {
-      /* use 5 */
-    }
-  };
 
   const fetchShippingRates = async () => {
     try {
@@ -745,8 +732,9 @@ const ContainerManagement = () => {
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Pick a calendar date when invoices for this container become due (weekends included).
-                    Leave blank to use the grace days setting (default {defaultGraceDays} days).
+                    Calendar date when shipping invoices for this container are due and when
+                    daily storage fees start (day after this date). Required for storage
+                    fees — leave blank if not set yet (invoice due date will be N/A).
                   </p>
                 </div>
 
@@ -1031,10 +1019,10 @@ const ContainerManagement = () => {
                                 {invoicePreview.totals.storage.storage_due_date || "—"}
                               </td>
                             </tr>
-                          ) : invoicePreview.totals?.storage?.reason === "no_arrival_date" ? (
+                          ) : invoicePreview.totals?.storage?.reason === "no_due_reference" ? (
                             <tr className="text-sm text-amber-600 dark:text-amber-400">
                               <td colSpan={4} className="px-3 py-2">
-                                Set container arrival date to calculate storage fees
+                                Set container invoice due date to calculate storage fees
                               </td>
                             </tr>
                           ) : null}
@@ -1143,10 +1131,7 @@ const ContainerManagement = () => {
                 <div className="font-medium text-gray-900 dark:text-white">
                   {containerDetails.invoice_due_date
                     ? new Date(containerDetails.invoice_due_date).toLocaleDateString()
-                    : containerDetails.invoice_grace_days != null &&
-                      containerDetails.invoice_grace_days !== ""
-                    ? `${containerDetails.invoice_grace_days} days (custom grace)`
-                    : `${containerDetails.effective_invoice_grace_days ?? defaultGraceDays} days (global default grace)`}
+                    : "N/A"}
                 </div>
               </div>
               <div>
