@@ -1,5 +1,5 @@
 // Service Worker: Only cache static assets, NOT API calls
-const ASSET_CACHE = "asset-cache-v1";
+const ASSET_CACHE = "asset-cache-v2";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
@@ -40,10 +40,13 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(req.url);
 
-  // DO NOT CACHE API CALLS - Always fetch fresh from network
-  if (req.url.includes("/buysellapi/") || req.url.includes("/api/")) {
-    // Just pass through to network, no caching
-    event.respondWith(fetch(req));
+  // Never intercept API calls — let the browser fetch directly (avoids uncaught SW fetch errors)
+  if (
+    url.pathname.includes("/buysellapi/") ||
+    url.pathname.includes("/api/") ||
+    req.url.includes("/buysellapi/") ||
+    req.url.includes("/api/")
+  ) {
     return;
   }
 

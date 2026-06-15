@@ -174,6 +174,7 @@ api.interceptors.response.use(
     // Skip logging for optional endpoints that may not exist on all deployments
     const isOptional404 =
       requestUrl.includes("/api/admin/container-expenses") ||
+      requestUrl.includes("/buysellapi/executive/") ||
       (status === 404 &&
         url.includes("/buysellapi/shipping-marks/me/") &&
         error.response?.data?.message?.includes("No shipping mark"));

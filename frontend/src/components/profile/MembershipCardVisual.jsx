@@ -112,20 +112,30 @@ function getTierTheme(isExecutive) {
   };
 }
 
-function CardField({ label, value, theme }) {
+function CardField({ label, value, theme, compact = false }) {
   return (
     <div
-      className="flex min-h-[3.25rem] flex-col rounded-lg px-2 py-1.5 sm:min-h-[3.5rem] sm:px-2.5"
+      className={`flex flex-col rounded-lg px-1.5 py-1 sm:px-2.5 sm:py-1.5 ${
+        compact ? "min-h-[2.75rem]" : "min-h-[3.25rem] sm:min-h-[3.5rem]"
+      }`}
       style={{
         border: `1px solid ${theme.fieldBorder}`,
         backgroundColor: theme.fieldBg,
       }}
     >
-      <p className={`text-[9px] font-semibold uppercase tracking-wide text-zinc-300 ${SHARP_TEXT}`}>
+      <p
+        className={`font-semibold uppercase tracking-wide text-zinc-300 ${SHARP_TEXT} ${
+          compact ? "text-[7px] leading-tight" : "text-[9px]"
+        }`}
+      >
         {label}
       </p>
       <p
-        className={`mt-auto truncate text-[10px] font-bold uppercase leading-snug text-white sm:text-[11px] ${SHARP_TEXT}`}
+        className={`mt-auto font-bold uppercase text-white ${SHARP_TEXT} ${
+          compact
+            ? "break-all text-[8px] leading-tight"
+            : "truncate text-[10px] leading-snug sm:text-[11px]"
+        }`}
         title={value}
       >
         {value}
@@ -178,6 +188,9 @@ function CardFront({
   logoSrc,
   theme,
 }) {
+  const isMobile = useMobileCardLayout();
+  const qrSize = isMobile ? 40 : compact ? 44 : 52;
+
   return (
     <div
       className={`relative h-full overflow-hidden rounded-2xl border ${theme.cardBorder}`}
@@ -202,17 +215,21 @@ function CardFront({
       <CardLogoPattern />
       <CardHeroWatermark />
 
-      <div className={`relative z-10 flex h-full flex-col px-4 pb-[4.5rem] pt-3.5 sm:px-5 sm:pb-20 sm:pt-4 ${SHARP_TEXT}`}>
+      <div
+        className={`relative z-10 flex h-full flex-col px-3 pt-3 sm:px-5 sm:pt-4 ${
+          isMobile ? "pb-[7.25rem]" : "pb-[4.5rem] sm:pb-20"
+        } ${SHARP_TEXT}`}
+      >
         <div
-          className="flex items-start justify-between gap-2 rounded-xl border px-2.5 py-2 sm:px-3"
+          className="flex items-start justify-between gap-2 rounded-xl border px-2 py-1.5 sm:px-3 sm:py-2"
           style={{
             borderColor: theme.headerBorder,
             backgroundColor: theme.headerBg,
           }}
         >
-          <div className="flex min-w-0 items-start gap-2 sm:gap-2.5">
+          <div className="flex min-w-0 items-start gap-1.5 sm:gap-2.5">
             <div
-              className="mt-0.5 rounded-lg border p-1"
+              className="mt-0.5 rounded-lg border p-0.5 sm:p-1"
               style={{
                 borderColor: theme.logoBoxBorder,
                 backgroundColor: theme.logoBoxBg,
@@ -221,22 +238,22 @@ function CardFront({
               <img
                 src={logoSrc}
                 alt=""
-                className="h-6 w-6 shrink-0 object-contain sm:h-7 sm:w-7"
+                className="h-5 w-5 shrink-0 object-contain sm:h-7 sm:w-7"
               />
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-extrabold tracking-wide">
+              <p className="text-[11px] font-extrabold tracking-wide sm:text-xs">
                 <span className="text-white">BUYSELL</span>
                 <span style={{ color: theme.nameColor }}>CLUB</span>
               </p>
-              <p className="mt-0.5 text-[9px] font-medium uppercase leading-snug tracking-wide text-zinc-300">
+              <p className="mt-0.5 hidden text-[9px] font-medium uppercase leading-snug tracking-wide text-zinc-300 sm:block">
                 Buy smart. Sell more. Ship anywhere.
               </p>
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2 sm:gap-3">
             <div className="hidden h-8 w-px bg-white/35 sm:block" aria-hidden />
-            <p className="text-[10px] font-bold uppercase tracking-wide text-white">
+            <p className="text-[9px] font-bold uppercase tracking-wide text-white sm:text-[10px]">
               Membership
               <br />
               Card
@@ -244,58 +261,69 @@ function CardFront({
           </div>
         </div>
 
-        <div className="mt-3 flex min-h-0 flex-1 items-start justify-between gap-3 sm:mt-4">
-          <div className="min-w-0 flex-1">
+        <div className="mt-2 flex min-h-0 flex-1 flex-col gap-2 sm:mt-4 sm:gap-0">
+          <div className="flex items-start justify-between gap-2 sm:gap-3">
             <p
-              className="truncate text-lg font-extrabold uppercase tracking-wide sm:text-xl"
+              className="min-w-0 flex-1 truncate text-base font-extrabold uppercase tracking-wide sm:text-xl"
               style={{ color: theme.nameColor }}
             >
               {memberName}
             </p>
 
-            <div className="mt-3 grid grid-cols-3 gap-1.5 sm:mt-4 sm:gap-2">
-              <CardField label="Member ID" value={card.cardId} theme={theme} />
-              <CardField
-                label="Member since"
-                value={formatMembershipCardDate(card.joinedAt)}
-                theme={theme}
-              />
-              <CardField
-                label="Valid thru"
-                value={formatMembershipCardExpiry(card.expiresAt)}
-                theme={theme}
-              />
+            <div className="shrink-0">
+              <div
+                className="h-14 w-14 overflow-hidden rounded-xl p-0.5 sm:h-24 sm:w-24"
+                style={{
+                  border: `2px solid ${theme.photoOuterBorder}`,
+                  background: theme.photoRing,
+                  boxShadow: theme.photoShadow,
+                }}
+              >
+                <div className="h-full w-full overflow-hidden rounded-[0.6rem] bg-black">
+                  {card.photoDataUrl ? (
+                    <img
+                      src={card.photoDataUrl}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center bg-zinc-900 text-[8px] font-medium uppercase tracking-wide text-white/50 sm:text-[10px]">
+                      Photo
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="shrink-0">
-            <div
-              className="h-[4.5rem] w-[4.5rem] overflow-hidden rounded-xl p-0.5 sm:h-24 sm:w-24"
-              style={{
-                border: `2px solid ${theme.photoOuterBorder}`,
-                background: theme.photoRing,
-                boxShadow: theme.photoShadow,
-              }}
-            >
-              <div className="h-full w-full overflow-hidden rounded-[0.6rem] bg-black">
-                {card.photoDataUrl ? (
-                  <img
-                    src={card.photoDataUrl}
-                    alt=""
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center bg-zinc-900 text-[10px] font-medium uppercase tracking-wide text-white/50">
-                    Photo
-                  </div>
-                )}
-              </div>
-            </div>
+          <div className="grid grid-cols-3 gap-1 sm:mt-4 sm:gap-2">
+            <CardField
+              label="Member ID"
+              value={card.cardId}
+              theme={theme}
+              compact={isMobile}
+            />
+            <CardField
+              label="Member since"
+              value={formatMembershipCardDate(card.joinedAt)}
+              theme={theme}
+              compact={isMobile}
+            />
+            <CardField
+              label="Valid thru"
+              value={formatMembershipCardExpiry(card.expiresAt)}
+              theme={theme}
+              compact={isMobile}
+            />
           </div>
         </div>
       </div>
 
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[34%] sm:h-[32%]">
+      <div
+        className={`pointer-events-none absolute inset-x-0 bottom-0 ${
+          isMobile ? "h-[38%]" : "h-[34%] sm:h-[32%]"
+        }`}
+      >
         <svg
           className="absolute inset-0 h-full w-full"
           style={{ filter: theme.waveFilter }}
@@ -330,26 +358,46 @@ function CardFront({
           />
         </svg>
 
-        <div className={`absolute bottom-3 left-4 z-10 flex items-center gap-2 sm:bottom-4 sm:left-5 ${SHARP_TEXT}`}>
+        <div
+          className={`absolute z-10 flex max-w-[58%] items-center gap-1.5 sm:max-w-none sm:gap-2 ${
+            isMobile ? "bottom-2 left-3" : "bottom-3 left-4 sm:bottom-4 sm:left-5"
+          } ${SHARP_TEXT}`}
+        >
           {isExecutive ? (
-            <FaStar className={`h-4 w-4 sm:h-5 sm:w-5 ${theme.iconClass}`} />
+            <FaStar
+              className={`shrink-0 ${isMobile ? "h-3.5 w-3.5" : "h-4 w-4 sm:h-5 sm:w-5"} ${theme.iconClass}`}
+            />
           ) : (
-            <FaUsers className={`h-4 w-4 sm:h-5 sm:w-5 ${theme.iconClass}`} />
+            <FaUsers
+              className={`shrink-0 ${isMobile ? "h-3.5 w-3.5" : "h-4 w-4 sm:h-5 sm:w-5"} ${theme.iconClass}`}
+            />
           )}
-          <div>
-            <p className="text-base font-extrabold uppercase leading-none tracking-wide text-white">
+          <div className="min-w-0">
+            <p
+              className={`font-extrabold uppercase leading-none tracking-wide text-white ${
+                isMobile ? "text-xs" : "text-base"
+              }`}
+            >
               {tierTitle}
             </p>
-            <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+            <p
+              className={`mt-0.5 font-semibold uppercase tracking-wide text-white ${
+                isMobile ? "text-[8px]" : "text-[10px]"
+              }`}
+            >
               — Member —
             </p>
           </div>
         </div>
 
-        <div className="absolute bottom-2.5 right-3 rounded-lg border-2 border-white bg-white p-1 shadow-[0_8px_20px_rgba(0,0,0,0.45)] sm:bottom-3 sm:right-4 sm:p-1.5">
+        <div
+          className={`absolute rounded-lg border-2 border-white bg-white shadow-[0_8px_20px_rgba(0,0,0,0.45)] ${
+            isMobile ? "bottom-1.5 right-2 p-0.5" : "bottom-2.5 right-3 p-1 sm:bottom-3 sm:right-4 sm:p-1.5"
+          }`}
+        >
           <QRCodeSVG
             value={qrValue}
-            size={compact ? 44 : 52}
+            size={qrSize}
             level="M"
             bgColor="#ffffff"
             fgColor="#000000"
@@ -476,9 +524,9 @@ export default function MembershipCardVisual({ card, compact = false }) {
   const theme = getTierTheme(isExecutive);
 
   return (
-    <div className={`mx-auto ${compact ? "max-w-sm" : "max-w-lg"}`}>
+    <div className={`mx-auto w-full ${compact ? "max-w-sm" : "max-w-lg"}`}>
       <div
-        className={`relative overflow-hidden rounded-[1.35rem] p-2 sm:p-4 bg-gradient-to-br ${theme.sceneBg}`}
+        className={`relative overflow-hidden rounded-[1.35rem] bg-gradient-to-br p-1.5 sm:p-4 ${theme.sceneBg}`}
       >
         <div className="pointer-events-none absolute inset-0" aria-hidden>
           <div
