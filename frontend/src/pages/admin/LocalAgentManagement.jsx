@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { toast } from "../../utils/toast";
 import API from "../../api";
 import { FaUserPlus, FaUserMinus, FaUserTag, FaSearch, FaMapMarkerAlt } from "react-icons/fa";
@@ -19,15 +19,31 @@ export default function LocalAgentManagement() {
   const [showRemoveModal, setShowRemoveModal] = useState(false);
   const [userToAssign, setUserToAssign] = useState(null);
   const [agentToRemove, setAgentToRemove] = useState(null);
+  const searchDebounceRef = useRef(null);
 
   useEffect(() => {
     loadAgents();
   }, []);
 
   useEffect(() => {
-    setUsersLoading(true);
-    loadUsers(usersPage).finally(() => setUsersLoading(false));
-  }, [usersPage]);
+    const q = searchTerm.trim();
+    const doLoad = (query, page) => {
+      setUsersLoading(true);
+      loadUsers(query, page).finally(() => setUsersLoading(false));
+    };
+    if (q) {
+      searchDebounceRef.current = setTimeout(() => doLoad(q, usersPage), 300);
+      return () => {
+        if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+      };
+    }
+    doLoad("", usersPage);
+  }, [searchTerm, usersPage]);
+
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+    setUsersPage(1);
+  };
 
   const loadAgents = async () => {
     try {
@@ -52,11 +68,13 @@ export default function LocalAgentManagement() {
     }
   };
 
-  const loadUsers = async (page = 1) => {
+  const loadUsers = async (searchQuery = "", page = 1) => {
     try {
-      const resp = await API.get("/buysellapi/users/", {
-        params: { page_size: USERS_PAGE_SIZE, page },
-      });
+      const params = { page_size: USERS_PAGE_SIZE, page };
+      if (searchQuery && searchQuery.trim()) {
+        params.q = searchQuery.trim();
+      }
+      const resp = await API.get("/buysellapi/users/", { params });
       const allUsers = resp.data?.results ?? (Array.isArray(resp.data) ? resp.data : []);
       const total = resp.data?.count ?? allUsers.length;
       setUsersCount(total);
@@ -87,7 +105,7 @@ export default function LocalAgentManagement() {
       });
       toast.success("User assigned as local agent successfully!");
       loadAgents();
-      loadUsers(usersPage);
+      loadUsers(searchTerm.trim(), usersPage);
       setShowAssignModal(false);
       setUserToAssign(null);
     } catch (err) {
@@ -124,7 +142,7 @@ export default function LocalAgentManagement() {
       await API.delete(`/buysellapi/admin/agents/${agentToRemove.id || agentToRemove.user_id}/`);
       toast.success("Local agent removed successfully!");
       loadAgents();
-      loadUsers(usersPage);
+      loadUsers(searchTerm.trim(), usersPage);
       setShowRemoveModal(false);
       setAgentToRemove(null);
     } catch (err) {
@@ -148,14 +166,7 @@ export default function LocalAgentManagement() {
     );
   });
 
-  const filteredUsers = users.filter((user) => {
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      (user.username || "").toLowerCase().includes(searchLower) ||
-      (user.full_name || "").toLowerCase().includes(searchLower) ||
-      (user.email || "").toLowerCase().includes(searchLower)
-    );
-  });
+  const usersToShow = users;
   const usersTotalPages = Math.max(1, Math.ceil(usersCount / USERS_PAGE_SIZE));
 
   return (
@@ -176,9 +187,9 @@ export default function LocalAgentManagement() {
           <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
           <input
             type="text"
-            placeholder="Search local agents or users..."
+            placeholder="Search local agents below, or type to search all users to add as agent..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={handleSearchChange}
             className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
           />
         </div>
@@ -258,13 +269,20 @@ export default function LocalAgentManagement() {
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
         <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
           <FaUserPlus className="text-green-600" />
-          Available Users ({filteredUsers.length})
+          Available Users ({usersToShow.length})
+          {searchTerm.trim() && (
+            <span className="text-sm font-normal text-gray-500 dark:text-gray-400">
+              — search across all users
+            </span>
+          )}
         </h3>
         {usersLoading ? (
           <div className="text-center py-8 text-gray-500">Loading users…</div>
-        ) : filteredUsers.length === 0 ? (
+        ) : usersToShow.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
-            No available users to assign as local agents
+            {searchTerm.trim()
+              ? "No users match your search. Try a different term."
+              : "No available users to assign as local agents"}
           </div>
         ) : (
           <>
@@ -287,7 +305,7 @@ export default function LocalAgentManagement() {
                   </tr>
                 </thead>
                 <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                  {filteredUsers.map((user) => (
+                  {usersToShow.map((user) => (
                     <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
                         {user.username}

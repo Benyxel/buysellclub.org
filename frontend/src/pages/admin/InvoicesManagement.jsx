@@ -529,41 +529,66 @@ export default function InvoicesManagement() {
       toast.error("Shipping Mark is required");
       return;
     }
-    if (!hasLineItems && (!totalAmount || totalAmount <= 0)) {
+    const markId = createFormData.shipping_mark.trim();
+    const useAutoGenerate =
+      Boolean(createFormData.container_id) && Boolean(markId);
+    if (
+      !useAutoGenerate &&
+      !hasLineItems &&
+      (!totalAmount || totalAmount <= 0)
+    ) {
       toast.error("Enter a total amount or add at least one line item");
       return;
     }
 
     setCreating(true);
     try {
-      const rateResp = await API.get("/buysellapi/currency-rate/");
-      const exchangeRate = rateResp.data?.usd_to_ghs || 12.0;
-      const totalAmountGhs = Math.ceil(totalAmount * parseFloat(exchangeRate));
 
-      const payload = {
-        shipping_mark: createFormData.shipping_mark,
-        container_id: createFormData.container_id || null,
-        total_cbm: parseFloat(createFormData.total_cbm) || 0,
-        customer_name: createFormData.customer_name || "",
-        customer_email: createFormData.customer_email || "",
-        subtotal: totalAmount,
-        tax_amount: 0,
-        discount_amount: 0,
-        total_amount: totalAmount,
-        exchange_rate: exchangeRate,
-        total_amount_ghs: totalAmountGhs,
-        status: createFormData.status || "pending",
-        issue_date:
-          createFormData.issue_date || invoiceDefaultDates().issue_date,
-        ...(createFormData.due_date
-          ? { due_date: createFormData.due_date }
-          : {}),
-        payment_method: createFormData.payment_method || "",
-        payment_reference: createFormData.payment_reference || "",
-        notes: createFormData.notes || "",
-      };
-      if (hasLineItems) {
-        payload.items = itemsPayload;
+      let payload;
+      if (useAutoGenerate) {
+        payload = {
+          mark_id: markId,
+          container_id: createFormData.container_id,
+          customer_name: createFormData.customer_name || "",
+          customer_email: createFormData.customer_email || "",
+          status: createFormData.status || "pending",
+          issue_date:
+            createFormData.issue_date || invoiceDefaultDates().issue_date,
+          ...(createFormData.due_date
+            ? { due_date: createFormData.due_date }
+            : {}),
+          notes: createFormData.notes || "",
+        };
+      } else {
+        const rateResp = await API.get("/buysellapi/currency-rate/");
+        const exchangeRate = rateResp.data?.usd_to_ghs || 12.0;
+        const totalAmountGhs = Math.ceil(totalAmount * parseFloat(exchangeRate));
+
+        payload = {
+          shipping_mark: markId,
+          container_id: createFormData.container_id || null,
+          total_cbm: parseFloat(createFormData.total_cbm) || 0,
+          customer_name: createFormData.customer_name || "",
+          customer_email: createFormData.customer_email || "",
+          subtotal: totalAmount,
+          tax_amount: 0,
+          discount_amount: 0,
+          total_amount: totalAmount,
+          exchange_rate: exchangeRate,
+          total_amount_ghs: totalAmountGhs,
+          status: createFormData.status || "pending",
+          issue_date:
+            createFormData.issue_date || invoiceDefaultDates().issue_date,
+          ...(createFormData.due_date
+            ? { due_date: createFormData.due_date }
+            : {}),
+          payment_method: createFormData.payment_method || "",
+          payment_reference: createFormData.payment_reference || "",
+          notes: createFormData.notes || "",
+        };
+        if (hasLineItems) {
+          payload.items = itemsPayload;
+        }
       }
 
       const response = await API.post("/buysellapi/invoices/", payload);
@@ -1621,6 +1646,21 @@ export default function InvoicesManagement() {
                     -${Number(invoiceDetails.discount_amount || 0).toFixed(2)}
                   </span>
                 </div>
+                {Number(invoiceDetails.discount_amount || 0) <= 0 &&
+                  invoiceDetails.executive_member === false && (
+                    <p className="text-xs text-amber-700 dark:text-amber-300">
+                      Customer is not an active Executive member — no shipping
+                      discount applied.
+                    </p>
+                  )}
+                {invoiceDetails.executive_member === true &&
+                  Number(invoiceDetails.executive_discount_percent || 0) > 0 &&
+                  Number(invoiceDetails.discount_amount || 0) > 0 && (
+                    <p className="text-xs text-emerald-700 dark:text-emerald-300">
+                      Executive member shipping discount (
+                      {invoiceDetails.executive_discount_percent}%).
+                    </p>
+                  )}
                 <div className="border-t border-gray-300 dark:border-gray-600 pt-2 flex justify-between">
                   <span className="font-semibold text-gray-800 dark:text-white">
                     Total (USD):

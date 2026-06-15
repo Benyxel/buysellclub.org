@@ -3,6 +3,7 @@ import { FaVideo, FaSpinner, FaHeart, FaRegHeart, FaEye, FaArrowLeft } from "rea
 import { Link } from "react-router-dom";
 import { toast } from "../../utils/toast";
 import { Api } from "../../api";
+import CommunityExecutiveUpgrade from "../../components/Community/CommunityExecutiveUpgrade";
 import { getCachedData } from "../../utils/apiCache";
 
 /** Build iframe src with autoplay disabled for common embed URLs (e.g. YouTube). */
@@ -195,6 +196,8 @@ const WinningProducts = () => {
             </p>
           </div>
         </div>
+
+        <CommunityExecutiveUpgrade isCommunityMember={isMember} compact />
 
         {items.length === 0 ? (
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-dashed border-gray-300 dark:border-gray-700 p-8 text-center">

@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { toast } from "../../utils/toast";
 import { Api } from "../../api";
 import { getCachedData } from "../../utils/apiCache";
+import CommunityExecutiveUpgrade from "../../components/Community/CommunityExecutiveUpgrade";
 
 const PAGE_SIZE = 6;
 
@@ -193,6 +194,8 @@ const VideoTutorials = () => {
             </p>
           </div>
         </div>
+
+        <CommunityExecutiveUpgrade isCommunityMember={isMember} compact />
 
         {items.length === 0 ? (
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-dashed border-gray-300 dark:border-gray-700 p-8 text-center">

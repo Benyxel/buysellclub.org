@@ -28,12 +28,13 @@ const PaymentCallback = () => {
               const payType = response.data.type;
               const isTraining = payType === 'training';
               const isCommunity = payType === 'community';
+              const isExecutive = payType === 'executive';
               const isBuy4me = payType === 'buy4me';
               const isDonation = payType === 'donation';
               const isDigitalStore = payType === 'digital_store';
               const bookingId = response.data.booking_id;
               const orderId = response.data.order_id;
-              const requestId = response.data.request_id || response.data.community_request_id;
+              const requestId = response.data.request_id || response.data.community_request_id || response.data.executive_request_id;
               const digitalPurchaseId = response.data.purchase_id;
               setVerifiedOrderId(orderId || bookingId || requestId || digitalPurchaseId);
               setPaymentType(payType || (isTraining ? 'training' : 'order'));
@@ -46,6 +47,11 @@ const PaymentCallback = () => {
                 setMessage('Payment successful! Check your email for a link to set your username and password so you can log in.');
                 toast.success('Payment confirmed! Check your email to set your username and password.');
                 setTimeout(() => navigate('/Profile?tab=community'), 4000);
+              } else if (isExecutive) {
+                setMessage('Payment successful! Check your email for a link to set your username and password. Executive membership includes Community access.');
+                toast.success('Payment confirmed! Check your email to set your username and password.');
+                const loggedIn = !!(typeof window !== 'undefined' && localStorage.getItem('token'));
+                setTimeout(() => navigate(loggedIn ? '/Profile?tab=membership' : '/Community'), 4000);
               } else if (isBuy4me && requestId) {
                 setMessage(`Sourcing fee paid! You can now submit your Buy4me order on the next page.`);
                 toast.success(`Sourcing fee paid! Submit your order details.`);
@@ -163,6 +169,10 @@ const PaymentCallback = () => {
                     navigate('/Profile?tab=community');
                     return;
                   }
+                  if (paymentType === 'executive') {
+                    navigate('/Profile?tab=membership');
+                    return;
+                  }
                   if (paymentType === 'buy4me') {
                     navigate('/Buy4me');
                     return;
@@ -187,7 +197,7 @@ const PaymentCallback = () => {
                 }}
                 className="flex-1 px-6 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors font-medium"
               >
-                View {paymentType === 'training' ? 'Training' : paymentType === 'community' ? 'Profile' : paymentType === 'buy4me' ? 'Buy4me' : paymentType === 'donation' ? 'Home' : paymentType === 'digital_store' ? 'Digital Store' : (verifiedOrderId ? 'Order' : 'Details')}
+                View {paymentType === 'training' ? 'Training' : paymentType === 'community' ? 'Profile' : paymentType === 'executive' ? 'Membership' : paymentType === 'buy4me' ? 'Buy4me' : paymentType === 'donation' ? 'Home' : paymentType === 'digital_store' ? 'Digital Store' : (verifiedOrderId ? 'Order' : 'Details')}
               </button>
               <button
                 onClick={() => navigate('/')}

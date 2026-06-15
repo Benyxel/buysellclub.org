@@ -47,6 +47,8 @@ import {
   FaChevronDown,
   FaThList,
   FaShoppingBag,
+  FaCrown,
+  FaIdCard,
 } from "react-icons/fa";
 
 import UsersManagement from "./UsersManagement";
@@ -91,6 +93,8 @@ import AffiliateAgentManagement from "./AffiliateAgentManagement";
 import LocalAgentSettingsManagement from "./LocalAgentSettingsManagement";
 import LocalAgentRewardClaims from "./LocalAgentRewardClaims";
 import CommunityManagement from "./CommunityManagement";
+import ExecutiveMembersManagement from "./ExecutiveMembersManagement";
+import CardHoldersManagement from "./CardHoldersManagement";
 import BulkEmailAdmin from "./BulkEmailAdmin";
 import VendorManagement from "./VendorManagement";
 import AdminVendorPayoutRequests from "./AdminVendorPayoutRequests";
@@ -114,6 +118,10 @@ const quickTabsSectionSet = new Set(QUICK_TABS_SECTIONS);
 /** Sections grouped under sidebar "E-commerce" (Shop, Quick Orders, Orders). */
 const ECOMMERCE_SECTIONS = ["shop", "quick-orders", "orders"];
 const ecommerceSectionSet = new Set(ECOMMERCE_SECTIONS);
+
+/** Sections grouped under sidebar "Membership" (Community, Executive Members). */
+const MEMBERSHIP_SECTIONS = ["community", "executive-members", "card-holders"];
+const membershipSectionSet = new Set(MEMBERSHIP_SECTIONS);
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -268,6 +276,11 @@ const AdminDashboard = () => {
   const ecommerceTriggerRef = useRef(null);
   const ecommerceFlyoutRef = useRef(null);
   const [ecommerceFlyoutPos, setEcommerceFlyoutPos] = useState(null);
+  const [membershipOpen, setMembershipOpen] = useState(false);
+  const membershipWrapRef = useRef(null);
+  const membershipTriggerRef = useRef(null);
+  const membershipFlyoutRef = useRef(null);
+  const [membershipFlyoutPos, setMembershipFlyoutPos] = useState(null);
 
   // Refs to prevent duplicate toasts in StrictMode
   const welcomeToastShown = useRef(false);
@@ -294,6 +307,16 @@ const AdminDashboard = () => {
       { icon: <FaComments />, label: "Messages", section: "messages" },
       { icon: <FaEnvelope />, label: "Bulk Email", section: "bulk-email" },
       { icon: <FaUsers />, label: "Community", section: "community" },
+      {
+        icon: <FaCrown />,
+        label: "Executive Members",
+        section: "executive-members",
+      },
+      {
+        icon: <FaIdCard />,
+        label: "Card Holders",
+        section: "card-holders",
+      },
       { icon: <FaShoppingCart />, label: "Orders", section: "orders" },
       { icon: <FaGraduationCap />, label: "Training", section: "training" },
       { icon: <FaStore />, label: "Shop", section: "shop" },
@@ -673,6 +696,49 @@ const AdminDashboard = () => {
       window.removeEventListener("scroll", update, true);
     };
   }, [ecommerceOpen, isSidebarOpen]);
+
+  useEffect(() => {
+    if (!membershipOpen) return;
+    const onDocMouseDown = (e) => {
+      const t = e.target;
+      if (membershipWrapRef.current?.contains(t)) return;
+      if (membershipFlyoutRef.current?.contains(t)) return;
+      setMembershipOpen(false);
+    };
+    document.addEventListener("mousedown", onDocMouseDown);
+    return () => document.removeEventListener("mousedown", onDocMouseDown);
+  }, [membershipOpen]);
+
+  useLayoutEffect(() => {
+    if (!membershipOpen || isSidebarOpen) {
+      setMembershipFlyoutPos(null);
+      return;
+    }
+    const el = membershipTriggerRef.current;
+    if (!el) {
+      setMembershipFlyoutPos(null);
+      return;
+    }
+    const update = () => {
+      const r = el.getBoundingClientRect();
+      const gap = 10;
+      const panelWidth = 268;
+      let left = r.right + gap;
+      if (left + panelWidth > window.innerWidth - 12) {
+        left = Math.max(12, r.left - panelWidth - gap);
+      }
+      let top = r.top;
+      const maxH = Math.max(160, window.innerHeight - top - 16);
+      setMembershipFlyoutPos({ top, left, maxHeight: maxH });
+    };
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+    };
+  }, [membershipOpen, isSidebarOpen]);
 
   useEffect(() => {
     // Only fetch dashboard data the first time we visit the dashboard
@@ -1931,6 +1997,10 @@ const AdminDashboard = () => {
         );
       case "community":
         return <CommunityManagement />;
+      case "executive-members":
+        return <ExecutiveMembersManagement />;
+      case "card-holders":
+        return <CardHoldersManagement />;
       case "bulk-email":
         return (
           <div className="p-6">
@@ -2048,6 +2118,9 @@ const AdminDashboard = () => {
     if (!ecommerceSectionSet.has(item.section)) {
       setEcommerceOpen(false);
     }
+    if (!membershipSectionSet.has(item.section)) {
+      setMembershipOpen(false);
+    }
     if (tabUnreadCount > 0) {
       if (item.section === "alipay-payments") {
         setUnreadCounts((prev) => ({ ...prev, alipay: 0 }));
@@ -2108,6 +2181,7 @@ const AdminDashboard = () => {
               setIsSidebarOpen(!isSidebarOpen);
               setQuickTabsOpen(false);
               setEcommerceOpen(false);
+              setMembershipOpen(false);
             }}
             className="text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white"
           >
@@ -2153,10 +2227,15 @@ const AdminDashboard = () => {
                   itemsToRender.find((i) => i.section === slug)
                 ).filter(Boolean);
 
+                const membershipItemsOrdered = MEMBERSHIP_SECTIONS.map((slug) =>
+                  itemsToRender.find((i) => i.section === slug)
+                ).filter(Boolean);
+
                 const mainItems = itemsToRender.filter(
                   (i) =>
                     !quickTabsSectionSet.has(i.section) &&
-                    !ecommerceSectionSet.has(i.section)
+                    !ecommerceSectionSet.has(i.section) &&
+                    !membershipSectionSet.has(i.section)
                 );
                 const headItems = mainItems.filter(
                   (i) => i.section === "dashboard" || i.section === "users"
@@ -2171,11 +2250,18 @@ const AdminDashboard = () => {
                 const ecommerceGroupActive = ecommerceItemsOrdered.some(
                   (i) => i.section === activeSection
                 );
+                const membershipGroupActive = membershipItemsOrdered.some(
+                  (i) => i.section === activeSection
+                );
                 const ecommerceBadgeTotal = ecommerceItemsOrdered.reduce(
                   (sum, it) => sum + tabUnreadCountForSection(it.section),
                   0
                 );
                 const quickTabsBadgeTotal = quickItemsOrdered.reduce(
+                  (sum, it) => sum + tabUnreadCountForSection(it.section),
+                  0
+                );
+                const membershipBadgeTotal = membershipItemsOrdered.reduce(
                   (sum, it) => sum + tabUnreadCountForSection(it.section),
                   0
                 );
@@ -2238,6 +2324,7 @@ const AdminDashboard = () => {
                           title="E-commerce: Shop, Quick Orders, Orders"
                           onClick={() => {
                             setQuickTabsOpen(false);
+                            setMembershipOpen(false);
                             setEcommerceOpen((o) => !o);
                           }}
                           className={`w-full flex items-center relative ${
@@ -2413,6 +2500,7 @@ const AdminDashboard = () => {
                           title="Quick Tabs: Shipping → Agent Management"
                           onClick={() => {
                             setEcommerceOpen(false);
+                            setMembershipOpen(false);
                             setQuickTabsOpen((o) => !o);
                           }}
                           className={`w-full flex items-center relative ${
@@ -2531,6 +2619,182 @@ const AdminDashboard = () => {
                                 </div>
                                 <div className="overflow-y-auto py-1 flex-1 min-h-0">
                                   {quickItemsOrdered.map((item) => {
+                                    const n = tabUnreadCountForSection(item.section);
+                                    const showB = n > 0;
+                                    const active = activeSection === item.section;
+                                    return (
+                                      <button
+                                        key={item.section}
+                                        type="button"
+                                        role="menuitem"
+                                        onClick={() => openSidebarSection(item)}
+                                        className={`w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm transition-colors rounded-md mx-1 ${
+                                          active
+                                            ? "bg-blue-600/25 text-white ring-1 ring-inset ring-blue-500/45"
+                                            : "text-gray-200 hover:bg-gray-800"
+                                        }`}
+                                      >
+                                        <span className="text-lg shrink-0 opacity-90">
+                                          {item.icon}
+                                        </span>
+                                        <span className="flex flex-1 items-center justify-between gap-2 min-w-0">
+                                          <span className="truncate font-medium">
+                                            {item.label}
+                                          </span>
+                                          <span className="flex items-center gap-1 shrink-0">
+                                            {showB ? (
+                                              <span className="text-[10px] font-bold text-white bg-red-500 rounded-full px-1.5 py-0.5 min-w-[1.25rem] text-center">
+                                                {n > 99 ? "99+" : n}
+                                              </span>
+                                            ) : null}
+                                            {allowedTabsMeta[item.section]?.assigned ? (
+                                              <span className="w-2 h-2 rounded-full bg-green-500" />
+                                            ) : null}
+                                          </span>
+                                        </span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>,
+                              document.body
+                            )
+                          : null}
+                      </div>
+                    ) : null}
+
+                    {membershipItemsOrdered.length > 0 ? (
+                      <div className="space-y-1" ref={membershipWrapRef}>
+                        {isSidebarOpen ? (
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 px-3 pt-1">
+                            Membership
+                          </p>
+                        ) : null}
+                        <button
+                          ref={membershipTriggerRef}
+                          type="button"
+                          title="Membership: Community, Executive Members, Card Holders"
+                          onClick={() => {
+                            setQuickTabsOpen(false);
+                            setEcommerceOpen(false);
+                            setMembershipOpen((o) => !o);
+                          }}
+                          className={`w-full flex items-center relative ${
+                            isSidebarOpen ? "justify-between gap-2" : "justify-center"
+                          } p-3 rounded-lg transition-colors ${
+                            membershipGroupActive && !isSidebarOpen
+                              ? "border-l-4 border-blue-500 bg-gray-900/30 dark:bg-gray-950 text-blue-600 dark:text-blue-400"
+                              : membershipGroupActive && isSidebarOpen
+                              ? "bg-blue-50 dark:bg-blue-900 text-blue-600 dark:text-blue-400 ring-1 ring-blue-200/80 dark:ring-blue-700"
+                              : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                          }`}
+                          aria-expanded={membershipOpen}
+                        >
+                          <span
+                            className={`flex items-center min-w-0 ${
+                              isSidebarOpen ? "flex-1 gap-3" : ""
+                            }`}
+                          >
+                            <span className="relative shrink-0 inline-flex">
+                              <FaCrown className="text-xl shrink-0" />
+                              {!isSidebarOpen && membershipBadgeTotal > 0 ? (
+                                <span className="absolute -right-1.5 -top-1 flex h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-red-500 px-0.5 text-[9px] font-bold leading-none text-white">
+                                  {membershipBadgeTotal > 99
+                                    ? "99+"
+                                    : membershipBadgeTotal}
+                                </span>
+                              ) : null}
+                            </span>
+                            {isSidebarOpen ? (
+                              <>
+                                <span className="text-sm font-semibold truncate flex-1 min-w-0 text-left">
+                                  Membership
+                                </span>
+                                {membershipBadgeTotal > 0 ? (
+                                  <span className="shrink-0 text-xs font-semibold text-white bg-red-500 rounded-full px-2 py-0.5 min-w-[1.5rem] text-center">
+                                    {membershipBadgeTotal > 99
+                                      ? "99+"
+                                      : membershipBadgeTotal}
+                                  </span>
+                                ) : null}
+                              </>
+                            ) : null}
+                          </span>
+                          {isSidebarOpen ? (
+                            <FaChevronDown
+                              className={`text-sm shrink-0 transition-transform ${
+                                membershipOpen ? "rotate-180" : ""
+                              }`}
+                            />
+                          ) : null}
+                        </button>
+                        {membershipOpen && isSidebarOpen ? (
+                          <div className="ml-2 pl-2 border-l-2 border-blue-200 dark:border-blue-800 space-y-1 pb-1">
+                            {membershipItemsOrdered.map((item) => {
+                              const n = tabUnreadCountForSection(item.section);
+                              const showB = n > 0;
+                              return (
+                                <button
+                                  key={item.section}
+                                  type="button"
+                                  onClick={() => openSidebarSection(item)}
+                                  className={`w-full flex items-center space-x-3 px-2 py-2 rounded-md text-sm transition-colors ${
+                                    activeSection === item.section
+                                      ? "bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300"
+                                      : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/80"
+                                  }`}
+                                >
+                                  <span className="text-lg shrink-0">{item.icon}</span>
+                                  <span className="flex flex-1 items-center justify-between gap-2 min-w-0">
+                                    <span className="truncate text-left">{item.label}</span>
+                                    <span className="flex items-center gap-1 shrink-0">
+                                      {showB ? (
+                                        <span className="text-xs font-semibold text-white bg-red-500 rounded-full px-2 py-0.5">
+                                          {n > 99 ? "99+" : n}
+                                        </span>
+                                      ) : null}
+                                      {allowedTabsMeta[item.section]?.assigned ? (
+                                        <span className="w-2 h-2 rounded-full bg-green-500" />
+                                      ) : null}
+                                    </span>
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ) : null}
+                        {membershipOpen &&
+                        !isSidebarOpen &&
+                        membershipFlyoutPos &&
+                        typeof document !== "undefined"
+                          ? createPortal(
+                              <div
+                                ref={membershipFlyoutRef}
+                                className="w-[268px] rounded-xl border border-blue-500/60 bg-gray-900 text-gray-100 shadow-2xl overflow-hidden flex flex-col"
+                                style={{
+                                  position: "fixed",
+                                  top: membershipFlyoutPos.top,
+                                  left: membershipFlyoutPos.left,
+                                  maxHeight: membershipFlyoutPos.maxHeight,
+                                  zIndex: 10050,
+                                }}
+                                role="menu"
+                              >
+                                <div className="flex items-center gap-2 px-3 py-2.5 border-b border-blue-500/35 bg-gray-950/80">
+                                  <FaCrown className="text-lg text-amber-400 shrink-0" />
+                                  <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400 flex-1 min-w-0">
+                                    Membership
+                                  </span>
+                                  {membershipBadgeTotal > 0 ? (
+                                    <span className="shrink-0 text-[10px] font-bold text-white bg-red-500 rounded-full px-1.5 py-0.5 min-w-[1.25rem] text-center">
+                                      {membershipBadgeTotal > 99
+                                        ? "99+"
+                                        : membershipBadgeTotal}
+                                    </span>
+                                  ) : null}
+                                </div>
+                                <div className="overflow-y-auto py-1 flex-1 min-h-0">
+                                  {membershipItemsOrdered.map((item) => {
                                     const n = tabUnreadCountForSection(item.section);
                                     const showB = n > 0;
                                     const active = activeSection === item.section;

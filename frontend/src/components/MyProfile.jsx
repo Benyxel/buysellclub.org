@@ -48,6 +48,7 @@ import {
   FaWhatsapp,
   FaMotorcycle,
   FaVideo,
+  FaCrown,
   FaTelegramPlane,
   FaTrophy,
   FaArrowRight,
@@ -85,6 +86,9 @@ import { normalizePhone } from "../utils/ghanaPhone";
 import ProfileRiderWorkspace from "./profile/ProfileRiderWorkspace";
 import ProfileShippingFees from "./profile/ProfileShippingFees";
 import ProfileBulkDeliveryOutsideAccra from "./profile/ProfileBulkDeliveryOutsideAccra";
+import ProfileAccountInfo from "./profile/ProfileAccountInfo";
+import ProfileMembership from "./profile/ProfileMembership";
+import CommunityExecutiveUpgrade from "./Community/CommunityExecutiveUpgrade";
 import { DeliveryComingSoonContent } from "./DeliveryComingSoon";
 import { formatMarkIdForDisplay, formatMarkIdInText } from "../utils/markIdFormat";
 
@@ -148,14 +152,19 @@ const MyProfile = () => {
   });
   const [originalUserInfo, setOriginalUserInfo] = useState({});
 
-  // Initialize active tab from localStorage or URL parameter or default to "profile"
+  // Initialize active tab from localStorage or URL parameter or default to membership
+  const normalizeProfileTab = (tab) => {
+    if (!tab || tab === "profile") return "membership";
+    return tab;
+  };
+
   const getInitialTab = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const tabFromUrl = urlParams.get("tab");
-    if (tabFromUrl) return tabFromUrl;
+    if (tabFromUrl) return normalizeProfileTab(tabFromUrl);
 
     const savedTab = localStorage.getItem("myProfileActiveTab");
-    return savedTab || "profile";
+    return normalizeProfileTab(savedTab || "membership");
   };
 
   const [activeTab, setActiveTab] = useState(getInitialTab());
@@ -174,8 +183,11 @@ const MyProfile = () => {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const tabFromUrl = params.get("tab");
-    if (tabFromUrl && tabFromUrl !== activeTab) {
-      setActiveTab(tabFromUrl);
+    if (tabFromUrl) {
+      const normalized = normalizeProfileTab(tabFromUrl);
+      if (normalized !== activeTab) {
+        setActiveTab(normalized);
+      }
     }
 
     // Allow deep-linking to shipping fee submenus
@@ -204,7 +216,7 @@ const MyProfile = () => {
 
   const handleDigitalDownload = async (purchaseId) => {
     if (!hasCustomerToken) {
-      navigate("/Login", { state: { redirectTo: "/Profile?tab=profile" } });
+      navigate("/Login", { state: { redirectTo: "/Profile?tab=membership" } });
       return;
     }
     try {
@@ -230,7 +242,7 @@ const MyProfile = () => {
 
   const handleDigitalReceipt = async (purchaseId) => {
     if (!hasCustomerToken) {
-      navigate("/Login", { state: { redirectTo: "/Profile?tab=profile" } });
+      navigate("/Login", { state: { redirectTo: "/Profile?tab=membership" } });
       return;
     }
     try {
@@ -320,8 +332,13 @@ const MyProfile = () => {
     };
   }, [activeTab]);
   const [isCommunityMember, setIsCommunityMember] = useState(false);
+  const [isExecutiveMember, setIsExecutiveMember] = useState(false);
   const [communityTelegramLink, setCommunityTelegramLink] = useState("");
   const [communityHasSheetAccess, setCommunityHasSheetAccess] = useState(false);
+  const [membershipJoinedAt, setMembershipJoinedAt] = useState(null);
+  const [membershipExpiresAt, setMembershipExpiresAt] = useState(null);
+  const [executiveJoinedAt, setExecutiveJoinedAt] = useState(null);
+  const [executiveExpiresAt, setExecutiveExpiresAt] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
 
   // Keep profile tab consistent with rider flag (e.g. stale ?tab= or localStorage)
@@ -335,25 +352,61 @@ const MyProfile = () => {
   }, [currentUser, activeTab]);
 
   useEffect(() => {
-    const fetchCommunityStatus = async () => {
+    const fetchMembershipStatus = async () => {
       try {
-        const response = await Api.community.myRequest();
-        const status = response.data?.request?.status;
-        const sheetType = response.data?.sheet_access_type;
-        const telegramLink = response.data?.telegram_link || "";
-        // Approved if they have an approved request, or superadmin (backend returns sheet_access_type "member" + telegram_link)
-        const approved = status === "approved" || (sheetType === "member" && !!telegramLink);
+        const [communityResponse, executiveResponse] = await Promise.all([
+          Api.community.myRequest(),
+          Api.executive.myRequest().catch(() => ({ data: {} })),
+        ]);
+        const request = communityResponse.data?.request;
+        const status = request?.status;
+        const sheetType = communityResponse.data?.sheet_access_type;
+        const telegramLink = communityResponse.data?.telegram_link || "";
+        const approved =
+          status === "approved" || (sheetType === "member" && !!telegramLink);
         setIsCommunityMember(approved);
         setCommunityTelegramLink(telegramLink);
-        setCommunityHasSheetAccess(sheetType === "member" || sheetType === "sheet_only");
+        setCommunityHasSheetAccess(
+          sheetType === "member" || sheetType === "sheet_only"
+        );
+        if (approved && request?.status === "approved") {
+          setMembershipJoinedAt(request.joined_at || request.approved_at || null);
+          setMembershipExpiresAt(request.expires_at || null);
+        } else {
+          setMembershipJoinedAt(null);
+          setMembershipExpiresAt(null);
+        }
+
+        const executiveApproved = Boolean(executiveResponse.data?.is_executive_member);
+        setIsExecutiveMember(executiveApproved);
+        if (executiveApproved) {
+          const execRequest = executiveResponse.data?.request;
+          setExecutiveJoinedAt(
+            executiveResponse.data?.joined_at ||
+              execRequest?.joined_at ||
+              execRequest?.approved_at ||
+              null
+          );
+          setExecutiveExpiresAt(
+            executiveResponse.data?.expires_at || execRequest?.expires_at || null
+          );
+        } else {
+          setExecutiveJoinedAt(null);
+          setExecutiveExpiresAt(null);
+        }
       } catch {
         setIsCommunityMember(false);
+        setIsExecutiveMember(false);
         setCommunityTelegramLink("");
         setCommunityHasSheetAccess(false);
+        setMembershipJoinedAt(null);
+        setMembershipExpiresAt(null);
+        setExecutiveJoinedAt(null);
+        setExecutiveExpiresAt(null);
       }
     };
 
-    fetchCommunityStatus();
+    fetchMembershipStatus();
   }, []);
 
   const trackableBuy4meOrders = buy4meOrders.filter(
@@ -371,9 +424,6 @@ const MyProfile = () => {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
-  const [notifyEmail, setNotifyEmail] = useState(true);
-  const [notifyOrderUpdates, setNotifyOrderUpdates] = useState(true);
-  const [notifyPromotions, setNotifyPromotions] = useState(false);
   // Avatar selector state
   const [showAvatarSelector, setShowAvatarSelector] = useState(false);
   const [selectedAvatar, setSelectedAvatar] = useState("");
@@ -421,7 +471,7 @@ const MyProfile = () => {
     if (!isMobile) return;
     const params = new URLSearchParams(location.search);
     const t = params.get("tab");
-    if (t && t !== "profile") setShowTabModal(true);
+    if (t && t !== "membership" && t !== "profile") setShowTabModal(true);
   }, [isMobile, location.search]);
 
   // Ensure trackings are loaded whenever user opens the Tracking tab
@@ -734,14 +784,6 @@ const MyProfile = () => {
       setCurrentUser(u);
       // Set avatar from user data
       setSelectedAvatar(u.avatar || "");
-      // Initialize notification preferences from backend (with fallbacks)
-      setNotifyEmail(u.notify_email !== undefined ? !!u.notify_email : true);
-      setNotifyOrderUpdates(
-        u.notify_order_updates !== undefined ? !!u.notify_order_updates : true
-      );
-      setNotifyPromotions(
-        u.notify_promotions !== undefined ? !!u.notify_promotions : false
-      );
     } catch (error) {
       // Check if the error is due to being offline
       if (!checkOnlineStatus()) {
@@ -769,19 +811,6 @@ const MyProfile = () => {
           );
           if (cached && cached.id) {
             setCurrentUser(cached);
-            setNotifyEmail(
-              cached.notify_email !== undefined ? !!cached.notify_email : true
-            );
-            setNotifyOrderUpdates(
-              cached.notify_order_updates !== undefined
-                ? !!cached.notify_order_updates
-                : true
-            );
-            setNotifyPromotions(
-              cached.notify_promotions !== undefined
-                ? !!cached.notify_promotions
-                : false
-            );
           }
         } catch {}
       } catch {
@@ -851,26 +880,6 @@ const MyProfile = () => {
         err?.response?.data?.message ||
         "Failed to update password";
       toast.error(msg);
-    }
-  };
-
-  // Preference toggle handler (save immediately)
-  const savePreference = async (key, value) => {
-    try {
-      if (!currentUser?.id) return;
-      const payload = { [key]: value };
-      await API.patch(`/buysellapi/users/${currentUser.id}/update/`, payload);
-      // Update cached profile copy
-      const cached = JSON.parse(
-        localStorage.getItem("currentUserProfile") || "{}"
-      );
-      const updated = { ...cached, ...payload };
-      localStorage.setItem("currentUserProfile", JSON.stringify(updated));
-      setCurrentUser(updated);
-      toast.success("Preferences saved");
-    } catch (err) {
-      console.error("Error saving preference", err);
-      toast.error("Failed to save preference");
     }
   };
 
@@ -2707,17 +2716,17 @@ const MyProfile = () => {
               <nav className="space-y-1 sm:space-y-2">
                 <button
                   onClick={() => {
-                    setActiveTab("profile");
+                    setActiveTab("membership");
                     if (isMobile) setShowTabModal(true);
                   }}
                   className={`w-full flex items-center gap-2.5 sm:gap-3 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-lg transition-colors text-base ${
-                    activeTab === "profile"
+                    activeTab === "membership"
                       ? "bg-primary text-white"
                       : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
                   }`}
                 >
-                  <FaUser className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
-                  Profile
+                  <FaCrown className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+                  Membership
                 </button>
                 <button
                   onClick={() => {
@@ -2941,7 +2950,8 @@ const MyProfile = () => {
               <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-gray-200 bg-white px-4 py-2 shadow-sm dark:border-gray-700 dark:bg-gray-900 sm:px-5">
                 <span className="text-base font-semibold text-gray-800 dark:text-white truncate">
                   {{
-                    profile: "Profile",
+                    membership: "Membership",
+                    profile: "Membership",
                     digitalDownloads: "Digital downloads",
                     tracking: "Tracking",
                     shippingFees: "Shipping fees",
@@ -2967,123 +2977,25 @@ const MyProfile = () => {
                 </button>
               </div>
             )}
-            {/* Profile Tab */}
-            {activeTab === "profile" && (
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
-                <div className="flex flex-wrap justify-between items-center gap-2 mb-4 sm:mb-6">
-                  <h2 className="text-base sm:text-xl font-semibold text-gray-800 dark:text-white">
-                    Profile Information
-                  </h2>
-                  {!isEditing ? (
-                    <button
-                      onClick={() => setIsEditing(true)}
-                      className="flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 sm:px-4 sm:py-2 text-sm sm:text-base bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
-                    >
-                      <FaEdit className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-                      Edit Profile
-                    </button>
-                  ) : (
-                    <div className="flex gap-1.5 sm:gap-2">
-                      <button
-                        onClick={handleSave}
-                        className="flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 sm:px-4 sm:py-2 text-sm sm:text-base bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
-                      >
-                        <FaSave className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-                        Save
-                      </button>
-                      <button
-                        onClick={handleCancel}
-                        className="flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 sm:px-4 sm:py-2 text-sm sm:text-base bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-                      >
-                        <FaTimes className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-                        Cancel
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Full Name
-                    </label>
-                    {isEditing ? (
-                      <input
-                        type="text"
-                        value={userInfo.name}
-                        onChange={(e) =>
-                          setUserInfo({ ...userInfo, name: e.target.value })
-                        }
-                        className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
-                      />
-                    ) : (
-                      <p className="text-gray-900 dark:text-white">
-                        {userInfo.name}
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Email
-                    </label>
-                    {isEditing ? (
-                      <input
-                        type="email"
-                        value={userInfo.email}
-                        onChange={(e) =>
-                          setUserInfo({ ...userInfo, email: e.target.value })
-                        }
-                        className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
-                      />
-                    ) : (
-                      <p className="text-gray-900 dark:text-white">
-                        {userInfo.email}
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Phone
-                    </label>
-                    {isEditing ? (
-                      <input
-                        type="tel"
-                        value={userInfo.phone}
-                        onChange={(e) =>
-                          setUserInfo({ ...userInfo, phone: e.target.value })
-                        }
-                        className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
-                      />
-                    ) : (
-                      <p className="text-gray-900 dark:text-white">
-                        {userInfo.phone}
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Address
-                    </label>
-                    {isEditing ? (
-                      <textarea
-                        value={userInfo.address}
-                        onChange={(e) =>
-                          setUserInfo({ ...userInfo, address: e.target.value })
-                        }
-                        className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
-                        rows="3"
-                      />
-                    ) : (
-                      <p className="text-gray-900 dark:text-white">
-                        {userInfo.address}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
+            {/* Membership Tab (profile info moved to Settings) */}
+            {activeTab === "membership" && (
+              <div className="rounded-lg bg-white p-4 shadow-md dark:bg-gray-800 sm:p-6">
+                <ProfileMembership
+                  userId={currentUser?.id}
+                  memberFullName={
+                    userInfo.name ||
+                    currentUser?.full_name ||
+                    currentUser?.username ||
+                    ""
+                  }
+                  isCommunityMember={isCommunityMember}
+                  isExecutiveMember={isExecutiveMember}
+                  membershipJoinedAt={membershipJoinedAt}
+                  membershipExpiresAt={membershipExpiresAt}
+                  executiveJoinedAt={executiveJoinedAt}
+                  executiveExpiresAt={executiveExpiresAt}
+                  onOpenCommunityTab={() => setActiveTab("community")}
+                />
               </div>
             )}
 
@@ -3414,6 +3326,11 @@ const MyProfile = () => {
                         </Link>
                       </div>
                     </div>
+
+                    <CommunityExecutiveUpgrade
+                      isCommunityMember={isCommunityMember}
+                      isExecutiveMember={isExecutiveMember}
+                    />
                   </div>
                 ) : (
                   <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-md dark:border-gray-600 dark:bg-gray-800">
@@ -5420,7 +5337,16 @@ const MyProfile = () => {
                 <h2 className="text-base sm:text-xl font-semibold text-gray-800 dark:text-white mb-4 sm:mb-6">
                   Account Settings
                 </h2>
-                <div className="space-y-4 sm:space-y-6">
+                <div className="space-y-6 sm:space-y-8">
+                  <ProfileAccountInfo
+                    userInfo={userInfo}
+                    setUserInfo={setUserInfo}
+                    isEditing={isEditing}
+                    setIsEditing={setIsEditing}
+                    onSave={handleSave}
+                    onCancel={handleCancel}
+                  />
+
                   <div>
                     <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-white mb-3 sm:mb-4">
                       Change Password
@@ -5467,59 +5393,6 @@ const MyProfile = () => {
                       >
                         Update Password
                       </button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-white mb-3 sm:mb-4">
-                      Notification Settings
-                    </h3>
-                    <div className="space-y-4">
-                      <label className="flex items-center gap-3">
-                        <input
-                          type="checkbox"
-                          checked={notifyEmail}
-                          onChange={(e) => {
-                            const v = e.target.checked;
-                            setNotifyEmail(v);
-                            savePreference("notify_email", v);
-                          }}
-                          className="rounded text-primary focus:ring-primary"
-                        />
-                        <span className="text-gray-700 dark:text-gray-300">
-                          Email notifications
-                        </span>
-                      </label>
-                      <label className="flex items-center gap-3">
-                        <input
-                          type="checkbox"
-                          checked={notifyOrderUpdates}
-                          onChange={(e) => {
-                            const v = e.target.checked;
-                            setNotifyOrderUpdates(v);
-                            savePreference("notify_order_updates", v);
-                          }}
-                          className="rounded text-primary focus:ring-primary"
-                        />
-                        <span className="text-gray-700 dark:text-gray-300">
-                          Order updates
-                        </span>
-                      </label>
-                      <label className="flex items-center gap-3">
-                        <input
-                          type="checkbox"
-                          checked={notifyPromotions}
-                          onChange={(e) => {
-                            const v = e.target.checked;
-                            setNotifyPromotions(v);
-                            savePreference("notify_promotions", v);
-                          }}
-                          className="rounded text-primary focus:ring-primary"
-                        />
-                        <span className="text-gray-700 dark:text-gray-300">
-                          Promotional emails
-                        </span>
-                      </label>
                     </div>
                   </div>
                 </div>

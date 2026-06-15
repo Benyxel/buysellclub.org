@@ -177,6 +177,8 @@ const UsersManagement = () => {
     { label: "Agent Management", section: "agents" },
     { label: "Orders", section: "orders" },
     { label: "Community", section: "community" },
+    { label: "Executive Members", section: "executive-members" },
+    { label: "Card Holders", section: "card-holders" },
     { label: "Products", section: "products" },
     { label: "Categories", section: "categories" },
     { label: "Training", section: "training" },

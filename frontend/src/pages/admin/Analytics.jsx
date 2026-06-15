@@ -29,6 +29,28 @@ import {
   Bar,
 } from "recharts";
 
+function formatContainerPeriodMonth(monthValue) {
+  if (!monthValue) return "—";
+  const match = String(monthValue).match(/^(\d{4})-(\d{2})/);
+  if (match) {
+    const date = new Date(Number(match[1]), Number(match[2]) - 1, 1);
+    return date.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+  }
+  const parsed = new Date(monthValue);
+  if (Number.isNaN(parsed.getTime())) return String(monthValue);
+  return parsed.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+}
+
+function formatContainerPeriodYear(yearValue) {
+  if (yearValue === null || yearValue === undefined || yearValue === "") return "—";
+  if (typeof yearValue === "number") return yearValue;
+  const match = String(yearValue).match(/^(\d{4})/);
+  if (match) return Number(match[1]);
+  const parsed = new Date(yearValue);
+  if (Number.isNaN(parsed.getTime())) return String(yearValue);
+  return parsed.getFullYear();
+}
+
 const Analytics = ({ activeTab = "overview" }) => {
   const [loading, setLoading] = useState(true);
   const [analytics, setAnalytics] = useState(null);
@@ -925,12 +947,7 @@ const Analytics = ({ activeTab = "overview" }) => {
                   const renderMonthlyRow = (row, i) => (
                     <tr key={row.month || i}>
                       <td className="px-3 py-2 text-gray-900 dark:text-white">
-                        {row.month
-                          ? new Date(row.month).toLocaleDateString("en-US", {
-                              month: "short",
-                              year: "numeric",
-                            })
-                          : "—"}
+                        {formatContainerPeriodMonth(row.month)}
                       </td>
                       <td className="px-3 py-2 text-right text-blue-600 dark:text-blue-400">
                         ₵{Number(row.total_shipping_fee ?? 0).toLocaleString("en-US", {
@@ -1067,9 +1084,7 @@ const Analytics = ({ activeTab = "overview" }) => {
                   const renderYearlyRow = (row, i) => (
                     <tr key={row.year || i}>
                       <td className="px-3 py-2 text-gray-900 dark:text-white">
-                        {row.year
-                          ? new Date(row.year).getFullYear()
-                          : "—"}
+                        {formatContainerPeriodYear(row.year)}
                       </td>
                       <td className="px-3 py-2 text-right text-blue-600 dark:text-blue-400">
                         ₵{Number(row.total_shipping_fee ?? 0).toLocaleString("en-US", {

@@ -23,10 +23,21 @@ export function getInvoiceTotalCbm(items) {
  */
 export function getInvoiceGhsBreakdown(invoice) {
   if (!invoice) {
-    return { freightUsd: 0, freightGhs: 0, storageGhs: 0, totalGhs: 0, rate: 0 };
+    return {
+      subtotalUsd: 0,
+      discountUsd: 0,
+      discountPercent: 0,
+      freightUsd: 0,
+      freightGhs: 0,
+      storageGhs: 0,
+      totalGhs: 0,
+      rate: 0,
+    };
   }
 
   const rate = parseFloat(invoice.exchange_rate || 0);
+  const subtotalUsd = parseFloat(invoice.subtotal ?? 0);
+  const discountUsd = parseFloat(invoice.discount_amount ?? 0);
   const freightUsd = parseFloat(invoice.total_amount ?? invoice.subtotal ?? 0);
   const storageGhs = parseFloat(invoice.storage_fee_ghs || 0);
   const totalGhsStored = parseFloat(invoice.total_amount_ghs ?? 0);
@@ -43,5 +54,19 @@ export function getInvoiceGhsBreakdown(invoice) {
       ? totalGhsStored
       : Math.round((freightGhs + storageGhs) * 100) / 100;
 
-  return { freightUsd, freightGhs, storageGhs, totalGhs, rate };
+  const discountPercent =
+    discountUsd > 0 && subtotalUsd > 0
+      ? Math.round((discountUsd / subtotalUsd) * 10000) / 100
+      : 0;
+
+  return {
+    subtotalUsd,
+    discountUsd,
+    discountPercent,
+    freightUsd,
+    freightGhs,
+    storageGhs,
+    totalGhs,
+    rate,
+  };
 }

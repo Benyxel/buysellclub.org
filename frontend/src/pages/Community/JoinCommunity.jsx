@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { FaUsers, FaCheckCircle, FaClock, FaTimesCircle, FaQuoteLeft, FaTimes, FaLock } from "react-icons/fa";
+import { Link } from "react-router-dom";
+import { FaQuoteLeft, FaTimes } from "react-icons/fa";
 import { toast } from "../../utils/toast";
 import { Api } from "../../api";
 import comment1 from "../../assets/comments/WhatsApp Image 2026-02-06 at 3.01.03 PM.jpeg";
@@ -9,29 +9,12 @@ import comment3 from "../../assets/comments/WhatsApp Image 2026-02-06 at 3.04.42
 import comment4 from "../../assets/comments/WhatsApp Image 2026-02-06 at 3.05.06 PM.jpeg";
 import comment5 from "../../assets/comments/WhatsApp Image 2026-02-06 at 3.05.39 PM.jpeg";
 import comment6 from "../../assets/comments/WhatsApp Image 2026-02-06 at 3.06.08 PM.jpeg";
+import CommunityExecutiveUpgrade from "../../components/Community/CommunityExecutiveUpgrade";
+import MembershipPricingSection from "../../components/membership/MembershipPricingSection";
 
 const COMMENT_IMAGES = [comment1, comment2, comment3, comment4, comment5, comment6];
 
-const statusConfig = {
-  pending: {
-    label: "Pending approval",
-    icon: <FaClock className="text-yellow-600" />,
-    badge: "bg-yellow-100 text-yellow-800",
-  },
-  approved: {
-    label: "Approved",
-    icon: <FaCheckCircle className="text-green-600" />,
-    badge: "bg-green-100 text-green-800",
-  },
-  rejected: {
-    label: "Rejected",
-    icon: <FaTimesCircle className="text-red-600" />,
-    badge: "bg-red-100 text-red-800",
-  },
-};
-
 const JoinCommunity = () => {
-  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [priceJumpCountdown, setPriceJumpCountdown] = useState("");
   const [settings, setSettings] = useState({
@@ -41,10 +24,13 @@ const JoinCommunity = () => {
     has_sheet_product: false,
   });
   const [requestInfo, setRequestInfo] = useState(null);
-  const [telegramLink, setTelegramLink] = useState("");
   const [sheetAccessType, setSheetAccessType] = useState(null);
   const [memberName, setMemberName] = useState("");
   const [previewImage, setPreviewImage] = useState(null);
+  const [executiveSettings, setExecutiveSettings] = useState({});
+  const [executiveAmount, setExecutiveAmount] = useState(0);
+  const [executiveBaseAmount, setExecutiveBaseAmount] = useState(0);
+  const [isExecutiveMember, setIsExecutiveMember] = useState(false);
   const isLoggedIn = !!(
     typeof window !== "undefined" && localStorage.getItem("token")
   );
@@ -69,23 +55,40 @@ const JoinCommunity = () => {
       } catch (e) {
         console.warn("Community settings not loaded (guest or error):", e);
       }
+      try {
+        const executiveResp = await Api.executive.settings.get();
+        const exec = executiveResp.data || {};
+        const execBase = Number(exec.membership_amount || 0);
+        const execSale = Number(exec.sale_price || 0);
+        setExecutiveSettings(exec);
+        setExecutiveBaseAmount(execBase);
+        setExecutiveAmount(
+          execSale > 0 && execSale < execBase ? execSale : execBase
+        );
+      } catch (e) {
+        console.warn("Executive settings not loaded:", e);
+      }
       // Only fetch my request status when logged in
       if (hasToken) {
         try {
           const requestResp = await Api.community.myRequest();
           setRequestInfo(requestResp.data?.request || null);
-          setTelegramLink(requestResp.data?.telegram_link || "");
           setSheetAccessType(requestResp.data?.sheet_access_type || null);
         } catch (e) {
           console.warn("Community request not loaded:", e);
           setRequestInfo(null);
-          setTelegramLink("");
           setSheetAccessType(null);
+        }
+        try {
+          const executiveReq = await Api.executive.myRequest();
+          setIsExecutiveMember(Boolean(executiveReq.data?.is_executive_member));
+        } catch (e) {
+          setIsExecutiveMember(false);
         }
       } else {
         setRequestInfo(null);
-        setTelegramLink("");
         setSheetAccessType(null);
+        setIsExecutiveMember(false);
       }
     } catch (error) {
       console.error("Failed to load community info:", error);
@@ -182,24 +185,19 @@ const JoinCommunity = () => {
   }, []);
 
   const currentStatus = requestInfo?.status;
-  const statusMeta = currentStatus ? statusConfig[currentStatus] : null;
   const salePrice = Number(settings.sale_price || 0);
   const basePrice = Number(settings.membership_amount || 0);
   const displayPrice =
     salePrice > 0 && salePrice < basePrice ? salePrice : basePrice;
-  const sheetOnlyPrice = Number(settings.sheet_only_price || 0);
-  const sheetOnlyLabel = settings.sheet_only_label || "Suppliers only";
-  const _hasSheetProduct = settings.has_sheet_product;
-  const hasSheetAccess = sheetAccessType === "member" || sheetAccessType === "sheet_only";
-  // Treat as approved: has an approved request, or superadmin (backend gives sheet_access_type "member" + telegram_link)
-  const isApprovedMember = currentStatus === "approved" || (sheetAccessType === "member" && !!telegramLink);
+  const isApprovedMember =
+    currentStatus === "approved" || sheetAccessType === "member";
   const expiresAt = requestInfo?.expires_at
     ? new Date(requestInfo.expires_at).toLocaleDateString()
     : "";
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-10 px-4">
-      <div className="max-w-5xl mx-auto space-y-6">
+      <div className="max-w-6xl mx-auto space-y-10">
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div style={{ position: "relative", paddingTop: "56.25%" }}>
             <iframe
@@ -213,24 +211,19 @@ const JoinCommunity = () => {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-            What you get inside the community
-          </h2>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-            You are not joining a noisy group chat. You’re joining a structured
-            community with focused Topics:
-          </p>
-          <ul className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
-            <li>✅ 🏆 Winning Products</li>
-            <li>✅ 📚 Supplier Contacts</li>
-            <li>✅ 🛒 Whole Sale Products</li>
-            <li>✅ 🎬 Video Tutorials</li>
-            <li>✅ ❓ Questions &amp; Answers</li>
-            <li>✅ # Member Events</li>
-            <li>✅ # General Discussion</li>
-          </ul>
-        </div>
+        <MembershipPricingSection
+          communityAmount={displayPrice}
+          communityBaseAmount={basePrice}
+          executiveAmount={executiveAmount}
+          executiveBaseAmount={executiveBaseAmount}
+          executiveSettings={executiveSettings}
+          isLoggedIn={isLoggedIn}
+          isCommunityMember={isApprovedMember}
+          isExecutiveMember={isExecutiveMember}
+          communityRequestStatus={currentStatus}
+          loading={loading}
+          priceJumpCountdown={priceJumpCountdown}
+        />
 
         {/* Member comments / testimonials */}
         <section className="pt-4 pb-2">
@@ -268,69 +261,9 @@ const JoinCommunity = () => {
           </div>
         </section>
 
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 rounded-xl bg-green-100 text-green-700">
-              <FaUsers className="text-xl" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                Join Community
-              </h1>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Pay the membership fee with Paystack to join our community.
-              </p>
-            </div>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
-              <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                Membership Fee
-              </p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                ₵{displayPrice.toFixed(2)}
-              </p>
-              {salePrice > 0 && salePrice < basePrice && (
-                <p className="text-sm text-gray-500 dark:text-gray-400 line-through">
-                  ₵{basePrice.toFixed(2)}
-                </p>
-              )}
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                Pay using the same payment details shown on the payment page.
-              </p>
-            </div>
-            <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
-              <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                Your Status
-              </p>
-              {loading ? (
-                <p className="text-gray-500 dark:text-gray-400">Loading...</p>
-              ) : statusMeta ? (
-                <div className="flex items-center gap-2">
-                  {statusMeta.icon}
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs font-semibold ${statusMeta.badge}`}
-                  >
-                    {statusMeta.label}
-                  </span>
-                </div>
-              ) : !isLoggedIn ? (
-                <p className="text-gray-500 dark:text-gray-400">
-                  Sign in to see your status.
-                </p>
-              ) : (
-                <p className="text-gray-500 dark:text-gray-400">
-                  No request submitted yet.
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {(isApprovedMember && telegramLink) || hasSheetAccess ? (
+        {(isApprovedMember || (sheetAccessType === "sheet_only" && isLoggedIn)) ? (
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-green-200 dark:border-green-700">
-            {isApprovedMember && telegramLink ? (
+            {isApprovedMember ? (
               <>
             <div className="flex flex-wrap items-center gap-2 mb-2">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -353,61 +286,17 @@ const JoinCommunity = () => {
                 Expires on: {expiresAt}
               </p>
             )}
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              Click below to join the community on Telegram.
-            </p>
-            <a
-              href={telegramLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center px-5 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-semibold"
-            >
-              Join Telegram Group
-            </a>
-            <div className="mt-4 flex flex-wrap gap-3">
-              <Link
-                to="/Community/WinningProducts"
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-medium text-sm"
-              >
-                Winning products
-              </Link>
-              <Link
-                to="/Community/VideoTutorials"
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-medium text-sm"
-              >
-                Video tutorials
-              </Link>
-              <Link
-                to="/Community/ToolsDownloads"
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm"
-              >
-                Tools &amp; downloads
-              </Link>
-            </div>
               </>
             ) : null}
-            {hasSheetAccess ? (
-              <div className={isApprovedMember && telegramLink ? "mt-6 pt-4 border-t border-gray-200 dark:border-gray-600" : ""}>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                  Suppliers Contacts
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                  {sheetAccessType === "sheet_only"
-                    ? "You have access to the suppliers contacts."
-                    : "As a member, you also have access to the suppliers contacts."}
-                </p>
-                <Link
-                  to="/Community/Suppliers"
-                  className="inline-flex items-center px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold"
-                >
-                  View Suppliers Contacts
-                </Link>
+            {isApprovedMember ? (
+              <div className={sheetAccessType === "sheet_only" && isLoggedIn ? "mt-4" : ""}>
+                <CommunityExecutiveUpgrade isCommunityMember={isApprovedMember} />
               </div>
             ) : null}
             {sheetAccessType === "sheet_only" && isLoggedIn && (
               <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-600">
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                  Want to join the full community? Become a member and get Telegram access too.
+                  Want to join the full community? Become a member for full access.
                 </p>
                 <Link
                   to="/CommunityPayment"
@@ -418,59 +307,7 @@ const JoinCommunity = () => {
               </div>
             )}
           </div>
-        ) : (
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              Pay with Paystack
-            </h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              Complete payment securely with Paystack to request access.
-            </p>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-              Membership is billed yearly. Your expiration date will be shown
-              after approval.
-            </p>
-            <div className="flex flex-wrap gap-3 items-center">
-            {isLoggedIn ? (
-              <Link
-                to="/CommunityPayment"
-                className="inline-flex items-center px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold"
-              >
-                Get Access
-              </Link>
-            ) : (
-              <button
-                type="button"
-                onClick={() => navigate("/CommunityPayment")}
-                className="inline-flex items-center px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold"
-              >
-                Get Access
-              </button>
-            )}
-            </div>
-            <div className="mt-4 w-full max-w-md">
-              <div className="rounded-xl border border-pink-200/80 dark:border-pink-500/30 bg-pink-100 dark:bg-pink-500/10 px-4 py-3 shadow-sm">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-pink-950 dark:text-pink-100">
-                      Price will jump to <span className="font-extrabold">GHS 1500</span> soon
-                    </p>
-                    <p className="mt-1 text-xs text-pink-900/70 dark:text-pink-100/70 flex items-center gap-1.5">
-                      <FaLock className="text-pink-700 dark:text-pink-200" />
-                      <span>Secure your spot now before the price changes.</span>
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 rounded-full bg-white/85 dark:bg-pink-500/10 border border-pink-200 dark:border-pink-500/30 px-3 py-1.5 shadow-sm">
-                    <FaClock className="text-pink-600 dark:text-pink-300" />
-                    <span className="font-mono text-sm font-bold text-pink-950 dark:text-pink-100">
-                      {priceJumpCountdown || "01:00:00"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        ) : null}
       </div>
 
       {/* Image preview modal */}

@@ -289,6 +289,23 @@ const PublicInvoice = () => {
                   <span>{totalCbm.toFixed(3)}</span>
                 </div>
               )}
+              {ghs.discountUsd > 0 && ghs.subtotalUsd > 0 && (
+                <>
+                  <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
+                    <span>Freight subtotal (USD):</span>
+                    <span className="text-gray-900 dark:text-white font-medium">
+                      {formatCurrency(ghs.subtotalUsd)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm text-emerald-700 dark:text-emerald-400 font-medium">
+                    <span>
+                      Executive Member discount
+                      {ghs.discountPercent > 0 ? ` (${ghs.discountPercent}%)` : ""}:
+                    </span>
+                    <span>-{formatCurrency(ghs.discountUsd)}</span>
+                  </div>
+                </>
+              )}
               <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
                 <span>Shipping fee (USD):</span>
                 <span className="text-gray-900 dark:text-white font-medium">

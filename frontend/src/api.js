@@ -653,6 +653,40 @@ const Api = {
     adminResendSetPasswordLink: (requestId) =>
       http.post(`/buysellapi/admin/community/requests/${requestId}/resend-set-password-link/`),
   },
+  executive: {
+    settings: {
+      get: (config = {}) => http.get("/buysellapi/executive/settings/", config),
+      update: (payload) => http.post("/buysellapi/executive/settings/", payload),
+    },
+    myRequest: (config = {}) =>
+      http.get("/buysellapi/executive/requests/me/", {
+        cacheDuration: CACHE_DURATION.MEDIUM,
+        ...config,
+      }),
+    initiatePayment: (payload) =>
+      http.post("/buysellapi/executive/requests/initiate-payment/", payload),
+    submitInternationalMomo: (payload) =>
+      http.post("/buysellapi/executive/requests/international-momo-submit/", payload),
+    adminRequests: (config = {}) =>
+      http.get("/buysellapi/admin/executive/requests/", config),
+    adminApprove: (requestId, payload = {}) =>
+      http.post(`/buysellapi/admin/executive/requests/${requestId}/approve/`, payload),
+    adminReject: (requestId, payload = {}) =>
+      http.post(`/buysellapi/admin/executive/requests/${requestId}/reject/`, payload),
+    adminDelete: (requestId) =>
+      http.delete(`/buysellapi/admin/executive/requests/${requestId}/`),
+    adminAssignMember: (payload) =>
+      http.post("/buysellapi/admin/executive/assign-member/", payload),
+  },
+  membershipCard: {
+    me: () => http.get("/buysellapi/membership-card/me/"),
+    create: (payload = {}) => http.post("/buysellapi/membership-card/me/", payload),
+    update: (payload) => http.patch("/buysellapi/membership-card/me/", payload),
+    adminList: (params = {}) =>
+      http.get("/buysellapi/admin/membership-cards/", { params }),
+    adminDetail: (cardId) =>
+      http.get(`/buysellapi/admin/membership-cards/${cardId}/`),
+  },
   digitalStore: {
     /** Public list of digital products (PDFs, etc). */
     products: (params) =>

@@ -23,6 +23,7 @@
     "jspdf": "^4.0.0",
     "leaflet": "^1.9.4",
     "libphonenumber-js": "^1.12.42",
+    "qrcode.react": "^4.2.0",
     "react": "^19.0.0",
     "react-bootstrap": "^2.10.9",
     "react-dom": "^19.0.0",

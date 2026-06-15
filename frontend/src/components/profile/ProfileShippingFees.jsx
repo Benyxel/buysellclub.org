@@ -39,6 +39,10 @@ function formatMoney(amount, currency = "USD") {
   return currency === "GHS" ? `GH₵${val}` : `$${val}`;
 }
 
+function invoiceDiscountUsd(inv) {
+  return Math.max(0, parseFloat(inv.discount_amount || 0));
+}
+
 export default function ProfileShippingFees({ shippingMarkId }) {
   const [loading, setLoading] = useState(true);
   const [invoices, setInvoices] = useState([]);
@@ -198,7 +202,12 @@ export default function ProfileShippingFees({ shippingMarkId }) {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
-                      {formatMoney(inv.amount_due_usd ?? inv.total_amount)}
+                      <div>{formatMoney(inv.amount_due_usd ?? inv.total_amount)}</div>
+                      {invoiceDiscountUsd(inv) > 0 && (
+                        <div className="text-xs text-emerald-700 dark:text-emerald-400 font-medium mt-0.5">
+                          discount -{formatMoney(invoiceDiscountUsd(inv))}
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
                       {formatMoney(inv.amount_due_ghs ?? inv.total_amount_ghs, "GHS")}
@@ -291,6 +300,11 @@ export default function ProfileShippingFees({ shippingMarkId }) {
                     <div className="text-gray-900 dark:text-white font-semibold">
                       {formatMoney(inv.amount_due_usd ?? inv.total_amount)}
                     </div>
+                    {invoiceDiscountUsd(inv) > 0 && (
+                      <div className="text-xs text-emerald-700 dark:text-emerald-400 font-medium mt-0.5">
+                        discount -{formatMoney(invoiceDiscountUsd(inv))}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <div className="text-xs text-gray-500 dark:text-gray-400">

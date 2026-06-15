@@ -10,6 +10,7 @@ import {
   FaCheckCircle,
 } from "react-icons/fa";
 import { InvoiceItemTrackingLabel, InvoiceItemCbm } from "../../components/InvoiceItemDisplay";
+import { InvoicePreviewExecutiveDiscountRows } from "../../components/InvoicePreviewExecutiveDiscount";
 
 const statusOptions = [
   { value: "", label: "All" },
@@ -332,11 +333,47 @@ const AgentInvoicesManagement = () => {
                         ).toFixed(3)}
                       </td>
                       <td className="px-3 py-2 text-right">
-                        {Number(
-                          invoicePreview.totals?.total_fee || 0
+                        ${Number(
+                          invoicePreview.totals?.shipping_fee ||
+                            invoicePreview.totals?.total_fee ||
+                            0
                         ).toFixed(2)}
                       </td>
                     </tr>
+                    <InvoicePreviewExecutiveDiscountRows
+                      totals={invoicePreview.totals}
+                      colSpan={3}
+                    />
+                    {(Number(invoicePreview.totals?.invoice_total_usd || 0) > 0 ||
+                      Number(invoicePreview.totals?.total_amount_ghs || 0) > 0) && (
+                      <>
+                        <tr className="font-bold bg-gray-100 dark:bg-gray-700">
+                          <td className="px-3 py-2 text-right" colSpan={3}>
+                            Freight total (USD)
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            $
+                            {Number(
+                              invoicePreview.totals?.invoice_total_usd ||
+                                invoicePreview.totals?.invoice_total ||
+                                invoicePreview.totals?.shipping_fee ||
+                                0
+                            ).toFixed(2)}
+                          </td>
+                        </tr>
+                        {Number(invoicePreview.totals?.total_amount_ghs || 0) > 0 && (
+                          <tr className="font-bold bg-green-50 dark:bg-green-900/20">
+                            <td className="px-3 py-2 text-right" colSpan={3}>
+                              Invoice total (GHS)
+                            </td>
+                            <td className="px-3 py-2 text-right text-green-700 dark:text-green-300">
+                              GH₵
+                              {Number(invoicePreview.totals.total_amount_ghs).toFixed(2)}
+                            </td>
+                          </tr>
+                        )}
+                      </>
+                    )}
                   </tfoot>
                 </table>
               </div>

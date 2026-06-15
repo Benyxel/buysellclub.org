@@ -157,6 +157,10 @@ const MOBILE_SHORTCUT_STYLES = {
     tile: "border border-slate-200 bg-gradient-to-bl from-purple-50 via-white to-pink-50 text-slate-900 shadow-sm hover:border-purple-300 hover:shadow-md dark:border-slate-600 dark:from-slate-900 dark:via-slate-900 dark:to-purple-950 dark:text-slate-100 dark:hover:border-purple-400",
     icon: "bg-gradient-to-br from-purple-500 to-pink-600 text-white shadow-md ring-2 ring-purple-200 dark:ring-purple-950",
   },
+  Membership: {
+    tile: "border border-slate-200 bg-gradient-to-bl from-purple-50 via-white to-pink-50 text-slate-900 shadow-sm hover:border-purple-300 hover:shadow-md dark:border-slate-600 dark:from-slate-900 dark:via-slate-900 dark:to-purple-950 dark:text-slate-100 dark:hover:border-purple-400",
+    icon: "bg-gradient-to-br from-purple-500 to-pink-600 text-white shadow-md ring-2 ring-purple-200 dark:ring-purple-950",
+  },
 };
 
 const DEFAULT_SHORTCUT_STYLE = {
@@ -176,7 +180,7 @@ const MOBILE_LIST_ICON = {
   Services: "bg-cyan-600 text-white",
   About: "bg-slate-600 text-white",
   Contact: "bg-lime-600 text-white",
-  "Join Community": "bg-purple-600 text-white",
+  Membership: "bg-purple-600 text-white",
   Buy4Me: "bg-violet-600 text-white",
   "Shipping Addresses": "bg-indigo-600 text-white",
   Tracking: "bg-blue-600 text-white",
@@ -190,6 +194,7 @@ const MOBILE_LIST_ICON = {
   Favorites: "bg-red-500 text-white",
   Login: "bg-gray-700 text-white",
   Logout: "bg-gray-800 text-white",
+  Membership: "bg-purple-600 text-white",
   Community: "bg-purple-600 text-white",
   "Apply for membership": "bg-fuchsia-600 text-white",
   "Member hub in profile": "bg-cyan-600 text-white",
@@ -379,7 +384,7 @@ export default function Navbar() {
       Services: FaHandsHelping,
       About: FaInfoCircle,
       Contact: FaPhoneAlt,
-      "Join Community": FaUsers,
+      "Membership": FaUsers,
       Buy4Me: FaShoppingCart,
       "Shipping Addresses": FaMapMarkerAlt,
       Tracking: FaRoute,
@@ -428,13 +433,13 @@ export default function Navbar() {
     );
     add(
       "shortcuts",
-      "Community",
+      "Membership",
       isLoggedIn ? "/Profile?tab=community" : "/Community"
     );
 
     // Browse (main site)
     for (const x of MenuLinks) add("browse", x.name, x.href || "/");
-    add("browse", "Join Community", "/Community");
+    add("browse", "Membership", "/Community");
 
     // Quick links
     for (const x of Quicklinks) add("quick", x.name, x.href || "/");
@@ -501,7 +506,7 @@ export default function Navbar() {
                         : "inline-block px-2 font-medium text-gray-500 hover:text-black dark:hover:text-white duration-200"
                     }
                   >
-                    Join Community
+                    Membership
                   </NavLink>
                 </li>
                 {/* Dropdown */}

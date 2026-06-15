@@ -13,6 +13,7 @@ import {
 } from "react-icons/fa";
 import ConfirmModal from "./shared/ConfirmModal";
 import { InvoiceItemTrackingLabel, InvoiceItemCbm } from "./InvoiceItemDisplay";
+import { InvoicePreviewExecutiveDiscountRows } from "./InvoicePreviewExecutiveDiscount";
 
 const ContainerManagement = () => {
   const [containers, setContainers] = useState([]);
@@ -1026,6 +1027,9 @@ const ContainerManagement = () => {
                               </td>
                             </tr>
                           ) : null}
+                          <InvoicePreviewExecutiveDiscountRows
+                            totals={invoicePreview.totals}
+                          />
                           {(Number(invoicePreview.totals?.shipping_fee || 0) > 0 ||
                             Number(invoicePreview.totals?.total_amount_ghs || 0) > 0) && (
                             <>
@@ -1038,14 +1042,12 @@ const ContainerManagement = () => {
                                 </td>
                                 <td className="px-3 py-2 text-right text-gray-900 dark:text-white">
                                   $
-                                  {Math.ceil(
-                                    Number(
-                                      invoicePreview.totals?.invoice_total_usd ||
-                                        invoicePreview.totals?.invoice_total ||
-                                        invoicePreview.totals?.shipping_fee ||
-                                        0
-                                    )
-                                  )}
+                                  {Number(
+                                    invoicePreview.totals?.invoice_total_usd ||
+                                      invoicePreview.totals?.invoice_total ||
+                                      invoicePreview.totals?.shipping_fee ||
+                                      0
+                                  ).toFixed(2)}
                                 </td>
                               </tr>
                               {Number(invoicePreview.totals?.total_amount_ghs || 0) > 0 && (
@@ -1058,9 +1060,9 @@ const ContainerManagement = () => {
                                   </td>
                                   <td className="px-3 py-2 text-right text-green-700 dark:text-green-300">
                                     GH₵
-                                    {Math.ceil(
-                                      Number(invoicePreview.totals.total_amount_ghs)
-                                    )}
+                                    {Number(
+                                      invoicePreview.totals.total_amount_ghs
+                                    ).toFixed(2)}
                                   </td>
                                 </tr>
                               )}

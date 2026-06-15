@@ -32,6 +32,7 @@ import ToolsDownloads from "./pages/Community/ToolsDownloads";
 import VendorOnboarding from "./pages/VendorOnboarding";
 import VendorSales from "./pages/VendorSales";
 import CommunityPayment from "./pages/Community/CommunityPayment";
+import ExecutivePayment from "./pages/Executive/ExecutivePayment";
 import CommunitySetPassword from "./pages/Community/CommunitySetPassword";
 import ResetPassword from "./pages/ResetPassword";
 import PaymentCallback from "./pages/PaymentCallback";
@@ -341,6 +342,7 @@ function App() {
                         }
                       />
                       <Route path="CommunityPayment" element={<CommunityPayment />} />
+                      <Route path="ExecutivePayment" element={<ExecutivePayment />} />
                       <Route
                         path="Favorites"
                         element={

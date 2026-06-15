@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { FaSearch, FaSort, FaSortUp, FaSortDown, FaTimes, FaAddressBook, FaChevronDown, FaChevronUp } from "react-icons/fa";
 import { Api } from "../../api";
 import { toast } from "../../utils/toast";
+import CommunityExecutiveUpgrade from "../../components/Community/CommunityExecutiveUpgrade";
 
 /** Column header substrings to hide from users (case-insensitive). Add keywords for any column you don't want displayed. */
 const HIDDEN_COLUMN_HEADERS = [
@@ -283,6 +284,8 @@ const CommunitySheet = () => {
           <strong>Disclaimer:</strong> The supplier contact information on this page is provided for community members as a convenience. BuySell Club does not endorse, verify, or guarantee any supplier listed here. You are responsible for your own due diligence and any transactions you enter into with these contacts. Use this information at your own discretion.
         </p>
       </div>
+
+      <CommunityExecutiveUpgrade compact />
 
       {/* Toolbar: search + filters */}
       <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-800 rounded-xl border border-blue-200 dark:border-gray-600 p-4 mb-6 shadow-sm">

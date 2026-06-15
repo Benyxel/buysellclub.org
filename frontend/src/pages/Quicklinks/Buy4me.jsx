@@ -27,6 +27,10 @@ import {
   submitBuy4meDetails,
 } from "../../api";
 import WhatsAppWidget from "../../components/WhatsAppWidget";
+import {
+  Buy4meSourcingFeePricing,
+  getEffectiveSourcingFeeAmount,
+} from "../../components/Buy4meSourcingFeePricing";
 
 // Removed placeholder products - only show products from backend API
 
@@ -42,6 +46,7 @@ const Buy4me = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [quickOrderProducts, setQuickOrderProducts] = useState([]);
   const [defaultSourcingPayment, setDefaultSourcingPayment] = useState(0);
+  const [sourcingPricing, setSourcingPricing] = useState(null);
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -75,14 +80,21 @@ const Buy4me = () => {
     0
   );
 
+  const effectiveSourcingFee = getEffectiveSourcingFeeAmount(
+    sourcingPricing,
+    defaultSourcingPayment
+  );
+  const sourcingFeeReady = effectiveSourcingFee > 0;
+
   // Fetch buy4me settings for default sourcing payment
   useEffect(() => {
     const fetchSettings = async () => {
       try {
         const response = await getBuy4meSettings();
-        if (response.data?.defaultSourcingPayment) {
+        if (response.data?.defaultSourcingPayment != null) {
           setDefaultSourcingPayment(response.data.defaultSourcingPayment);
         }
+        setSourcingPricing(response.data?.sourcingPricing ?? null);
       } catch (error) {
         console.error("Failed to fetch buy4me settings:", error);
       }
@@ -355,7 +367,14 @@ const Buy4me = () => {
       const baseUrl = import.meta.env?.VITE_APP_URL || (typeof window !== "undefined" ? window.location.origin : "");
       const res = await initiateBuy4meSourcingFee({ callback_url: baseUrl ? `${String(baseUrl).replace(/\/$/, "")}/payment/callback` : undefined });
       if (res.data?.payment_url) {
-        toast.success("Redirecting to payment...");
+        const discount = Number(res.data.executive_discount_ghs || 0);
+        if (discount > 0) {
+          toast.success(
+            `Executive discount applied. Redirecting to pay GHS ${Number(res.data.amount).toFixed(2)}...`
+          );
+        } else {
+          toast.success("Redirecting to payment...");
+        }
         window.location.href = res.data.payment_url;
         return;
       }
@@ -576,7 +595,17 @@ const Buy4me = () => {
                     Submit up to 5 product links or photos, and we will source the items for you from suppliers.
                   </p>
                   <ul className="text-gray-600 dark:text-gray-300 space-y-2 list-disc list-inside">
-                    <li>Pay a GHS {defaultSourcingPayment || "—"} sourcing fee to start.</li>
+                    <li>
+                      <Buy4meSourcingFeePricing
+                        variant="inline"
+                        originalAmount={defaultSourcingPayment}
+                        amount={sourcingPricing?.amount}
+                        executiveDiscountGhs={sourcingPricing?.executiveDiscountGhs}
+                        executiveDiscountPercent={sourcingPricing?.executiveDiscountPercent}
+                        label="Pay sourcing fee"
+                      />{" "}
+                      to start.
+                    </li>
                     <li>Once sourcing is completed, we will send you an invoice for the product cost.</li>
                     <li>After payment, we proceed with purchasing your order.</li>
                   </ul>
@@ -584,11 +613,18 @@ const Buy4me = () => {
                     One sourcing fee = one Buy4Me request (up to 5 items).
                   </p>
                   <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-4">
-                    <p className="text-sm font-medium text-amber-800 dark:text-amber-200 mb-2">Sourcing fee: GHS {defaultSourcingPayment || "—"}</p>
+                    <div className="mb-2">
+                      <Buy4meSourcingFeePricing
+                        originalAmount={defaultSourcingPayment}
+                        amount={sourcingPricing?.amount}
+                        executiveDiscountGhs={sourcingPricing?.executiveDiscountGhs}
+                        executiveDiscountPercent={sourcingPricing?.executiveDiscountPercent}
+                      />
+                    </div>
                     <button
                       type="button"
                       onClick={handlePaySourcingFee}
-                      disabled={payingSourcingFee || !defaultSourcingPayment || defaultSourcingPayment <= 0}
+                      disabled={payingSourcingFee || !sourcingFeeReady}
                       className="w-full px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {payingSourcingFee ? "Redirecting to payment..." : "Pay sourcing fee to place order"}
@@ -899,9 +935,13 @@ const Buy4me = () => {
                             Min: {product.minQuantity}
                           </p>
                           <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-800 mb-2">
-                            <p className="text-xs font-medium text-blue-900 dark:text-blue-200">
-                              Sourcing fee: GHS {defaultSourcingPayment || "—"}
-                            </p>
+                            <Buy4meSourcingFeePricing
+                              variant="compact"
+                              originalAmount={defaultSourcingPayment}
+                              amount={sourcingPricing?.amount}
+                              executiveDiscountGhs={sourcingPricing?.executiveDiscountGhs}
+                              executiveDiscountPercent={sourcingPricing?.executiveDiscountPercent}
+                            />
                             <p className="text-xs text-blue-700 dark:text-blue-300">
                               Pay first to get one order slot (form or quick order)
                             </p>
@@ -910,10 +950,10 @@ const Buy4me = () => {
                         <div className="mt-3">
                           <button
                             onClick={() => handleQuickOrder(product)}
-                            disabled={submittingQuickOrderId === (product.id || product._id) || !defaultSourcingPayment || defaultSourcingPayment <= 0}
+                            disabled={submittingQuickOrderId === (product.id || product._id) || !sourcingFeeReady}
                             className="w-full px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           >
-                            {submittingQuickOrderId === (product.id || product._id) ? "Submitting..." : (!defaultSourcingPayment || defaultSourcingPayment <= 0) ? "Sourcing fee not set" : "Place order"}
+                            {submittingQuickOrderId === (product.id || product._id) ? "Submitting..." : !sourcingFeeReady ? "Sourcing fee not set" : "Place order"}
                           </button>
                         </div>
                       </div>
@@ -1006,14 +1046,22 @@ const Buy4me = () => {
             ) : (
               <>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                  Pay the sourcing fee first to get access to place this order (GHS {defaultSourcingPayment}). Same fee gives you access to the Buy4me form or one quick order.
+                  Pay the sourcing fee first to get access to place this order.{" "}
+                  <Buy4meSourcingFeePricing
+                    variant="inline"
+                    originalAmount={defaultSourcingPayment}
+                    amount={sourcingPricing?.amount}
+                    executiveDiscountGhs={sourcingPricing?.executiveDiscountGhs}
+                    executiveDiscountPercent={sourcingPricing?.executiveDiscountPercent}
+                  />
+                  . Same fee gives you access to the Buy4me form or one quick order.
                 </p>
                 <div className="flex gap-3">
                   <button type="button" onClick={closeQuickOrderModal} className="flex-1 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">Cancel</button>
                   <button
                     type="button"
                     onClick={() => { handlePaySourcingFee(); closeQuickOrderModal(); }}
-                    disabled={payingSourcingFee || !defaultSourcingPayment || defaultSourcingPayment <= 0}
+                    disabled={payingSourcingFee || !sourcingFeeReady}
                     className="flex-1 px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {payingSourcingFee ? "Redirecting..." : "Pay sourcing fee"}
