@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { FaStar, FaUsers } from "react-icons/fa";
 import buysellLogoSrc from "../../assets/buysellt.png";
@@ -30,11 +30,18 @@ const LOGO_HERO_WATERMARK_HEIGHT = "68%";
 const SHARP_TEXT =
   "subpixel-antialiased [text-rendering:geometricPrecision] [-webkit-font-smoothing:auto]";
 
+/** Fixed mobile card artboard — scaled to fit any phone width without reflow. */
+const MOBILE_CARD_WIDTH = 360;
+const MOBILE_CARD_HEIGHT = MOBILE_CARD_WIDTH / 1.586;
+const MOBILE_MEDIA = "(max-width: 639px)";
+
 function useMobileCardLayout() {
-  const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== "undefined" && window.matchMedia(MOBILE_MEDIA).matches,
+  );
 
   useEffect(() => {
-    const media = window.matchMedia("(max-width: 639px)");
+    const media = window.matchMedia(MOBILE_MEDIA);
     const sync = () => setIsMobile(media.matches);
     sync();
     media.addEventListener("change", sync);
@@ -42,6 +49,41 @@ function useMobileCardLayout() {
   }, []);
 
   return isMobile;
+}
+
+function useMobileCardScale(enabled, containerRef) {
+  const [scale, setScale] = useState(() => {
+    if (!enabled || typeof window === "undefined") return 1;
+    const viewportWidth = Math.min(window.innerWidth, 640);
+    return viewportWidth / MOBILE_CARD_WIDTH;
+  });
+
+  useEffect(() => {
+    if (!enabled || !containerRef.current) {
+      setScale(1);
+      return;
+    }
+
+    const element = containerRef.current;
+    const updateScale = () => {
+      const width = element.clientWidth;
+      if (width > 0) {
+        setScale(width / MOBILE_CARD_WIDTH);
+      }
+    };
+
+    updateScale();
+    const observer = new ResizeObserver(updateScale);
+    observer.observe(element);
+    window.addEventListener("orientationchange", updateScale);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("orientationchange", updateScale);
+    };
+  }, [enabled, containerRef]);
+
+  return scale;
 }
 
 function getTierTheme(isExecutive) {
@@ -112,12 +154,16 @@ function getTierTheme(isExecutive) {
   };
 }
 
-function CardField({ label, value, theme, compact = false }) {
+function CardField({ label, value, theme, size = "default" }) {
+  const isCompact = size === "compact";
+
   return (
     <div
-      className={`flex flex-col rounded-lg px-1.5 py-1 sm:px-2.5 sm:py-1.5 ${
-        compact ? "min-h-[2.75rem]" : "min-h-[3.25rem] sm:min-h-[3.5rem]"
-      }`}
+      className={
+        isCompact
+          ? "flex h-[46px] flex-col rounded-lg px-2 py-1"
+          : "flex min-h-[3.25rem] flex-col rounded-lg px-2 py-1.5 sm:min-h-[3.5rem] sm:px-2.5"
+      }
       style={{
         border: `1px solid ${theme.fieldBorder}`,
         backgroundColor: theme.fieldBg,
@@ -125,16 +171,16 @@ function CardField({ label, value, theme, compact = false }) {
     >
       <p
         className={`font-semibold uppercase tracking-wide text-zinc-300 ${SHARP_TEXT} ${
-          compact ? "text-[7px] leading-tight" : "text-[9px]"
+          isCompact ? "text-[8px] leading-none" : "text-[9px]"
         }`}
       >
         {label}
       </p>
       <p
-        className={`mt-auto font-bold uppercase text-white ${SHARP_TEXT} ${
-          compact
-            ? "break-all text-[8px] leading-tight"
-            : "truncate text-[10px] leading-snug sm:text-[11px]"
+        className={`truncate font-bold uppercase text-white ${SHARP_TEXT} ${
+          isCompact
+            ? "mt-1 text-[9px] leading-tight"
+            : "mt-auto text-[10px] leading-snug sm:text-[11px]"
         }`}
         title={value}
       >
@@ -180,6 +226,7 @@ function CardHeroWatermark() {
 function CardFront({
   card,
   compact,
+  mobileLayout = false,
   isExecutive,
   tierTitle,
   memberName,
@@ -188,8 +235,7 @@ function CardFront({
   logoSrc,
   theme,
 }) {
-  const isMobile = useMobileCardLayout();
-  const qrSize = isMobile ? 40 : compact ? 44 : 52;
+  const qrSize = compact ? 44 : 52;
 
   return (
     <div
@@ -216,20 +262,24 @@ function CardFront({
       <CardHeroWatermark />
 
       <div
-        className={`relative z-10 flex h-full flex-col px-3 pt-3 sm:px-5 sm:pt-4 ${
-          isMobile ? "pb-[7.25rem]" : "pb-[4.5rem] sm:pb-20"
-        } ${SHARP_TEXT}`}
+        className={`relative z-10 flex h-full flex-col ${SHARP_TEXT} ${
+          mobileLayout
+            ? "px-4 pb-[72px] pt-3.5"
+            : "px-4 pb-[4.5rem] pt-3.5 sm:px-5 sm:pb-20 sm:pt-4"
+        }`}
       >
         <div
-          className="flex items-start justify-between gap-2 rounded-xl border px-2 py-1.5 sm:px-3 sm:py-2"
+          className={`flex items-start justify-between gap-2 rounded-xl border ${
+            mobileLayout ? "px-2.5 py-2" : "px-2.5 py-2 sm:px-3"
+          }`}
           style={{
             borderColor: theme.headerBorder,
             backgroundColor: theme.headerBg,
           }}
         >
-          <div className="flex min-w-0 items-start gap-1.5 sm:gap-2.5">
+          <div className={`flex min-w-0 items-start ${mobileLayout ? "gap-2" : "gap-2 sm:gap-2.5"}`}>
             <div
-              className="mt-0.5 rounded-lg border p-0.5 sm:p-1"
+              className="mt-0.5 rounded-lg border p-1"
               style={{
                 borderColor: theme.logoBoxBorder,
                 backgroundColor: theme.logoBoxBg,
@@ -238,22 +288,29 @@ function CardFront({
               <img
                 src={logoSrc}
                 alt=""
-                className="h-5 w-5 shrink-0 object-contain sm:h-7 sm:w-7"
+                className={
+                  mobileLayout
+                    ? "h-6 w-6 shrink-0 object-contain"
+                    : "h-6 w-6 shrink-0 object-contain sm:h-7 sm:w-7"
+                }
               />
             </div>
             <div className="min-w-0">
-              <p className="text-[11px] font-extrabold tracking-wide sm:text-xs">
+              <p className="text-xs font-extrabold tracking-wide">
                 <span className="text-white">BUYSELL</span>
                 <span style={{ color: theme.nameColor }}>CLUB</span>
               </p>
-              <p className="mt-0.5 hidden text-[9px] font-medium uppercase leading-snug tracking-wide text-zinc-300 sm:block">
+              <p className="mt-0.5 text-[9px] font-medium uppercase leading-snug tracking-wide text-zinc-300">
                 Buy smart. Sell more. Ship anywhere.
               </p>
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-            <div className="hidden h-8 w-px bg-white/35 sm:block" aria-hidden />
-            <p className="text-[9px] font-bold uppercase tracking-wide text-white sm:text-[10px]">
+          <div className={`flex shrink-0 items-center ${mobileLayout ? "gap-2" : "gap-2 sm:gap-3"}`}>
+            <div
+              className={mobileLayout ? "h-6 w-px bg-white/35" : "hidden h-8 w-px bg-white/35 sm:block"}
+              aria-hidden
+            />
+            <p className="text-[10px] font-bold uppercase tracking-wide text-white">
               Membership
               <br />
               Card
@@ -261,67 +318,70 @@ function CardFront({
           </div>
         </div>
 
-        <div className="mt-2 flex min-h-0 flex-1 flex-col gap-2 sm:mt-4 sm:gap-0">
-          <div className="flex items-start justify-between gap-2 sm:gap-3">
+        <div
+          className={`flex min-h-0 flex-1 items-start justify-between gap-3 ${
+            mobileLayout ? "mt-3" : "mt-3 sm:mt-4"
+          }`}
+        >
+          <div className="min-w-0 flex-1">
             <p
-              className="min-w-0 flex-1 truncate text-base font-extrabold uppercase tracking-wide sm:text-xl"
+              className={`truncate font-extrabold uppercase tracking-wide ${
+                mobileLayout ? "text-lg" : "text-lg sm:text-xl"
+              }`}
               style={{ color: theme.nameColor }}
             >
               {memberName}
             </p>
 
-            <div className="shrink-0">
-              <div
-                className="h-14 w-14 overflow-hidden rounded-xl p-0.5 sm:h-24 sm:w-24"
-                style={{
-                  border: `2px solid ${theme.photoOuterBorder}`,
-                  background: theme.photoRing,
-                  boxShadow: theme.photoShadow,
-                }}
-              >
-                <div className="h-full w-full overflow-hidden rounded-[0.6rem] bg-black">
-                  {card.photoDataUrl ? (
-                    <img
-                      src={card.photoDataUrl}
-                      alt=""
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center bg-zinc-900 text-[8px] font-medium uppercase tracking-wide text-white/50 sm:text-[10px]">
-                      Photo
-                    </div>
-                  )}
-                </div>
-              </div>
+            <div
+              className={`grid grid-cols-3 ${
+                mobileLayout ? "mt-3 gap-1.5" : "mt-3 gap-1.5 sm:mt-4 sm:gap-2"
+              }`}
+            >
+              <CardField label="Member ID" value={card.cardId} theme={theme} />
+              <CardField
+                label="Member since"
+                value={formatMembershipCardDate(card.joinedAt)}
+                theme={theme}
+              />
+              <CardField
+                label="Valid thru"
+                value={formatMembershipCardExpiry(card.expiresAt)}
+                theme={theme}
+              />
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-1 sm:mt-4 sm:gap-2">
-            <CardField
-              label="Member ID"
-              value={card.cardId}
-              theme={theme}
-              compact={isMobile}
-            />
-            <CardField
-              label="Member since"
-              value={formatMembershipCardDate(card.joinedAt)}
-              theme={theme}
-              compact={isMobile}
-            />
-            <CardField
-              label="Valid thru"
-              value={formatMembershipCardExpiry(card.expiresAt)}
-              theme={theme}
-              compact={isMobile}
-            />
+          <div className="shrink-0">
+            <div
+              className={
+                mobileLayout
+                  ? "h-[4.5rem] w-[4.5rem] overflow-hidden rounded-xl p-0.5"
+                  : "h-[4.5rem] w-[4.5rem] overflow-hidden rounded-xl p-0.5 sm:h-24 sm:w-24"
+              }
+              style={{
+                border: `2px solid ${theme.photoOuterBorder}`,
+                background: theme.photoRing,
+                boxShadow: theme.photoShadow,
+              }}
+            >
+              <div className="h-full w-full overflow-hidden rounded-[0.6rem] bg-black">
+                {card.photoDataUrl ? (
+                  <img src={card.photoDataUrl} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center bg-zinc-900 text-[10px] font-medium uppercase tracking-wide text-white/50">
+                    Photo
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
       <div
         className={`pointer-events-none absolute inset-x-0 bottom-0 ${
-          isMobile ? "h-[38%]" : "h-[34%] sm:h-[32%]"
+          mobileLayout ? "h-[34%]" : "h-[34%] sm:h-[32%]"
         }`}
       >
         <svg
@@ -359,32 +419,28 @@ function CardFront({
         </svg>
 
         <div
-          className={`absolute z-10 flex max-w-[58%] items-center gap-1.5 sm:max-w-none sm:gap-2 ${
-            isMobile ? "bottom-2 left-3" : "bottom-3 left-4 sm:bottom-4 sm:left-5"
-          } ${SHARP_TEXT}`}
+          className={`absolute z-10 flex items-center gap-2 ${SHARP_TEXT} ${
+            mobileLayout ? "bottom-3 left-4" : "bottom-3 left-4 sm:bottom-4 sm:left-5"
+          }`}
         >
           {isExecutive ? (
             <FaStar
-              className={`shrink-0 ${isMobile ? "h-3.5 w-3.5" : "h-4 w-4 sm:h-5 sm:w-5"} ${theme.iconClass}`}
+              className={
+                mobileLayout ? `h-4 w-4 ${theme.iconClass}` : `h-4 w-4 sm:h-5 sm:w-5 ${theme.iconClass}`
+              }
             />
           ) : (
             <FaUsers
-              className={`shrink-0 ${isMobile ? "h-3.5 w-3.5" : "h-4 w-4 sm:h-5 sm:w-5"} ${theme.iconClass}`}
+              className={
+                mobileLayout ? `h-4 w-4 ${theme.iconClass}` : `h-4 w-4 sm:h-5 sm:w-5 ${theme.iconClass}`
+              }
             />
           )}
-          <div className="min-w-0">
-            <p
-              className={`font-extrabold uppercase leading-none tracking-wide text-white ${
-                isMobile ? "text-xs" : "text-base"
-              }`}
-            >
+          <div>
+            <p className="text-base font-extrabold uppercase leading-none tracking-wide text-white">
               {tierTitle}
             </p>
-            <p
-              className={`mt-0.5 font-semibold uppercase tracking-wide text-white ${
-                isMobile ? "text-[8px]" : "text-[10px]"
-              }`}
-            >
+            <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
               — Member —
             </p>
           </div>
@@ -392,7 +448,9 @@ function CardFront({
 
         <div
           className={`absolute rounded-lg border-2 border-white bg-white shadow-[0_8px_20px_rgba(0,0,0,0.45)] ${
-            isMobile ? "bottom-1.5 right-2 p-0.5" : "bottom-2.5 right-3 p-1 sm:bottom-3 sm:right-4 sm:p-1.5"
+            mobileLayout
+              ? "bottom-2.5 right-3 p-1"
+              : "bottom-2.5 right-3 p-1 sm:bottom-3 sm:right-4 sm:p-1.5"
           }`}
         >
           <QRCodeSVG
@@ -409,9 +467,8 @@ function CardFront({
   );
 }
 
-function CardBack({ card, compact, memberName, qrValue, tierLabel, logoSrc, theme }) {
-  const isMobile = useMobileCardLayout();
-  const qrSize = isMobile ? 52 : compact ? 84 : 100;
+function CardBack({ card, memberName, qrValue, tierLabel, logoSrc, theme, mobileLayout = false }) {
+  const qrSize = 52;
 
   return (
     <div
@@ -434,10 +491,14 @@ function CardBack({ card, compact, memberName, qrValue, tierLabel, logoSrc, them
       />
 
       <div className={`relative z-10 flex h-full min-h-0 flex-col ${SHARP_TEXT}`}>
-        <div className="flex shrink-0 flex-col items-center pt-2 sm:pt-4">
-          <img src={logoSrc} alt="" className="h-4 w-4 object-contain sm:h-6 sm:w-6" />
+        <div className={`flex shrink-0 flex-col items-center ${mobileLayout ? "pt-2" : "pt-2 sm:pt-4"}`}>
+          <img
+            src={logoSrc}
+            alt=""
+            className={mobileLayout ? "h-4 w-4 object-contain" : "h-4 w-4 object-contain sm:h-6 sm:w-6"}
+          />
           <p
-            className="mt-0.5 text-[9px] font-semibold sm:mt-1 sm:text-[11px]"
+            className={`mt-0.5 font-semibold ${mobileLayout ? "text-[10px]" : "text-[10px] sm:mt-1 sm:text-[11px]"}`}
             style={{ color: theme.siteTextColor }}
           >
             BuySellClub.org
@@ -445,24 +506,28 @@ function CardBack({ card, compact, memberName, qrValue, tierLabel, logoSrc, them
         </div>
 
         <div
-          className="mt-1 shrink-0 px-3 py-1.5 text-center sm:mt-2 sm:px-4 sm:py-3"
+          className={`mt-1 shrink-0 px-3 text-center ${mobileLayout ? "py-1.5" : "py-1.5 sm:mt-2 sm:px-4 sm:py-3"}`}
           style={{
             background: `linear-gradient(to right, ${theme.bannerFrom}, ${theme.bannerVia}, ${theme.bannerTo})`,
             borderTop: `2.5px solid ${theme.stripe}`,
             boxShadow: `inset 0 1px 0 ${theme.dividerGlow}`,
           }}
         >
-          <p className="text-[11px] font-extrabold uppercase tracking-wide sm:text-base">
+          <p className={`font-extrabold uppercase tracking-wide ${mobileLayout ? "text-xs" : "text-xs sm:text-base"}`}>
             <span className="text-white">BUYSELL</span>
             <span style={{ color: theme.nameColor }}>CLUB</span>
           </p>
-          <p className="mt-0.5 text-[7px] font-semibold uppercase tracking-wide text-white sm:text-[10px]">
+          <p
+            className={`mt-0.5 font-semibold uppercase tracking-wide text-white ${
+              mobileLayout ? "text-[8px]" : "text-[8px] sm:text-[10px]"
+            }`}
+          >
             Official digital membership
           </p>
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-3 pb-2 pt-1 text-center sm:px-8 sm:pb-6 sm:pt-3">
-          <div className="shrink-0 rounded-xl bg-white p-1.5 shadow-[0_12px_32px_rgba(0,0,0,0.45)] sm:rounded-2xl sm:p-3">
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-3 pb-2 pt-1 text-center">
+          <div className="shrink-0 rounded-xl bg-white p-1.5 shadow-[0_12px_32px_rgba(0,0,0,0.45)]">
             <QRCodeSVG
               value={qrValue}
               size={qrSize}
@@ -473,17 +538,27 @@ function CardBack({ card, compact, memberName, qrValue, tierLabel, logoSrc, them
             />
           </div>
 
-          <p className="mt-1.5 w-full truncate font-mono text-[11px] font-bold tracking-wider text-white sm:mt-4 sm:text-base">
+          <p
+            className={`mt-1.5 w-full truncate font-mono font-bold tracking-wider text-white ${
+              mobileLayout ? "text-xs" : "text-xs sm:text-[11px]"
+            }`}
+          >
             {card.cardId}
           </p>
           <p
-            className="mt-0.5 w-full truncate text-[11px] font-extrabold uppercase tracking-wide sm:mt-1.5 sm:text-base"
+            className={`mt-0.5 w-full truncate font-extrabold uppercase tracking-wide ${
+              mobileLayout ? "text-xs" : "text-xs sm:text-[11px]"
+            }`}
             style={{ color: theme.nameColor }}
             title={memberName}
           >
             {memberName}
           </p>
-          <p className="mt-1 w-full px-1 text-[8px] leading-snug text-zinc-300 sm:mt-3 sm:text-[11px]">
+          <p
+            className={`mt-1 w-full px-1 leading-snug text-zinc-300 ${
+              mobileLayout ? "text-[9px]" : "text-[9px] sm:text-[11px]"
+            }`}
+          >
             {tierLabel}
             <span className="mx-1" aria-hidden>
               ·
@@ -498,6 +573,9 @@ function CardBack({ card, compact, memberName, qrValue, tierLabel, logoSrc, them
 
 export default function MembershipCardVisual({ card, compact = false }) {
   const [isFlipped, setIsFlipped] = useState(false);
+  const cardContainerRef = useRef(null);
+  const isMobile = useMobileCardLayout();
+  const mobileScale = useMobileCardScale(isMobile, cardContainerRef);
 
   const toggleFlip = useCallback(() => {
     setIsFlipped((prev) => !prev);
@@ -524,9 +602,9 @@ export default function MembershipCardVisual({ card, compact = false }) {
   const theme = getTierTheme(isExecutive);
 
   return (
-    <div className={`mx-auto w-full ${compact ? "max-w-sm" : "max-w-lg"}`}>
+    <div className={`mx-auto ${compact ? "max-w-sm" : "max-w-lg"}`}>
       <div
-        className={`relative overflow-hidden rounded-[1.35rem] bg-gradient-to-br p-1.5 sm:p-4 ${theme.sceneBg}`}
+        className={`relative overflow-hidden rounded-[1.35rem] bg-gradient-to-br p-2 sm:p-4 ${theme.sceneBg}`}
       >
         <div className="pointer-events-none absolute inset-0" aria-hidden>
           <div
@@ -548,62 +626,77 @@ export default function MembershipCardVisual({ card, compact = false }) {
           aria-hidden
         />
 
-        <div className="relative w-full" style={{ perspective: "1000px" }}>
+        <div ref={cardContainerRef} className="relative w-full" style={{ perspective: "1000px" }}>
           <button
             type="button"
             onClick={toggleFlip}
             onKeyDown={handleKeyDown}
             aria-label={isFlipped ? "Show front of membership card" : "Show back of membership card"}
             aria-pressed={isFlipped}
-            className={`relative block w-full cursor-pointer border-0 bg-transparent p-0 text-left outline-none focus-visible:rounded-2xl focus-visible:ring-2 ${theme.focusRing} focus-visible:ring-offset-2 ${theme.focusOffset}`}
+            className={`relative block w-full cursor-pointer overflow-hidden border-0 bg-transparent p-0 text-left outline-none focus-visible:rounded-2xl focus-visible:ring-2 ${theme.focusRing} focus-visible:ring-offset-2 ${theme.focusOffset}`}
             style={{ aspectRatio: "1.586 / 1" }}
           >
             <div
-              className="relative h-full w-full transition-transform duration-700 ease-in-out"
-              style={{
-                transformStyle: "preserve-3d",
-                transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)",
-                WebkitFontSmoothing: "subpixel-antialiased",
-              }}
+              className="relative h-full w-full"
+              style={
+                isMobile
+                  ? {
+                      width: MOBILE_CARD_WIDTH,
+                      height: MOBILE_CARD_HEIGHT,
+                      transform: `scale(${mobileScale})`,
+                      transformOrigin: "top left",
+                    }
+                  : undefined
+              }
             >
               <div
-                className="absolute inset-0"
+                className="relative h-full w-full transition-transform duration-700 ease-in-out"
                 style={{
-                  backfaceVisibility: "hidden",
-                  WebkitBackfaceVisibility: "hidden",
-                  transform: "translateZ(1px)",
+                  transformStyle: "preserve-3d",
+                  transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)",
+                  WebkitFontSmoothing: "subpixel-antialiased",
                 }}
               >
-                <CardFront
-                  card={card}
-                  compact={compact}
-                  isExecutive={isExecutive}
-                  tierTitle={tierTitle}
-                  memberName={memberName}
-                  qrValue={qrValue}
-                  waveGradientId={waveGradientId}
-                  logoSrc={LOGO_SRC}
-                  theme={theme}
-                />
-              </div>
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    backfaceVisibility: "hidden",
+                    WebkitBackfaceVisibility: "hidden",
+                    transform: "translateZ(1px)",
+                  }}
+                >
+                  <CardFront
+                    card={card}
+                    compact={compact}
+                    mobileLayout={isMobile}
+                    isExecutive={isExecutive}
+                    tierTitle={tierTitle}
+                    memberName={memberName}
+                    qrValue={qrValue}
+                    waveGradientId={waveGradientId}
+                    logoSrc={LOGO_SRC}
+                    theme={theme}
+                  />
+                </div>
 
-              <div
-                className="absolute inset-0"
-                style={{
-                  backfaceVisibility: "hidden",
-                  WebkitBackfaceVisibility: "hidden",
-                  transform: "rotateY(180deg) translateZ(1px)",
-                }}
-              >
-                <CardBack
-                  card={card}
-                  compact={compact}
-                  memberName={memberName}
-                  qrValue={qrValue}
-                  tierLabel={tierLabel}
-                  logoSrc={LOGO_SRC}
-                  theme={theme}
-                />
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    backfaceVisibility: "hidden",
+                    WebkitBackfaceVisibility: "hidden",
+                    transform: "rotateY(180deg) translateZ(1px)",
+                  }}
+                >
+                  <CardBack
+                    card={card}
+                    memberName={memberName}
+                    qrValue={qrValue}
+                    tierLabel={tierLabel}
+                    logoSrc={LOGO_SRC}
+                    theme={theme}
+                    mobileLayout={isMobile}
+                  />
+                </div>
               </div>
             </div>
           </button>

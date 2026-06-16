@@ -293,6 +293,10 @@ const DigitalStore = () => {
       goToShopperLogin();
       return;
     }
+    if (product?.is_owned || product?.executive_free_access) {
+      claimExecutiveDownload(product);
+      return;
+    }
     setViewingProduct(null);
     setThumbnailLightbox(null);
     setCheckoutProduct(product);
@@ -316,6 +320,21 @@ const DigitalStore = () => {
           : undefined,
       };
       const res = await Api.digitalStore.initiatePaystack(payload);
+      if (res.data?.executive_free || res.data?.already_owned) {
+        toast.success(
+          res.data?.message ||
+            (res.data?.executive_free
+              ? "Included with your Executive membership."
+              : "You already own this product.")
+        );
+        await fetchLibrary();
+        if (res.data?.purchase_id) {
+          await handleDownload(res.data.purchase_id);
+        }
+        setCheckoutProduct(null);
+        setViewingProduct(null);
+        return;
+      }
       const url = res.data?.payment_url || res.data?.authorization_url;
       if (!url) {
         toast.error(res.data?.error || "Payment could not be started.");
@@ -337,6 +356,19 @@ const DigitalStore = () => {
     } finally {
       setBuyingId(null);
     }
+  };
+
+  const claimExecutiveDownload = async (product) => {
+    if (!readHasCustomerToken()) {
+      goToShopperLogin();
+      return;
+    }
+    const existing = purchaseByProductId.get(Number(product?.id ?? product?._id));
+    if (existing?.id) {
+      await handleDownload(existing.id);
+      return;
+    }
+    await startPaystackCheckout(product);
   };
 
   const uploadManualProof = async (file) => {
@@ -496,9 +528,13 @@ const DigitalStore = () => {
                 <div className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-3 xl:grid-cols-5">
                   {products.map((p) => {
                     const productId = p?.id ?? p?._id;
-                    const owned = productId
+                    const ownedPurchase = productId
                       ? purchaseByProductId.get(Number(productId))
                       : null;
+                    const owned =
+                      ownedPurchase ||
+                      (p?.is_owned ? { id: ownedPurchase?.id, executive: true } : null);
+                    const executiveFree = Boolean(p?.executive_free_access);
 
                     const saleEnabled = !!p?.sale_enabled;
                     const discountPercent =
@@ -556,9 +592,9 @@ const DigitalStore = () => {
                             </div>
                           ) : null}
 
-                          {owned ? (
+                          {owned || executiveFree ? (
                             <div className="pointer-events-none absolute right-3 top-3 z-[2] rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white shadow-sm">
-                              Owned
+                              {executiveFree ? "Executive" : "Owned"}
                             </div>
                           ) : null}
                         </div>
@@ -573,7 +609,11 @@ const DigitalStore = () => {
 
                           <div className="mt-auto flex flex-col gap-3 pt-4">
                             <div className="min-h-[42px]">
-                              {displayPrice != null ? (
+                              {executiveFree ? (
+                                <p className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400">
+                                  Free
+                                </p>
+                              ) : displayPrice != null ? (
                                 <>
                                   <p className="text-lg font-extrabold text-gray-900 dark:text-white">
                                     ₵{Number(displayPrice).toFixed(2)}
@@ -604,27 +644,35 @@ const DigitalStore = () => {
                                 <FaEye className="shrink-0 text-sm" />
                                 <span className="sr-only">View details</span>
                               </button>
-                              {owned ? (
+                              {ownedPurchase ? (
                                 <button
                                   type="button"
-                                  onClick={() => handleDownload(owned.id)}
-                                  disabled={downloadingId === owned.id}
+                                  onClick={() => handleDownload(ownedPurchase.id)}
+                                  disabled={downloadingId === ownedPurchase.id}
                                   className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-center text-[11px] font-semibold leading-tight text-white shadow-sm ring-1 ring-emerald-500/30 hover:bg-emerald-700 disabled:opacity-60 sm:text-xs dark:bg-emerald-600 dark:hover:bg-emerald-500 whitespace-nowrap"
                                 >
                                   <FaDownload className="shrink-0 text-[11px]" />
                                   <span className="min-w-0">
-                                    {downloadingId === owned.id ? "Opening…" : "Download"}
+                                    {downloadingId === ownedPurchase.id ? "Opening…" : "Download"}
                                   </span>
                                 </button>
                               ) : (
                                 <button
                                   type="button"
-                                  onClick={() => handleBuy(p)}
+                                  onClick={() =>
+                                    owned || executiveFree ? claimExecutiveDownload(p) : handleBuy(p)
+                                  }
                                   disabled={buyingId === (p?.id ?? p?._id ?? p?.slug)}
-                                  className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-center text-[11px] font-semibold leading-tight text-white hover:opacity-95 disabled:opacity-60 sm:text-xs whitespace-nowrap"
+                                  className={`inline-flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-center text-[11px] font-semibold leading-tight text-white disabled:opacity-60 sm:text-xs whitespace-nowrap ${
+                                    owned || executiveFree
+                                      ? "bg-emerald-600 shadow-sm ring-1 ring-emerald-500/30 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                                      : "bg-primary hover:opacity-95"
+                                  }`}
                                 >
                                   <FaDownload className="shrink-0 text-[11px]" />
-                                  <span className="min-w-0">Download</span>
+                                  <span className="min-w-0">
+                                    {owned || executiveFree ? "Download" : "Download"}
+                                  </span>
                                 </button>
                               )}
                             </div>
@@ -836,7 +884,11 @@ const DigitalStore = () => {
             <div className="shrink-0 border-t border-gray-100 bg-gray-50/90 px-5 py-4 dark:border-gray-800 dark:bg-gray-950/50 sm:px-6">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div className="min-h-[42px] flex flex-col justify-end">
-                  {viewingPricing.displayPrice != null ? (
+                  {viewingProduct?.executive_free_access ? (
+                    <p className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400">
+                      Free · Executive member
+                    </p>
+                  ) : viewingPricing.displayPrice != null ? (
                     <>
                       <p className="text-xl font-extrabold text-gray-900 dark:text-white">
                         ₵{Number(viewingPricing.displayPrice).toFixed(2)}
@@ -862,6 +914,16 @@ const DigitalStore = () => {
                   >
                     <FaDownload />
                     {downloadingId === viewingPurchase.id ? "Opening…" : "Download"}
+                  </button>
+                ) : viewingProduct?.is_owned ? (
+                  <button
+                    type="button"
+                    onClick={() => claimExecutiveDownload(viewingProduct)}
+                    disabled={buyingId === (viewingProduct?.id ?? viewingProduct?._id ?? viewingProduct?.slug)}
+                    className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-sm ring-1 ring-emerald-500/30 hover:bg-emerald-700 disabled:opacity-60 dark:bg-emerald-600 dark:hover:bg-emerald-500 sm:w-auto sm:min-w-[180px]"
+                  >
+                    <FaDownload />
+                    Download free
                   </button>
                 ) : (
                   <button

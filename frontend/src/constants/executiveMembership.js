@@ -1,5 +1,6 @@
 const DEFAULT_SHIPPING_DISCOUNT = 5;
 const DEFAULT_BUY4ME_DISCOUNT = 50;
+const DIGITAL_STORE_BENEFIT = "Free access to all Digital Store products";
 
 export function buildExecutiveBenefits(settings = {}) {
   const shippingDiscount = Number(
@@ -12,6 +13,7 @@ export function buildExecutiveBenefits(settings = {}) {
   return [
     `${shippingDiscount}% off shipping fees for the whole year`,
     `${buy4meDiscount}% off Buy For Me sourcing fees`,
+    DIGITAL_STORE_BENEFIT,
     "Access to winning products",
     "Supplier contacts",
     "Wholesale product deals",
@@ -48,6 +50,7 @@ export function buildExecutiveOnlyBenefits(settings = {}) {
   return [
     `${shippingDiscount}% off shipping fees for the whole year`,
     `${buy4meDiscount}% off Buy For Me sourcing fees`,
+    DIGITAL_STORE_BENEFIT,
     "Executive digital membership card (1 year)",
     "Additional premium resources over time",
   ];
