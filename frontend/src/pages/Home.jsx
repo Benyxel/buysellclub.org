@@ -2,6 +2,8 @@ import React, { Suspense, lazy, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import HeroSection from "../components/HeroSection";
 import Banner from "../components/Banner";
+import Fifa2026HomeIntro from "../components/Fifa2026HomeIntro";
+import { shouldShowFifa2026Intro } from "../constants/fifa2026Intro";
 import bimg1 from "../assets/bimg1.png";
 import { Api } from "../api";
 
@@ -28,6 +30,7 @@ const Home = () => {
   const [specialRate, setSpecialRate] = useState("300$");
   const [dueInvoice, setDueInvoice] = useState(null);
   const [showDueReminder, setShowDueReminder] = useState(false);
+  const [showFifaIntro, setShowFifaIntro] = useState(() => shouldShowFifa2026Intro());
 
   const dismissDueReminder = () => {
     setShowDueReminder(false);
@@ -141,6 +144,9 @@ const Home = () => {
 
   return (
     <div>
+      {showFifaIntro && (
+        <Fifa2026HomeIntro onComplete={() => setShowFifaIntro(false)} />
+      )}
       <HeroSection />
       <Suspense fallback={<BelowFoldFallback />}>
         <Event />

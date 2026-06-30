@@ -5806,6 +5806,10 @@ const MyProfile = () => {
                   Chassis numbers must be provided for motorbikes and tricycles
                   before we can ship.
                 </li>
+                <li>
+                  You must inform us if your goods include tiles, liquids,
+                  batteries, paints, fertilizer, or heavy-duty products.
+                </li>
               </ol>
             </div>
             <p className="text-sm font-medium text-red-700 dark:text-red-300 text-center mb-6">

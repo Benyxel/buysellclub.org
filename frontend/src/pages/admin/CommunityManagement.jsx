@@ -59,6 +59,10 @@ const CommunityManagement = () => {
   const [assignContact, setAssignContact] = useState("");
   const [assignLoading, setAssignLoading] = useState(false);
   const [resendLoadingId, setResendLoadingId] = useState(null);
+  const [paymentSummary, setPaymentSummary] = useState({
+    registered: 0,
+    totalCash: 0,
+  });
 
   const fetchSettings = async () => {
     try {
@@ -112,6 +116,27 @@ const CommunityManagement = () => {
     fetchSettings();
     fetchRequests(1);
   }, []);
+
+  useEffect(() => {
+    if (activeTab !== "requests") return;
+    let cancelled = false;
+    const loadPaymentSummary = async () => {
+      try {
+        const response = await Api.analytics.dashboardSummary();
+        if (cancelled) return;
+        setPaymentSummary({
+          registered: Number(response.data?.communityTotalRegistered || 0),
+          totalCash: Number(response.data?.communityTotalCash || 0),
+        });
+      } catch (error) {
+        console.error("Failed to load community payment summary:", error);
+      }
+    };
+    loadPaymentSummary();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab]);
 
   const fetchWinning = async () => {
     try {
@@ -474,6 +499,24 @@ const CommunityManagement = () => {
 
       {activeTab === "requests" && (
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+          <div className="rounded-xl border border-cyan-200 dark:border-cyan-800 bg-cyan-50 dark:bg-cyan-900/20 p-4">
+            <p className="text-xs uppercase tracking-wide text-cyan-800 dark:text-cyan-200">
+              Approved members
+            </p>
+            <p className="text-2xl font-bold text-cyan-700 dark:text-cyan-300">
+              {paymentSummary.registered}
+            </p>
+          </div>
+          <div className="rounded-xl border border-lime-200 dark:border-lime-800 bg-lime-50 dark:bg-lime-900/20 p-4">
+            <p className="text-xs uppercase tracking-wide text-lime-800 dark:text-lime-200">
+              Community payments (CommunityPayment)
+            </p>
+            <p className="text-2xl font-bold text-lime-700 dark:text-lime-300">
+              ₵{Number(paymentSummary.totalCash || 0).toFixed(2)}
+            </p>
+          </div>
+        </div>
         <div className="flex flex-wrap items-end justify-between gap-4 mb-4">
           <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
             Community Join Requests

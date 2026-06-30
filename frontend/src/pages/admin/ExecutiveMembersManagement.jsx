@@ -29,6 +29,10 @@ export default function ExecutiveMembersManagement() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [requestToDelete, setRequestToDelete] = useState(null);
   const requestsPageSize = 10;
+  const [paymentSummary, setPaymentSummary] = useState({
+    registered: 0,
+    totalCash: 0,
+  });
 
   const fetchSettings = async () => {
     try {
@@ -81,6 +85,27 @@ export default function ExecutiveMembersManagement() {
     fetchSettings();
     fetchRequests(1);
   }, []);
+
+  useEffect(() => {
+    if (activeTab !== "requests") return;
+    let cancelled = false;
+    const loadPaymentSummary = async () => {
+      try {
+        const response = await Api.analytics.dashboardSummary();
+        if (cancelled) return;
+        setPaymentSummary({
+          registered: Number(response.data?.executiveTotalRegistered || 0),
+          totalCash: Number(response.data?.executiveTotalCash || 0),
+        });
+      } catch (error) {
+        console.error("Failed to load executive payment summary:", error);
+      }
+    };
+    loadPaymentSummary();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab]);
 
   const handleSave = async () => {
     try {
@@ -324,6 +349,24 @@ export default function ExecutiveMembersManagement() {
 
       {activeTab === "requests" && (
         <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-lg dark:border-gray-700 dark:bg-gray-800">
+          <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/20">
+              <p className="text-xs uppercase tracking-wide text-amber-800 dark:text-amber-200">
+                Approved executive members
+              </p>
+              <p className="text-2xl font-bold text-amber-700 dark:text-amber-300">
+                {paymentSummary.registered}
+              </p>
+            </div>
+            <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 dark:border-orange-800 dark:bg-orange-900/20">
+              <p className="text-xs uppercase tracking-wide text-orange-800 dark:text-orange-200">
+                Executive payments
+              </p>
+              <p className="text-2xl font-bold text-orange-700 dark:text-orange-300">
+                ₵{Number(paymentSummary.totalCash || 0).toFixed(2)}
+              </p>
+            </div>
+          </div>
           <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
             <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
               Executive Upgrade Requests

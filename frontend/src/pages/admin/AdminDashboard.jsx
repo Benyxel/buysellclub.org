@@ -509,6 +509,9 @@ const AdminDashboard = () => {
         totalTrainingBookings: data.totalTrainingBookings ?? 0,
         communityTotalRegistered: data.communityTotalRegistered ?? 0,
         communityTotalCash: data.communityTotalCash ?? 0,
+        executiveTotalRegistered: data.executiveTotalRegistered ?? 0,
+        executiveTotalCash: data.executiveTotalCash ?? 0,
+        membershipTotalCash: data.membershipTotalCash ?? 0,
       });
     } catch (err) {
       console.error("Dashboard fetch error:", err);
@@ -961,6 +964,9 @@ const AdminDashboard = () => {
       case "dashboard": {
         const communityRegistered = dashboardData?.communityTotalRegistered ?? 0;
         const communityTotalCash = dashboardData?.communityTotalCash ?? 0;
+        const executiveRegistered = dashboardData?.executiveTotalRegistered ?? 0;
+        const executiveTotalCash = dashboardData?.executiveTotalCash ?? 0;
+        const membershipTotalCash = dashboardData?.membershipTotalCash ?? 0;
         const overviewCards =
           dashboardData
             ? [
@@ -1122,7 +1128,7 @@ const AdminDashboard = () => {
                 },
                 {
                   id: "communityCash",
-                  title: "Community Total Cash",
+                  title: "Community Payments",
                   icon: (
                     <FaDollarSign className="text-2xl text-lime-600 dark:text-lime-400" />
                   ),
@@ -1135,6 +1141,49 @@ const AdminDashboard = () => {
                     </p>
                   ),
                   accent: "bg-lime-100 dark:bg-lime-900",
+                },
+                {
+                  id: "executiveRegistered",
+                  title: "Executive Members",
+                  icon: <FaCrown className="text-2xl text-amber-600 dark:text-amber-400" />,
+                  value: (
+                    <p className="text-3xl font-bold text-amber-600 dark:text-amber-400">
+                      {executiveRegistered}
+                    </p>
+                  ),
+                  accent: "bg-amber-100 dark:bg-amber-900",
+                },
+                {
+                  id: "executiveCash",
+                  title: "Executive Payments",
+                  icon: (
+                    <FaDollarSign className="text-2xl text-orange-600 dark:text-orange-400" />
+                  ),
+                  value: (
+                    <p className="text-3xl font-bold text-orange-600 dark:text-orange-400">
+                      ₵{Number(executiveTotalCash).toLocaleString("en-US", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </p>
+                  ),
+                  accent: "bg-orange-100 dark:bg-orange-900",
+                },
+                {
+                  id: "membershipCash",
+                  title: "Total Membership Payments",
+                  icon: (
+                    <FaDollarSign className="text-2xl text-emerald-600 dark:text-emerald-400" />
+                  ),
+                  value: (
+                    <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">
+                      ₵{Number(membershipTotalCash).toLocaleString("en-US", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </p>
+                  ),
+                  accent: "bg-emerald-100 dark:bg-emerald-900",
                 },
               ]
             : [];
@@ -1974,6 +2023,7 @@ const AdminDashboard = () => {
                   { key: "digital_store", label: "Digital store" },
                   { key: "training", label: "Training" },
                   { key: "community", label: "Community" },
+                  { key: "executive", label: "Executive" },
                 ].map((tab) => (
                   <button
                     key={tab.key}

@@ -13,6 +13,7 @@ import {
   FaCalendarWeek,
   FaCalendarAlt,
   FaUsers,
+  FaCrown,
   FaTimes,
   FaFilePdf,
 } from "react-icons/fa";
@@ -192,6 +193,8 @@ const Analytics = ({ activeTab = "overview" }) => {
         // Do not send date range for community: backend returns all-time totals and
         // its own ranges for daily/weekly/monthly/yearly series. Otherwise we'd filter
         // by e.g. last 24h and show zeros when requests are older.
+      } else if (activeTab === "executive") {
+        // All-time executive membership payment totals (same pattern as community).
       } else if (activeTab === "overview") {
         const range = getOverviewRange(selectedPeriod);
         if (range) {
@@ -2816,6 +2819,53 @@ const Analytics = ({ activeTab = "overview" }) => {
               </div>
             )}
           </div>
+        </>
+      )}
+      {activeTab === "executive" && (
+        <>
+          <div className="flex items-center gap-2 mb-4">
+            <FaCrown className="text-xl text-amber-600" />
+            <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
+              Executive Analytics
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
+              <p className="text-xs uppercase text-gray-500 dark:text-gray-400">
+                Total Requests
+              </p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                {analytics.executive?.total_requests || 0}
+              </p>
+            </div>
+            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
+              <p className="text-xs uppercase text-gray-500 dark:text-gray-400">
+                Approved
+              </p>
+              <p className="text-2xl font-bold text-emerald-600">
+                {analytics.executive?.approved || 0}
+              </p>
+            </div>
+            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
+              <p className="text-xs uppercase text-gray-500 dark:text-gray-400">
+                Pending
+              </p>
+              <p className="text-2xl font-bold text-yellow-600">
+                {analytics.executive?.pending || 0}
+              </p>
+            </div>
+            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
+              <p className="text-xs uppercase text-gray-500 dark:text-gray-400">
+                Total Payments (GHS)
+              </p>
+              <p className="text-2xl font-bold text-amber-600">
+                ₵{Number(analytics.executive?.total_amount || 0).toFixed(2)}
+              </p>
+            </div>
+          </div>
+          <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">
+            Includes approved Executive upgrades and paid requests (Paystack or payment proof submitted).
+          </p>
         </>
       )}
     </div>
