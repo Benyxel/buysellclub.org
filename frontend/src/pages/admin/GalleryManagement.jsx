@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import API from "../../api";
 import { toast } from "../../utils/toast";
+import { resolveMediaUrl } from "../../utils/resolveMediaUrl";
 import { FaTrash, FaUpload, FaSpinner, FaImage, FaPlus, FaTimes, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 
 const GalleryManagement = () => {
@@ -356,7 +357,7 @@ const GalleryManagement = () => {
               >
                 <div className="relative aspect-square overflow-hidden bg-gray-100 dark:bg-gray-700">
                   <img
-                    src={img.image}
+                    src={resolveMediaUrl(img.image)}
                     alt={img.title || `Image ${img.id}`}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                   />

@@ -1,4 +1,5 @@
 import axios from "axios";
+import { API_BASE_URL } from "./config/api";
 // Import caching utilities
 import { getCachedData, setCachedData, deduplicateRequest, CACHE_DURATION } from './utils/apiCache';
 
@@ -19,32 +20,15 @@ import { getCachedData, setCachedData, deduplicateRequest, CACHE_DURATION } from
  * Legacy helpers are still exported at the bottom for backwards compatibility.
  */
 
-// ---------------------------------------------------------------------------
-// Base URL resolution
-// ---------------------------------------------------------------------------
-const resolveBaseUrl = () => {
-  const candidates = [
-    typeof import.meta !== "undefined"
-      ? import.meta.env?.VITE_API_BASE_URL
-      : undefined,
-    typeof process !== "undefined" ? process.env?.VITE_API_BASE_URL : undefined,
-    typeof window !== "undefined"
-      ? window.__ENV__?.VITE_API_BASE_URL
-      : undefined,
-  ];
+const BASE_URL = API_BASE_URL;
 
-  for (const candidate of candidates) {
-    if (typeof candidate === "string" && candidate.trim() !== "") {
-      return candidate.trim().replace(/\/+$/, "");
-    }
-  }
+/** Longer timeout for slow endpoints (trackings, invoices, analytics, etc.). */
+const HEAVY_REQUEST_TIMEOUT = 120000;
 
-  // Default to relative paths so Vite proxy (localhost:5173 -> :8000) keeps working.
-  // In production/live, set VITE_API_BASE_URL so requests go to the API server (e.g. https://apibuysellclub.org).
-  return "";
+const heavyRequestConfig = {
+  timeout: HEAVY_REQUEST_TIMEOUT,
+  cacheDuration: CACHE_DURATION.SHORT,
 };
-
-const BASE_URL = resolveBaseUrl();
 
 // Log base URL in development for debugging (remove in production if needed)
 if (typeof window !== "undefined" && (import.meta.env?.DEV || window.location.hostname === "localhost")) {
@@ -55,7 +39,7 @@ if (typeof window !== "undefined" && (import.meta.env?.DEV || window.location.ho
 if (typeof window !== "undefined" && !import.meta.env?.DEV && window.location.hostname !== "localhost" && !BASE_URL) {
   console.error(
     "⚠️ VITE_API_BASE_URL is not set! API requests will fail if frontend and backend are on different domains.\n" +
-    "Please set VITE_API_BASE_URL environment variable to your backend URL (e.g., http://apibuysellclub.org.buysellclub.org)"
+    "Please set VITE_API_BASE_URL to your Railway backend URL (e.g. https://buysellclub-backend-production.up.railway.app)"
   );
 }
 
@@ -95,7 +79,7 @@ const api = axios.create({
     "Content-Type": "application/json",
     // Note: Browsers automatically handle Connection: keep-alive, we cannot set it manually
   },
-  timeout: 15000, // Reduced from 30s to 15s for faster failure detection
+  timeout: 90000,
   maxRedirects: 5,
   // Browser automatically handles connection pooling and keep-alive
 });
@@ -440,18 +424,25 @@ const Api = {
       http.delete(`/buysellapi/admin/air-ad-shipping-services/${id}/`),
   },
   containers: {
-    current: (params) => http.get("/buysellapi/containers/current/", { params }),
-    list: () => http.get("/buysellapi/containers/public/"),
+    current: (params) =>
+      http.get("/buysellapi/containers/current/", { params, ...heavyRequestConfig }),
+    list: (params) =>
+      http.get("/buysellapi/containers/public/", { params, ...heavyRequestConfig }),
   },
   invoices: {
     meList: () =>
       http.get("/buysellapi/me/shipping-invoices/", {
         noCache: true,
         cacheDuration: 0,
+        ...heavyRequestConfig,
       }),
-    public: (params) => http.get("/buysellapi/invoices/public/", { params }),
+    public: (params) =>
+      http.get("/buysellapi/invoices/public/", { params, ...heavyRequestConfig }),
     availableTrackings: (invoiceId) =>
-      http.get(`/buysellapi/invoices/${invoiceId}/available-trackings/`),
+      http.get(
+        `/buysellapi/invoices/${invoiceId}/available-trackings/`,
+        heavyRequestConfig
+      ),
     addItem: (invoiceId, payload) =>
       http.post(`/buysellapi/invoices/${invoiceId}/items/`, payload),
     updateItem: (invoiceId, itemId, payload) =>
@@ -541,12 +532,15 @@ const Api = {
         params,
         noCache: true,
         cacheDuration: 0,
+        timeout: 120000,
       }),
-    dashboardSummary: () => http.get("/buysellapi/admin/dashboard-summary/"),
+    dashboardSummary: () =>
+      http.get("/buysellapi/admin/dashboard-summary/", { timeout: 60000 }),
     trends: () =>
       http.get("/buysellapi/admin/analytics/trends/", {
         noCache: true,
         cacheDuration: 0,
+        timeout: 120000,
       }),
   },
   liveChat: {
@@ -896,12 +890,14 @@ const Api = {
         params,
         noCache: true,
         cacheDuration: 0,
+        ...heavyRequestConfig,
       }),
     adminList: (params) =>
       http.get("/buysellapi/admin/quick-tracking-notes/", {
         params,
         noCache: true,
         cacheDuration: 0,
+        ...heavyRequestConfig,
       }),
     adminDetail: (id) =>
       http.get(`/buysellapi/admin/quick-tracking-notes/${id}/`),

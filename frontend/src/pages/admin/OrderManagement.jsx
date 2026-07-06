@@ -4,6 +4,7 @@ import { toast } from '../../utils/toast';
 import API, { Api, getOrders, downloadOrderReceipt } from '../../api';
 import BulkActions from '../../components/shared/BulkActions';
 import { getApiUrl } from '../../config/api';
+import { resolveMediaUrl } from '../../utils/resolveMediaUrl';
 import { getPlaceholderImagePath } from '../../utils/paths';
 
 const OrderManagement = ({ onDigitalUnreadInvalidate }) => {
@@ -65,14 +66,6 @@ const OrderManagement = ({ onDigitalUnreadInvalidate }) => {
   const [sendingDigitalReceiptId, setSendingDigitalReceiptId] = useState(null);
   const [downloadingDigitalReceiptId, setDownloadingDigitalReceiptId] = useState(null);
   const [deletingDigitalId, setDeletingDigitalId] = useState(null);
-
-  const resolveMediaUrl = (rawUrl) => {
-    const url = String(rawUrl || '').trim();
-    if (!url) return '';
-    if (url.startsWith('http://') || url.startsWith('https://')) return url;
-    // Use the same helper used across admin (Alipay) to resolve /media/... to backend host
-    return getApiUrl(url);
-  };
 
   const isImageUrl = (url) => {
     const u = String(url || '').split('?')[0].toLowerCase();

@@ -7,8 +7,8 @@ import {
   FaSpinner,
 } from "react-icons/fa";
 
-// Use Vite env var for API base URL if present
-const apiBase = import.meta.env.VITE_API_BASE_URL || "";
+import { API_BASE_URL } from "../config/api";
+import { resolveMediaUrl } from "../utils/resolveMediaUrl";
 
 function Gallery() {
   const [images, setImages] = useState([]);
@@ -151,7 +151,7 @@ function Gallery() {
         {!loading && !error && images.length > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 md:gap-3">
             {images.map((it, idx) => {
-              const src = it.image;
+              const src = resolveMediaUrl(it.image);
               const title = it.title || "";
               return (
                 <div
@@ -277,7 +277,7 @@ function Gallery() {
               {/* Main Image */}
               <div className="relative bg-gray-900 rounded-lg overflow-hidden">
                 <img
-                  src={images[lightboxIndex].image}
+                  src={resolveMediaUrl(images[lightboxIndex].image)}
                   alt={
                     images[lightboxIndex].title ||
                     `Gallery image ${lightboxIndex + 1}`

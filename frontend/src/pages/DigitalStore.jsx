@@ -3,21 +3,12 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { FaDownload, FaEye, FaFileAlt, FaFilePdf, FaShoppingCart, FaSpinner, FaTag, FaTimes } from "react-icons/fa";
 import { toast } from "../utils/toast";
 import { Api } from "../api";
+import { API_BASE_URL } from "../config/api";
+import { resolveMediaUrl } from "../utils/resolveMediaUrl";
 
 /** Customer JWT from signup/login — required for digital purchases (not admin dashboard token). */
 const readHasCustomerToken = () =>
   typeof window !== "undefined" && !!localStorage.getItem("token");
-
-const resolveAssetUrl = (rawUrl) => {
-  const url = String(rawUrl || "").trim();
-  if (!url) return "";
-  if (url.startsWith("http://") || url.startsWith("https://")) return url;
-  const base = String(import.meta.env?.VITE_API_BASE_URL || "").replace(/\/+$/, "");
-  if (base && url.startsWith("/")) return `${base}${url}`;
-  return url;
-};
-
-/** Effective list price for digital product cards / modal (GHS). */
 const getDigitalProductPricing = (p) => {
   if (!p) return { displayPrice: null, computedSale: null, basePrice: null };
   const basePrice = p?.price != null ? Number(p.price) : null;
@@ -552,7 +543,7 @@ const DigitalStore = () => {
                             onClick={() => {
                               if (p?.thumbnail_url) {
                                 setThumbnailLightbox({
-                                  src: resolveAssetUrl(p.thumbnail_url),
+                                  src: resolveMediaUrl(p.thumbnail_url),
                                   title: String(p?.title || p?.name || "Digital product").trim(),
                                 });
                               } else {
@@ -570,7 +561,7 @@ const DigitalStore = () => {
                             <div className="pointer-events-none absolute inset-0 bg-black/[0.03] dark:bg-white/[0.03]" />
                             {p?.thumbnail_url ? (
                               <img
-                                src={resolveAssetUrl(p.thumbnail_url)}
+                                src={resolveMediaUrl(p.thumbnail_url)}
                                 alt={p?.title || "Digital product"}
                                 className="relative z-[1] max-h-[min(320px,62vw)] w-full max-w-[220px] object-contain sm:max-h-[min(340px,50vw)] sm:max-w-[260px]"
                                 loading="lazy"
@@ -850,7 +841,7 @@ const DigitalStore = () => {
                       type="button"
                       onClick={() =>
                         setThumbnailLightbox({
-                          src: resolveAssetUrl(viewingProduct.thumbnail_url),
+                          src: resolveMediaUrl(viewingProduct.thumbnail_url),
                           title: String(
                             viewingProduct?.title || viewingProduct?.name || "Digital product"
                           ).trim(),
@@ -862,7 +853,7 @@ const DigitalStore = () => {
                     >
                       <div className="relative mx-auto flex h-[220px] w-[140px] items-center justify-center sm:h-[256px] sm:w-[160px]">
                         <img
-                          src={resolveAssetUrl(viewingProduct.thumbnail_url)}
+                          src={resolveMediaUrl(viewingProduct.thumbnail_url)}
                           alt={viewingProduct?.title || "Digital product"}
                           className="max-h-full max-w-full object-contain transition group-hover/cover:opacity-95"
                           loading="lazy"

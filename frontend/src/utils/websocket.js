@@ -1,9 +1,10 @@
 /**
  * WebSocket utility for real-time live chat
  */
+import { API_BASE_URL } from "../config/api";
 
 const resolveWebSocketUrl = () => {
-  const baseUrl = import.meta.env?.VITE_API_BASE_URL || "";
+  const baseUrl = API_BASE_URL || "";
   const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   
   if (baseUrl && !baseUrl.startsWith("http")) {

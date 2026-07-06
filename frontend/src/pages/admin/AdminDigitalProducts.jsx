@@ -1,17 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Api } from "../../api";
+import { resolveMediaUrl } from "../../utils/resolveMediaUrl";
 import { toast } from "../../utils/toast";
 import ConfirmModal from "../../components/shared/ConfirmModal";
 import { FaEdit, FaFilePdf, FaImage, FaPlus, FaSave, FaTimes, FaUpload } from "react-icons/fa";
-
-const resolveAssetUrl = (rawUrl) => {
-  const url = String(rawUrl || "").trim();
-  if (!url) return "";
-  if (url.startsWith("http://") || url.startsWith("https://")) return url;
-  const base = String(import.meta.env?.VITE_API_BASE_URL || "").replace(/\/+$/, "");
-  if (base && url.startsWith("/")) return `${base}${url}`;
-  return url;
-};
 
 const emptyForm = {
   title: "",
@@ -390,7 +382,7 @@ export default function AdminDigitalProducts() {
                 {String(form.thumbnail_url || "").trim() ? (
                   <div className="mt-3 flex items-center gap-3">
                     <img
-                      src={resolveAssetUrl(form.thumbnail_url)}
+                      src={resolveMediaUrl(form.thumbnail_url)}
                       alt="Thumbnail preview"
                       className="h-14 w-14 rounded-xl object-cover border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
                       loading="lazy"
@@ -550,7 +542,7 @@ export default function AdminDigitalProducts() {
                 <div className="min-w-0 flex items-start gap-3">
                   {String(x.thumbnail_url || "").trim() ? (
                     <img
-                      src={resolveAssetUrl(x.thumbnail_url)}
+                      src={resolveMediaUrl(x.thumbnail_url)}
                       alt={x.title || "Thumbnail"}
                       className="h-12 w-12 rounded-xl object-cover border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 flex-shrink-0"
                       loading="lazy"
