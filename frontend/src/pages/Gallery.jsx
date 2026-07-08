@@ -7,8 +7,9 @@ import {
   FaSpinner,
 } from "react-icons/fa";
 
-import { API_BASE_URL } from "../config/api";
+
 import { resolveMediaUrl } from "../utils/resolveMediaUrl";
+import { galleryApiUrl } from "../utils/galleryApi";
 
 function Gallery() {
   const [images, setImages] = useState([]);
@@ -26,10 +27,9 @@ function Gallery() {
     const load = async () => {
       try {
         setLoading(true);
-        const base = apiBase.replace(/\/$/, "");
-        const url = base
-          ? `${base}/buysellapi/gallery/?page=${currentPage}&page_size=${pageSize}`
-          : `/buysellapi/gallery/?page=${currentPage}&page_size=${pageSize}`;
+        const url = galleryApiUrl(
+          `/buysellapi/gallery/?page=${currentPage}&page_size=${pageSize}`,
+        );
         const r = await fetch(url, { credentials: "include" });
         if (!mounted) return;
         if (!r.ok) {

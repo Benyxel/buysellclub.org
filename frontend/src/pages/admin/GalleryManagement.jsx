@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import API from "../../api";
 import { toast } from "../../utils/toast";
 import { resolveMediaUrl } from "../../utils/resolveMediaUrl";
+import { galleryApiUrl } from "../../utils/galleryApi";
 import { FaTrash, FaUpload, FaSpinner, FaImage, FaPlus, FaTimes, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 
 const GalleryManagement = () => {
@@ -26,7 +27,9 @@ const GalleryManagement = () => {
   const loadImages = async () => {
     setLoading(true);
     try {
-      const response = await API.get(`/buysellapi/gallery/?page=${currentPage}&page_size=${pageSize}`);
+      const response = await API.get(
+        galleryApiUrl(`/buysellapi/gallery/?page=${currentPage}&page_size=${pageSize}`),
+      );
       // Handle paginated response or plain array
       if (response.data && response.data.results) {
         setImages(response.data.results || []);
@@ -86,7 +89,7 @@ const GalleryManagement = () => {
         formData.append("title", title.trim());
       }
 
-      await API.post("/buysellapi/gallery/upload/", formData);
+      await API.post(galleryApiUrl("/buysellapi/gallery/upload/"), formData);
       toast.success("Image saved successfully!");
       
       setFile(null);
@@ -112,7 +115,9 @@ const GalleryManagement = () => {
 
     setDeleting(true);
     try {
-      await API.delete(`/buysellapi/gallery/${imageToDelete.id}/delete/`);
+      await API.delete(
+        galleryApiUrl(`/buysellapi/gallery/${imageToDelete.id}/delete/`),
+      );
       toast.success("Image deleted successfully");
       setShowDeleteModal(false);
       setImageToDelete(null);
