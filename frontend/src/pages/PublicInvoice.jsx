@@ -384,10 +384,10 @@ const PublicInvoice = () => {
               Mobile Money (MoMo)
             </p>
             <p className="text-sm text-yellow-800 dark:text-yellow-200 font-bold">
-              Name: FOFOOFO GROUP PTY LIMITED
+              NAME: FOFOOFO GROUP PTY
             </p>
             <p className="text-sm text-yellow-800 dark:text-yellow-200 font-bold">
-              Number: 0248939278
+              MOMO MERCHANT ID: 134785
             </p>
           </div>
         </div>

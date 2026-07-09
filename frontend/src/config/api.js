@@ -1,15 +1,19 @@
-// Production frontends on buysellclub.org call the Railway Django API (VITE_API_BASE_URL).
+// buysellclub.org → Railway API; admin.task.buysellclub.org → Asura API.
 // Local dev: unset VITE_API_BASE_URL → Vite proxy to localhost:8000.
 
 const DEFAULT_RAILWAY_API_BASE =
   "https://buysellclub-backend-production.up.railway.app";
 
-/** Live site hostnames — use Railway API when env is unset. */
-const PRODUCTION_FRONTEND_HOSTS = new Set([
+const DEFAULT_ASURA_API_BASE = "https://apibuysellclub.org";
+
+/** Public site — Railway API. */
+const RAILWAY_FRONTEND_HOSTS = new Set([
   "buysellclub.org",
   "www.buysellclub.org",
-  "buysellclub.com.buysellclub.org",
 ]);
+
+/** Admin site — Asura API (same host as media/uploads). */
+const ASURA_FRONTEND_HOSTS = new Set(["admin.task.buysellclub.org"]);
 
 const resolveEnvBase = () => {
   const candidates = [
@@ -50,10 +54,12 @@ function resolveRuntimeApiBase(envNormalized) {
   }
 
   const host = window.location.hostname.toLowerCase();
-  const onProductionFrontend =
-    PRODUCTION_FRONTEND_HOSTS.has(host) || host.endsWith(".buysellclub.org");
 
-  if (onProductionFrontend) {
+  if (ASURA_FRONTEND_HOSTS.has(host)) {
+    return DEFAULT_ASURA_API_BASE;
+  }
+
+  if (RAILWAY_FRONTEND_HOSTS.has(host) || host.endsWith(".buysellclub.org")) {
     return envNormalized || DEFAULT_RAILWAY_API_BASE;
   }
 
