@@ -1,6 +1,7 @@
 import { createContext, useEffect, useState } from "react";
 import { toast } from "../utils/toast";
 import { getProducts } from "../api";
+import { resolveMediaUrl } from "../utils/resolveMediaUrl";
 
 export const ShopContext = createContext();
 
@@ -354,7 +355,10 @@ const ShopContextProvider = (props) => {
 
       // Map backend product shape to the shape used by the UI
       const mapped = items.map((p) => {
-        const images = Array.isArray(p.images) ? p.images : p.image ? [p.image] : [];
+        const rawImages = Array.isArray(p.images) ? p.images : p.image ? [p.image] : [];
+        const images = rawImages
+          .map((url) => resolveMediaUrl(url))
+          .filter(Boolean);
         // Customer pays total_price (price + admin charge); fallback to price
         const customerPrice = p.total_price != null && p.total_price !== "" ? p.total_price : p.price;
         const priceNum = typeof customerPrice === "string" ? parseFloat(customerPrice) : Number(customerPrice) || 0;

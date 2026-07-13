@@ -38,7 +38,6 @@ import { ShopContext } from "../context/ShopContext";
 import API, { Api } from "../api";
 import buysellogo from "../assets/buysellogo.png";
 import buysellogod from "../assets/buysellogod.png";
-import NavbarFifaBall from "./NavbarFifaBall";
 
 const MenuLinks = [
   { name: "Home", href: "/" },
@@ -479,7 +478,6 @@ export default function Navbar() {
                 alt="BuySellClub Logo" 
                 className="h-12 sm:h-14 md:h-16 object-contain hidden dark:block"
               />
-              <NavbarFifaBall className="lg:hidden" />
             </Link>
 
             <div className="hidden lg:block">

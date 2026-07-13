@@ -1,9 +1,8 @@
-import { getMediaBaseUrl } from "./resolveMediaUrl";
+import { getApiUrl } from "../config/api";
 
-/** Gallery list/metadata lives on Asura (gallery_data.json), not Railway. */
+/** Gallery API uses the same Railway backend as the rest of the app. */
 export function galleryApiUrl(path = "") {
-  const base = getMediaBaseUrl().replace(/\/+$/, "");
-  if (!path) return base;
-  const suffix = path.startsWith("/") ? path : `/${path}`;
-  return `${base}${suffix}`;
+  if (!path) return getApiUrl("");
+  const clean = path.startsWith("/") ? path.slice(1) : path;
+  return getApiUrl(clean);
 }

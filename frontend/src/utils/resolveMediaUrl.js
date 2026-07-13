@@ -1,8 +1,10 @@
-/** Where /media/ files are served (Asura disk). API may run on Railway. */
-const DEFAULT_MEDIA_ORIGIN = "https://apibuysellclub.org";
+/** Where /media/ files are served (Railway volume). */
+const DEFAULT_MEDIA_ORIGIN =
+  "https://buysellclub-backend-production.up.railway.app";
 const PUBLIC_MEDIA_ROUTE = "/buysellapi/public-media";
 
-const RAILWAY_MEDIA_RE = /^https?:\/\/[^/]+\.railway\.app(\/media\/.*)$/i;
+/** Any absolute URL still pointing at the old Asura host. */
+const ASURA_ORIGIN_RE = /^https?:\/\/(?:www\.)?apibuysellclub\.org(\/.*)?$/i;
 
 export function getMediaBaseUrl() {
   const raw =
@@ -15,7 +17,7 @@ export function getMediaBaseUrl() {
   return DEFAULT_MEDIA_ORIGIN;
 }
 
-/** Use Django route when direct /media/ is blocked on the host (Asura Passenger). */
+/** Use Django public-media route when direct /media/ is blocked. */
 function toPublicMediaUrl(url) {
   if (url.includes(PUBLIC_MEDIA_ROUTE + "/")) return url;
   const marker = "/media/";
@@ -26,8 +28,8 @@ function toPublicMediaUrl(url) {
 }
 
 /**
- * Turn stored media paths into absolute URLs on the media host (Asura).
- * Rewrites /media/ to /buysellapi/public-media/ so Django serves the file.
+ * Turn stored media paths into absolute URLs on the Railway media host.
+ * Remaps old Asura absolute URLs (both /media/ and /buysellapi/public-media/).
  */
 export function resolveMediaUrl(rawUrl) {
   const url = String(rawUrl || "").trim();
@@ -36,13 +38,20 @@ export function resolveMediaUrl(rawUrl) {
   const mediaBase = getMediaBaseUrl();
 
   if (url.startsWith("http://") || url.startsWith("https://")) {
-    const railway = url.match(RAILWAY_MEDIA_RE);
-    if (railway) return toPublicMediaUrl(`${mediaBase}${railway[1]}`);
+    const asura = url.match(ASURA_ORIGIN_RE);
+    if (asura) {
+      const path = asura[1] || "/";
+      return toPublicMediaUrl(`${mediaBase}${path}`);
+    }
     return toPublicMediaUrl(url);
   }
 
   if (url.startsWith("/media/")) {
     return `${mediaBase}${PUBLIC_MEDIA_ROUTE}/${url.slice("/media/".length)}`;
+  }
+
+  if (url.startsWith(PUBLIC_MEDIA_ROUTE + "/")) {
+    return `${mediaBase}${url}`;
   }
 
   const path = url.startsWith("/") ? url : `/${url}`;
