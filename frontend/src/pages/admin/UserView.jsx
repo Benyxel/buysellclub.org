@@ -10,6 +10,10 @@ import {
 } from "react-icons/fa";
 import { toast } from "../../utils/toast";
 import API from "../../api";
+import {
+  formatMarkIdForDisplay,
+  normalizeMarkIdInput,
+} from "../../utils/markIdFormat";
 
 const UserView = () => {
   const { markId } = useParams();
@@ -19,21 +23,35 @@ const UserView = () => {
   const fetchUserByMarkId = React.useCallback(async () => {
     try {
       setLoading(true);
-      
-      // Extract mark_id from URL parameter (might be in format "markId:name" or just "markId")
-      const actualMarkId = markId?.split(":")[0] || markId;
-      
-      // Use the new endpoint to get user by mark_id
-      const url = `/buysellapi/users/by-mark/${actualMarkId}/`;
-      console.log("Fetching user from:", url);
-      const resp = await API.get(url);
-      
-      if (resp.data) {
-        setUser(resp.data);
-      } else {
-        console.error("No user found for markId:", actualMarkId);
-        toast.error("User not found with this shipping mark");
+
+      // URL may be FIM-024; DB / API often store FIM024 — try both.
+      const raw = (markId?.split(":")[0] || markId || "").trim();
+      const candidates = [
+        ...new Set(
+          [raw, normalizeMarkIdInput(raw), formatMarkIdForDisplay(raw)].filter(
+            Boolean
+          )
+        ),
+      ];
+
+      let lastError = null;
+      for (const candidate of candidates) {
+        try {
+          const url = `/buysellapi/users/by-mark/${encodeURIComponent(candidate)}/`;
+          console.log("Fetching user from:", url);
+          const resp = await API.get(url);
+          if (resp.data) {
+            setUser(resp.data);
+            return;
+          }
+        } catch (err) {
+          lastError = err;
+          if (err.response?.status !== 404) throw err;
+        }
       }
+
+      console.error("No user found for markId:", raw, lastError);
+      toast.error("User not found with this shipping mark");
     } catch (error) {
       console.error("Error fetching user by markId:", error);
       console.error("Error details:", {

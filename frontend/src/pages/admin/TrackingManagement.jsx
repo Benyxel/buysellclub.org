@@ -23,6 +23,7 @@ import RepackTrackingModal from "../../components/admin/RepackTrackingModal";
 import TrackingNumberCell from "../../components/admin/TrackingNumberCell";
 import { usePersistedPagination } from "../../hooks/usePersistedPagination";
 import {
+  formatMarkIdForDisplay,
   formatShippingMarkForDisplay,
   normalizeMarkIdInput,
 } from "../../utils/markIdFormat";
@@ -456,13 +457,13 @@ const TrackingManagement = () => {
     filterContainer,
   ]);
 
-  // Open User View page in new tab by shipping mark
+  // Open User View page in new tab by shipping mark (hyphenated URL, e.g. FIM-024)
   const handleShippingMarkClick = (shippingMark) => {
     if (!shippingMark) return;
     // Extract mark ID from "markId:name" format or use as-is
     const markId = shippingMark.split(":")[0];
-    // Open in new tab
-    window.open(`/admin-user/${markId}`, "_blank");
+    const hyphenatedMarkId = formatMarkIdForDisplay(markId);
+    window.open(`/admin-user/${encodeURIComponent(hyphenatedMarkId)}`, "_blank");
   };
 
   // No longer fetching from backend - trackings are stored locally

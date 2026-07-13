@@ -72,11 +72,17 @@ import LoginPromptModal from "./components/LoginPromptModal";
 import UserView from "./pages/admin/UserView";
 import ScrollToTop from "./components/ScrollToTop";
 import ScrollToTopButton from "./components/ScrollToTopButton";
+import { formatMarkIdForDisplay } from "./utils/markIdFormat";
 
 /** Old /admin/user/:markId URLs → /admin-user/:markId (avoids cPanel /admin folder 404). */
 function LegacyAdminUserRedirect() {
   const { markId } = useParams();
-  return <Navigate to={`/admin-user/${markId || ""}`} replace />;
+  return (
+    <Navigate
+      to={`/admin-user/${encodeURIComponent(formatMarkIdForDisplay(markId || ""))}`}
+      replace
+    />
+  );
 }
 
 function App() {
