@@ -6,4 +6,6 @@ deployment:
     - npm install
     - npm run build
     - cp -R dist/* ~/public_html/
+    - cp .htaccess ~/public_html/.htaccess || true
+    - cp public/.htaccess ~/public_html/.htaccess || true
 

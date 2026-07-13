@@ -462,7 +462,7 @@ const TrackingManagement = () => {
     // Extract mark ID from "markId:name" format or use as-is
     const markId = shippingMark.split(":")[0];
     // Open in new tab
-    window.open(`/admin/user/${markId}`, "_blank");
+    window.open(`/admin-user/${markId}`, "_blank");
   };
 
   // No longer fetching from backend - trackings are stored locally

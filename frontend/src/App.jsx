@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Routes, Route, useLocation } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation, useParams } from "react-router-dom";
 import { pageView } from "./utils/ga4";
 import { recordPageView } from "./utils/siteAnalytics";
 import { getMaintenanceSettings } from "./api";
@@ -73,6 +73,12 @@ import UserView from "./pages/admin/UserView";
 import ScrollToTop from "./components/ScrollToTop";
 import ScrollToTopButton from "./components/ScrollToTopButton";
 
+/** Old /admin/user/:markId URLs → /admin-user/:markId (avoids cPanel /admin folder 404). */
+function LegacyAdminUserRedirect() {
+  const { markId } = useParams();
+  return <Navigate to={`/admin-user/${markId || ""}`} replace />;
+}
+
 function App() {
   const location = useLocation();
   /** null = not fetched yet; show app immediately (no blocking splash). */
@@ -82,6 +88,8 @@ function App() {
   const currentPath = location.pathname;
   const isAdminRoute =
     currentPath.startsWith("/admin-dashboard") ||
+    currentPath.startsWith("/admin-user") ||
+    currentPath.startsWith("/admin-orders") ||
     currentPath.startsWith("/admin/") ||
     currentPath === "/admin-login";
   const isAgentRoute =
@@ -180,8 +188,10 @@ function App() {
                 </AgentRoute>
               }
             />
+            {/* Use /admin-user and /admin-orders (not /admin/...) — on buysellclub.org
+                a physical /admin path makes nested SPA routes return LiteSpeed 404. */}
             <Route
-              path="/admin/orders"
+              path="/admin-orders"
               element={
                 <AdminRoute>
                   <OrderManagement />
@@ -189,12 +199,20 @@ function App() {
               }
             />
             <Route
-              path="/admin/user/:markId"
+              path="/admin-user/:markId"
               element={
                 <AdminRoute>
                   <UserView />
                 </AdminRoute>
               }
+            />
+            <Route
+              path="/admin/orders"
+              element={<Navigate to="/admin-orders" replace />}
+            />
+            <Route
+              path="/admin/user/:markId"
+              element={<LegacyAdminUserRedirect />}
             />
 
             {/* Regular routes with Navbar and Footer */}

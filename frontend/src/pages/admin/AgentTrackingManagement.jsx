@@ -390,7 +390,7 @@ const AgentTrackingManagement = () => {
     // Extract mark ID from "markId:name" format or use as-is
     const markId = shippingMark.split(":")[0];
     // Open in new tab
-    window.open(`/admin/user/${markId}`, "_blank");
+    window.open(`/admin-user/${markId}`, "_blank");
   };
 
   const handleSort = (field) => {
