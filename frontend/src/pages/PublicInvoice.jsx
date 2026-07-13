@@ -349,6 +349,14 @@ const PublicInvoice = () => {
                     charges.
                   </p>
                 ) : null}
+                {ghs.dutyGhs > 0 ? (
+                  <div className="flex justify-between text-gray-800 dark:text-gray-100">
+                    <span>Vehicle duties (GHS):</span>
+                    <span className="font-semibold">
+                      {formatCurrency(ghs.dutyGhs, "GHS")}
+                    </span>
+                  </div>
+                ) : null}
                 <div className="flex justify-between text-lg font-bold text-green-600 dark:text-green-400 border-t border-gray-200 dark:border-gray-600 pt-2">
                   <span>Total (GHS):</span>
                   <span>{formatCurrency(ghs.totalGhs, "GHS")}</span>

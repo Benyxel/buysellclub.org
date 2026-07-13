@@ -19,7 +19,7 @@ export function getInvoiceTotalCbm(items) {
 }
 
 /**
- * GHS breakdown for shipping invoices: freight (from USD×rate) + storage (cedis).
+ * GHS breakdown for shipping invoices: freight (USD×rate) + storage + vehicle duties (cedis).
  */
 export function getInvoiceGhsBreakdown(invoice) {
   if (!invoice) {
@@ -30,6 +30,8 @@ export function getInvoiceGhsBreakdown(invoice) {
       freightUsd: 0,
       freightGhs: 0,
       storageGhs: 0,
+      dutyGhs: 0,
+      isVehicle: false,
       totalGhs: 0,
       rate: 0,
     };
@@ -40,11 +42,16 @@ export function getInvoiceGhsBreakdown(invoice) {
   const discountUsd = parseFloat(invoice.discount_amount ?? 0);
   const freightUsd = parseFloat(invoice.total_amount ?? invoice.subtotal ?? 0);
   const storageGhs = parseFloat(invoice.storage_fee_ghs || 0);
+  const isVehicle = Boolean(invoice.is_vehicle);
+  const dutyGhs = isVehicle ? parseFloat(invoice.duty_ghs || 0) : 0;
   const totalGhsStored = parseFloat(invoice.total_amount_ghs ?? 0);
 
   let freightGhs = 0;
   if (totalGhsStored > 0) {
-    freightGhs = Math.max(0, Math.round((totalGhsStored - storageGhs) * 100) / 100);
+    freightGhs = Math.max(
+      0,
+      Math.round((totalGhsStored - storageGhs - dutyGhs) * 100) / 100
+    );
   } else if (rate > 0 && Number.isFinite(freightUsd)) {
     freightGhs = Math.round(freightUsd * rate * 100) / 100;
   }
@@ -52,7 +59,7 @@ export function getInvoiceGhsBreakdown(invoice) {
   const totalGhs =
     totalGhsStored > 0
       ? totalGhsStored
-      : Math.round((freightGhs + storageGhs) * 100) / 100;
+      : Math.round((freightGhs + storageGhs + dutyGhs) * 100) / 100;
 
   const discountPercent =
     discountUsd > 0 && subtotalUsd > 0
@@ -66,6 +73,8 @@ export function getInvoiceGhsBreakdown(invoice) {
     freightUsd,
     freightGhs,
     storageGhs,
+    dutyGhs,
+    isVehicle,
     totalGhs,
     rate,
   };

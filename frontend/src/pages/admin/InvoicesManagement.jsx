@@ -58,6 +58,8 @@ export default function InvoicesManagement() {
   const [downloadingReceiptId, setDownloadingReceiptId] = useState(null);
   const [recordingPayment, setRecordingPayment] = useState(false);
   const [savingStorageWaived, setSavingStorageWaived] = useState(false);
+  const [savingVehicleDuty, setSavingVehicleDuty] = useState(false);
+  const [dutyInputGhs, setDutyInputGhs] = useState("");
   const [paymentForm, setPaymentForm] = useState({
     amount_usd: "",
     payment_method: "",
@@ -171,6 +173,13 @@ export default function InvoicesManagement() {
     try {
       const resp = await API.get(`/buysellapi/invoices/${invoiceId}/`);
       setInvoiceDetails(resp.data);
+      setDutyInputGhs(
+        resp.data?.is_vehicle && Number(resp.data?.duty_ghs || 0) > 0
+          ? String(resp.data.duty_ghs)
+          : resp.data?.is_vehicle
+            ? String(resp.data?.duty_ghs ?? "")
+            : ""
+      );
       setShowDetailsModal(true);
     } catch (err) {
       console.error("Failed to load invoice details", err);
@@ -425,6 +434,82 @@ export default function InvoicesManagement() {
       );
     } finally {
       setSavingStorageWaived(false);
+    }
+  };
+
+  const handleToggleVehicle = async (isVehicle) => {
+    if (!invoiceDetails?.id) return;
+    if (invoiceDetails.status === "paid" || invoiceDetails.status === "cancelled") {
+      toast.error("Vehicle / duties cannot be changed on paid or cancelled invoices");
+      return;
+    }
+    try {
+      setSavingVehicleDuty(true);
+      const payload = { is_vehicle: isVehicle };
+      if (!isVehicle) {
+        payload.duty_ghs = 0;
+      }
+      const resp = await API.patch(`/buysellapi/invoices/${invoiceDetails.id}/`, payload);
+      setInvoiceDetails(resp.data);
+      setDutyInputGhs(
+        isVehicle && Number(resp.data.duty_ghs || 0) > 0
+          ? String(resp.data.duty_ghs)
+          : ""
+      );
+      toast.success(
+        isVehicle
+          ? "Invoice marked as vehicle — add duties in GHS below"
+          : "Vehicle flag removed — duties cleared from this invoice"
+      );
+      fetchInvoices();
+    } catch (err) {
+      console.error("Failed to update vehicle flag", err);
+      toast.error(
+        err.response?.data?.detail ||
+          err.response?.data?.error ||
+          "Failed to update vehicle setting"
+      );
+    } finally {
+      setSavingVehicleDuty(false);
+    }
+  };
+
+  const handleSaveDutyGhs = async () => {
+    if (!invoiceDetails?.id) return;
+    if (invoiceDetails.status === "paid" || invoiceDetails.status === "cancelled") {
+      toast.error("Duties cannot be changed on paid or cancelled invoices");
+      return;
+    }
+    if (!invoiceDetails.is_vehicle) {
+      toast.error("Mark the invoice as vehicle before adding duties");
+      return;
+    }
+    const amount = Number.parseFloat(dutyInputGhs);
+    if (!Number.isFinite(amount) || amount < 0) {
+      toast.error("Enter a valid duties amount in GHS (0 or greater)");
+      return;
+    }
+    try {
+      setSavingVehicleDuty(true);
+      const resp = await API.patch(`/buysellapi/invoices/${invoiceDetails.id}/`, {
+        is_vehicle: true,
+        duty_ghs: Math.round(amount * 100) / 100,
+      });
+      setInvoiceDetails(resp.data);
+      setDutyInputGhs(
+        Number(resp.data.duty_ghs || 0) > 0 ? String(resp.data.duty_ghs) : ""
+      );
+      toast.success("Vehicle duties updated — amount added to GHS total");
+      fetchInvoices();
+    } catch (err) {
+      console.error("Failed to update duties", err);
+      toast.error(
+        err.response?.data?.detail ||
+          err.response?.data?.error ||
+          "Failed to update duties"
+      );
+    } finally {
+      setSavingVehicleDuty(false);
     }
   };
 
@@ -1060,6 +1145,7 @@ export default function InvoicesManagement() {
                   onClick={() => {
                     setShowDetailsModal(false);
                     setInvoiceDetails(null);
+                    setDutyInputGhs("");
                   }}
                   className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                 >
@@ -1611,6 +1697,74 @@ export default function InvoicesManagement() {
                 </div>
               )}
 
+            {invoiceDetails.status !== "paid" &&
+              invoiceDetails.status !== "cancelled" && (
+                <div className="mb-6 p-4 border border-sky-200 dark:border-sky-800/50 bg-sky-50/60 dark:bg-sky-900/10 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <input
+                      id="invoice-is-vehicle"
+                      type="checkbox"
+                      checked={Boolean(invoiceDetails.is_vehicle)}
+                      disabled={savingVehicleDuty}
+                      onChange={(e) => handleToggleVehicle(e.target.checked)}
+                      className="mt-1 h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <label htmlFor="invoice-is-vehicle" className="cursor-pointer">
+                        <span className="block text-sm font-semibold text-gray-900 dark:text-white">
+                          Vehicle package (duties apply)
+                        </span>
+                        <span className="block text-xs text-gray-600 dark:text-gray-300 mt-1">
+                          Mark this invoice as vehicle cargo, then enter customs duties in
+                          Ghana cedis. Duties are added to the GHS total only (USD freight
+                          is unchanged).
+                        </span>
+                      </label>
+                      {invoiceDetails.is_vehicle ? (
+                        <div className="mt-3 flex flex-wrap items-end gap-2">
+                          <div>
+                            <label
+                              htmlFor="duty-ghs-input"
+                              className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1"
+                            >
+                              Duties (GHS)
+                            </label>
+                            <input
+                              id="duty-ghs-input"
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={dutyInputGhs}
+                              disabled={savingVehicleDuty}
+                              onChange={(e) => setDutyInputGhs(e.target.value)}
+                              placeholder="0.00"
+                              className="w-40 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            disabled={savingVehicleDuty}
+                            onClick={handleSaveDutyGhs}
+                            className="px-3 py-1.5 text-sm bg-sky-600 text-white rounded hover:bg-sky-700 disabled:opacity-50"
+                          >
+                            {savingVehicleDuty ? (
+                              <FaSpinner className="animate-spin inline" />
+                            ) : (
+                              "Save duties"
+                            )}
+                          </button>
+                        </div>
+                      ) : null}
+                      {savingVehicleDuty && !invoiceDetails.is_vehicle ? (
+                        <span className="inline-flex items-center gap-1 text-xs text-gray-500 mt-2">
+                          <FaSpinner className="animate-spin" /> Updating…
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              )}
+
             {/* Totals */}
             <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
               <div className="space-y-2">
@@ -1718,6 +1872,20 @@ export default function InvoicesManagement() {
                             No storage fee yet — customer should pay before the due date.
                           </p>
                         ) : null}
+                        {ghs.dutyGhs > 0 ? (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-sky-700 dark:text-sky-300">
+                              Vehicle duties (GHS):
+                            </span>
+                            <span className="font-medium text-sky-700 dark:text-sky-300">
+                              ₵{ghs.dutyGhs.toFixed(2)}
+                            </span>
+                          </div>
+                        ) : invoiceDetails.is_vehicle ? (
+                          <p className="text-xs text-sky-700 dark:text-sky-300 italic">
+                            Vehicle invoice — no duties entered yet.
+                          </p>
+                        ) : null}
                         <div className="flex justify-between border-t border-gray-200 dark:border-gray-600 pt-2">
                           <span className="font-semibold text-green-700 dark:text-green-400">
                             Total (GHS):
@@ -1793,6 +1961,7 @@ export default function InvoicesManagement() {
                 onClick={() => {
                   setShowDetailsModal(false);
                   setInvoiceDetails(null);
+                  setDutyInputGhs("");
                 }}
                 className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
               >
