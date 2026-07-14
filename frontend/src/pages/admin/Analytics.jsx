@@ -643,6 +643,45 @@ const Analytics = ({ activeTab = "overview" }) => {
             </div>
           </div>
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div className="rounded-lg p-4 bg-teal-50 dark:bg-teal-900/20 border border-teal-100 dark:border-teal-800">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Wholesale unique visitors
+              </p>
+              <p className="text-2xl font-bold text-teal-700 dark:text-teal-300">
+                {Number(analytics.site?.wholesale?.unique_visitors || 0).toLocaleString()}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">Last 30 days</p>
+            </div>
+            <div className="rounded-lg p-4 bg-teal-50 dark:bg-teal-900/20 border border-teal-100 dark:border-teal-800">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Wholesale page views
+              </p>
+              <p className="text-2xl font-bold text-teal-700 dark:text-teal-300">
+                {Number(analytics.site?.wholesale?.page_views || 0).toLocaleString()}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">Catalog + product pages</p>
+            </div>
+            <div className="rounded-lg p-4 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Shop unique visitors
+              </p>
+              <p className="text-2xl font-bold text-indigo-700 dark:text-indigo-300">
+                {Number(analytics.site?.shop?.unique_visitors || 0).toLocaleString()}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">Last 30 days</p>
+            </div>
+            <div className="rounded-lg p-4 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Shop page views
+              </p>
+              <p className="text-2xl font-bold text-indigo-700 dark:text-indigo-300">
+                {Number(analytics.site?.shop?.page_views || 0).toLocaleString()}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">Shop + product pages</p>
+            </div>
+          </div>
+
           <h4 className="text-lg font-medium text-gray-800 dark:text-white mb-3 flex items-center gap-2">
             <FaChartLine className="text-purple-600" /> Shop, Quick Links, Digital Store & Community page views
           </h4>

@@ -184,7 +184,7 @@ const UsersManagement = () => {
     { label: "Training", section: "training" },
     { label: "YouTube", section: "youtube" },
     { label: "Gallery", section: "gallery" },
-    { label: "Quick Orders", section: "quick-orders" },
+    { label: "Wholesale Orders", section: "quick-orders" },
     { label: "Messages", section: "messages" },
     { label: "Analytics", section: "analytics" },
     { label: "Staff", section: "staff" },
@@ -436,7 +436,7 @@ const UsersManagement = () => {
         { label: "Training", section: "training" },
         { label: "YouTube", section: "youtube" },
         { label: "Gallery", section: "gallery" },
-        { label: "Quick Orders", section: "quick-orders" },
+        { label: "Wholesale Orders", section: "quick-orders" },
         { label: "Messages", section: "messages" },
         { label: "Analytics", section: "analytics" },
         { label: "Staff", section: "staff" },
@@ -918,8 +918,15 @@ const UsersManagement = () => {
                     </span>
                   </td>
                   <td className="px-3 py-3 text-sm text-gray-800 dark:text-white">
-                    <div className="max-w-[120px] truncate" title={user.contact}>
-                      {user.contact}
+                    <div className="max-w-[140px]" title={user.contact || ""}>
+                      {user.contact?.startsWith("google-temp-") ||
+                      !String(user.contact || "").trim() ? (
+                        <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
+                          Missing contact
+                        </span>
+                      ) : (
+                        <span className="truncate block">{user.contact}</span>
+                      )}
                     </div>
                   </td>
                   <td className="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">

@@ -10,9 +10,11 @@ const Category = lazy(() => import("../components/Category"));
 const Category2 = lazy(() => import("../components/Category2"));
 const ServicesC = lazy(() => import("../components/ServicesC"));
 const LastestProducts = lazy(() => import("../components/LastestProducts"));
-const TrendingP = lazy(() => import("../components/TrendingP"));
 const LatestYouTubeVideos = lazy(() => import("../components/LatestYouTubeVideos"));
 const SupplierBanner = lazy(() => import("../components/SupplierBanner"));
+const HomeWholesaleProducts = lazy(() =>
+  import("../components/HomeWholesaleProducts")
+);
 const ContainerInfoWidget = lazy(() => import("../components/ContainerInfoWidget"));
 const ContainerShipmentWidget = lazy(() => import("../components/ContainerShipmentWidget"));
 const SupportWidget = lazy(() => import("../components/SupportWidget"));
@@ -147,11 +149,11 @@ const Home = () => {
         <Category />
         <Category2 />
         <ServicesC />
+        <HomeWholesaleProducts limit={8} />
       </Suspense>
       <Banner data={BannerData} />
       <Suspense fallback={<BelowFoldFallback />}>
         <LastestProducts />
-        <TrendingP />
         <LatestYouTubeVideos />
         <SupplierBanner />
         <HomeWidgetsHub />

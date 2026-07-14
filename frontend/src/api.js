@@ -491,6 +491,9 @@ const Api = {
   },
   quickOrder: {
     list: (params) => http.get("/buysellapi/quick-order-products/", { params }),
+    detail: (id) => http.get(`/buysellapi/quick-order-products/${id}/`),
+    order: (id, payload) =>
+      http.post(`/buysellapi/quick-order-products/${id}/order/`, payload || {}),
     payment: (id, amount) => http.post(`/buysellapi/quick-order-products/${id}/payment/`, { amount }),
     adminList: (params) => http.get("/buysellapi/admin/quick-order-products/", { params }),
     adminDetail: (id) =>
@@ -501,6 +504,66 @@ const Api = {
       http.put(`/buysellapi/admin/quick-order-products/${id}/`, payload),
     remove: (id) =>
       http.delete(`/buysellapi/admin/quick-order-products/${id}/`),
+  },
+  wholesaleRequests: {
+    list: (params) =>
+      http.get("/buysellapi/wholesale-requests/", {
+        params,
+        noCache: true,
+        cacheDuration: 0,
+      }),
+    detail: (id) =>
+      http.get(`/buysellapi/wholesale-requests/${id}/`, {
+        noCache: true,
+        cacheDuration: 0,
+      }),
+    adminList: (params) =>
+      http.get("/buysellapi/admin/wholesale-requests/", {
+        params,
+        noCache: true,
+        cacheDuration: 0,
+      }),
+    adminDetail: (id) =>
+      http.get(`/buysellapi/admin/wholesale-requests/${id}/`, {
+        noCache: true,
+        cacheDuration: 0,
+      }),
+    updateStatus: (id, payload) =>
+      http.put(`/buysellapi/admin/wholesale-requests/${id}/status/`, payload || {}),
+    remove: (id) =>
+      http.delete(`/buysellapi/admin/wholesale-requests/${id}/`),
+    visitStats: (params) =>
+      http.get("/buysellapi/admin/wholesale-visit-stats/", {
+        params,
+        noCache: true,
+        cacheDuration: 0,
+      }),
+    reviews: {
+      list: (params) =>
+        http.get("/buysellapi/wholesale-product-reviews/", {
+          params,
+          noCache: true,
+          cacheDuration: 0,
+        }),
+      create: (payload) =>
+        http.post("/buysellapi/wholesale-product-reviews/", payload),
+      remove: (id) =>
+        http.delete(`/buysellapi/wholesale-product-reviews/${id}/`),
+    },
+    comments: {
+      list: (params) =>
+        http.get("/buysellapi/wholesale-product-comments/", {
+          params,
+          noCache: true,
+          cacheDuration: 0,
+        }),
+      create: (payload) =>
+        http.post("/buysellapi/wholesale-product-comments/", payload),
+      remove: (id) =>
+        http.delete(`/buysellapi/wholesale-product-comments/${id}/`),
+    },
+    toggleLike: (productId) =>
+      http.post(`/buysellapi/quick-order-products/${productId}/like/`),
   },
   categories: {
     list: (params) => http.get("/buysellapi/categories/", { params }),
@@ -983,12 +1046,29 @@ export const getBuy4meSettings = Api.buy4me.settings.get;
 export const updateBuy4meSettings = Api.buy4me.settings.update;
 
 export const getQuickOrderProducts = Api.quickOrder.list;
+export const getQuickOrderProduct = Api.quickOrder.detail;
+export const placeWholesaleProductOrder = Api.quickOrder.order;
 export const initiateQuickOrderPayment = Api.quickOrder.payment;
 export const getAdminQuickOrderProducts = Api.quickOrder.adminList;
 export const getAdminQuickOrderProduct = Api.quickOrder.adminDetail;
 export const createQuickOrderProduct = Api.quickOrder.create;
 export const updateQuickOrderProduct = Api.quickOrder.update;
 export const deleteQuickOrderProduct = Api.quickOrder.remove;
+
+export const getWholesaleRequests = Api.wholesaleRequests.list;
+export const getWholesaleRequest = Api.wholesaleRequests.detail;
+export const getAdminWholesaleRequests = Api.wholesaleRequests.adminList;
+export const getAdminWholesaleRequest = Api.wholesaleRequests.adminDetail;
+export const updateWholesaleRequestStatus = Api.wholesaleRequests.updateStatus;
+export const deleteWholesaleRequest = Api.wholesaleRequests.remove;
+export const getWholesaleVisitStats = Api.wholesaleRequests.visitStats;
+export const getWholesaleProductReviews = Api.wholesaleRequests.reviews.list;
+export const createWholesaleProductReview = Api.wholesaleRequests.reviews.create;
+export const deleteWholesaleProductReview = Api.wholesaleRequests.reviews.remove;
+export const getWholesaleProductComments = Api.wholesaleRequests.comments.list;
+export const createWholesaleProductComment = Api.wholesaleRequests.comments.create;
+export const deleteWholesaleProductComment = Api.wholesaleRequests.comments.remove;
+export const toggleWholesaleProductLike = Api.wholesaleRequests.toggleLike;
 
 export const getCategories = Api.categories.list;
 export const getCategory = Api.categories.detail;

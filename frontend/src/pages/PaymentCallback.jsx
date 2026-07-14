@@ -53,9 +53,28 @@ const PaymentCallback = () => {
                 const loggedIn = !!(typeof window !== 'undefined' && localStorage.getItem('token'));
                 setTimeout(() => navigate(loggedIn ? '/Profile?tab=membership' : '/Community'), 4000);
               } else if (isBuy4me && requestId) {
-                setMessage(`Sourcing fee paid! You can now submit your Buy4me order on the next page.`);
-                toast.success(`Sourcing fee paid! Submit your order details.`);
-                setTimeout(() => navigate('/Buy4me'), 2000);
+                let returnPath = '/Buy4me';
+                try {
+                  const stored = sessionStorage.getItem('buy4meReturnPath');
+                  if (stored === '/Wholesale' || stored === '/Buy4me') {
+                    returnPath = stored;
+                  }
+                  sessionStorage.removeItem('buy4meReturnPath');
+                } catch {
+                  /* ignore */
+                }
+                const fromWholesale = returnPath === '/Wholesale';
+                setMessage(
+                  fromWholesale
+                    ? 'Sourcing fee paid! You can now place your wholesale order on the next page.'
+                    : 'Sourcing fee paid! You can now submit your Buy4me order on the next page.'
+                );
+                toast.success(
+                  fromWholesale
+                    ? 'Sourcing fee paid! Place your wholesale order.'
+                    : 'Sourcing fee paid! Submit your order details.'
+                );
+                setTimeout(() => navigate(returnPath), 2000);
               } else if (isDigitalStore) {
                 const digitalPid = response.data.purchase_id;
                 setMessage("Payment successful! Your digital download is now available.");
@@ -174,7 +193,17 @@ const PaymentCallback = () => {
                     return;
                   }
                   if (paymentType === 'buy4me') {
-                    navigate('/Buy4me');
+                    let returnPath = '/Buy4me';
+                    try {
+                      const stored = sessionStorage.getItem('buy4meReturnPath');
+                      if (stored === '/Wholesale' || stored === '/Buy4me') {
+                        returnPath = stored;
+                      }
+                      sessionStorage.removeItem('buy4meReturnPath');
+                    } catch {
+                      /* ignore */
+                    }
+                    navigate(returnPath);
                     return;
                   }
                   if (paymentType === 'donation') {
@@ -197,7 +226,7 @@ const PaymentCallback = () => {
                 }}
                 className="flex-1 px-6 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors font-medium"
               >
-                View {paymentType === 'training' ? 'Training' : paymentType === 'community' ? 'Profile' : paymentType === 'executive' ? 'Membership' : paymentType === 'buy4me' ? 'Buy4me' : paymentType === 'donation' ? 'Home' : paymentType === 'digital_store' ? 'Digital Store' : (verifiedOrderId ? 'Order' : 'Details')}
+                View {paymentType === 'training' ? 'Training' : paymentType === 'community' ? 'Profile' : paymentType === 'executive' ? 'Membership' : paymentType === 'buy4me' ? 'Continue' : paymentType === 'donation' ? 'Home' : paymentType === 'digital_store' ? 'Digital Store' : (verifiedOrderId ? 'Order' : 'Details')}
               </button>
               <button
                 onClick={() => navigate('/')}

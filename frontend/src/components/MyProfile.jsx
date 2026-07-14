@@ -88,6 +88,7 @@ import ProfileShippingFees from "./profile/ProfileShippingFees";
 import ProfileBulkDeliveryOutsideAccra from "./profile/ProfileBulkDeliveryOutsideAccra";
 import ProfileAccountInfo from "./profile/ProfileAccountInfo";
 import ProfileMembership from "./profile/ProfileMembership";
+import WholesaleOrdersTab from "./profile/WholesaleOrdersTab";
 import CommunityExecutiveUpgrade from "./Community/CommunityExecutiveUpgrade";
 import { DeliveryComingSoonContent } from "./DeliveryComingSoon";
 import { formatMarkIdForDisplay, formatMarkIdInText } from "../utils/markIdFormat";
@@ -2807,6 +2808,20 @@ const MyProfile = () => {
                 </button>
                 <button
                   onClick={() => {
+                    setActiveTab("wholesale");
+                    if (isMobile) setShowTabModal(true);
+                  }}
+                  className={`w-full flex items-center gap-2.5 sm:gap-3 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-lg transition-colors text-base ${
+                    activeTab === "wholesale"
+                      ? "bg-primary text-white"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                >
+                  <FaBoxOpen className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+                  Wholesale
+                </button>
+                <button
+                  onClick={() => {
                     setActiveTab("orders");
                     if (isMobile) setShowTabModal(true);
                   }}
@@ -2957,6 +2972,7 @@ const MyProfile = () => {
                     shippingFees: "Shipping fees",
                     alipay: "Alipay Payment",
                     buy4me: "Buy4Me",
+                    wholesale: "Wholesale",
                     orders: "Orders",
                     updates: "Updates",
                     settings: "Settings",
@@ -4257,6 +4273,9 @@ const MyProfile = () => {
                 </div>
               </div>
             )}
+
+            {/* Wholesale Orders Tab */}
+            {activeTab === "wholesale" && <WholesaleOrdersTab />}
 
             {/* Buy4Me Tab */}
             {activeTab === "buy4me" && (

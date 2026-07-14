@@ -67,6 +67,8 @@ import ContainerExpensesManagement from "./ContainerExpensesManagement";
 import InvoicesManagement from "./InvoicesManagement";
 import Buy4meAdmin from "./Buy4meAdmin";
 import QuickOrderProducts from "./QuickOrderProducts";
+import WholesaleRequestsAdmin from "./WholesaleRequestsAdmin";
+import WholesaleVisitStatsCards from "./WholesaleVisitStatsCards";
 import AlipayManagement from "./AlipayManagement";
 import AlipayBuyingRateManagement from "./AlipayBuyingRateManagement";
 import TrainingManagement from "./TrainingManagement";
@@ -115,7 +117,7 @@ const QUICK_TABS_SECTIONS = [
 ];
 const quickTabsSectionSet = new Set(QUICK_TABS_SECTIONS);
 
-/** Sections grouped under sidebar "E-commerce" (Shop, Quick Orders, Orders). */
+/** Sections grouped under sidebar "E-commerce" (Shop, Wholesale Orders, Orders). */
 const ECOMMERCE_SECTIONS = ["shop", "quick-orders", "orders"];
 const ecommerceSectionSet = new Set(ECOMMERCE_SECTIONS);
 
@@ -167,6 +169,15 @@ const AdminDashboard = () => {
     if (subMenuFromUrl) return subMenuFromUrl;
 
     const savedSubMenu = localStorage.getItem("adminShopSubMenu");
+    return savedSubMenu || "products";
+  };
+
+  const getInitialWholesaleSubMenu = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const subMenuFromUrl = urlParams.get("wholesaleSubMenu");
+    if (subMenuFromUrl) return subMenuFromUrl;
+
+    const savedSubMenu = localStorage.getItem("adminWholesaleSubMenu");
     return savedSubMenu || "products";
   };
 
@@ -229,6 +240,9 @@ const AdminDashboard = () => {
     getInitialTrainingSubMenu()
   );
   const [shopSubMenu, setShopSubMenu] = useState(getInitialShopSubMenu());
+  const [wholesaleSubMenu, setWholesaleSubMenu] = useState(
+    getInitialWholesaleSubMenu()
+  );
   const [deliverySubMenu, setDeliverySubMenu] = useState(
     getInitialDeliverySubMenu()
   );
@@ -248,6 +262,7 @@ const AdminDashboard = () => {
   const [unreadCounts, setUnreadCounts] = useState({
     alipay: 0,
     buy4me: 0,
+    wholesale: 0,
     orders: 0,
     digital_orders: 0,
     training: 0,
@@ -324,7 +339,7 @@ const AdminDashboard = () => {
       { icon: <FaVideo />, label: "Gallery", section: "gallery" },
       {
         icon: <FaClipboardList />,
-        label: "Quick Orders",
+        label: "Wholesale Orders",
         section: "quick-orders",
       },
       { icon: <FaChartBar />, label: "Analytics", section: "analytics" },
@@ -435,6 +450,7 @@ const AdminDashboard = () => {
         const counts = {
           alipay: response.data.alipay || 0,
           buy4me: response.data.buy4me || 0,
+          wholesale: response.data.wholesale || 0,
           orders: response.data.orders || 0,
           digital_orders: response.data.digital_orders || 0,
           training: response.data.training || 0,
@@ -603,6 +619,10 @@ const AdminDashboard = () => {
   useEffect(() => {
     localStorage.setItem("adminShopSubMenu", shopSubMenu);
   }, [shopSubMenu]);
+
+  useEffect(() => {
+    localStorage.setItem("adminWholesaleSubMenu", wholesaleSubMenu);
+  }, [wholesaleSubMenu]);
 
   // Persist deliverySubMenu to localStorage
   useEffect(() => {
@@ -1871,9 +1891,52 @@ const AdminDashboard = () => {
         return (
           <div className="p-6">
             <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">
-              Quick Order Products
+              Wholesale Orders
             </h2>
-            <QuickOrderProducts />
+
+            <WholesaleVisitStatsCards days={30} />
+
+            <div className="border-b border-gray-200 dark:border-gray-700 mb-6">
+              <div className="flex flex-wrap">
+                <button
+                  type="button"
+                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
+                    wholesaleSubMenu === "products"
+                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                  onClick={() => setWholesaleSubMenu("products")}
+                >
+                  Products
+                </button>
+                <button
+                  type="button"
+                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
+                    wholesaleSubMenu === "requests"
+                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                  onClick={() => setWholesaleSubMenu("requests")}
+                >
+                  <span className="inline-flex items-center gap-2">
+                    Requests
+                    {unreadCounts.wholesale > 0 && (
+                      <span className="text-xs font-semibold text-white bg-red-500 rounded-full px-2 py-0.5">
+                        {unreadCounts.wholesale > 99
+                          ? "99+"
+                          : unreadCounts.wholesale}
+                      </span>
+                    )}
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            {wholesaleSubMenu === "requests" ? (
+              <WholesaleRequestsAdmin />
+            ) : (
+              <QuickOrderProducts />
+            )}
           </div>
         );
       case "alipay-payments":
@@ -2139,6 +2202,7 @@ const AdminDashboard = () => {
   const tabUnreadCountForSection = (section) => {
     if (section === "alipay-payments") return unreadCounts.alipay;
     if (section === "buy4me") return unreadCounts.buy4me;
+    if (section === "quick-orders") return unreadCounts.wholesale || 0;
     if (section === "orders") {
       return (unreadCounts.orders || 0) + (unreadCounts.digital_orders || 0);
     }
@@ -2371,7 +2435,7 @@ const AdminDashboard = () => {
                         <button
                           ref={ecommerceTriggerRef}
                           type="button"
-                          title="E-commerce: Shop, Quick Orders, Orders"
+                          title="E-commerce: Shop, Wholesale Orders, Orders"
                           onClick={() => {
                             setQuickTabsOpen(false);
                             setMembershipOpen(false);

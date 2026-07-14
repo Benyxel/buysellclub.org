@@ -16,6 +16,7 @@ import Orders from "./pages/Orders";
 import Shipping from "./pages/Quicklinks/Shipping";
 import Trending from "./pages/Quicklinks/Trending";
 import Wholesale from "./pages/Quicklinks/Wholesale";
+import WholesaleProduct from "./components/WholesaleProduct";
 import Suppliers from "./pages/Quicklinks/Suppliers";
 import QuickTracking from "./pages/Quicklinks/QuickTracking";
 import Contact from "./pages/Contact";
@@ -69,6 +70,7 @@ import "react-toastify/dist/ReactToastify.css";
 import Logout from "./components/Logout";
 import NotFound from "./pages/NotFound";
 import LoginPromptModal from "./components/LoginPromptModal";
+import RequireContactModal from "./components/RequireContactModal";
 import UserView from "./pages/admin/UserView";
 import ScrollToTop from "./components/ScrollToTop";
 import ScrollToTopButton from "./components/ScrollToTopButton";
@@ -240,6 +242,10 @@ function App() {
                       <Route path="product/:productId" element={<Product />} />
                       <Route path="Trending" element={<Trending />} />
                       <Route path="Wholesale" element={<Wholesale />} />
+                      <Route
+                        path="Wholesale/:productId"
+                        element={<WholesaleProduct />}
+                      />
                       <Route path="Suppliers" element={<Suppliers />} />
                       <Route path="Training" element={<Training />} />
                       <Route path="QuickTracking" element={<QuickTracking />} />
@@ -410,6 +416,7 @@ function App() {
             />
           </Routes>
           <LoginPromptModal />
+          <RequireContactModal />
         </div>
       )}
       <ToastContainer

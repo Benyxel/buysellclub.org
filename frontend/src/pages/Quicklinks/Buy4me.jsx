@@ -10,17 +10,14 @@ import {
   FaEdit,
   FaTimes,
   FaInfoCircle,
-  FaChevronLeft,
-  FaChevronRight,
 } from "react-icons/fa";
 import { toast } from "../../utils/toast";
 import "react-toastify/dist/ReactToastify.css";
 import buyimg from "../../assets/bm2.jpg";
-import { useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import {
   createBuy4meRequestWithPayment,
   updateBuy4meRequest,
-  getQuickOrderProducts,
   getBuy4meSettings,
   getBuy4meAwaitingSubmission,
   initiateBuy4meSourcingFee,
@@ -42,23 +39,8 @@ const Buy4me = () => {
   const [loadingAwaiting, setLoadingAwaiting] = useState(true);
   const [payingSourcingFee, setPayingSourcingFee] = useState(false);
   const [isSubmittingBuy4me, setIsSubmittingBuy4me] = useState(false);
-  const [submittingQuickOrderId, setSubmittingQuickOrderId] = useState(null); // Track which quick order product is being submitted
-  const [isLoading, setIsLoading] = useState(true);
-  const [quickOrderProducts, setQuickOrderProducts] = useState([]);
   const [defaultSourcingPayment, setDefaultSourcingPayment] = useState(0);
   const [sourcingPricing, setSourcingPricing] = useState(null);
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [total, setTotal] = useState(0);
-  // Image preview modal state
-  const [imagePreview, setImagePreview] = useState({
-    isOpen: false,
-    images: [],
-    currentIndex: 0,
-    productTitle: "",
-  });
-  const [quickOrderModal, setQuickOrderModal] = useState({ open: false, product: null });
 
   // Each product row: link, image, quantity together (no grouping)
   const [formData, setFormData] = useState({
@@ -117,154 +99,6 @@ const Buy4me = () => {
     fetchAwaiting();
   }, []);
 
-  // Fetch quick order products from the API
-  useEffect(() => {
-    const fetchQuickOrderProducts = async () => {
-      try {
-        setIsLoading(true);
-        // Fetch with pagination parameters
-        const params = { page: currentPage, page_size: pageSize };
-        const response = await getQuickOrderProducts(params);
-        console.log("Quick order products API response:", response);
-        
-        // Handle different response structures
-        let products = [];
-        let count = 0;
-        if (response.data && typeof response.data === 'object' && 'results' in response.data) {
-          // Paginated response
-          products = response.data.results || [];
-          count = response.data.count || 0;
-          setTotal(count);
-        } else if (Array.isArray(response.data)) {
-          // Non-paginated array response (fallback)
-          products = response.data;
-          count = response.data.length;
-          setTotal(count);
-        } else if (response.data && typeof response.data === 'object') {
-          // If it's a single object, wrap it in an array
-          products = [response.data];
-          count = 1;
-          setTotal(1);
-        } else {
-          products = [];
-          setTotal(0);
-        }
-        
-        console.log("Extracted products:", products);
-        console.log("Total products from API:", count);
-        console.log("Current page:", currentPage, "Page size:", pageSize);
-        
-        // Backend already filters active products, so just transform the format
-        const transformedProducts = products.map(product => ({
-            id: product.id,
-            title: product.title,
-            description: product.description || '',
-            images: product.images || [],
-            link: product.product_url || '',
-            minQuantity: product.min_quantity || 20,
-          }));
-        
-        console.log("Transformed products count:", transformedProducts.length);
-        setQuickOrderProducts(transformedProducts);
-      } catch (error) {
-        console.error("Error fetching quick order products:", error);
-        console.error("Error details:", error.response?.data);
-        // Don't show placeholder products - only show products from backend
-        // Only show error toast for actual failures (4xx/5xx), not for empty data
-        const status = error.response?.status;
-        if (status && status >= 400) {
-          const errorMsg = error.response?.data?.detail || 
-                           error.response?.data?.error || 
-                           error.message || 
-                           "Failed to load quick order products";
-          toast.error(errorMsg, { toastId: "fetch-quick-order-error" });
-        }
-        // Set empty array - no placeholder products
-        setQuickOrderProducts([]);
-        setTotal(0);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    fetchQuickOrderProducts();
-  }, [currentPage, pageSize]);
-
-  // Pagination handlers
-  const totalPages = Math.ceil(total / pageSize);
-  const handlePageChange = (newPage) => {
-    if (newPage >= 1 && newPage <= totalPages) {
-      setCurrentPage(newPage);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  };
-
-  const handlePageSizeChange = (newSize) => {
-    setPageSize(newSize);
-    setCurrentPage(1);
-  };
-
-  // Image preview handlers
-  const openImagePreview = (images, startIndex = 0, productTitle = "") => {
-    setImagePreview({
-      isOpen: true,
-      images: images || [],
-      currentIndex: startIndex,
-      productTitle: productTitle,
-    });
-  };
-
-  const closeImagePreview = () => {
-    setImagePreview({
-      isOpen: false,
-      images: [],
-      currentIndex: 0,
-      productTitle: "",
-    });
-  };
-
-  const navigateImage = (direction) => {
-    if (imagePreview.images.length === 0) return;
-    
-    let newIndex;
-    if (direction === "next") {
-      newIndex = (imagePreview.currentIndex + 1) % imagePreview.images.length;
-    } else {
-      newIndex = (imagePreview.currentIndex - 1 + imagePreview.images.length) % imagePreview.images.length;
-    }
-    
-    setImagePreview({
-      ...imagePreview,
-      currentIndex: newIndex,
-    });
-  };
-
-  // Handle keyboard navigation for image preview
-  useEffect(() => {
-    if (!imagePreview.isOpen || imagePreview.images.length === 0) return;
-
-    const handleKeyDown = (e) => {
-      if (e.key === "Escape") {
-        closeImagePreview();
-      } else if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        setImagePreview((prev) => {
-          const newIndex = (prev.currentIndex - 1 + prev.images.length) % prev.images.length;
-          return { ...prev, currentIndex: newIndex };
-        });
-      } else if (e.key === "ArrowRight") {
-        e.preventDefault();
-        setImagePreview((prev) => {
-          const newIndex = (prev.currentIndex + 1) % prev.images.length;
-          return { ...prev, currentIndex: newIndex };
-        });
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [imagePreview.isOpen, imagePreview.images.length]);
-
   useEffect(() => {
     if (location.state?.order) {
       const { order } = location.state;
@@ -320,50 +154,14 @@ const Buy4me = () => {
     }
   }, [location.state]);
 
-  const openQuickOrderModal = (product) => {
-    setQuickOrderModal({ open: true, product });
-  };
-
-  const closeQuickOrderModal = () => {
-    setQuickOrderModal({ open: false, product: null });
-  };
-
-  const handleQuickOrderSubmit = async () => {
-    const { product } = quickOrderModal;
-    if (!product) return;
-    if (!awaitingSlot?.id) {
-      toast.error("Pay the sourcing fee first to place this order.");
-      return;
-    }
-    setSubmittingQuickOrderId(product.id || product._id);
-    try {
-      let validLink = product.link;
-      if (validLink && !validLink.startsWith("http")) validLink = "https://" + validLink;
-      const orderData = {
-        title: product.title || "Quick Order Product",
-        description: product.description || "Ordered from Quick Order Products",
-        product_url: validLink,
-        additional_links: [{ url: validLink, quantity: product.minQuantity || 20 }],
-        images: Array.isArray(product.images) ? product.images : (product.images ? [product.images] : []),
-        quantity: product.minQuantity || 20,
-      };
-      await submitBuy4meDetails(awaitingSlot.id, orderData);
-      toast.success("Order submitted. Pay again to place another order.");
-      setAwaitingSlot(null);
-      closeQuickOrderModal();
-    } catch (error) {
-      const errMsg = error.response?.data?.error || error.response?.data?.detail || "Failed to submit order.";
-      toast.error(errMsg);
-    } finally {
-      setSubmittingQuickOrderId(null);
-    }
-  };
-
-  const handleQuickOrder = (product) => openQuickOrderModal(product);
-
   const handlePaySourcingFee = async () => {
     setPayingSourcingFee(true);
     try {
+      try {
+        sessionStorage.setItem("buy4meReturnPath", "/Buy4me");
+      } catch {
+        /* ignore */
+      }
       const baseUrl = import.meta.env?.VITE_APP_URL || (typeof window !== "undefined" ? window.location.origin : "");
       const res = await initiateBuy4meSourcingFee({ callback_url: baseUrl ? `${String(baseUrl).replace(/\/$/, "")}/payment/callback` : undefined });
       if (res.data?.payment_url) {
@@ -608,6 +406,13 @@ const Buy4me = () => {
                     </li>
                     <li>Once sourcing is completed, we will send you an invoice for the product cost.</li>
                     <li>After payment, we proceed with purchasing your order.</li>
+                    <li>
+                      Looking for ready wholesale catalog products? Visit{" "}
+                      <Link to="/Wholesale" className="text-primary underline font-medium">
+                        Wholesale Orders
+                      </Link>{" "}
+                      — free to browse and order (no sourcing fee).
+                    </li>
                   </ul>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     One sourcing fee = one Buy4Me request (up to 5 items).
@@ -862,315 +667,8 @@ const Buy4me = () => {
               </div>
             </div>
           </div>
-          <div className="mt-8">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-                Quick Order Products
-              </h2>
-
-              {!awaitingSlot ? (
-                <div className="text-center p-8 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10">
-                  <p className="text-gray-600 dark:text-gray-300 mb-2">
-                    Pay the sourcing fee above to see and order from Quick Order products.
-                  </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    One payment gives you access to the order form and Quick Order products.
-                  </p>
-                </div>
-              ) : isLoading ? (
-                <div className="flex justify-center items-center p-8">
-                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-                </div>
-              ) : quickOrderProducts.length === 0 ? (
-                <div className="text-center p-8">
-                  <p className="text-gray-500 dark:text-gray-400">
-                    No quick order products available
-                  </p>
-                </div>
-              ) : (
-                <>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                  {quickOrderProducts.map((product, productIndex) => (
-                    <div
-                      key={product._id || product.id || `product-${productIndex}`}
-                      className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 hover:shadow-md transition-shadow"
-                    >
-                      <div className="flex flex-col h-full">
-                        <div className="flex-grow">
-                          <div className="flex gap-1 mb-2 overflow-x-auto pb-2">
-                            {product.images && product.images.length > 0 ? (
-                              <>
-                                {product.images.slice(0, 2).map((image, index) => (
-                                <img
-                                  key={`${product._id || product.id || productIndex}-img-${index}`}
-                                  src={image}
-                                  alt={`${product.title} image ${index + 1}`}
-                                    className="w-14 h-14 object-cover rounded-lg flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
-                                    onClick={() => openImagePreview(product.images, index, product.title)}
-                                />
-                                ))}
-                                {product.images.length > 2 && (
-                                  <div
-                                    className="w-14 h-14 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center text-xs text-gray-500 flex-shrink-0 cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-                                    onClick={() => openImagePreview(product.images, 2, product.title)}
-                                    title={`View all ${product.images.length} images`}
-                                  >
-                                    +{product.images.length - 2}
-                                  </div>
-                                )}
-                              </>
-                            ) : (
-                              <div className="w-14 h-14 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center flex-shrink-0">
-                                <FaImage className="w-6 h-6 text-gray-400" />
-                              </div>
-                            )}
-                          </div>
-                          <h3 className="font-medium text-sm text-gray-900 dark:text-white line-clamp-2 mb-1">
-                            {product.title}
-                          </h3>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mb-2">
-                            {product.description}
-                          </p>
-                          <p className="text-xs text-primary mb-1">
-                            Min: {product.minQuantity}
-                          </p>
-                          <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-800 mb-2">
-                            <Buy4meSourcingFeePricing
-                              variant="compact"
-                              originalAmount={defaultSourcingPayment}
-                              amount={sourcingPricing?.amount}
-                              executiveDiscountGhs={sourcingPricing?.executiveDiscountGhs}
-                              executiveDiscountPercent={sourcingPricing?.executiveDiscountPercent}
-                            />
-                            <p className="text-xs text-blue-700 dark:text-blue-300">
-                              Pay first to get one order slot (form or quick order)
-                            </p>
-                          </div>
-                        </div>
-                        <div className="mt-3">
-                          <button
-                            onClick={() => handleQuickOrder(product)}
-                            disabled={submittingQuickOrderId === (product.id || product._id) || !sourcingFeeReady}
-                            className="w-full px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            {submittingQuickOrderId === (product.id || product._id) ? "Submitting..." : !sourcingFeeReady ? "Sourcing fee not set" : "Place order"}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                
-                {/* Pagination */}
-                {total > 0 && (
-                  <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-4 bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
-                    <div className="flex items-center gap-4">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">
-                        Showing {(currentPage - 1) * pageSize + 1} to{" "}
-                        {Math.min(currentPage * pageSize, total)} of {total} products
-                      </span>
-                      <select
-                        value={pageSize}
-                        onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-                        className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm text-gray-700 dark:text-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent"
-                      >
-                        <option value={10}>10 per page</option>
-                        <option value={20}>20 per page</option>
-                        <option value={30}>30 per page</option>
-                        <option value={50}>50 per page</option>
-                      </select>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handlePageChange(currentPage - 1)}
-                        disabled={currentPage === 1}
-                        className={`px-3 py-1 rounded-lg border border-gray-300 dark:border-gray-600 ${
-                          currentPage === 1
-                            ? "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-600 cursor-not-allowed"
-                            : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-                        }`}
-                      >
-                        <FaChevronLeft />
-                      </button>
-                      <span className="text-sm text-gray-600 dark:text-gray-400 px-3">
-                        Page {currentPage} of {totalPages || 1}
-                      </span>
-                      <button
-                        onClick={() => handlePageChange(currentPage + 1)}
-                        disabled={currentPage >= totalPages}
-                        className={`px-3 py-1 rounded-lg border border-gray-300 dark:border-gray-600 ${
-                          currentPage >= totalPages
-                            ? "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-600 cursor-not-allowed"
-                            : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-                        }`}
-                      >
-                        <FaChevronRight />
-                      </button>
-                    </div>
-                </div>
-                )}
-                </>
-              )}
-            </div>
-          </div>
         </div>
       </div>
-
-      {/* Quick Order modal: has slot = place order (submit details); no slot = pay sourcing fee */}
-      {quickOrderModal.open && quickOrderModal.product && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={closeQuickOrderModal}>
-          <div
-            className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              {awaitingSlot ? "Place order" : "Quick order"}: {quickOrderModal.product.title}
-            </h3>
-            {awaitingSlot ? (
-              <>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                  This uses your paid slot. One submission per payment. After this order you will need to pay the sourcing fee again to place another.
-                </p>
-                <div className="flex gap-3">
-                  <button type="button" onClick={closeQuickOrderModal} className="flex-1 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">Cancel</button>
-                  <button
-                    type="button"
-                    onClick={handleQuickOrderSubmit}
-                    disabled={submittingQuickOrderId === (quickOrderModal.product?.id || quickOrderModal.product?._id)}
-                    className="flex-1 px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {submittingQuickOrderId === (quickOrderModal.product?.id || quickOrderModal.product?._id) ? "Submitting..." : "Place order"}
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                  Pay the sourcing fee first to get access to place this order.{" "}
-                  <Buy4meSourcingFeePricing
-                    variant="inline"
-                    originalAmount={defaultSourcingPayment}
-                    amount={sourcingPricing?.amount}
-                    executiveDiscountGhs={sourcingPricing?.executiveDiscountGhs}
-                    executiveDiscountPercent={sourcingPricing?.executiveDiscountPercent}
-                  />
-                  . Same fee gives you access to the Buy4me form or one quick order.
-                </p>
-                <div className="flex gap-3">
-                  <button type="button" onClick={closeQuickOrderModal} className="flex-1 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">Cancel</button>
-                  <button
-                    type="button"
-                    onClick={() => { handlePaySourcingFee(); closeQuickOrderModal(); }}
-                    disabled={payingSourcingFee || !sourcingFeeReady}
-                    className="flex-1 px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {payingSourcingFee ? "Redirecting..." : "Pay sourcing fee"}
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Image Preview Modal */}
-      {imagePreview.isOpen && imagePreview.images.length > 0 && (
-        <div
-          className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4"
-          onClick={closeImagePreview}
-        >
-          <div
-            className="relative max-w-7xl max-h-[90vh] w-full h-full flex items-center justify-center"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Close Button */}
-            <button
-              onClick={closeImagePreview}
-              className="absolute top-4 right-4 z-10 p-2 bg-black/50 hover:bg-black/70 text-white rounded-full transition-colors"
-              aria-label="Close preview"
-            >
-              <FaTimes className="w-6 h-6" />
-            </button>
-
-            {/* Navigation Buttons */}
-            {imagePreview.images.length > 1 && (
-              <>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    navigateImage("prev");
-                  }}
-                  className="absolute left-4 z-10 p-3 bg-black/50 hover:bg-black/70 text-white rounded-full transition-colors"
-                  aria-label="Previous image"
-                >
-                  <FaChevronLeft className="w-6 h-6" />
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    navigateImage("next");
-                  }}
-                  className="absolute right-4 z-10 p-3 bg-black/50 hover:bg-black/70 text-white rounded-full transition-colors"
-                  aria-label="Next image"
-                >
-                  <FaChevronRight className="w-6 h-6" />
-                </button>
-              </>
-            )}
-
-            {/* Image Container */}
-            <div className="flex flex-col items-center justify-center w-full h-full">
-              <img
-                src={imagePreview.images[imagePreview.currentIndex]}
-                alt={`${imagePreview.productTitle} - Image ${imagePreview.currentIndex + 1}`}
-                className="max-w-full max-h-[85vh] object-contain rounded-lg"
-              />
-              
-              {/* Image Counter */}
-              {imagePreview.images.length > 1 && (
-                <div className="mt-4 px-4 py-2 bg-black/50 text-white rounded-lg">
-                  <span className="text-sm">
-                    {imagePreview.currentIndex + 1} / {imagePreview.images.length}
-                  </span>
-                </div>
-              )}
-
-              {/* Product Title */}
-              {imagePreview.productTitle && (
-                <p className="mt-2 text-white text-sm text-center max-w-2xl">
-                  {imagePreview.productTitle}
-                </p>
-              )}
-            </div>
-
-            {/* Thumbnail Navigation (if multiple images) */}
-            {imagePreview.images.length > 1 && (
-              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2 overflow-x-auto max-w-full px-4">
-                {imagePreview.images.map((img, index) => (
-                  <button
-                    key={index}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setImagePreview({ ...imagePreview, currentIndex: index });
-                    }}
-                    className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
-                      index === imagePreview.currentIndex
-                        ? "border-primary scale-110"
-                        : "border-transparent opacity-60 hover:opacity-100"
-                    }`}
-                  >
-                    <img
-                      src={img}
-                      alt={`Thumbnail ${index + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 };

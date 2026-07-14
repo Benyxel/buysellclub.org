@@ -13,7 +13,6 @@ import {
   FaRoute,
   FaTruck,
   FaMapMarkerAlt,
-  FaShippingFast,
   FaWallet,
   FaHeart,
   FaBoxOpen,
@@ -27,8 +26,8 @@ import {
   FaDownload,
   FaFilePdf,
   FaFileInvoiceDollar,
-  FaLock,
   FaGraduationCap,
+  FaBoxes,
 } from "react-icons/fa";
 import { IoMdArrowDropdown, IoMdMenu } from "react-icons/io";
 import DarkMode from "./DarkMode";
@@ -54,7 +53,7 @@ const Quicklinks = [
   { name: "Shipping Addresses", href: "/Shipping" },
   { name: "Tracking", href: "/tracking" },
   { name: "Quick Tracking", href: "/QuickTracking" },
-  { name: "Delivery", href: "/Delivery" },
+  { name: "Wholesale", href: "/Wholesale" },
   { name: "Training", href: "/Training" },
   { name: "Digital Store", href: "/DigitalStore" },
   { name: "Our Rates", href: "/OurRates" },
@@ -133,7 +132,7 @@ const MOBILE_SHORTCUT_STYLES = {
     tile: "border border-slate-200 bg-gradient-to-tr from-violet-50 via-white to-fuchsia-50 text-slate-900 shadow-sm hover:border-violet-300 hover:shadow-md dark:border-slate-600 dark:from-slate-900 dark:via-slate-900 dark:to-violet-950 dark:text-slate-100 dark:hover:border-violet-400",
     icon: "bg-gradient-to-br from-violet-500 to-fuchsia-600 text-white shadow-md ring-2 ring-violet-200 dark:ring-violet-950",
   },
-  Delivery: {
+  Wholesale: {
     tile: "border border-slate-200 bg-gradient-to-br from-teal-50 via-white to-cyan-50 text-slate-900 shadow-sm hover:border-teal-300 hover:shadow-md dark:border-slate-600 dark:from-slate-900 dark:via-slate-900 dark:to-teal-950 dark:text-slate-100 dark:hover:border-teal-400",
     icon: "bg-gradient-to-br from-teal-500 to-cyan-600 text-white shadow-md ring-2 ring-teal-200 dark:ring-teal-950",
   },
@@ -186,7 +185,7 @@ const MOBILE_LIST_ICON = {
   Tracking: "bg-blue-600 text-white",
   "Quick Tracking": "bg-amber-500 text-white",
   Training: "bg-blue-600 text-white",
-  Delivery: "bg-teal-600 text-white",
+  Wholesale: "bg-teal-600 text-white",
   "Our Rates": "bg-amber-700 text-white",
   "Alipay Payment": "bg-emerald-600 text-white",
   "My Profile": "bg-pink-600 text-white",
@@ -390,7 +389,7 @@ export default function Navbar() {
       Tracking: FaRoute,
       "Quick Tracking": FaTruck,
       Training: FaGraduationCap,
-      Delivery: FaShippingFast,
+      Wholesale: FaBoxes,
       "Our Rates": FaInfoCircle,
       "Alipay Payment": FaWallet,
       "My Profile": FaUser,
@@ -417,7 +416,7 @@ export default function Navbar() {
     add("shortcuts", "Tracking", "/tracking");
     add("shortcuts", "Shipping Addresses", "/Shipping");
     add("shortcuts", "Buy4Me", "/Buy4me");
-    add("shortcuts", "Delivery", "/Delivery");
+    add("shortcuts", "Wholesale", "/Wholesale");
     add("shortcuts", "Digital Store", "/DigitalStore");
     add(
       "shortcuts",
@@ -530,9 +529,6 @@ export default function Navbar() {
                             to={data.href || "/"}
                             className="inline-flex w-full items-center gap-2 rounded-md p-1 text-gray-500 duration-200 hover:bg-brandGreen/20 hover:text-black dark:hover:text-white dark:text-gray-300"
                           >
-                            {data.name === "Delivery" && (
-                              <FaLock className="shrink-0 text-xs text-amber-600 dark:text-amber-400" aria-hidden />
-                            )}
                             <span>{data.name}</span>
                           </Link>
                         </li>
@@ -779,12 +775,6 @@ export default function Navbar() {
                       <it.Icon className="text-base" />
                     </span>
                     <span className="text-sm font-bold leading-tight text-inherit flex items-center gap-1.5 min-w-0">
-                      {it.label === "Delivery" && (
-                        <FaLock
-                          className="h-3.5 w-3.5 shrink-0 text-amber-800 dark:text-amber-300"
-                          aria-hidden
-                        />
-                      )}
                       <span className="min-w-0 truncate">{it.label}</span>
                     </span>
                   </Link>
@@ -853,12 +843,6 @@ export default function Navbar() {
                           <it.Icon className="text-sm" />
                         </span>
                         <span className="flex min-w-0 flex-1 items-center gap-2 truncate">
-                          {it.label === "Delivery" && (
-                            <FaLock
-                              className="h-3.5 w-3.5 shrink-0 text-amber-700 dark:text-amber-300"
-                              aria-hidden
-                            />
-                          )}
                           <span className="truncate">{it.label}</span>
                         </span>
                       </Link>
