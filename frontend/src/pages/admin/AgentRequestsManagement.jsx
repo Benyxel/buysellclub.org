@@ -15,6 +15,7 @@ import {
 import { toast } from "../../utils/toast";
 import API from "../../api";
 import ConfirmModal from "../../components/shared/ConfirmModal";
+import { formatCompactCount } from "../../utils/formatCompactCount";
 
 const AgentRequestsManagement = ({
   agentTypeFilter = null,
@@ -378,7 +379,10 @@ const AgentRequestsManagement = ({
             <div className="text-sm text-gray-600 dark:text-gray-400">
               Showing {(currentPage - 1) * pageSize + 1} to{" "}
               {Math.min(currentPage * pageSize, filteredRequests.length)} of{" "}
-              {filteredRequests.length} requests
+              <span title={String(filteredRequests.length)}>
+                {formatCompactCount(filteredRequests.length)}
+              </span>{" "}
+              requests
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -393,7 +397,10 @@ const AgentRequestsManagement = ({
                 Prev
               </button>
               <span className="text-sm text-gray-600 dark:text-gray-400">
-                Page {currentPage} of {totalPages}
+                Page {currentPage} of{" "}
+                <span title={String(totalPages)}>
+                  {formatCompactCount(totalPages)}
+                </span>
               </span>
               <button
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}

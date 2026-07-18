@@ -13,6 +13,7 @@ import {
 import API from "../api";
 import { toast } from "../utils/toast";
 import { formatMarkIdForDisplay, formatMarkIdInText } from "../utils/markIdFormat";
+import { formatCompactCount } from "../utils/formatCompactCount";
 
 const ShippingMarksDisplay = () => {
   const [shippingMarks, setShippingMarks] = useState([]);
@@ -374,7 +375,10 @@ const ShippingMarksDisplay = () => {
                     ? (currentPage - 1) * itemsPerPage + 1
                     : 0}
                   -{Math.min(currentPage * itemsPerPage, totalItems)} of{" "}
-                  {totalItems} items
+                  <span title={String(totalItems)}>
+                    {formatCompactCount(totalItems)}
+                  </span>{" "}
+                  items
                 </div>
                 <div className="flex items-center space-x-2">
                   <button

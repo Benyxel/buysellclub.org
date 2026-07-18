@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "../../utils/toast";
+import { formatCompactCount } from "../../utils/formatCompactCount";
 import { getAdminAnalytics, getAdminAnalyticsTrends } from "../../api";
 import {
   FaShip,
@@ -248,7 +249,10 @@ const Analytics = ({ activeTab = "overview" }) => {
           Prev
         </button>
         <span className="text-gray-600 dark:text-gray-400">
-          Page {page} of {totalPages}
+          Page {page} of{" "}
+          <span title={String(totalPages)}>
+            {formatCompactCount(totalPages)}
+          </span>
         </span>
         <button
           type="button"

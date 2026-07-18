@@ -14,7 +14,7 @@ import {
 import API from "../api";
 import { TemaPortVoyageMini } from "./ContainerShipmentWidget";
 import TrackingNumberLabel from "./TrackingNumberLabel";
-import { formatMarkIdForDisplay, normalizeMarkIdInput } from "../utils/markIdFormat";
+import { formatMarkIdForDisplay, formatShippingMarkForDisplay, normalizeMarkIdInput } from "../utils/markIdFormat";
 
 const mapRepackFields = (data) => ({
   isRepack: !!data?.is_repack,
@@ -171,7 +171,7 @@ const TrackingSearch = () => {
           ...mapRepackFields(backendData),
           status: statusLabel,
           statusValue: backendData.status || "pending",
-          sender: backendData.shipping_mark || "N/A",
+          sender: formatShippingMarkForDisplay(backendData.shipping_mark) || "N/A",
           addedDate: backendData.date_added,
           product: "Package",
           quantity: 1,

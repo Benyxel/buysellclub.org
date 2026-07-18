@@ -13,6 +13,7 @@ import {
 import { toast } from "../../utils/toast";
 import API from "../../api";
 import ConfirmModal from "../../components/shared/ConfirmModal";
+import { formatCompactCount } from "../../utils/formatCompactCount";
 
 const AgentAddressManagement = () => {
   const [showAddForm, setShowAddForm] = useState(false);
@@ -654,7 +655,10 @@ const AgentAddressManagement = () => {
                   ? (currentPage - 1) * itemsPerPage + 1
                   : 0}
                 -{Math.min(currentPage * itemsPerPage, totalItems)} of{" "}
-                {totalItems} items
+                <span title={String(totalItems)}>
+                  {formatCompactCount(totalItems)}
+                </span>{" "}
+                items
               </div>
               <div className="flex items-center space-x-2">
                 <button

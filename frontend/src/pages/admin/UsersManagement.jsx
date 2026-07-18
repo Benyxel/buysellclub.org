@@ -13,6 +13,7 @@ import {
 import { toast } from "../../utils/toast";
 import API from "../../api";
 import ConfirmModal from "../../components/shared/ConfirmModal";
+import { formatCompactCount } from "../../utils/formatCompactCount";
 import BulkActions from "../../components/shared/BulkActions";
 import { normalizePhone } from "../../utils/ghanaPhone";
 import { registrationEmailError } from "../../utils/registrationEmail";
@@ -997,7 +998,8 @@ const UsersManagement = () => {
           <div className="flex items-center gap-4">
             <span className="text-sm text-gray-600 dark:text-gray-400">
               Showing {(currentPage - 1) * pageSize + 1} to{" "}
-              {Math.min(currentPage * pageSize, total)} of {total} users
+              {Math.min(currentPage * pageSize, total)} of{" "}
+              <span title={String(total)}>{formatCompactCount(total)}</span> users
             </span>
             <select
               value={pageSize}
@@ -1019,7 +1021,10 @@ const UsersManagement = () => {
               Previous
             </button>
             <span className="text-sm text-gray-600 dark:text-gray-400">
-              Page {currentPage} of {totalPages}
+              Page {currentPage} of{" "}
+              <span title={String(totalPages)}>
+                {formatCompactCount(totalPages)}
+              </span>
             </span>
             <button
               onClick={() => handlePageChange(currentPage + 1)}

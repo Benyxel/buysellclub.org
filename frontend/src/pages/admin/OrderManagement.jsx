@@ -6,6 +6,7 @@ import BulkActions from '../../components/shared/BulkActions';
 import { getApiUrl } from '../../config/api';
 import { resolveMediaUrl } from '../../utils/resolveMediaUrl';
 import { getPlaceholderImagePath } from '../../utils/paths';
+import { formatCompactCount } from '../../utils/formatCompactCount';
 
 const OrderManagement = ({ onDigitalUnreadInvalidate }) => {
   const [orderTab, setOrderTab] = useState(() => {
@@ -726,7 +727,14 @@ const OrderManagement = ({ onDigitalUnreadInvalidate }) => {
 
           <div className="border-t border-gray-100 dark:border-gray-700 px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="text-xs text-gray-500 dark:text-gray-400">
-              Page {digitalPage} of {totalDigitalPages} • Total {digitalTotal}
+              Page {digitalPage} of{" "}
+              <span title={String(totalDigitalPages)}>
+                {formatCompactCount(totalDigitalPages)}
+              </span>{" "}
+              • Total{" "}
+              <span title={String(digitalTotal)}>
+                {formatCompactCount(digitalTotal)}
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <select
@@ -1411,7 +1419,8 @@ const OrderManagement = ({ onDigitalUnreadInvalidate }) => {
           <div className="flex items-center gap-4">
             <span className="text-sm text-gray-600 dark:text-gray-400">
               Showing {(currentPage - 1) * pageSize + 1} to{" "}
-              {Math.min(currentPage * pageSize, total)} of {total} orders
+              {Math.min(currentPage * pageSize, total)} of{" "}
+              <span title={String(total)}>{formatCompactCount(total)}</span> orders
             </span>
             <select
               value={pageSize}
@@ -1437,7 +1446,10 @@ const OrderManagement = ({ onDigitalUnreadInvalidate }) => {
               <FaChevronLeft />
             </button>
             <span className="text-sm text-gray-600 dark:text-gray-400 px-3">
-              Page {currentPage} of {totalPages || 1}
+              Page {currentPage} of{" "}
+              <span title={String(totalPages || 1)}>
+                {formatCompactCount(totalPages || 1)}
+              </span>
             </span>
             <button
               onClick={() => handlePageChange(currentPage + 1)}

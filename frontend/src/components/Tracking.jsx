@@ -8,6 +8,8 @@ import {
   FaTrash,
 } from "react-icons/fa";
 import API from "../api";
+import { formatCompactCount } from "../utils/formatCompactCount";
+import { formatShippingMarkForDisplay } from "../utils/markIdFormat";
 
 const Tracking = () => {
   const [trackings, setTrackings] = useState([]);
@@ -55,7 +57,7 @@ const Tracking = () => {
         // Transform backend data to frontend format
         const transformed = response.data.map((t) => ({
           TrackingNum: t.tracking_number,
-          Sender: t.shipping_mark || "N/A",
+          Sender: formatShippingMarkForDisplay(t.shipping_mark) || "N/A",
           Status: t.status || "Pending",
           Product: "Package", // Backend doesn't have product field
           Quantity: 1,
@@ -462,8 +464,15 @@ const Tracking = () => {
       )}
 
       <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
-        Showing {filteredTrackings.length} of {trackings.length} tracking
-        records
+        Showing{" "}
+        <span title={String(filteredTrackings.length)}>
+          {formatCompactCount(filteredTrackings.length)}
+        </span>{" "}
+        of{" "}
+        <span title={String(trackings.length)}>
+          {formatCompactCount(trackings.length)}
+        </span>{" "}
+        tracking records
         {selectedTrackings.length > 0 &&
           ` (${selectedTrackings.length} selected)`}
       </div>

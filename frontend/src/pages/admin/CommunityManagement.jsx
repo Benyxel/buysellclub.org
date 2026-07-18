@@ -3,6 +3,7 @@ import { FaSave, FaSpinner, FaCheck, FaTimes, FaUserPlus, FaEnvelope } from "rea
 import { toast } from "../../utils/toast";
 import { Api, clearCache } from "../../api";
 import ConfirmModal from "../../components/shared/ConfirmModal";
+import { formatCompactCount } from "../../utils/formatCompactCount";
 
 const CommunityManagement = () => {
   const [loading, setLoading] = useState(false);
@@ -346,7 +347,9 @@ const CommunityManagement = () => {
           Requests
           {requestsTotal > 0 && (
             <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs rounded-full bg-white/20">
-              {requestsTotal}
+              <span title={String(requestsTotal)}>
+                {formatCompactCount(requestsTotal)}
+              </span>
             </span>
           )}
         </button>
@@ -712,10 +715,23 @@ const CommunityManagement = () => {
             {requestsTotal > requestsPageSize && (
               <div className="flex items-center justify-between mt-4 px-1 text-sm">
                 <span className="text-gray-500 dark:text-gray-400">
-                  Page {currentPage} of {Math.ceil(requestsTotal / requestsPageSize) || 1}
+                  Page {currentPage} of{" "}
+                  <span
+                    title={String(
+                      Math.ceil(requestsTotal / requestsPageSize) || 1
+                    )}
+                  >
+                    {formatCompactCount(
+                      Math.ceil(requestsTotal / requestsPageSize) || 1
+                    )}
+                  </span>
                   {requestsTotal > 0 && (
                     <span className="ml-2">
-                      ({requestsTotal} total)
+                      (
+                      <span title={String(requestsTotal)}>
+                        {formatCompactCount(requestsTotal)}
+                      </span>{" "}
+                      total)
                     </span>
                   )}
                 </span>

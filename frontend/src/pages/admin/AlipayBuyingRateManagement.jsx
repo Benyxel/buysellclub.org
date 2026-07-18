@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { FaSave, FaSyncAlt } from "react-icons/fa";
 import { toast } from "../../utils/toast";
 import { Api } from "../../api";
+import { formatCompactCount } from "../../utils/formatCompactCount";
 
 const formatMoney = (value, decimals = 2) => {
   if (value === null || value === undefined || value === "") return "-";
@@ -322,7 +323,10 @@ const AlipayBuyingRateManagement = () => {
 
         <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
           <div>
-            Page {currentPage} of {totalPages}
+            Page {currentPage} of{" "}
+            <span title={String(totalPages)}>
+              {formatCompactCount(totalPages)}
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <button

@@ -11,6 +11,7 @@ import {
   deleteTrainingCourse,
 } from '../../api';
 import API, { Api } from '../../api';
+import { formatCompactCount } from '../../utils/formatCompactCount';
 
 const TrainingManagement = ({ showCoursesTab = true }) => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -710,7 +711,21 @@ const TrainingManagement = ({ showCoursesTab = true }) => {
               {bookings.length > 0 && (
                 <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3">
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    Page {bookingsPage} of {Math.max(1, Math.ceil(bookings.length / bookingsPageSize))} • Showing {Math.min(bookingsPage * bookingsPageSize, bookings.length)} of {bookings.length}
+                    Page {bookingsPage} of{" "}
+                    <span
+                      title={String(
+                        Math.max(1, Math.ceil(bookings.length / bookingsPageSize))
+                      )}
+                    >
+                      {formatCompactCount(
+                        Math.max(1, Math.ceil(bookings.length / bookingsPageSize))
+                      )}
+                    </span>{" "}
+                    • Showing{" "}
+                    {Math.min(bookingsPage * bookingsPageSize, bookings.length)} of{" "}
+                    <span title={String(bookings.length)}>
+                      {formatCompactCount(bookings.length)}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
@@ -725,7 +740,16 @@ const TrainingManagement = ({ showCoursesTab = true }) => {
                       Prev
                     </button>
                     <span className="text-sm text-gray-700 dark:text-gray-300 px-2">
-                      {bookingsPage} / {Math.max(1, Math.ceil(bookings.length / bookingsPageSize))}
+                      {bookingsPage} /{" "}
+                      <span
+                        title={String(
+                          Math.max(1, Math.ceil(bookings.length / bookingsPageSize))
+                        )}
+                      >
+                        {formatCompactCount(
+                          Math.max(1, Math.ceil(bookings.length / bookingsPageSize))
+                        )}
+                      </span>
                     </span>
                     <button
                       onClick={() => setBookingsPage(p => Math.min(Math.ceil(bookings.length / bookingsPageSize), p + 1))}
@@ -866,7 +890,21 @@ const TrainingManagement = ({ showCoursesTab = true }) => {
               {courses.length > 0 && (
                 <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3">
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    Page {coursesPage} of {Math.max(1, Math.ceil(courses.length / coursesPageSize))} • Showing {Math.min(coursesPage * coursesPageSize, courses.length)} of {courses.length}
+                    Page {coursesPage} of{" "}
+                    <span
+                      title={String(
+                        Math.max(1, Math.ceil(courses.length / coursesPageSize))
+                      )}
+                    >
+                      {formatCompactCount(
+                        Math.max(1, Math.ceil(courses.length / coursesPageSize))
+                      )}
+                    </span>{" "}
+                    • Showing{" "}
+                    {Math.min(coursesPage * coursesPageSize, courses.length)} of{" "}
+                    <span title={String(courses.length)}>
+                      {formatCompactCount(courses.length)}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
@@ -881,7 +919,16 @@ const TrainingManagement = ({ showCoursesTab = true }) => {
                       Prev
                     </button>
                     <span className="text-sm text-gray-700 dark:text-gray-300 px-2">
-                      {coursesPage} / {Math.max(1, Math.ceil(courses.length / coursesPageSize))}
+                      {coursesPage} /{" "}
+                      <span
+                        title={String(
+                          Math.max(1, Math.ceil(courses.length / coursesPageSize))
+                        )}
+                      >
+                        {formatCompactCount(
+                          Math.max(1, Math.ceil(courses.length / coursesPageSize))
+                        )}
+                      </span>
                     </span>
                     <button
                       onClick={() => setCoursesPage(p => Math.min(Math.ceil(courses.length / coursesPageSize), p + 1))}

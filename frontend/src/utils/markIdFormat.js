@@ -6,21 +6,13 @@ export function shippingMarkToMarkId(shippingMark) {
   return (idx === -1 ? raw : raw.slice(0, idx)).trim();
 }
 
-/** Mark id only for tables/lists — no hyphen (FIM1330, not FIM-1330). */
-export function formatShippingMarkForDisplay(shippingMark) {
-  return shippingMarkToMarkId(shippingMark);
-}
+/**
+ * Warehouse catch-all mark(s) for unlabeled / unknown packages.
+ * Shown to users as "Unknown" instead of the raw code.
+ */
+export const UNKNOWN_PACKAGE_MARK_IDS = new Set(["FIM752"]);
 
-export function formatMarkIdForDisplay(markId) {
-  const raw = String(markId || "").trim();
-  if (!raw) return "";
-  if (raw.includes("-")) return raw;
-  const m = raw.match(/^([A-Za-z]+)(\d+)$/);
-  if (!m) return raw;
-  return `${m[1]}-${m[2]}`;
-}
-
-/** Accept both `FIM000` and `FIM-000` forms for API calls. */
+/** Accept both `FIM000` and `FIM-000` forms for API calls / comparisons. */
 export function normalizeMarkIdInput(markId) {
   const raw = String(markId || "").trim().toUpperCase();
   if (!raw) return "";
@@ -29,16 +21,43 @@ export function normalizeMarkIdInput(markId) {
   return raw;
 }
 
-/** Replace any inline mark ids like FIM000 → FIM-000 inside free-form text. */
+/** True when this mark is the unknown-package placeholder (e.g. FIM752 / FIM-752). */
+export function isUnknownPackageMark(markOrShippingMark) {
+  const bare = shippingMarkToMarkId(markOrShippingMark);
+  if (!bare) return false;
+  return UNKNOWN_PACKAGE_MARK_IDS.has(normalizeMarkIdInput(bare));
+}
+
+/** Mark id only for tables/lists — unknown placeholder → "Unknown"; else no hyphen (FIM1330). */
+export function formatShippingMarkForDisplay(shippingMark) {
+  const id = shippingMarkToMarkId(shippingMark);
+  if (!id) return "";
+  if (isUnknownPackageMark(id)) return "Unknown";
+  return id;
+}
+
+export function formatMarkIdForDisplay(markId) {
+  const raw = String(markId || "").trim();
+  if (!raw) return "";
+  if (isUnknownPackageMark(raw)) return "Unknown";
+  if (raw.includes("-")) return raw;
+  const m = raw.match(/^([A-Za-z]+)(\d+)$/);
+  if (!m) return raw;
+  return `${m[1]}-${m[2]}`;
+}
+
+/** Replace any inline mark ids like FIM000 → FIM-000 (and FIM752 → Unknown) inside free-form text. */
 export function formatMarkIdInText(text) {
   const raw = String(text ?? "");
   if (!raw) return "";
-  return raw.replace(/\b([A-Za-z]+)(\d{1,})\b/g, (full, pfx, digits) => {
-    // keep already-hyphenated tokens untouched
+  return raw.replace(/\b([A-Za-z]+)-?(\d{1,})\b/g, (full, pfx, digits) => {
+    const candidate = `${pfx}${digits}`;
+    if (isUnknownPackageMark(candidate) || isUnknownPackageMark(full)) {
+      return "Unknown";
+    }
     if (full.includes("-")) return full;
     // only format known prefix styles (avoid changing random words+numbers)
     if (!/^[A-Za-z]{2,6}$/.test(pfx)) return full;
     return `${pfx}-${digits}`;
   });
 }
-

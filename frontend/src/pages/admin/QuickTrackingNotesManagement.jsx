@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { FaEdit, FaTrash } from "react-icons/fa";
 import { toast } from "../../utils/toast";
 import API, { Api } from "../../api";
+import { formatCompactCount } from "../../utils/formatCompactCount";
 
 const QuickTrackingNotesManagement = () => {
   const [notes, setNotes] = useState([]);
@@ -53,14 +54,20 @@ const QuickTrackingNotesManagement = () => {
 
   const fetchContainers = async () => {
     try {
-      const response = await Api.containers.list();
+      // Quick Tracking may only attach notes to containers still accepting goods.
+      const response = await Api.containers.list({ all: true });
       const data = response.data;
       const items = Array.isArray(data?.results)
         ? data.results
         : Array.isArray(data)
         ? data
         : [];
-      setContainers(items);
+      const allowed = new Set(["preparing", "receiving_goods"]);
+      setContainers(
+        items.filter((container) =>
+          allowed.has(String(container?.status || "").trim().toLowerCase())
+        )
+      );
     } catch (error) {
       console.error("Failed to load containers:", error);
     }
@@ -435,8 +442,14 @@ const QuickTrackingNotesManagement = () => {
             </table>
             <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-gray-600 dark:text-gray-400">
               <div>
-                Page {currentPage} of {totalPages} • Showing {filteredNotes.length} of{" "}
-                {totalCount}
+                Page {currentPage} of{" "}
+                <span title={String(totalPages)}>
+                  {formatCompactCount(totalPages)}
+                </span>{" "}
+                • Showing {filteredNotes.length} of{" "}
+                <span title={String(totalCount)}>
+                  {formatCompactCount(totalCount)}
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 <select

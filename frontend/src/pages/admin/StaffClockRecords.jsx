@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { FaClock, FaSyncAlt, FaCalendarDay, FaQrcode, FaDownload, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { Api } from "../../api";
 import { toast } from "../../utils/toast";
+import { formatCompactCount } from "../../utils/formatCompactCount";
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
 
@@ -240,7 +241,10 @@ const StaffClockRecords = () => {
       {!loading && records.length > 0 && totalPages > 0 && (
         <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Showing {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, totalCount)} of {totalCount}
+            Showing {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, totalCount)} of{" "}
+            <span title={String(totalCount)}>
+              {formatCompactCount(totalCount)}
+            </span>
           </p>
           <div className="flex items-center gap-2">
             <button
@@ -253,7 +257,10 @@ const StaffClockRecords = () => {
               Previous
             </button>
             <span className="text-sm text-gray-600 dark:text-gray-400 px-2">
-              Page {page} of {totalPages}
+              Page {page} of{" "}
+              <span title={String(totalPages)}>
+                {formatCompactCount(totalPages)}
+              </span>
             </span>
             <button
               type="button"

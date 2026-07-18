@@ -27,6 +27,7 @@ import {
   formatShippingMarkForDisplay,
   normalizeMarkIdInput,
 } from "../../utils/markIdFormat";
+import { formatCompactCount } from "../../utils/formatCompactCount";
 
 const statusOptions = [
   { value: "pending", label: "Pending" },
@@ -1103,8 +1104,14 @@ const AgentTrackingManagement = () => {
       {/* Pagination */}
       <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="text-sm text-gray-600 dark:text-gray-400">
-          Page {currentPage} of {totalPages} • Showing {pagedItems.length} of{" "}
-          {filteredTrackings.length}
+          Page {currentPage} of{" "}
+          <span title={String(totalPages)}>
+            {formatCompactCount(totalPages)}
+          </span>{" "}
+          • Showing {pagedItems.length} of{" "}
+          <span title={String(filteredTrackings.length)}>
+            {formatCompactCount(filteredTrackings.length)}
+          </span>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -1159,8 +1166,15 @@ const AgentTrackingManagement = () => {
 
       {/* Summary */}
       <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
-        Showing {filteredTrackings.length} of {trackings.length} tracking
-        records
+        Showing{" "}
+        <span title={String(filteredTrackings.length)}>
+          {formatCompactCount(filteredTrackings.length)}
+        </span>{" "}
+        of{" "}
+        <span title={String(trackings.length)}>
+          {formatCompactCount(trackings.length)}
+        </span>{" "}
+        tracking records
         {selectedTrackings.length > 0 &&
           ` (${selectedTrackings.length} selected)`}
       </div>

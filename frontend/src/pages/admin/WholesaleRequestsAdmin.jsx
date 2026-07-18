@@ -8,6 +8,7 @@ import {
   deleteWholesaleRequest,
   clearCache,
 } from "../../api";
+import { formatCompactCount } from "../../utils/formatCompactCount";
 
 const STATUS_OPTIONS = [
   "pending",
@@ -239,7 +240,9 @@ const WholesaleRequestsAdmin = () => {
             ))}
           </select>
         </div>
-        <span className="text-sm text-gray-500">{total} request(s)</span>
+        <span className="text-sm text-gray-500">
+          <span title={String(total)}>{formatCompactCount(total)}</span> request(s)
+        </span>
       </div>
 
       {isLoading ? (
@@ -462,7 +465,10 @@ const WholesaleRequestsAdmin = () => {
               <FaChevronLeft />
             </button>
             <span className="text-sm">
-              Page {currentPage} of {totalPages}
+              Page {currentPage} of{" "}
+              <span title={String(totalPages)}>
+                {formatCompactCount(totalPages)}
+              </span>
             </span>
             <button
               type="button"

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { FaStore, FaCheck, FaTimes, FaSpinner, FaSyncAlt, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { toast } from "../../utils/toast";
 import { Api } from "../../api";
+import { formatCompactCount } from "../../utils/formatCompactCount";
 
 const PAGE_SIZE = 10;
 
@@ -239,7 +240,8 @@ const VendorManagement = () => {
           {total > 0 && (
             <div className="flex items-center justify-between mt-3 text-sm text-gray-600 dark:text-gray-400">
               <span>
-                Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} of {total}
+                Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} of{" "}
+                <span title={String(total)}>{formatCompactCount(total)}</span>
               </span>
               <div className="flex gap-2">
                 <button

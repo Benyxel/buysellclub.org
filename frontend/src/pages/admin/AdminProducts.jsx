@@ -11,6 +11,7 @@ import {
 import { toast } from "../../utils/toast";
 import { FaPlus, FaEdit, FaTrash, FaImage, FaTimes, FaCheck, FaChevronLeft, FaChevronRight, FaUpload } from "react-icons/fa";
 import BulkActions from "../../components/shared/BulkActions";
+import { formatCompactCount } from "../../utils/formatCompactCount";
 
 const initialForm = {
   name: "",
@@ -1256,7 +1257,8 @@ export default function AdminProducts() {
       {/* Products List */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
         <h3 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">
-          Existing Products ({total})
+          Existing Products (
+          <span title={String(total)}>{formatCompactCount(total)}</span>)
         </h3>
 
         {/* Bulk Actions */}
@@ -1410,7 +1412,9 @@ export default function AdminProducts() {
             <div className="flex items-center gap-4">
               <span className="text-sm text-gray-600 dark:text-gray-400">
                 Showing {(currentPage - 1) * pageSize + 1} to{" "}
-                {Math.min(currentPage * pageSize, total)} of {total} products
+                {Math.min(currentPage * pageSize, total)} of{" "}
+                <span title={String(total)}>{formatCompactCount(total)}</span>{" "}
+                products
               </span>
               <select
                 value={pageSize}
@@ -1436,7 +1440,10 @@ export default function AdminProducts() {
                 <FaChevronLeft />
               </button>
               <span className="text-sm text-gray-600 dark:text-gray-400 px-3">
-                Page {currentPage} of {totalPages || 1}
+                Page {currentPage} of{" "}
+                <span title={String(totalPages || 1)}>
+                  {formatCompactCount(totalPages || 1)}
+                </span>
               </span>
               <button
                 onClick={() => handlePageChange(currentPage + 1)}

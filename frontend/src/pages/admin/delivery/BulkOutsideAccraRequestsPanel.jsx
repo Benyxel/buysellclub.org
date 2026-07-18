@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { FaClipboardList, FaSpinner, FaTruck } from "react-icons/fa";
 import API from "../../../api";
 import { toast } from "../../../utils/toast";
+import { formatCompactCount } from "../../../utils/formatCompactCount";
 
 function normalizeList(resp) {
   const d = resp?.data;
@@ -185,7 +186,9 @@ export default function BulkOutsideAccraRequestsPanel() {
             setPage(1);
           }}
         >
-          <option value="all">All ({totalCount})</option>
+          <option value="all">
+            All ({formatCompactCount(totalCount)})
+          </option>
           {STATUS_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
               {o.label} ({counts.get(o.value) || 0})
@@ -350,8 +353,15 @@ export default function BulkOutsideAccraRequestsPanel() {
 
       <div className="flex flex-wrap items-center justify-between gap-2 mt-4 text-sm text-gray-700 dark:text-gray-200">
         <div>
-          Showing page <strong>{page}</strong> of <strong>{totalPages}</strong> (total{" "}
-          <strong>{totalCount}</strong>)
+          Showing page <strong>{page}</strong> of{" "}
+          <strong title={String(totalPages)}>
+            {formatCompactCount(totalPages)}
+          </strong>{" "}
+          (total{" "}
+          <strong title={String(totalCount)}>
+            {formatCompactCount(totalCount)}
+          </strong>
+          )
         </div>
         <div className="flex items-center gap-2">
           <button

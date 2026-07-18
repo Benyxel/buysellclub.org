@@ -19,6 +19,7 @@ import {
 import { toast } from "../../utils/toast";
 import API, { Api } from "../../api";
 import ConfirmModal from "../../components/shared/ConfirmModal";
+import { formatCompactCount } from "../../utils/formatCompactCount";
 
 const AlipayManagement = () => {
   const [payments, setPayments] = useState([]);
@@ -940,7 +941,10 @@ const AlipayManagement = () => {
               Previous
             </button>
             <span className="text-sm text-gray-700 dark:text-gray-300">
-              Page {currentPage} of {totalPages}
+              Page {currentPage} of{" "}
+              <span title={String(totalPages)}>
+                {formatCompactCount(totalPages)}
+              </span>
             </span>
             <button
               onClick={() =>

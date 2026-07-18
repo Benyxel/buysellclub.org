@@ -4,6 +4,7 @@ import { toast } from "../../utils/toast";
 import { FaTrash, FaTimes, FaExternalLinkAlt, FaPlus, FaEdit, FaSpinner, FaDownload } from "react-icons/fa";
 import { InvoiceItemTrackingLabel, InvoiceItemCbm } from "../../components/InvoiceItemDisplay";
 import { getInvoiceGhsBreakdown, getInvoiceTotalCbm } from "../../utils/invoiceGhsBreakdown";
+import { formatCompactCount } from "../../utils/formatCompactCount";
 
 const statusOptions = [
   { value: "", label: "All" },
@@ -1088,7 +1089,10 @@ export default function InvoicesManagement() {
       {/* Pagination */}
       <div className="flex items-center justify-between mt-4">
         <div className="text-sm text-gray-600 dark:text-gray-400">
-          Page {page} of {totalPages}
+          Page {page} of{" "}
+          <span title={String(totalPages)}>
+            {formatCompactCount(totalPages)}
+          </span>
         </div>
         <div className="flex items-center gap-2">
           <button

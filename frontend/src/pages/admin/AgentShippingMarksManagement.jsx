@@ -13,6 +13,7 @@ import {
 } from "react-icons/fa";
 import API from "../../api";
 import { toast } from "../../utils/toast";
+import { formatCompactCount } from "../../utils/formatCompactCount";
 
 const AgentShippingMarksManagement = () => {
   const [shippingMarks, setShippingMarks] = useState([]);
@@ -385,7 +386,10 @@ const AgentShippingMarksManagement = () => {
                                 totalItems
                               )}
                             </span>{" "}
-                            of <span className="font-medium">{totalItems}</span>{" "}
+                            of{" "}
+                            <span className="font-medium" title={String(totalItems)}>
+                              {formatCompactCount(totalItems)}
+                            </span>{" "}
                             agent marks
                           </p>
                         </div>
@@ -404,7 +408,10 @@ const AgentShippingMarksManagement = () => {
                               Previous
                             </button>
                             <span className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
-                              Page {currentPage} of {totalPages}
+                              Page {currentPage} of{" "}
+                              <span title={String(totalPages)}>
+                                {formatCompactCount(totalPages)}
+                              </span>
                             </span>
                             <button
                               onClick={() =>

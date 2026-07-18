@@ -20,6 +20,7 @@ import {
   downloadBuy4meInvoiceReceipt,
 } from '../../api';
 import API from '../../api';
+import { formatCompactCount } from '../../utils/formatCompactCount';
 
 const Buy4meAdmin = () => {
   const [requests, setRequests] = useState([]);
@@ -1137,7 +1138,11 @@ const Buy4meAdmin = () => {
           <div className="flex items-center gap-4">
             <span className="text-sm text-gray-600 dark:text-gray-400">
               Showing {effectiveTotal === 0 ? 0 : (currentPage - 1) * pageSize + 1} to{" "}
-              {Math.min(currentPage * pageSize, effectiveTotal)} of {effectiveTotal} requests
+              {Math.min(currentPage * pageSize, effectiveTotal)} of{" "}
+              <span title={String(effectiveTotal)}>
+                {formatCompactCount(effectiveTotal)}
+              </span>{" "}
+              requests
             </span>
             <select
               value={pageSize}
@@ -1163,7 +1168,10 @@ const Buy4meAdmin = () => {
               <FaChevronLeft />
             </button>
             <span className="text-sm text-gray-600 dark:text-gray-400 px-3">
-              Page {currentPage} of {effectiveTotalPages || 1}
+              Page {currentPage} of{" "}
+              <span title={String(effectiveTotalPages || 1)}>
+                {formatCompactCount(effectiveTotalPages || 1)}
+              </span>
             </span>
             <button
               onClick={() => handlePageChange(currentPage + 1)}

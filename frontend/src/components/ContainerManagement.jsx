@@ -12,6 +12,8 @@ import {
   FaPrint,
 } from "react-icons/fa";
 import ConfirmModal from "./shared/ConfirmModal";
+import { formatCompactCount } from "../utils/formatCompactCount";
+import { formatShippingMarkForDisplay } from "../utils/markIdFormat";
 import { InvoiceItemTrackingLabel, InvoiceItemCbm } from "./InvoiceItemDisplay";
 import { InvoicePreviewExecutiveDiscountRows } from "./InvoicePreviewExecutiveDiscount";
 
@@ -553,7 +555,10 @@ const ContainerManagement = () => {
             Previous
           </button>
           <span className="px-4 py-2 text-gray-700 dark:text-gray-300">
-            Page {currentPage} of {totalPages}
+            Page {currentPage} of{" "}
+            <span title={String(totalPages)}>
+              {formatCompactCount(totalPages)}
+            </span>
           </span>
           <button
             onClick={() =>
@@ -1317,7 +1322,7 @@ const ContainerManagement = () => {
                                 <tbody>
                                   ${containerDetails.mark_id_stats.map((stat) => `
                                     <tr>
-                                      <td style="font-weight: bold;">${stat.shipping_mark || "-"}</td>
+                                      <td style="font-weight: bold;">${formatShippingMarkForDisplay(stat.shipping_mark) || "-"}</td>
                                       <td>${stat.full_name || stat.username || stat.client_username || "-"}</td>
                                       <td>${stat.count || 0}</td>
                                       <td>${parseFloat(stat.total_cbm || 0).toFixed(3)}</td>
@@ -1379,7 +1384,8 @@ const ContainerManagement = () => {
                         {containerDetails.mark_id_stats.map((stat, index) => (
                           <tr key={index}>
                             <td className="px-4 py-2 text-gray-900 dark:text-white font-medium">
-                              {stat.shipping_mark}
+                              {formatShippingMarkForDisplay(stat.shipping_mark) ||
+                                "—"}
                             </td>
                             <td className="px-4 py-2 text-gray-700 dark:text-gray-300">
                               {stat.full_name || stat.username || stat.client_username || "-"}
@@ -1506,7 +1512,7 @@ const ContainerManagement = () => {
                                     <tr>
                                       <td>${index + 1}</td>
                                       <td>${tracking.tracking_number}</td>
-                                      <td>${tracking.shipping_mark || "-"}</td>
+                                      <td>${formatShippingMarkForDisplay(tracking.shipping_mark) || "-"}</td>
                                       <td>${tracking.status}</td>
                                       <td>${tracking.cbm ? parseFloat(tracking.cbm).toFixed(3) : "-"}</td>
                                       <td>$${tracking.shipping_fee ? Math.ceil(parseFloat(tracking.shipping_fee)) : "0"}</td>
@@ -1565,7 +1571,9 @@ const ContainerManagement = () => {
                               {tracking.tracking_number}
                             </td>
                             <td className="px-4 py-2 text-gray-700 dark:text-gray-300">
-                              {tracking.shipping_mark || "-"}
+                              {formatShippingMarkForDisplay(
+                                tracking.shipping_mark
+                              ) || "—"}
                             </td>
                             <td className="px-4 py-2 text-gray-700 dark:text-gray-300">
                               {tracking.status}

@@ -12,6 +12,7 @@ import {
 } from "../../api";
 import { toast } from "../../utils/toast";
 import { FaPlus, FaEdit, FaTrash, FaTimes, FaCheck, FaChevronLeft, FaChevronRight } from "react-icons/fa";
+import { formatCompactCount } from "../../utils/formatCompactCount";
 
 const initialCategoryForm = {
   name: "",
@@ -418,7 +419,11 @@ export default function CategoriesTypesManagement() {
             <div>
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
-                  Categories ({categoriesTotal})
+                  Categories (
+                  <span title={String(categoriesTotal)}>
+                    {formatCompactCount(categoriesTotal)}
+                  </span>
+                  )
                 </h2>
                 <button
                   onClick={() => {
@@ -597,7 +602,11 @@ export default function CategoriesTypesManagement() {
                   <div className="flex items-center gap-4">
                     <span className="text-sm text-gray-600 dark:text-gray-400">
                       Showing {(categoriesPage - 1) * categoriesPageSize + 1} to{" "}
-                      {Math.min(categoriesPage * categoriesPageSize, categoriesTotal)} of {categoriesTotal} categories
+                      {Math.min(categoriesPage * categoriesPageSize, categoriesTotal)} of{" "}
+                      <span title={String(categoriesTotal)}>
+                        {formatCompactCount(categoriesTotal)}
+                      </span>{" "}
+                      categories
                     </span>
                     <select
                       value={categoriesPageSize}
@@ -623,7 +632,10 @@ export default function CategoriesTypesManagement() {
                       <FaChevronLeft />
                     </button>
                     <span className="text-sm text-gray-600 dark:text-gray-400 px-3">
-                      Page {categoriesPage} of {categoriesTotalPages || 1}
+                      Page {categoriesPage} of{" "}
+                      <span title={String(categoriesTotalPages || 1)}>
+                        {formatCompactCount(categoriesTotalPages || 1)}
+                      </span>
                     </span>
                     <button
                       onClick={() => handleCategoriesPageChange(categoriesPage + 1)}
@@ -647,7 +659,11 @@ export default function CategoriesTypesManagement() {
             <div>
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
-                  Product Types ({typesTotal})
+                  Product Types (
+                  <span title={String(typesTotal)}>
+                    {formatCompactCount(typesTotal)}
+                  </span>
+                  )
                 </h2>
                 <button
                   onClick={() => {
@@ -826,7 +842,11 @@ export default function CategoriesTypesManagement() {
                   <div className="flex items-center gap-4">
                     <span className="text-sm text-gray-600 dark:text-gray-400">
                       Showing {(typesPage - 1) * typesPageSize + 1} to{" "}
-                      {Math.min(typesPage * typesPageSize, typesTotal)} of {typesTotal} product types
+                      {Math.min(typesPage * typesPageSize, typesTotal)} of{" "}
+                      <span title={String(typesTotal)}>
+                        {formatCompactCount(typesTotal)}
+                      </span>{" "}
+                      product types
                     </span>
                     <select
                       value={typesPageSize}
@@ -852,7 +872,10 @@ export default function CategoriesTypesManagement() {
                       <FaChevronLeft />
                     </button>
                     <span className="text-sm text-gray-600 dark:text-gray-400 px-3">
-                      Page {typesPage} of {typesTotalPages || 1}
+                      Page {typesPage} of{" "}
+                      <span title={String(typesTotalPages || 1)}>
+                        {formatCompactCount(typesTotalPages || 1)}
+                      </span>
                     </span>
                     <button
                       onClick={() => handleTypesPageChange(typesPage + 1)}

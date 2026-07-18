@@ -95,21 +95,55 @@ export default function ProfileBulkDeliveryOutsideAccra({ shippingMarkId }) {
     load();
   }, [load]);
 
+  /**
+   * Paid containers still open for a new bulk request.
+   * Hide if admin marked bulk complete, or an active/delivered request exists.
+   */
   const eligibleContainers = useMemo(() => {
+    const activeRequestStatuses = new Set([
+      "pending",
+      "scheduled",
+      "in_transit",
+      "delivered",
+    ]);
+    const requestedIds = new Set();
+    for (const r of requests || []) {
+      const status = String(r?.status || "").toLowerCase();
+      if (!activeRequestStatuses.has(status)) continue;
+      const cid = r?.container?.id ?? r?.container;
+      if (cid != null && cid !== "") requestedIds.add(String(cid));
+    }
+
     const byId = new Map();
     for (const inv of invoices) {
       if (!isPaidInvoice(inv)) continue;
-      if (!inv.container) continue;
-      const key = String(inv.container);
+      const cid = inv?.container?.id ?? inv?.container;
+      if (cid == null || cid === "") continue;
+      const key = String(cid);
+      if (inv.container_bulk_delivery_outside_accra_completed) continue;
+      if (requestedIds.has(key)) continue;
       if (byId.has(key)) continue;
       byId.set(key, {
-        id: inv.container,
-        container_number: inv.container_number || `Container #${inv.container}`,
+        id: cid,
+        container_number:
+          inv.container_number ||
+          inv?.container?.container_number ||
+          `Container #${cid}`,
       });
     }
     return Array.from(byId.values()).sort((a, b) =>
       String(a.container_number).localeCompare(String(b.container_number))
     );
+  }, [invoices, requests]);
+
+  const paidContainerCount = useMemo(() => {
+    const ids = new Set();
+    for (const inv of invoices) {
+      if (!isPaidInvoice(inv)) continue;
+      const cid = inv?.container?.id ?? inv?.container;
+      if (cid != null && cid !== "") ids.add(String(cid));
+    }
+    return ids.size;
   }, [invoices]);
 
   const allInvoiceContainers = useMemo(() => {
@@ -142,22 +176,30 @@ export default function ProfileBulkDeliveryOutsideAccra({ shippingMarkId }) {
   }, [invoices]);
 
   const containerScheduleDate = useMemo(() => {
+    const completedIds = new Set();
+    for (const inv of invoices || []) {
+      if (!inv?.container_bulk_delivery_outside_accra_completed) continue;
+      const cid = inv?.container?.id ?? inv?.container;
+      if (cid != null && cid !== "") completedIds.add(String(cid));
+    }
+
     // Prefer schedule date from the request payload if present.
     const map = new Map();
     for (const r of requests || []) {
-      if (r?.container) {
-        map.set(String(r.container), r.container_bulk_delivery_date || null);
-      }
+      const cid = r?.container?.id ?? r?.container;
+      if (cid == null || cid === "") continue;
+      const key = String(cid);
+      if (completedIds.has(key)) continue;
+      map.set(key, r.container_bulk_delivery_date || null);
     }
     // Fallback: show announced container schedule date even if user has no request yet.
     for (const inv of invoices || []) {
-      if (!inv?.container) continue;
-      const key = String(inv.container);
+      const cid = inv?.container?.id ?? inv?.container;
+      if (cid == null || cid === "") continue;
+      const key = String(cid);
+      if (completedIds.has(key)) continue;
       if (map.has(key) && map.get(key)) continue;
-      if (
-        inv.container_bulk_delivery_outside_accra_date &&
-        !inv.container_bulk_delivery_outside_accra_completed
-      ) {
+      if (inv.container_bulk_delivery_outside_accra_date) {
         map.set(key, inv.container_bulk_delivery_outside_accra_date);
       }
     }
@@ -165,15 +207,24 @@ export default function ProfileBulkDeliveryOutsideAccra({ shippingMarkId }) {
   }, [requests, invoices]);
 
   const upcomingAnnouncements = useMemo(() => {
+    const completedIds = new Set();
+    for (const inv of invoices || []) {
+      if (!inv?.container_bulk_delivery_outside_accra_completed) continue;
+      const cid = inv?.container?.id ?? inv?.container;
+      if (cid != null && cid !== "") completedIds.add(String(cid));
+    }
+
     const out = [];
     for (const c of allInvoiceContainers) {
-      const d = containerScheduleDate.get(String(c.id));
+      const key = String(c.id);
+      if (completedIds.has(key)) continue;
+      const d = containerScheduleDate.get(key);
       if (!d) continue;
       out.push({ ...c, date: d });
     }
     // Most recent first
     return out.sort((a, b) => String(b.date).localeCompare(String(a.date)));
-  }, [allInvoiceContainers, containerScheduleDate]);
+  }, [allInvoiceContainers, containerScheduleDate, invoices]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -287,8 +338,9 @@ export default function ProfileBulkDeliveryOutsideAccra({ shippingMarkId }) {
 
             {eligibleContainers.length === 0 ? (
               <div className="text-sm text-gray-600 dark:text-gray-300">
-                No paid shipping invoices found yet. Once you pay your shipping for a container,
-                you can request bulk delivery here.
+                {paidContainerCount > 0
+                  ? "All paid containers already have a bulk delivery request or are marked completed."
+                  : "No paid shipping invoices found yet. Once you pay your shipping for a container, you can request bulk delivery here."}
               </div>
             ) : (
               <form onSubmit={submit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -308,6 +360,12 @@ export default function ProfileBulkDeliveryOutsideAccra({ shippingMarkId }) {
                       </option>
                     ))}
                   </select>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    {eligibleContainers.length} available
+                    {paidContainerCount > eligibleContainers.length
+                      ? ` · ${paidContainerCount - eligibleContainers.length} already requested/completed`
+                      : ""}
+                  </div>
                   {form.container && containerScheduleDate.get(String(form.container)) ? (
                     <div className="text-xs text-gray-600 dark:text-gray-300 mt-1 flex items-center gap-2">
                       <FaCalendarAlt className="text-gray-500" />

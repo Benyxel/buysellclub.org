@@ -4,6 +4,7 @@ import { Api } from "../../api";
 import { toast } from "../../utils/toast";
 import MembershipCardVisual from "../../components/profile/MembershipCardVisual";
 import { mapMembershipCardFromApi } from "../../utils/membershipCardStorage";
+import { formatCompactCount } from "../../utils/formatCompactCount";
 
 function formatDate(value) {
   if (!value) return "—";
@@ -134,7 +135,8 @@ export default function CardHoldersManagement() {
           </div>
         </div>
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          {total} card{total === 1 ? "" : "s"}
+          <span title={String(total)}>{formatCompactCount(total)}</span> card
+          {total === 1 ? "" : "s"}
         </p>
       </div>
 
@@ -264,7 +266,10 @@ export default function CardHoldersManagement() {
         {totalPages > 1 ? (
           <div className="flex items-center justify-between border-t border-gray-200 px-4 py-3 dark:border-gray-700">
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Page {currentPage} of {totalPages}
+              Page {currentPage} of{" "}
+              <span title={String(totalPages)}>
+                {formatCompactCount(totalPages)}
+              </span>
             </p>
             <div className="flex gap-2">
               <button

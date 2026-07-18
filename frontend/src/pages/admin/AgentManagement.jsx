@@ -3,6 +3,7 @@ import { toast } from "../../utils/toast";
 import API from "../../api";
 import { FaUserPlus, FaUserMinus, FaUserTag, FaSearch } from "react-icons/fa";
 import ConfirmModal from "../../components/shared/ConfirmModal";
+import { formatCompactCount } from "../../utils/formatCompactCount";
 
 const USERS_PAGE_SIZE = 20;
 
@@ -322,7 +323,15 @@ export default function AgentManagement() {
               {usersTotalPages > 1 && (
                 <div className="mt-4 flex items-center justify-between border-t border-gray-200 dark:border-gray-700 pt-3">
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Showing page {usersPage} of {usersTotalPages} ({usersCount} user{usersCount !== 1 ? "s" : ""} total)
+                    Showing page {usersPage} of{" "}
+                    <span title={String(usersTotalPages)}>
+                      {formatCompactCount(usersTotalPages)}
+                    </span>{" "}
+                    (
+                    <span title={String(usersCount)}>
+                      {formatCompactCount(usersCount)}
+                    </span>{" "}
+                    user{usersCount !== 1 ? "s" : ""} total)
                   </p>
                   <div className="flex gap-2">
                     <button

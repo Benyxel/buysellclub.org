@@ -10,6 +10,7 @@ import {
 import { Api, clearCache } from "../../api";
 import ConfirmModal from "../../components/shared/ConfirmModal";
 import { toast } from "../../utils/toast";
+import { formatCompactCount } from "../../utils/formatCompactCount";
 
 export default function ExecutiveMembersManagement() {
   const [loading, setLoading] = useState(false);
@@ -237,7 +238,9 @@ export default function ExecutiveMembersManagement() {
             {tab.label}
             {tab.id === "requests" && requestsTotal > 0 ? (
               <span className="ml-2 inline-flex items-center justify-center rounded-full bg-white/20 px-2 py-0.5 text-xs">
-                {requestsTotal}
+                <span title={String(requestsTotal)}>
+                  {formatCompactCount(requestsTotal)}
+                </span>
               </span>
             ) : null}
           </button>
@@ -550,9 +553,23 @@ export default function ExecutiveMembersManagement() {
               <div className="mt-4 flex items-center justify-between px-1 text-sm">
                 <span className="text-gray-500 dark:text-gray-400">
                   Page {currentPage} of{" "}
-                  {Math.ceil(requestsTotal / requestsPageSize) || 1}
+                  <span
+                    title={String(
+                      Math.ceil(requestsTotal / requestsPageSize) || 1
+                    )}
+                  >
+                    {formatCompactCount(
+                      Math.ceil(requestsTotal / requestsPageSize) || 1
+                    )}
+                  </span>
                   {requestsTotal > 0 && (
-                    <span className="ml-2">({requestsTotal} total)</span>
+                    <span className="ml-2">
+                      (
+                      <span title={String(requestsTotal)}>
+                        {formatCompactCount(requestsTotal)}
+                      </span>{" "}
+                      total)
+                    </span>
                   )}
                 </span>
                 <div className="flex gap-2">

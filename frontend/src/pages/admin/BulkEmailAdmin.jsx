@@ -3,6 +3,7 @@ import { toast } from "../../utils/toast";
 import API from "../../api";
 import { FaEnvelope, FaPaperPlane, FaUsers, FaHistory, FaSpinner, FaChevronLeft, FaChevronRight, FaImage, FaRedo, FaTrash } from "react-icons/fa";
 import ConfirmModal from "../../components/shared/ConfirmModal";
+import { formatCompactCount } from "../../utils/formatCompactCount";
 
 const HISTORY_PAGE_SIZE = 20;
 
@@ -570,7 +571,10 @@ export default function BulkEmailAdmin() {
           </div>
           <div className="mt-4 flex flex-col gap-3 border-t border-gray-200 dark:border-gray-700 pt-4 lg:flex-row lg:items-center lg:justify-between">
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Showing {historyCount === 0 ? 0 : (historyPage - 1) * HISTORY_PAGE_SIZE + 1}–{Math.min(historyPage * HISTORY_PAGE_SIZE, historyCount)} of {historyCount}
+              Showing {historyCount === 0 ? 0 : (historyPage - 1) * HISTORY_PAGE_SIZE + 1}–{Math.min(historyPage * HISTORY_PAGE_SIZE, historyCount)} of{" "}
+              <span title={String(historyCount)}>
+                {formatCompactCount(historyCount)}
+              </span>
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <button
@@ -582,7 +586,10 @@ export default function BulkEmailAdmin() {
                 <FaChevronLeft /> Previous
               </button>
               <span className="text-sm text-gray-600 dark:text-gray-400">
-                Page {historyPage} of {totalPages}
+                Page {historyPage} of{" "}
+                <span title={String(totalPages)}>
+                  {formatCompactCount(totalPages)}
+                </span>
               </span>
               <div className="flex flex-wrap items-center gap-1">
                 {visiblePages.map((page) => (

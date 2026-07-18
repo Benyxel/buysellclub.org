@@ -14,6 +14,7 @@ import {
 import { toast } from "../../utils/toast";
 import API from "../../api";
 import ConfirmModal from "../../components/shared/ConfirmModal";
+import { formatCompactCount } from "../../utils/formatCompactCount";
 
 const ShippingAddressesAdmin = () => {
   const [addresses, setAddresses] = useState([]);
@@ -791,7 +792,10 @@ const ShippingAddressesAdmin = () => {
           <div className="text-sm text-gray-700 dark:text-gray-300">
             Showing{" "}
             {addresses.length ? (currentPage - 1) * itemsPerPage + 1 : 0}-
-            {Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems}{" "}
+            {Math.min(currentPage * itemsPerPage, totalItems)} of{" "}
+            <span title={String(totalItems)}>
+              {formatCompactCount(totalItems)}
+            </span>{" "}
             items
           </div>
           <div className="flex items-center space-x-2">
@@ -884,12 +888,17 @@ const ShippingAddressesAdmin = () => {
 
       {/* Summary */}
       <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
-        {totalItems > 0
-          ? `Showing ${Math.min(
-              addresses.length,
-              itemsPerPage
-            )} of ${totalItems} shipping addresses`
-          : "No shipping addresses found"}
+        {totalItems > 0 ? (
+          <>
+            Showing {Math.min(addresses.length, itemsPerPage)} of{" "}
+            <span title={String(totalItems)}>
+              {formatCompactCount(totalItems)}
+            </span>{" "}
+            shipping addresses
+          </>
+        ) : (
+          "No shipping addresses found"
+        )}
         {selectedAddresses.length > 0 &&
           ` (${selectedAddresses.length} selected)`}
       </div>

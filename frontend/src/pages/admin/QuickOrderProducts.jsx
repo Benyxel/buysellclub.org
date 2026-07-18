@@ -8,10 +8,11 @@ import {
   FaImage,
   FaTimes,
   FaSave,
-  FaExclamationTriangle,
   FaChevronLeft,
   FaChevronRight,
 } from "react-icons/fa";
+import ConfirmModal from "../../components/shared/ConfirmModal";
+import { formatCompactCount } from "../../utils/formatCompactCount";
 import {
   getAdminQuickOrderProducts,
   createQuickOrderProduct,
@@ -63,6 +64,7 @@ const QuickOrderProducts = () => {
   const [editMode, setEditMode] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
@@ -144,22 +146,39 @@ const QuickOrderProducts = () => {
     setShowForm(true);
   };
 
-  const handleDelete = async (id) => {
-    if (confirmDelete !== id) {
-      setConfirmDelete(id);
-      return;
-    }
+  const handleDeleteClick = (product) => {
+    setConfirmDelete(product);
+  };
+
+  const confirmDeleteProduct = async () => {
+    if (!confirmDelete) return;
+    const deletedId = confirmDelete._id || confirmDelete.id;
+    setDeleting(true);
     try {
-      await deleteQuickOrderProduct(id);
-      toast.success("Product deleted successfully");
+      const response = await deleteQuickOrderProduct(deletedId);
+      toast.success(
+        response?.data?.message || "Product deleted successfully"
+      );
+      setProducts((prev) => {
+        const next = prev.filter((p) => (p._id || p.id) !== deletedId);
+        if (next.length === 0 && currentPage > 1) {
+          const nextPage = currentPage - 1;
+          setCurrentPage(nextPage);
+          // fetch on next tick after state updates
+          setTimeout(() => fetchProducts(nextPage, pageSize), 0);
+        }
+        return next;
+      });
+      setTotal((prev) => Math.max(0, prev - 1));
       setConfirmDelete(null);
-      fetchProducts(currentPage, pageSize);
     } catch (error) {
       toast.error(
-        error.response?.data?.detail ||
-          error.response?.data?.error ||
+        error.response?.data?.error ||
+          error.response?.data?.detail ||
           "Failed to delete product"
       );
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -591,18 +610,11 @@ const QuickOrderProducts = () => {
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleDelete(product._id)}
-                      className={`text-sm ${
-                        confirmDelete === product._id
-                          ? "text-red-600"
-                          : "text-gray-500"
-                      }`}
+                      onClick={() => handleDeleteClick(product)}
+                      className="text-sm text-gray-500 hover:text-red-600"
+                      title="Delete product"
                     >
-                      {confirmDelete === product._id ? (
-                        <FaExclamationTriangle />
-                      ) : (
-                        <FaTrash />
-                      )}
+                      <FaTrash />
                     </button>
                   </div>
                 </div>
@@ -655,7 +667,9 @@ const QuickOrderProducts = () => {
               <div className="flex items-center gap-4">
                 <span className="text-sm text-gray-600 dark:text-gray-400">
                   Showing {(currentPage - 1) * pageSize + 1} to{" "}
-                  {Math.min(currentPage * pageSize, total)} of {total} products
+                  {Math.min(currentPage * pageSize, total)} of{" "}
+                  <span title={String(total)}>{formatCompactCount(total)}</span>{" "}
+                  products
                 </span>
                 <select
                   value={pageSize}
@@ -677,7 +691,10 @@ const QuickOrderProducts = () => {
                   <FaChevronLeft />
                 </button>
                 <span className="text-sm px-3">
-                  Page {currentPage} of {totalPages || 1}
+                  Page {currentPage} of{" "}
+                  <span title={String(totalPages || 1)}>
+                    {formatCompactCount(totalPages || 1)}
+                  </span>
                 </span>
                 <button
                   type="button"
@@ -691,6 +708,22 @@ const QuickOrderProducts = () => {
             </div>
           )}
         </>
+      )}
+
+      {confirmDelete && (
+        <ConfirmModal
+          isOpen={Boolean(confirmDelete)}
+          onClose={() => {
+            if (!deleting) setConfirmDelete(null);
+          }}
+          onConfirm={confirmDeleteProduct}
+          title="Delete Wholesale Product"
+          message={`Are you sure you want to delete "${confirmDelete.title}"? This cannot be undone. If there are open orders (pending/approved/processing) on this product, delete will be blocked — reject or complete those requests first, or deactivate the product instead.`}
+          confirmText={deleting ? "Deleting…" : "Delete"}
+          cancelText="Cancel"
+          type="danger"
+          disabled={deleting}
+        />
       )}
     </div>
   );

@@ -4,6 +4,7 @@ import { toast } from "../../utils/toast";
 import { resolveMediaUrl } from "../../utils/resolveMediaUrl";
 import { galleryApiUrl } from "../../utils/galleryApi";
 import { FaTrash, FaUpload, FaSpinner, FaImage, FaPlus, FaTimes, FaChevronLeft, FaChevronRight } from "react-icons/fa";
+import { formatCompactCount } from "../../utils/formatCompactCount";
 
 const GalleryManagement = () => {
   const [images, setImages] = useState([]);
@@ -339,7 +340,8 @@ const GalleryManagement = () => {
             Gallery Images
           </h3>
           <span className="text-sm text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full">
-            {totalCount} {totalCount === 1 ? 'image' : 'images'} total
+            <span title={String(totalCount)}>{formatCompactCount(totalCount)}</span>{" "}
+            {totalCount === 1 ? 'image' : 'images'} total
           </span>
         </div>
 
@@ -427,7 +429,10 @@ const GalleryManagement = () => {
               })}
             </div>
             <span className="text-sm text-gray-600 dark:text-gray-400 px-2">
-              Page {currentPage} of {totalPages}
+              Page {currentPage} of{" "}
+              <span title={String(totalPages)}>
+                {formatCompactCount(totalPages)}
+              </span>
             </span>
             <button
               onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
