@@ -5,6 +5,7 @@ import API, { Api } from "../api";
 import toast from "react-hot-toast";
 import { InvoiceItemTrackingLabel, InvoiceItemCbm } from "../components/InvoiceItemDisplay";
 import { getInvoiceGhsBreakdown, getInvoiceTotalCbm } from "../utils/invoiceGhsBreakdown";
+import { buildPaymentReference, invoicePackageCount } from "../utils/paymentReference";
 
 const PublicInvoice = () => {
   const [searchParams] = useSearchParams();
@@ -107,6 +108,8 @@ const PublicInvoice = () => {
 
   const ghs = getInvoiceGhsBreakdown(invoice);
   const totalCbm = getInvoiceTotalCbm(invoice.items);
+  const paymentReference = buildPaymentReference(invoice, markId);
+  const packageCount = invoicePackageCount(invoice);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4">
@@ -379,6 +382,19 @@ const PublicInvoice = () => {
             <h3 className="text-sm font-semibold text-yellow-800 dark:text-yellow-200 mb-2">
               Payment Information
             </h3>
+            <div className="mb-3 rounded-lg bg-white/80 dark:bg-gray-900/40 border border-yellow-300/60 dark:border-yellow-700/50 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-yellow-700 dark:text-yellow-300">
+                Payment reference
+              </p>
+              <p className="mt-1 font-mono text-xl font-bold text-yellow-950 dark:text-yellow-50 break-all">
+                {paymentReference}
+              </p>
+              <p className="mt-1 text-xs text-yellow-800 dark:text-yellow-200">
+                Use this reference when you pay (mark ID + total packages
+                {packageCount ? `: ${packageCount}` : ""}). Example format:{" "}
+                <span className="font-mono font-semibold">MARK-12</span>
+              </p>
+            </div>
             <p className="text-sm text-yellow-800 dark:text-yellow-200">
               <strong>Bank:</strong> Calbank
             </p>

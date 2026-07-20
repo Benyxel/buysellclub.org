@@ -4,6 +4,7 @@ import { FaFileInvoiceDollar, FaSpinner, FaExternalLinkAlt, FaBox } from "react-
 import { Api } from "../../api";
 import { toast } from "../../utils/toast";
 import { apiErrorMessage } from "../../utils/apiErrorMessage";
+import { buildPaymentReference } from "../../utils/paymentReference";
 
 const STATUS_STYLES = {
   paid: "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200",
@@ -151,6 +152,7 @@ export default function ProfileShippingFees({ shippingMarkId }) {
               <tr>
                 <th className="px-4 py-3 text-left font-semibold">Container</th>
                 <th className="px-4 py-3 text-left font-semibold">Invoice</th>
+                <th className="px-4 py-3 text-left font-semibold">Pay reference</th>
                 <th className="px-4 py-3 text-left font-semibold">Status</th>
                 <th className="px-4 py-3 text-left font-semibold">Due date</th>
                 <th className="px-4 py-3 text-right font-semibold">Amount (USD)</th>
@@ -179,6 +181,9 @@ export default function ProfileShippingFees({ shippingMarkId }) {
                     </td>
                     <td className="px-4 py-3 font-mono font-semibold">
                       {inv.invoice_number}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs font-semibold text-gray-700 dark:text-gray-200">
+                      {buildPaymentReference(inv, markForLink(inv))}
                     </td>
                     <td className="px-4 py-3">
                       <span
@@ -262,6 +267,12 @@ export default function ProfileShippingFees({ shippingMarkId }) {
                     </div>
                     <div className="font-mono font-semibold text-gray-900 dark:text-white">
                       {inv.invoice_number}
+                    </div>
+                    <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                      Pay reference
+                    </div>
+                    <div className="font-mono text-sm font-semibold text-gray-900 dark:text-white">
+                      {buildPaymentReference(inv, markForLink(inv))}
                     </div>
                   </div>
                   <div className="shrink-0 text-right">

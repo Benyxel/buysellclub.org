@@ -203,11 +203,32 @@ const CommunityManagement = () => {
   const handleSave = async () => {
     try {
       setSaving(true);
+      const sheetUrl = String(googleSheetUrl || "").trim();
+      const lower = sheetUrl.toLowerCase();
+      if (sheetUrl) {
+        if (
+          lower.includes("docs.google.com/document") ||
+          lower.includes("/document/d/")
+        ) {
+          toast.error(
+            "That looks like a Google Doc. Paste a Google Sheets link (spreadsheets/d/...), not a document."
+          );
+          setSaving(false);
+          return;
+        }
+        if (!lower.includes("spreadsheets") && !lower.includes("/pub")) {
+          toast.error(
+            "Use a Google Sheets URL like https://docs.google.com/spreadsheets/d/.../edit"
+          );
+          setSaving(false);
+          return;
+        }
+      }
       await Api.community.settings.update({
         membership_amount: membershipAmount,
         sale_price: salePrice,
         telegram_link: telegramLink,
-        google_sheet_url: googleSheetUrl,
+        google_sheet_url: sheetUrl,
         sheet_only_price: sheetOnlyPrice,
         sheet_only_label: sheetOnlyLabel,
       });
@@ -215,7 +236,15 @@ const CommunityManagement = () => {
       toast.success("Community settings updated.");
     } catch (error) {
       console.error("Failed to update community settings:", error);
-      toast.error("Failed to update community settings");
+      const apiMsg =
+        error?.response?.data?.google_sheet_url?.[0] ||
+        error?.response?.data?.error ||
+        error?.response?.data?.detail;
+      toast.error(
+        apiMsg
+          ? String(apiMsg)
+          : "Failed to update community settings"
+      );
     } finally {
       setSaving(false);
     }
@@ -440,15 +469,21 @@ const CommunityManagement = () => {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Google Sheet URL
+              Google Sheet URL (spreadsheet — not a Doc)
             </label>
             <input
               type="url"
               value={googleSheetUrl}
               onChange={(e) => setGoogleSheetUrl(e.target.value)}
-              placeholder="https://docs.google.com/spreadsheets/..."
+              placeholder="https://docs.google.com/spreadsheets/d/.../edit"
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-800 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
             />
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Must be a <strong>Google Sheets</strong> spreadsheet link
+              (<code className="text-[11px]">docs.google.com/spreadsheets/...</code>),
+              not a Google Docs document. If the list stays empty: File → Share →
+              Publish to web → CSV (or set Anyone with the link → Viewer), then save again.
+            </p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
