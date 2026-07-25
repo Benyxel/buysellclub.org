@@ -4,6 +4,20 @@ import { toast } from "../../utils/toast";
 import API, { Api } from "../../api";
 import { formatCompactCount } from "../../utils/formatCompactCount";
 
+/** Quick Tracking description should show tracking numbers only (not CBM/KG/product). */
+function trackingOnlyDescription(raw) {
+  return String(raw || "")
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter(
+      (line) =>
+        !/^(CBM|KG|WEIGHT|PRODUCT|DESCRIPTION|REASON)\s*:/i.test(line)
+    )
+    .join("\n");
+}
+
 const QuickTrackingNotesManagement = () => {
   const [notes, setNotes] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -165,7 +179,7 @@ const QuickTrackingNotesManagement = () => {
       heading: form.heading.trim(),
       mark_id: form.markId.trim(),
       full_name: form.fullName.trim(),
-      description: form.description.trim(),
+      description: trackingOnlyDescription(form.description),
       container_number: form.containerNumber.trim(),
     };
 
@@ -202,7 +216,7 @@ const QuickTrackingNotesManagement = () => {
       heading: note.heading || "",
       markId: note.mark_id || "",
       fullName: note.full_name || "",
-      description: note.description || "",
+      description: trackingOnlyDescription(note.description),
       containerNumber: note.container_number || "",
     });
   };
@@ -243,8 +257,9 @@ const QuickTrackingNotesManagement = () => {
           {editingId ? "Edit Quick Tracking Note" : "Add Quick Tracking Note"}
         </h3>
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-          Use the heading as the user Mark ID or full name, then add the bulk
-          tracking details in the description.
+          Use the heading as the user Mark ID or full name, then add tracking
+          numbers only in the description. Package CBM, weight, and product stay
+          on Excel export.
         </p>
 
         <form onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-2">
@@ -307,7 +322,7 @@ const QuickTrackingNotesManagement = () => {
           </div>
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Description (Tracking numbers and notes) *
+              Description (Tracking numbers) *
             </label>
             <textarea
               value={form.description}
@@ -409,9 +424,9 @@ const QuickTrackingNotesManagement = () => {
                     </td>
                     <td
                       className="px-3 py-2 text-gray-700 dark:text-gray-300 max-w-[320px] truncate"
-                      title={note.description || ""}
+                      title={trackingOnlyDescription(note.description) || ""}
                     >
-                      {note.description || "-"}
+                      {trackingOnlyDescription(note.description) || "-"}
                     </td>
                     <td className="px-3 py-2 text-gray-600 dark:text-gray-400">
                       {new Date(note.updated_at || note.created_at).toLocaleString()}

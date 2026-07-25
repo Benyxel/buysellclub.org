@@ -142,9 +142,13 @@ const QuickTracking = () => {
 
         {visibleResults.map((note) => {
           const trackingItems = (note.description || "")
-            .split(/[\s,;]+/)
+            .split(/\r?\n|[,;]+/)
             .map((item) => item.trim())
-            .filter(Boolean);
+            .filter(Boolean)
+            .filter(
+              (item) =>
+                !/^(CBM|KG|WEIGHT|PRODUCT|DESCRIPTION|REASON)\s*:/i.test(item)
+            );
           return (
           <div
             key={note.id}
