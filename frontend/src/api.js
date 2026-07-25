@@ -428,6 +428,102 @@ const Api = {
       http.get("/buysellapi/containers/current/", { params, ...heavyRequestConfig }),
     list: (params) =>
       http.get("/buysellapi/containers/public/", { params, ...heavyRequestConfig }),
+    receivingList: async () => {
+      const res = await http.get("/buysellapi/containers/public/", {
+        params: { all: true },
+        noCache: true,
+        cacheDuration: 0,
+        timeout: 120000,
+      });
+      const rows = Array.isArray(res.data)
+        ? res.data
+        : Array.isArray(res.data?.results)
+          ? res.data.results
+          : [];
+      const allowed = new Set(["preparing", "receiving_goods", "loading"]);
+      const rank = { loading: 0, receiving_goods: 1, preparing: 2 };
+      return rows
+        .filter((row) =>
+          allowed.has(String(row?.status || "").trim().toLowerCase())
+        )
+        .sort((a, b) => {
+          const sa = String(a?.status || "").toLowerCase();
+          const sb = String(b?.status || "").toLowerCase();
+          const d = (rank[sa] ?? 9) - (rank[sb] ?? 9);
+          if (d !== 0) return d;
+          return String(b?.container_number || "").localeCompare(
+            String(a?.container_number || "")
+          );
+        });
+    },
+    exportList: async () => {
+      const res = await http.get("/buysellapi/containers/public/", {
+        params: { all: true },
+        noCache: true,
+        cacheDuration: 0,
+        timeout: 120000,
+      });
+      const rows = Array.isArray(res.data)
+        ? res.data
+        : Array.isArray(res.data?.results)
+          ? res.data.results
+          : [];
+      return rows.filter(
+        (row) =>
+          String(row?.status || "").trim().toLowerCase() !== "completed"
+      );
+    },
+  },
+  scanner: {
+    markLookup: (markId) =>
+      http.get(
+        `/buysellapi/scanner/mark-lookup/${encodeURIComponent(markId)}/`
+      ),
+    trackingLookup: (trackingNumber) =>
+      http.get(
+        `/buysellapi/scanner/tracking-lookup/${encodeURIComponent(
+          String(trackingNumber || "").trim()
+        )}/`
+      ),
+    submit: (payload) => http.post("/buysellapi/scanner/submit/", payload),
+    ghanaPickups: (params = {}) =>
+      http.get("/buysellapi/scanner/ghana/pickups/", {
+        params,
+        noCache: true,
+        cacheDuration: 0,
+      }),
+    ghanaPickupsByMark: (params = {}) =>
+      http.get("/buysellapi/scanner/ghana/pickups/by-mark/", {
+        params,
+        noCache: true,
+        cacheDuration: 0,
+      }),
+    async downloadContainerExport(containerNumber) {
+      const number = String(containerNumber || "").trim();
+      const res = await api.get(
+        normalizePath(
+          `/buysellapi/scanner/containers/${encodeURIComponent(number)}/export/`
+        ),
+        { responseType: "blob", timeout: 120000 }
+      );
+      const blob = res.data;
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `container_${number.replace(/[^\w.-]+/g, "_")}_by_mark.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    },
+    uploadChinaExcel: ({ containerNumber, file }) => {
+      const formData = new FormData();
+      formData.append("container_number", String(containerNumber || "").trim());
+      formData.append("file", file);
+      return http.post("/buysellapi/scanner/china/excel-upload/", formData, {
+        timeout: 120000,
+      });
+    },
   },
   invoices: {
     meList: () =>
@@ -462,6 +558,70 @@ const Api = {
       const a = document.createElement("a");
       a.href = url;
       a.download = `shipping-invoice-${invoiceId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    },
+    /** Customer: upload shipping invoice payment proof file */
+    uploadPaymentProof: (file) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      return http.post(
+        "/buysellapi/shipping-invoice-payment-proofs/upload/",
+        formData
+      );
+    },
+    /** Customer: submit payment proof for a shipping invoice */
+    submitPaymentProof: (invoiceId, payload) =>
+      http.post(
+        `/buysellapi/me/shipping-invoices/${invoiceId}/submit-payment-proof/`,
+        payload || {}
+      ),
+    /** Customer: list own payment proof submissions */
+    myPaymentProofs: () =>
+      http.get("/buysellapi/me/shipping-invoice-payment-proofs/", {
+        noCache: true,
+        cacheDuration: 0,
+      }),
+    /** Admin: list shipping invoice payment proof requests */
+    adminPaymentProofs: (params) =>
+      http.get("/buysellapi/admin/shipping-invoice-payment-proofs/", {
+        params,
+        noCache: true,
+        cacheDuration: 0,
+        ...heavyRequestConfig,
+      }),
+    /** Admin: approve proof → mark invoice paid */
+    approvePaymentProof: (proofId, payload) =>
+      http.post(
+        `/buysellapi/admin/shipping-invoice-payment-proofs/${proofId}/approve/`,
+        payload || {}
+      ),
+    /** Admin: reject proof */
+    rejectPaymentProof: (proofId, payload) =>
+      http.post(
+        `/buysellapi/admin/shipping-invoice-payment-proofs/${proofId}/reject/`,
+        payload || {}
+      ),
+  },
+  chinaExcel: {
+    adminUploads: (params) =>
+      http.get("/buysellapi/admin/china-container-excel-uploads/", {
+        params,
+        noCache: true,
+        cacheDuration: 0,
+        ...heavyRequestConfig,
+      }),
+    /** Download Excel so the OS can open it with Excel / Sheets. */
+    async openUpload(uploadId, filename = "container.xlsx") {
+      const path = `/buysellapi/admin/china-container-excel-uploads/${uploadId}/open/`;
+      const res = await api.get(normalizePath(path), { responseType: "blob" });
+      const blob = res.data;
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename || `china-excel-${uploadId}.xlsx`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

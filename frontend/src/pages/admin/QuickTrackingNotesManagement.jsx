@@ -62,7 +62,7 @@ const QuickTrackingNotesManagement = () => {
         : Array.isArray(data)
         ? data
         : [];
-      const allowed = new Set(["preparing", "receiving_goods"]);
+      const allowed = new Set(["preparing", "receiving_goods", "loading"]);
       setContainers(
         items.filter((container) =>
           allowed.has(String(container?.status || "").trim().toLowerCase())

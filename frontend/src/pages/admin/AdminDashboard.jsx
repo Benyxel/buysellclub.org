@@ -65,6 +65,8 @@ import AirAdShippingServicesManagement from "./AirAdShippingServicesManagement";
 import ContainerManagement from "../../components/ContainerManagement";
 import ContainerExpensesManagement from "./ContainerExpensesManagement";
 import InvoicesManagement from "./InvoicesManagement";
+import ShippingPaymentProofsManagement from "./ShippingPaymentProofsManagement";
+import ChinaExcelUploadsManagement from "./ChinaExcelUploadsManagement";
 import Buy4meAdmin from "./Buy4meAdmin";
 import QuickOrderProducts from "./QuickOrderProducts";
 import WholesaleRequestsAdmin from "./WholesaleRequestsAdmin";
@@ -1513,6 +1515,36 @@ const AdminDashboard = () => {
                   </div>
                 </button>
 
+                {/* 3b. Shipping payment proofs */}
+                <button
+                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
+                    shippingSubMenu === "payment-proofs"
+                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                  onClick={() => setShippingSubMenu("payment-proofs")}
+                >
+                  <div className="flex items-center gap-2">
+                    <FaFileInvoice className="w-4 h-4" />
+                    <span>Payment Proofs</span>
+                  </div>
+                </button>
+
+                {/* 3c. China Excel uploads */}
+                <button
+                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
+                    shippingSubMenu === "china-excel"
+                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                  onClick={() => setShippingSubMenu("china-excel")}
+                >
+                  <div className="flex items-center gap-2">
+                    <FaFileInvoice className="w-4 h-4" />
+                    <span>China Excel</span>
+                  </div>
+                </button>
+
                 {/* 4. Shipping Rates */}
                 <button
                   className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
@@ -1686,6 +1718,10 @@ const AdminDashboard = () => {
               <ContainerExpensesManagement />
             ) : shippingSubMenu === "invoices" ? (
               <InvoicesManagement />
+            ) : shippingSubMenu === "payment-proofs" ? (
+              <ShippingPaymentProofsManagement />
+            ) : shippingSubMenu === "china-excel" ? (
+              <ChinaExcelUploadsManagement />
             ) : shippingSubMenu === "rates" ? (
               <ShippingRatesManagement />
             ) : shippingSubMenu === "ad-rates" ? (

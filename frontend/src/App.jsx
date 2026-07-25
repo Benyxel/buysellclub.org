@@ -42,6 +42,7 @@ import DigitalStore from "./pages/DigitalStore";
 import Favorites from "./pages/Favorites";
 import MyProfile from "./components/MyProfile";
 import Login from "./pages/Login";
+import AppGoogleAuth from "./pages/AppGoogleAuth";
 import Signup from "./pages/Signup";
 import TermsAndConditions from "./pages/TermsAndConditions";
 import Navbar from "./components/Navbar";
@@ -58,6 +59,7 @@ import AdminLogin from "./pages/AdminLogin";
 import TrackingPage from "./pages/TrackingPage";
 import PublicInvoice from "./pages/PublicInvoice";
 import StaffClockPage from "./pages/StaffClockPage";
+import WarehouseApp from "./pages/warehouse/WarehouseApp";
 import ProtectedRoute from "./auth/ProtectedRoute.jsx";
 import AdminRoute from "./auth/AdminRoute.jsx";
 import AgentRoute from "./auth/AgentRoute.jsx";
@@ -106,16 +108,24 @@ function App() {
   const isAuthRoute =
     currentPath === "/Login" ||
     currentPath === "/Signup" ||
-    currentPath === "/admin-login";
+    currentPath === "/admin-login" ||
+    currentPath === "/app-google-auth" ||
+    currentPath === "/AppGoogleAuth";
 
   // Payment callback should work even during maintenance
   const isPaymentCallback =
     currentPath.startsWith("/payment/callback") ||
     currentPath === "/payment/callback";
+  const isWarehouseRoute =
+    currentPath === "/warehouse" || currentPath.startsWith("/warehouse/");
 
   // Routes that should bypass maintenance mode
   const shouldBypassMaintenance =
-    isAdminRoute || isAgentRoute || isAuthRoute || isPaymentCallback;
+    isAdminRoute ||
+    isAgentRoute ||
+    isAuthRoute ||
+    isPaymentCallback ||
+    isWarehouseRoute;
 
   // Debug logging
   if (shouldBypassMaintenance) {
@@ -163,12 +173,17 @@ function App() {
           <Routes>
             {/* Auth pages without Navbar and Footer */}
             <Route path="/Login" element={<Login />} />
+            <Route path="/app-google-auth" element={<AppGoogleAuth />} />
+            <Route path="/AppGoogleAuth" element={<AppGoogleAuth />} />
             <Route path="/Signup" element={<Signup />} />
             <Route
               path="/terms-and-conditions"
               element={<TermsAndConditions />}
             />
             <Route path="/admin-login" element={<AdminLogin />} />
+
+            {/* Warehouse scanner (public floor tablet / PC) — no Navbar/Footer */}
+            <Route path="/warehouse" element={<WarehouseApp />} />
 
             {/* Admin routes without Navbar and Footer */}
             <Route
