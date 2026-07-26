@@ -17,6 +17,23 @@ export function getMediaBaseUrl() {
   return DEFAULT_MEDIA_ORIGIN;
 }
 
+/** Keep local/LAN absolute URLs (dev Django /media/) — don't rewrite to Railway. */
+function isLocalDevMediaUrl(url) {
+  try {
+    const host = new URL(url).hostname;
+    return (
+      host === "localhost" ||
+      host === "127.0.0.1" ||
+      host === "10.0.2.2" ||
+      /^192\.168\.\d{1,3}\.\d{1,3}$/.test(host) ||
+      /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host) ||
+      /^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(host)
+    );
+  } catch {
+    return false;
+  }
+}
+
 /** Use Django public-media route when direct /media/ is blocked. */
 function toPublicMediaUrl(url) {
   if (url.includes(PUBLIC_MEDIA_ROUTE + "/")) return url;
@@ -38,6 +55,9 @@ export function resolveMediaUrl(rawUrl) {
   const mediaBase = getMediaBaseUrl();
 
   if (url.startsWith("http://") || url.startsWith("https://")) {
+    if (isLocalDevMediaUrl(url)) {
+      return url;
+    }
     const asura = url.match(ASURA_ORIGIN_RE);
     if (asura) {
       const path = asura[1] || "/";
@@ -47,6 +67,13 @@ export function resolveMediaUrl(rawUrl) {
   }
 
   if (url.startsWith("/media/")) {
+    // Local admin / Vite: prefer same-origin Django media when developing.
+    if (
+      typeof window !== "undefined" &&
+      /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname)
+    ) {
+      return `${window.location.protocol}//${window.location.hostname}:8000${url}`;
+    }
     return `${mediaBase}${PUBLIC_MEDIA_ROUTE}/${url.slice("/media/".length)}`;
   }
 

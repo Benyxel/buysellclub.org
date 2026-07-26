@@ -1,6 +1,7 @@
 import React, { Suspense, lazy, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import HeroSection from "../components/HeroSection";
+import HomeAnnouncements from "../components/HomeAnnouncements";
 import Banner from "../components/Banner";
 import bimg1 from "../assets/bimg1.png";
 import { Api } from "../api";
@@ -144,6 +145,7 @@ const Home = () => {
   return (
     <div>
       <HeroSection />
+      <HomeAnnouncements />
       <Suspense fallback={<BelowFoldFallback />}>
         <Event />
         <Category />

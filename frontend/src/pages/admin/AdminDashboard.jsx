@@ -34,6 +34,7 @@ import {
   FaGraduationCap,
   FaExchangeAlt,
   FaYoutube,
+  FaBullhorn,
   FaDollarSign,
   FaUserTag,
   FaCalendarAlt,
@@ -76,6 +77,7 @@ import AlipayBuyingRateManagement from "./AlipayBuyingRateManagement";
 import TrainingManagement from "./TrainingManagement";
 import PaidCourseManagement from "./PaidCourseManagement";
 import YouTubeManagement from "./YouTubeManagement";
+import HomeAnnouncementManagement from "./HomeAnnouncementManagement";
 import OrderManagement from "./OrderManagement";
 import CategoriesTypesManagement from "./CategoriesTypesManagement";
 import Analytics from "./Analytics";
@@ -338,6 +340,11 @@ const AdminDashboard = () => {
       { icon: <FaGraduationCap />, label: "Training", section: "training" },
       { icon: <FaStore />, label: "Shop", section: "shop" },
       { icon: <FaYoutube />, label: "YouTube", section: "youtube" },
+      {
+        icon: <FaBullhorn />,
+        label: "Home Announcements",
+        section: "home-announcements",
+      },
       { icon: <FaVideo />, label: "Gallery", section: "gallery" },
       {
         icon: <FaClipboardList />,
@@ -1365,6 +1372,12 @@ const AdminDashboard = () => {
               YouTube Management
             </h2>
             <YouTubeManagement />
+          </div>
+        );
+      case "home-announcements":
+        return (
+          <div className="p-6">
+            <HomeAnnouncementManagement />
           </div>
         );
       case "delivery":
