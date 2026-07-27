@@ -181,7 +181,7 @@ const ContainerExpensesManagement = () => {
           Container Expenses
         </h2>
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          All amounts in cedis (₵). Gain = collected shipping fees (including part payments) − expenses.
+          All amounts in cedis (₵). Gain = invoiced shipping fee − expenses.
         </p>
       </div>
 

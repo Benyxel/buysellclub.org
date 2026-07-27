@@ -462,7 +462,7 @@ const Analytics = ({ activeTab = "overview" }) => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
                   <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
                     <p className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
-                      Container total shipping fee
+                      Container total shipping fee (invoiced)
                     </p>
                     <p className="text-xl font-bold text-blue-600 dark:text-blue-400">
                       ₵{Number(trends.overview.container_total_shipping_fee ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -774,7 +774,7 @@ const Analytics = ({ activeTab = "overview" }) => {
           {analytics.container_profit && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
-                <p className="text-sm text-gray-600 dark:text-gray-400">Container total shipping fee</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Container total shipping fee (invoiced)</p>
                 <p className="text-xl font-bold text-gray-800 dark:text-white">
                   ₵{Number(analytics.container_profit.total_shipping_fee ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
@@ -850,7 +850,7 @@ const Analytics = ({ activeTab = "overview" }) => {
               return (
                 <div className="mt-6">
                   <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-3">
-                    By Container (invoice remaining, expenses & profit)
+                    By Container (invoiced fee − expenses = profit)
                   </h4>
                   <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
