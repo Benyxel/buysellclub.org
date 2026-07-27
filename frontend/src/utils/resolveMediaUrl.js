@@ -5,6 +5,7 @@ const PUBLIC_MEDIA_ROUTE = "/buysellapi/public-media";
 
 /** Any absolute URL still pointing at the old Asura host. */
 const ASURA_ORIGIN_RE = /^https?:\/\/(?:www\.)?apibuysellclub\.org(\/.*)?$/i;
+const RAILWAY_MEDIA_RE = /^https?:\/\/[^/]+\.railway\.app(\/media\/.*)$/i;
 
 export function getMediaBaseUrl() {
   const raw =
@@ -62,6 +63,17 @@ export function resolveMediaUrl(rawUrl) {
     if (asura) {
       const path = asura[1] || "/";
       return toPublicMediaUrl(`${mediaBase}${path}`);
+    }
+    // Prefer HTTPS media origin (API may still return http://…/media/…).
+    const railway = url.match(RAILWAY_MEDIA_RE);
+    if (railway) {
+      return toPublicMediaUrl(`${mediaBase}${railway[1]}`);
+    }
+    if (url.includes("/media/")) {
+      const marker = "/media/";
+      const idx = url.indexOf(marker);
+      const suffix = url.slice(idx + marker.length);
+      return `${mediaBase}${PUBLIC_MEDIA_ROUTE}/${suffix}`;
     }
     return toPublicMediaUrl(url);
   }
