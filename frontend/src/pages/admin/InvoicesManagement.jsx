@@ -884,12 +884,9 @@ export default function InvoicesManagement() {
             type="text"
             value={search}
             onChange={(e) => setSearch(withFimPrefixIfMarkLike(e.target.value))}
-            placeholder="Invoice #, Mark digits, or Container #"
+            placeholder="Invoice #, Mark ID, Container #"
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
           />
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            For Mark ID, type numbers only (885 → FIM885)
-          </p>
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -2222,12 +2219,9 @@ export default function InvoicesManagement() {
                       }
                     }}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    placeholder="Type digits only — FIM is added"
+                    placeholder="Enter shipping mark ID"
                     required
                   />
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Type numbers only (e.g. 885 → FIM885)
-                  </p>
                   {loadingMarkInfo && (
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                       Loading customer info...

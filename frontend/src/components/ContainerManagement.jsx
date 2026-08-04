@@ -826,12 +826,9 @@ const ContainerManagement = () => {
                     onFocus={() => {
                       if (!invoiceMarkId) setInvoiceMarkId("FIM");
                     }}
-                    placeholder="Type digits only — FIM is added"
+                    placeholder="e.g., FIM123"
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Type numbers only (e.g. 885 → FIM885)
-                  </p>
                 </div>
                 <div className="min-w-[180px]">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
