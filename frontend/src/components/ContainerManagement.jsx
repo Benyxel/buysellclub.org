@@ -13,7 +13,7 @@ import {
 } from "react-icons/fa";
 import ConfirmModal from "./shared/ConfirmModal";
 import { formatCompactCount } from "../utils/formatCompactCount";
-import { formatShippingMarkForDisplay } from "../utils/markIdFormat";
+import { formatShippingMarkForDisplay, withFimPrefix } from "../utils/markIdFormat";
 import { InvoiceItemTrackingLabel, InvoiceItemCbm } from "./InvoiceItemDisplay";
 import { InvoicePreviewExecutiveDiscountRows } from "./InvoicePreviewExecutiveDiscount";
 
@@ -643,7 +643,7 @@ const ContainerManagement = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Display CBM (manual)
+                    Display CBM (next shipping)
                   </label>
                   <input
                     type="number"
@@ -655,6 +655,11 @@ const ContainerManagement = () => {
                     placeholder="e.g., 12.500"
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Auto-filled from China scanner received packages for this
+                    container (same total as the warehouse Excel export). You can
+                    still override it manually.
+                  </p>
                 </div>
 
                 <div>
@@ -816,11 +821,17 @@ const ContainerManagement = () => {
                     type="text"
                     value={invoiceMarkId}
                     onChange={(e) =>
-                      setInvoiceMarkId(e.target.value.toUpperCase())
+                      setInvoiceMarkId(withFimPrefix(e.target.value))
                     }
-                    placeholder="e.g., FIM123"
+                    onFocus={() => {
+                      if (!invoiceMarkId) setInvoiceMarkId("FIM");
+                    }}
+                    placeholder="Type digits only — FIM is added"
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Type numbers only (e.g. 885 → FIM885)
+                  </p>
                 </div>
                 <div className="min-w-[180px]">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">

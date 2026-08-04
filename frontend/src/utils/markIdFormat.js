@@ -12,6 +12,46 @@ export function shippingMarkToMarkId(shippingMark) {
  */
 export const UNKNOWN_PACKAGE_MARK_IDS = new Set(["FIM752"]);
 
+export const MARK_ID_PREFIX = "FIM";
+
+/**
+ * Keep `FIM` in the field and let the user type digits only.
+ * Used on dedicated Mark ID inputs (container invoice, create invoice, scanner).
+ */
+export function withFimPrefix(raw) {
+  const upper = String(raw || "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+  if (!upper) return MARK_ID_PREFIX;
+  if (upper.startsWith(MARK_ID_PREFIX)) {
+    return (
+      MARK_ID_PREFIX + upper.slice(MARK_ID_PREFIX.length).replace(/\D/g, "")
+    );
+  }
+  const fimAt = upper.indexOf(MARK_ID_PREFIX);
+  if (fimAt >= 0) {
+    return (
+      MARK_ID_PREFIX +
+      upper.slice(fimAt + MARK_ID_PREFIX.length).replace(/\D/g, "")
+    );
+  }
+  return MARK_ID_PREFIX + upper.replace(/\D/g, "");
+}
+
+/**
+ * For multi-purpose search bars (invoice # / mark / container):
+ * digits-only or FIM… → auto FIM mark; leave other queries alone.
+ */
+export function withFimPrefixIfMarkLike(raw) {
+  const trimmed = String(raw || "").trim();
+  if (!trimmed) return "";
+  if (/#/i.test(trimmed) || /FIMC/i.test(trimmed)) return trimmed.toUpperCase();
+  if (/^\d+$/.test(trimmed)) return withFimPrefix(trimmed);
+  const alnum = trimmed.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (alnum.startsWith(MARK_ID_PREFIX)) return withFimPrefix(trimmed);
+  return trimmed;
+}
+
 /** Accept both `FIM000` and `FIM-000` forms for API calls / comparisons. */
 export function normalizeMarkIdInput(markId) {
   const raw = String(markId || "").trim().toUpperCase();

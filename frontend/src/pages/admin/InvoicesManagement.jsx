@@ -5,6 +5,10 @@ import { FaTrash, FaTimes, FaExternalLinkAlt, FaPlus, FaEdit, FaSpinner, FaDownl
 import { InvoiceItemTrackingLabel, InvoiceItemCbm } from "../../components/InvoiceItemDisplay";
 import { getInvoiceGhsBreakdown, getInvoiceTotalCbm } from "../../utils/invoiceGhsBreakdown";
 import { formatCompactCount } from "../../utils/formatCompactCount";
+import {
+  withFimPrefix,
+  withFimPrefixIfMarkLike,
+} from "../../utils/markIdFormat";
 
 const statusOptions = [
   { value: "", label: "All" },
@@ -62,7 +66,8 @@ export default function InvoicesManagement() {
   const [savingVehicleDuty, setSavingVehicleDuty] = useState(false);
   const [dutyInputGhs, setDutyInputGhs] = useState("");
   const [paymentForm, setPaymentForm] = useState({
-    amount_usd: "",
+    amount: "",
+    currency: "GHS",
     payment_method: "",
     payment_reference: "",
     notes: "",
@@ -336,22 +341,36 @@ export default function InvoicesManagement() {
   const handleRecordPayment = async (e) => {
     e?.preventDefault();
     if (!invoiceDetails?.id) return;
-    const amount = parseFloat(paymentForm.amount_usd);
+    const amount = parseFloat(paymentForm.amount);
     if (!amount || amount <= 0) {
-      toast.error("Enter a valid payment amount (USD)");
+      toast.error("Enter a valid payment amount");
+      return;
+    }
+    const currency = (paymentForm.currency || "GHS").toUpperCase();
+    const rate = Number(invoiceDetails.exchange_rate || 0);
+    if (currency === "GHS" && !(rate > 0)) {
+      toast.error("This invoice has no exchange rate. Enter the amount in USD instead.");
       return;
     }
     setRecordingPayment(true);
     try {
-      const resp = await Api.invoices.recordPayment(invoiceDetails.id, {
-        amount_usd: amount,
+      const payload = {
         payment_method: paymentForm.payment_method || undefined,
         payment_reference: paymentForm.payment_reference || undefined,
         notes: paymentForm.notes || undefined,
-      });
+      };
+      if (currency === "GHS") {
+        payload.amount_ghs = amount;
+        payload.amount_usd = amount / rate;
+      } else {
+        payload.amount_usd = amount;
+        if (rate > 0) payload.amount_ghs = amount * rate;
+      }
+      const resp = await Api.invoices.recordPayment(invoiceDetails.id, payload);
       setInvoiceDetails(resp.data?.invoice || resp.data);
       setPaymentForm({
-        amount_usd: "",
+        amount: "",
+        currency: paymentForm.currency || "GHS",
         payment_method: "",
         payment_reference: "",
         notes: "",
@@ -864,10 +883,13 @@ export default function InvoicesManagement() {
           <input
             type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Invoice #, Mark ID, Container #"
+            onChange={(e) => setSearch(withFimPrefixIfMarkLike(e.target.value))}
+            placeholder="Invoice #, Mark digits, or Container #"
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
           />
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            For Mark ID, type numbers only (885 → FIM885)
+          </p>
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -1334,20 +1356,60 @@ export default function InvoicesManagement() {
                   <form onSubmit={handleRecordPayment} className="flex flex-wrap items-end gap-3 mb-4">
                     <div>
                       <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
-                        Payment amount (USD)
+                        Currency
+                      </label>
+                      <select
+                        value={paymentForm.currency || "GHS"}
+                        onChange={(e) =>
+                          setPaymentForm((f) => ({ ...f, currency: e.target.value }))
+                        }
+                        className="w-28 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      >
+                        <option value="GHS">GHS (₵)</option>
+                        <option value="USD">USD ($)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
+                        Payment amount ({paymentForm.currency === "USD" ? "USD" : "GHS"})
                       </label>
                       <input
                         type="number"
                         step="0.01"
                         min="0.01"
-                        max={Number(invoiceDetails.amount_due_usd || invoiceDetails.total_amount || 0)}
-                        value={paymentForm.amount_usd}
-                        onChange={(e) =>
-                          setPaymentForm((f) => ({ ...f, amount_usd: e.target.value }))
+                        max={
+                          paymentForm.currency === "USD"
+                            ? Number(
+                                invoiceDetails.amount_due_usd ||
+                                  invoiceDetails.total_amount ||
+                                  0
+                              )
+                            : Number(invoiceDetails.amount_due_ghs || 0)
                         }
-                        className="w-36 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        value={paymentForm.amount}
+                        onChange={(e) =>
+                          setPaymentForm((f) => ({ ...f, amount: e.target.value }))
+                        }
+                        className="w-40 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                         placeholder="0.00"
                       />
+                      {(() => {
+                        const amt = parseFloat(paymentForm.amount);
+                        const rate = Number(invoiceDetails.exchange_rate || 0);
+                        if (!amt || amt <= 0 || !(rate > 0)) return null;
+                        if (paymentForm.currency === "USD") {
+                          return (
+                            <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+                              ≈ ₵{(amt * rate).toFixed(2)} GHS
+                            </p>
+                          );
+                        }
+                        return (
+                          <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+                            ≈ ${(amt / rate).toFixed(2)} USD
+                          </p>
+                        );
+                      })()}
                     </div>
                     <div>
                       <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">
@@ -2125,37 +2187,47 @@ export default function InvoicesManagement() {
                     type="text"
                     value={createFormData.shipping_mark}
                     onChange={(e) => {
-                      const markId = e.target.value;
-                      setCreateFormData({ ...createFormData, shipping_mark: markId });
-                      
-                      // Clear previous timeout
+                      const markId = withFimPrefix(e.target.value);
+                      const usable = /^FIM\d+$/i.test(markId.trim());
+
+                      setCreateFormData((prev) => ({
+                        ...prev,
+                        shipping_mark: markId,
+                        ...(usable
+                          ? {}
+                          : { customer_name: "", customer_email: "" }),
+                      }));
+
                       if (markInfoTimeoutRef.current) {
                         clearTimeout(markInfoTimeoutRef.current);
                       }
-                      
-                      // Auto-populate customer info when mark ID changes (debounced)
-                      if (markId.trim()) {
+
+                      if (usable) {
                         markInfoTimeoutRef.current = setTimeout(() => {
                           fetchMarkInfo(markId);
                         }, 500);
-                      } else {
+                      }
+                    }}
+                    onFocus={() => {
+                      if (!createFormData.shipping_mark) {
                         setCreateFormData((prev) => ({
                           ...prev,
-                          customer_name: "",
-                          customer_email: "",
+                          shipping_mark: "FIM",
                         }));
                       }
                     }}
                     onBlur={(e) => {
-                      // Also fetch on blur if not already loading
                       if (e.target.value.trim() && !loadingMarkInfo) {
                         fetchMarkInfo(e.target.value);
                       }
                     }}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    placeholder="Enter shipping mark ID"
+                    placeholder="Type digits only — FIM is added"
                     required
                   />
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Type numbers only (e.g. 885 → FIM885)
+                  </p>
                   {loadingMarkInfo && (
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                       Loading customer info...
