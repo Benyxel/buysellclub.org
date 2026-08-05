@@ -2,7 +2,10 @@ import React, { useEffect, useRef, useState } from "react";
 import { FaTimesCircle } from "react-icons/fa";
 import API from "../../api";
 import { toast } from "../../utils/toast";
-import { normalizeMarkIdInput } from "../../utils/markIdFormat";
+import {
+  normalizeMarkIdInput,
+  preferExactMarkMatches,
+} from "../../utils/markIdFormat";
 
 const statusOptions = [
   { value: "pending", label: "Pending" },
@@ -105,7 +108,7 @@ export default function RepackTrackingModal({
           : Array.isArray(resp.data)
           ? resp.data
           : [];
-        setMarkOptions(items);
+        setMarkOptions(preferExactMarkMatches(items, upper));
         await fetchNextRepackNumber(upper);
       } catch {
         setMarkOptions([]);

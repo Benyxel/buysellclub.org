@@ -61,6 +61,25 @@ export function normalizeMarkIdInput(markId) {
   return raw;
 }
 
+/**
+ * Drop "similar" suggestions when the query is a complete mark id:
+ * searching FIM885 should not also list FIM8850 / FIM88512.
+ */
+export function preferExactMarkMatches(
+  items,
+  query,
+  getMark = (item) => item?.mark_id ?? item?.markId
+) {
+  const list = Array.isArray(items) ? items : [];
+  const target = normalizeMarkIdInput(shippingMarkToMarkId(query));
+  if (!target || !/^[A-Z]{2,6}\d{1,10}$/.test(target)) return list;
+  const exact = list.filter(
+    (item) =>
+      normalizeMarkIdInput(shippingMarkToMarkId(getMark(item))) === target
+  );
+  return exact.length ? exact : list;
+}
+
 /** True when this mark is the unknown-package placeholder (e.g. FIM752 / FIM-752). */
 export function isUnknownPackageMark(markOrShippingMark) {
   const bare = shippingMarkToMarkId(markOrShippingMark);

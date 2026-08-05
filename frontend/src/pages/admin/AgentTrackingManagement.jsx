@@ -26,6 +26,7 @@ import {
   formatMarkIdForDisplay,
   formatShippingMarkForDisplay,
   normalizeMarkIdInput,
+  preferExactMarkMatches,
 } from "../../utils/markIdFormat";
 import { formatCompactCount } from "../../utils/formatCompactCount";
 
@@ -1362,7 +1363,7 @@ const AgentTrackingManagement = () => {
                               : Array.isArray(resp.data)
                               ? resp.data
                               : [];
-                            setMarkOptions(items);
+                            setMarkOptions(preferExactMarkMatches(items, val));
                           } catch {
                             setMarkOptions([]);
                           } finally {
