@@ -29,6 +29,14 @@ const orderOptions = [
   { value: "total_amount", label: "Amount (asc)" },
 ];
 
+function isCanceledRequest(err) {
+  return (
+    err?.code === "ERR_CANCELED" ||
+    err?.name === "CanceledError" ||
+    err?.name === "AbortError"
+  );
+}
+
 /** Default issue date = today; due date comes from container invoice due date (or N/A). */
 function invoiceDefaultDates() {
   const issue = new Date();
@@ -126,7 +134,17 @@ export default function InvoicesManagement() {
     [total, pageSize]
   );
 
+  // A broad query like FIM1 is slower than the FIM122 typed after it, so
+  // without this guard the earlier response lands last and replaces the
+  // results for what the user actually typed.
+  const fetchSeqRef = useRef(0);
+  const fetchAbortRef = useRef(null);
+
   const fetchInvoices = async () => {
+    const seq = ++fetchSeqRef.current;
+    fetchAbortRef.current?.abort();
+    const controller = new AbortController();
+    fetchAbortRef.current = controller;
     setLoading(true);
     try {
       const resp = await API.get("/buysellapi/invoices/", {
@@ -137,7 +155,9 @@ export default function InvoicesManagement() {
           status: status || undefined,
           ordering,
         },
+        signal: controller.signal,
       });
+      if (seq !== fetchSeqRef.current) return;
       const data = resp.data;
       const list = Array.isArray(data?.results)
         ? data.results
@@ -148,10 +168,11 @@ export default function InvoicesManagement() {
       if (data?.count != null) setTotal(data.count);
       else setTotal(list.length);
     } catch (err) {
+      if (isCanceledRequest(err) || seq !== fetchSeqRef.current) return;
       console.error("Failed to load invoices", err);
       toast.error(err.response?.data?.detail || "Failed to load invoices");
     } finally {
-      setLoading(false);
+      if (seq === fetchSeqRef.current) setLoading(false);
     }
   };
 
