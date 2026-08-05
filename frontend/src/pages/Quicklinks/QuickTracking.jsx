@@ -4,6 +4,7 @@ import { normalizeQuickTrackingQuery } from "../../utils/quickTrackingNotes";
 import {
   isUnknownPackageMark,
   normalizeMarkIdInput,
+  shippingMarkToMarkId,
 } from "../../utils/markIdFormat";
 import { Api } from "../../api";
 
@@ -12,6 +13,14 @@ const STATUS_MESSAGE =
 
 const UNKNOWN_PACKAGE_MESSAGE =
   "This package was received at the China warehouse, but there was no shipping mark on the package. It is held as an Unknown package. It will not appear on your shipping bill until the container is offloaded.";
+
+function bareMarkId(value) {
+  return normalizeMarkIdInput(shippingMarkToMarkId(value));
+}
+
+function isFullMarkId(value) {
+  return /^[A-Z]{2,6}\d{1,10}$/.test(bareMarkId(value));
+}
 
 function looksLikeTrackingNumber(value) {
   const q = String(value || "").trim().toUpperCase();
@@ -97,11 +106,16 @@ const QuickTracking = () => {
         return;
       }
 
-      const matches = Array.isArray(raw)
+      const allMatches = Array.isArray(raw)
         ? raw
         : Array.isArray(raw?.results)
           ? raw.results
           : [];
+      // A searched mark shows only that mark — never lookalikes like FIM8850.
+      const matches =
+        !trackingMode && isFullMarkId(markQuery)
+          ? allMatches.filter((note) => bareMarkId(note?.mark_id) === markQuery)
+          : allMatches;
       const sorted = [...matches].sort(
         (a, b) =>
           new Date(b.updated_at || b.created_at) -
