@@ -656,8 +656,12 @@ export default function InvoicesManagement() {
       return;
     }
     const markId = createFormData.shipping_mark.trim();
+    // Mode A (all trackings for mark+container) ONLY when no specific lines
+    // were chosen. If the admin added line items, invoice only those.
     const useAutoGenerate =
-      Boolean(createFormData.container_id) && Boolean(markId);
+      Boolean(createFormData.container_id) &&
+      Boolean(markId) &&
+      !hasLineItems;
     if (
       !useAutoGenerate &&
       !hasLineItems &&
@@ -2352,12 +2356,15 @@ export default function InvoicesManagement() {
                   </button>
                 </div>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Optional. Add manual lines or pick trackings when a container is selected.
-                  Totals update from line items when at least one line is added.
+                  Add line items to invoice only those trackings (or manual lines).
+                  If you leave this empty and select a mark + container, the invoice
+                  will include every tracking for that mark in the container.
                 </p>
                 {createLineItems.length === 0 ? (
                   <p className="text-sm text-gray-500 dark:text-gray-400 italic">
-                    No line items — enter total amount below instead.
+                    No line items — {createFormData.container_id
+                      ? "all trackings for this mark in the container will be invoiced."
+                      : "enter total amount below instead."}
                   </p>
                 ) : (
                   <div className="space-y-4 max-h-64 overflow-y-auto pr-1">
