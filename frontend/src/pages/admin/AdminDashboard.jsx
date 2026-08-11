@@ -277,6 +277,7 @@ const AdminDashboard = () => {
     delivery: 0,
     vendorApplications: 0,
     vendorPayoutRequests: 0,
+    shippingPaymentProofs: 0,
   });
   const [dashboardData, setDashboardData] = useState(null);
   const [dashboardLoading, setDashboardLoading] = useState(false);
@@ -470,6 +471,7 @@ const AdminDashboard = () => {
           delivery: response.data.delivery_requests || 0,
           vendorApplications: response.data.vendor_applications || 0,
           vendorPayoutRequests: response.data.vendor_payout_requests || 0,
+          shippingPaymentProofs: response.data.shipping_payment_proofs || 0,
         };
         setUnreadCounts(counts);
         
@@ -1540,6 +1542,13 @@ const AdminDashboard = () => {
                   <div className="flex items-center gap-2">
                     <FaFileInvoice className="w-4 h-4" />
                     <span>Payment Proofs</span>
+                    {unreadCounts.shippingPaymentProofs > 0 && (
+                      <span className="ml-1 px-2 py-0.5 text-xs font-bold bg-red-500 text-white rounded-full">
+                        {unreadCounts.shippingPaymentProofs > 99
+                          ? "99+"
+                          : unreadCounts.shippingPaymentProofs}
+                      </span>
+                    )}
                   </div>
                 </button>
 
@@ -1732,7 +1741,12 @@ const AdminDashboard = () => {
             ) : shippingSubMenu === "invoices" ? (
               <InvoicesManagement />
             ) : shippingSubMenu === "payment-proofs" ? (
-              <ShippingPaymentProofsManagement />
+              <ShippingPaymentProofsManagement
+                onPendingChange={() => {
+                  clearCache("admin-unread-counts");
+                  fetchUnreadCounts();
+                }}
+              />
             ) : shippingSubMenu === "china-excel" ? (
               <ChinaExcelUploadsManagement />
             ) : shippingSubMenu === "rates" ? (
@@ -2258,6 +2272,9 @@ const AdminDashboard = () => {
     if (section === "training") return unreadCounts.training;
     if (section === "community") return unreadCounts.community;
     if (section === "delivery") return unreadCounts.delivery;
+    if (section === "shipping") {
+      return unreadCounts.shippingPaymentProofs || 0;
+    }
     if (section === "shop") {
       return (unreadCounts.vendorApplications || 0) + (unreadCounts.vendorPayoutRequests || 0);
     }

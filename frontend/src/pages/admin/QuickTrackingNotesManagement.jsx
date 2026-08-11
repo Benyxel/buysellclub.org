@@ -18,6 +18,39 @@ function trackingOnlyDescription(raw) {
     .join("\n");
 }
 
+function noteActionLabel(note) {
+  const action = String(note?.scanner_action || "").trim().toLowerCase();
+  if (action === "rejected") return "Rejected";
+  if (action === "returned") return "Returned";
+  if (action === "received") return "Received";
+  const heading = String(note?.heading || "").toLowerCase();
+  if (heading.startsWith("china rejected")) return "Rejected";
+  if (heading.startsWith("china returned")) return "Returned";
+  return "Note";
+}
+
+function noteActionBadgeClass(label) {
+  if (label === "Rejected") {
+    return "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200";
+  }
+  if (label === "Returned") {
+    return "bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-100";
+  }
+  if (label === "Received") {
+    return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200";
+  }
+  return "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200";
+}
+
+const ACTION_FILTERS = [
+  { value: "all", label: "All" },
+  { value: "reject_return", label: "Rejected / Returned" },
+  { value: "rejected", label: "Rejected" },
+  { value: "returned", label: "Returned" },
+  { value: "received", label: "Received" },
+  { value: "normal", label: "Manual notes" },
+];
+
 const QuickTrackingNotesManagement = () => {
   const [notes, setNotes] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -27,6 +60,7 @@ const QuickTrackingNotesManagement = () => {
   const [containers, setContainers] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+  const [actionFilter, setActionFilter] = useState("all");
   const searchInputRef = useRef(null);
   const [form, setForm] = useState({
     heading: "",
@@ -41,7 +75,8 @@ const QuickTrackingNotesManagement = () => {
   const fetchNotes = async (
     page = currentPage,
     size = pageSize,
-    query = debouncedSearchTerm
+    query = debouncedSearchTerm,
+    action = actionFilter
   ) => {
     setIsLoading(true);
     try {
@@ -49,6 +84,7 @@ const QuickTrackingNotesManagement = () => {
         page,
         page_size: size,
         q: query?.trim() || undefined,
+        scanner_action: action && action !== "all" ? action : undefined,
       });
       const data = response.data;
       const items = Array.isArray(data?.results)
@@ -101,8 +137,8 @@ const QuickTrackingNotesManagement = () => {
   }, [searchTerm]);
 
   useEffect(() => {
-    fetchNotes(currentPage, pageSize, debouncedSearchTerm);
-  }, [currentPage, pageSize, debouncedSearchTerm]);
+    fetchNotes(currentPage, pageSize, debouncedSearchTerm, actionFilter);
+  }, [currentPage, pageSize, debouncedSearchTerm, actionFilter]);
 
   useEffect(() => {
     fetchContainers();
@@ -140,15 +176,7 @@ const QuickTrackingNotesManagement = () => {
     });
   }, [notes]);
 
-  const filteredNotes = useMemo(() => {
-    const query = debouncedSearchTerm.trim().toLowerCase();
-    if (!query) return sortedNotes;
-    return sortedNotes.filter((note) => {
-      const mark = (note.mark_id || "").toLowerCase();
-      const name = (note.full_name || "").toLowerCase();
-      return mark.includes(query) || name.includes(query);
-    });
-  }, [sortedNotes, debouncedSearchTerm]);
+  const filteredNotes = sortedNotes;
 
   const containerOptions = useMemo(() => {
     const numbers = containers
@@ -192,7 +220,7 @@ const QuickTrackingNotesManagement = () => {
         await Api.quickTracking.create(payload);
         toast.success("Quick tracking note added.");
       }
-      await fetchNotes(currentPage, pageSize);
+      await fetchNotes(currentPage, pageSize, debouncedSearchTerm, actionFilter);
     } catch (error) {
       console.error("Failed to save quick tracking note:", error);
       const message =
@@ -236,7 +264,7 @@ const QuickTrackingNotesManagement = () => {
     try {
       await Api.quickTracking.remove(noteId);
       toast.success("Quick tracking note deleted.");
-      await fetchNotes(currentPage, pageSize);
+      await fetchNotes(currentPage, pageSize, debouncedSearchTerm, actionFilter);
     } catch (error) {
       console.error("Failed to delete quick tracking note:", error);
       toast.error("Failed to delete quick tracking note.");
@@ -354,9 +382,14 @@ const QuickTrackingNotesManagement = () => {
 
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Existing Quick Tracking Notes
-          </h3>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Existing Quick Tracking Notes
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              Scanner rejected and returned packages are kept here permanently.
+            </p>
+          </div>
           <input
             type="text"
             ref={searchInputRef}
@@ -365,9 +398,31 @@ const QuickTrackingNotesManagement = () => {
               setSearchTerm(event.target.value);
               setCurrentPage(1);
             }}
-            placeholder="Search by Mark ID or Full Name"
-            className="w-full sm:w-72 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Search mark, name, tracking, or reason"
+            className="w-full sm:w-80 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
+        </div>
+        <div className="flex flex-wrap gap-2 mb-4">
+          {ACTION_FILTERS.map((filter) => {
+            const active = actionFilter === filter.value;
+            return (
+              <button
+                key={filter.value}
+                type="button"
+                onClick={() => {
+                  setActionFilter(filter.value);
+                  setCurrentPage(1);
+                }}
+                className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+                  active
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600"
+                }`}
+              >
+                {filter.label}
+              </button>
+            );
+          })}
         </div>
         {isLoading ? (
           <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -375,8 +430,8 @@ const QuickTrackingNotesManagement = () => {
           </p>
         ) : filteredNotes.length === 0 ? (
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            {debouncedSearchTerm.trim()
-              ? "No quick tracking notes match your search."
+            {debouncedSearchTerm.trim() || actionFilter !== "all"
+              ? "No quick tracking notes match your filters."
               : "No quick tracking notes yet."}
           </p>
         ) : (
@@ -384,6 +439,9 @@ const QuickTrackingNotesManagement = () => {
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
               <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
+                  <th className="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-200">
+                    Action
+                  </th>
                   <th className="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-200">
                     Heading
                   </th>
@@ -394,22 +452,36 @@ const QuickTrackingNotesManagement = () => {
                     Full Name
                   </th>
                   <th className="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-200">
-                    Container
+                    Tracking
                   </th>
                   <th className="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-200">
-                    Description
+                    Reason
+                  </th>
+                  <th className="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-200">
+                    Container
                   </th>
                   <th className="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-200">
                     Last Updated
                   </th>
                   <th className="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-200">
-                    Actions
+                    Manage
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {filteredNotes.map((note) => (
+                {filteredNotes.map((note) => {
+                  const actionLabel = noteActionLabel(note);
+                  return (
                   <tr key={note.id} className="bg-white dark:bg-gray-800">
+                    <td className="px-3 py-2">
+                      <span
+                        className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${noteActionBadgeClass(
+                          actionLabel
+                        )}`}
+                      >
+                        {actionLabel}
+                      </span>
+                    </td>
                     <td className="px-3 py-2 text-gray-900 dark:text-gray-100">
                       {note.heading || "-"}
                     </td>
@@ -419,14 +491,20 @@ const QuickTrackingNotesManagement = () => {
                     <td className="px-3 py-2 text-gray-700 dark:text-gray-300">
                       {note.full_name || "-"}
                     </td>
-                    <td className="px-3 py-2 text-gray-700 dark:text-gray-300">
-                      {note.container_number || "-"}
-                    </td>
                     <td
-                      className="px-3 py-2 text-gray-700 dark:text-gray-300 max-w-[320px] truncate"
+                      className="px-3 py-2 text-gray-700 dark:text-gray-300 max-w-[220px] truncate"
                       title={trackingOnlyDescription(note.description) || ""}
                     >
                       {trackingOnlyDescription(note.description) || "-"}
+                    </td>
+                    <td
+                      className="px-3 py-2 text-gray-700 dark:text-gray-300 max-w-[240px] truncate"
+                      title={note.reason || ""}
+                    >
+                      {note.reason || "-"}
+                    </td>
+                    <td className="px-3 py-2 text-gray-700 dark:text-gray-300">
+                      {note.container_number || "-"}
                     </td>
                     <td className="px-3 py-2 text-gray-600 dark:text-gray-400">
                       {new Date(note.updated_at || note.created_at).toLocaleString()}
@@ -452,7 +530,8 @@ const QuickTrackingNotesManagement = () => {
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
             <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-gray-600 dark:text-gray-400">

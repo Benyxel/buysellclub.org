@@ -48,7 +48,7 @@ function statusLabel(status) {
   return s || "—";
 }
 
-export default function ShippingPaymentProofsManagement() {
+export default function ShippingPaymentProofsManagement({ onPendingChange }) {
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState([]);
   const [pendingCount, setPendingCount] = useState(0);
@@ -56,6 +56,10 @@ export default function ShippingPaymentProofsManagement() {
   const [q, setQ] = useState("");
   const [actionId, setActionId] = useState(null);
   const [preview, setPreview] = useState(null);
+
+  const notifyPendingChange = useCallback(() => {
+    if (typeof onPendingChange === "function") onPendingChange();
+  }, [onPendingChange]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -100,6 +104,7 @@ export default function ShippingPaymentProofsManagement() {
       await Api.invoices.approvePaymentProof(row.id, {});
       toast.success(`Invoice ${row.invoice_number} marked as paid`);
       await load();
+      notifyPendingChange();
     } catch (e) {
       toast.error(apiErrorMessage(e?.response?.data, "Failed to approve proof"));
     } finally {
@@ -118,6 +123,7 @@ export default function ShippingPaymentProofsManagement() {
       await Api.invoices.rejectPaymentProof(row.id, { admin_notes: note || "" });
       toast.success("Payment proof rejected");
       await load();
+      notifyPendingChange();
     } catch (e) {
       toast.error(apiErrorMessage(e?.response?.data, "Failed to reject proof"));
     } finally {

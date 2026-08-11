@@ -456,6 +456,46 @@ const Api = {
           );
         });
     },
+    excelUploadList: async () => {
+      const res = await http.get("/buysellapi/containers/public/", {
+        params: { all: true },
+        noCache: true,
+        cacheDuration: 0,
+        timeout: 120000,
+      });
+      const rows = Array.isArray(res.data)
+        ? res.data
+        : Array.isArray(res.data?.results)
+          ? res.data.results
+          : [];
+      const allowed = new Set([
+        "preparing",
+        "receiving_goods",
+        "loading",
+        "laden",
+        "in_transit",
+      ]);
+      const rank = {
+        loading: 0,
+        receiving_goods: 1,
+        preparing: 2,
+        laden: 3,
+        in_transit: 4,
+      };
+      return rows
+        .filter((row) =>
+          allowed.has(String(row?.status || "").trim().toLowerCase())
+        )
+        .sort((a, b) => {
+          const sa = String(a?.status || "").toLowerCase();
+          const sb = String(b?.status || "").toLowerCase();
+          const d = (rank[sa] ?? 9) - (rank[sb] ?? 9);
+          if (d !== 0) return d;
+          return String(b?.container_number || "").localeCompare(
+            String(a?.container_number || "")
+          );
+        });
+    },
     exportList: async () => {
       const res = await http.get("/buysellapi/containers/public/", {
         params: { all: true },
@@ -498,6 +538,15 @@ const Api = {
         noCache: true,
         cacheDuration: 0,
       }),
+    ghanaInvoicePickupLookup: (markId) =>
+      http.get(
+        `/buysellapi/scanner/ghana/invoice-pickup/${encodeURIComponent(
+          String(markId || "").trim()
+        )}/`,
+        { noCache: true, cacheDuration: 0 }
+      ),
+    ghanaInvoicePickupSubmit: (payload) =>
+      http.post("/buysellapi/scanner/ghana/invoice-pickup/", payload),
     async downloadContainerExport(containerNumber) {
       const number = String(containerNumber || "").trim();
       const res = await api.get(

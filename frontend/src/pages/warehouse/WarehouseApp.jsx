@@ -42,6 +42,24 @@ const emptyDraft = () => ({
   reason: "",
 });
 
+const REJECT_RETURN_REASONS = [
+  "No Shipping Mark",
+  "Broken",
+  "Dangerous Goods",
+  "Prohibited / Restricted Goods",
+  "Battery / Liquid / Powder Restricted",
+  "Counterfeit / Brand Goods",
+  "Insufficient Packaging",
+  "Wet / Water Damaged",
+  "Overweight / Oversized for This Shipment",
+  "Missing Invoice / Documents",
+  "Wrong or Incomplete Mark / Address",
+  "Customer Cancellation Request",
+  "Uncompressed Mattress",
+  "Swing Chair",
+  "Mannequin",
+];
+
 function withFimPrefix(raw) {
   const upper = String(raw || "")
     .toUpperCase()
@@ -63,6 +81,8 @@ function isUsableMarkId(mark) {
   return /^FIM\d+$/i.test(String(mark || "").trim());
 }
 
+const MIN_PACKAGE_CBM = 0.001;
+
 function calcCbm(h, w, l) {
   const height = Number(String(h || "").replace(",", "."));
   const width = Number(String(w || "").replace(",", "."));
@@ -72,7 +92,33 @@ function calcCbm(h, w, l) {
   ) {
     return "";
   }
-  return ((height * width * length) / 1000000).toFixed(3);
+  const raw = (height * width * length) / 1000000;
+  if (!Number.isFinite(raw) || raw <= 0) return "";
+  // Tiny packages round to 0.000 with 3 decimals and block submit — floor them.
+  return Math.max(raw, MIN_PACKAGE_CBM).toFixed(3);
+}
+
+function parseDimensionTriplet(raw) {
+  const text = String(raw || "").trim();
+  if (!text) return null;
+  const parts = text
+    .split(/[*xX×✕✖/\-\s]+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (parts.length !== 3) return null;
+  const nums = parts.map((part) => Number(String(part).replace(",", ".")));
+  if (!nums.every((n) => Number.isFinite(n) && n > 0)) return null;
+  return {
+    heightCm: String(nums[0]),
+    widthCm: String(nums[1]),
+    lengthCm: String(nums[2]),
+  };
+}
+
+function sanitizeDimsInput(raw) {
+  return String(raw || "")
+    .replace(/[^0-9.,*xX×✕✖/\-\s]/g, "")
+    .slice(0, 40);
 }
 
 function actionLabel(warehouse, action) {
@@ -224,10 +270,14 @@ export default function WarehouseApp() {
   );
   const [pickupLog, setPickupLog] = useState(null);
   const [pickupByMark, setPickupByMark] = useState(null);
+  const [invoicePickup, setInvoicePickup] = useState(null);
+  const [invoicePickupSelected, setInvoicePickupSelected] = useState(() => new Set());
+  const [invoicePickupContainer, setInvoicePickupContainer] = useState("");
 
   const [exportContainers, setExportContainers] = useState([]);
   const [exportContainer, setExportContainer] = useState("");
   const [uploadFile, setUploadFile] = useState(null);
+  const [dimsInput, setDimsInput] = useState("");
 
   const cbm = useMemo(
     () => calcCbm(draft.heightCm, draft.widthCm, draft.lengthCm),
@@ -238,11 +288,27 @@ export default function WarehouseApp() {
     setDraft((prev) => ({ ...prev, ...partial }));
   }, []);
 
+  const applyDimsInput = useCallback(
+    (raw) => {
+      const next = sanitizeDimsInput(raw);
+      setDimsInput(next);
+      const parsed = parseDimensionTriplet(next);
+      if (parsed) {
+        patch(parsed);
+      } else {
+        patch({ heightCm: "", widthCm: "", lengthCm: "" });
+      }
+      setError("");
+    },
+    [patch]
+  );
+
   const goHome = () => {
     setView("home");
     setWarehouse(null);
     setAction(null);
     setDraft(emptyDraft());
+    setDimsInput("");
     setLastResult(null);
     setError("");
     setInfo("");
@@ -358,7 +424,7 @@ export default function WarehouseApp() {
     cbm,
   ]);
 
-  const submitScan = useCallback(async () => {
+  const submitScan = useCallback(async (reasonOverride) => {
     if (busy) return;
     setBusy(true);
     setError("");
@@ -366,6 +432,10 @@ export default function WarehouseApp() {
       const cbmNum = Number(cbm);
       const kgRaw = String(draft.weightKg || "").trim().replace(",", ".");
       const kgNum = kgRaw ? Number(kgRaw) : NaN;
+      const noteReason =
+        reasonOverride != null
+          ? String(reasonOverride).trim()
+          : String(draft.reason || "").trim();
       if (warehouse === "china" && action === "received") {
         if (!Number.isFinite(cbmNum) || cbmNum <= 0) {
           setError("Enter valid package dimensions (cm)");
@@ -383,6 +453,15 @@ export default function WarehouseApp() {
           return;
         }
       }
+      if (
+        warehouse === "china" &&
+        (action === "rejected" || action === "returned") &&
+        !noteReason
+      ) {
+        setError("Select a reason");
+        setBusy(false);
+        return;
+      }
       const payload = {
         warehouse,
         action,
@@ -394,7 +473,7 @@ export default function WarehouseApp() {
         cbm: Number.isFinite(cbmNum) && cbmNum > 0 ? cbmNum : undefined,
         kg: Number.isFinite(kgNum) && kgNum > 0 ? kgNum : undefined,
         product_name: String(draft.productName || "").trim() || undefined,
-        note: String(draft.reason || "").trim() || undefined,
+        note: noteReason || undefined,
       };
       const res = await Api.scanner.submit(payload);
       const data = res.data || {};
@@ -433,25 +512,13 @@ export default function WarehouseApp() {
     }
   }, [busy, cbm, draft, warehouse, action]);
 
-  // China assign: auto-submit when required fields are filled (debounce for optional weight/product).
-  useEffect(() => {
-    if (!assignFormComplete) return undefined;
-    const timer = setTimeout(() => {
-      submitScan();
-    }, 1200);
-    return () => clearTimeout(timer);
-  }, [
-    assignFormComplete,
-    submitScan,
-    draft.productName,
-    draft.weightKg,
-    draft.reason,
-    draft.markId,
-    draft.containerNumber,
-    draft.heightCm,
-    draft.widthCm,
-    draft.lengthCm,
-  ]);
+  // Received: only submit when product name is finished (Enter / blur).
+  // Reject/return submits from the reason button click.
+  const finishReceivedIfReady = useCallback(() => {
+    if (view !== "assign" || action !== "received") return;
+    if (!assignFormComplete) return;
+    submitScan();
+  }, [view, action, assignFormComplete, submitScan]);
 
   // Ghana submit: lookup tracking for confirmation
   useEffect(() => {
@@ -494,12 +561,12 @@ export default function WarehouseApp() {
       keepAssign
         ? {
             ...emptyDraft(),
-            markId: prev.markId || MARK_PREFIX,
-            fullName: prev.fullName || "",
+            // Keep container only; mark ID is per package and must start blank.
             containerNumber: prev.containerNumber || "",
           }
         : emptyDraft()
     );
+    setDimsInput("");
     setLastResult(null);
     setError("");
     setInfo("");
@@ -549,7 +616,15 @@ export default function WarehouseApp() {
     setUploadFile(null);
     setError("");
     setInfo("");
-    await loadReceivingContainers();
+    setContainersLoading(true);
+    try {
+      const list = await Api.containers.excelUploadList();
+      setContainers(list);
+    } catch {
+      setContainers([]);
+    } finally {
+      setContainersLoading(false);
+    }
   };
 
   const doUpload = async () => {
@@ -580,6 +655,163 @@ export default function WarehouseApp() {
   const openPickupLog = async () => {
     setView("pickup-log");
     setError("");
+  };
+
+  const openPickupByMark = () => {
+    setView("pickup-by-mark");
+    setError("");
+    setInfo("");
+    setInvoicePickup(null);
+    setInvoicePickupSelected(new Set());
+    setInvoicePickupContainer("");
+    patch({ markId: MARK_PREFIX });
+  };
+
+  const invoicePickupContainerKey = (row) => {
+    const n = String(row?.container_number || "").trim();
+    return n || "__none__";
+  };
+
+  const invoicePickupContainerOptions = useMemo(() => {
+    const seen = new Set();
+    const options = [];
+    for (const row of invoicePickup?.trackings || []) {
+      const key = invoicePickupContainerKey(row);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      options.push({
+        value: key,
+        label: key === "__none__" ? "No container" : key,
+      });
+    }
+    options.sort((a, b) => {
+      if (a.value === "__none__") return 1;
+      if (b.value === "__none__") return -1;
+      return a.label.localeCompare(b.label);
+    });
+    return options;
+  }, [invoicePickup]);
+
+  const invoicePickupVisibleTrackings = useMemo(() => {
+    const rows = invoicePickup?.trackings || [];
+    if (!invoicePickupContainer) return [];
+    return rows.filter(
+      (row) => invoicePickupContainerKey(row) === invoicePickupContainer
+    );
+  }, [invoicePickup, invoicePickupContainer]);
+
+  const applyInvoicePickupContainer = (key, trackings) => {
+    setInvoicePickupContainer(key);
+    if (!key) {
+      setInvoicePickupSelected(new Set());
+      return;
+    }
+    const pending = (trackings || []).filter(
+      (row) =>
+        invoicePickupContainerKey(row) === key &&
+        !row.picked_up &&
+        row.status !== "missing"
+    );
+    setInvoicePickupSelected(
+      new Set(pending.map((row) => row.tracking_number))
+    );
+  };
+
+  const loadInvoicePickup = async () => {
+    const mark = withFimPrefix(draft.markId);
+    if (!isUsableMarkId(mark)) {
+      setError("Enter a valid Mark ID (e.g. FIM000)");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    setInfo("");
+    try {
+      const { data } = await Api.scanner.ghanaInvoicePickupLookup(mark);
+      setInvoicePickup(data);
+      const rows = data?.trackings || [];
+      if (!rows.length) {
+        setInvoicePickupContainer("");
+        setInvoicePickupSelected(new Set());
+        const unpaid = Number(data?.unpaid_invoice_count || 0);
+        setError(
+          unpaid > 0
+            ? `${unpaid} invoice(s) for this Mark ID are not fully paid. Payment is required before pickup.`
+            : "No paid shipping invoice packages found for this Mark ID."
+        );
+        return;
+      }
+      const seen = new Set();
+      const options = [];
+      for (const row of rows) {
+        const key = invoicePickupContainerKey(row);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        options.push(key);
+      }
+      applyInvoicePickupContainer(options[0] || "", rows);
+    } catch (e) {
+      setInvoicePickup(null);
+      setInvoicePickupSelected(new Set());
+      setInvoicePickupContainer("");
+      setError(
+        apiErrorMessage(e?.response?.data, "Could not load invoice packages")
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const toggleInvoicePickupTn = (tn) => {
+    setInvoicePickupSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(tn)) next.delete(tn);
+      else next.add(tn);
+      return next;
+    });
+  };
+
+  const confirmInvoicePickup = async () => {
+    if (!invoicePickup?.mark_id || invoicePickupSelected.size === 0) return;
+    if (!invoicePickupContainer) {
+      setError("Select a container for these packages.");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    setInfo("");
+    try {
+      const { data } = await Api.scanner.ghanaInvoicePickupSubmit({
+        mark_id: invoicePickup.mark_id,
+        tracking_numbers: Array.from(invoicePickupSelected),
+      });
+      setInfo(
+        data?.message ||
+          `Picked up ${data?.picked_count || 0} package(s) for ${
+            invoicePickup.mark_id
+          }`
+      );
+      if (Number(data?.error_count || 0) > 0) {
+        setError("Some packages failed — check and retry.");
+      }
+      const prevContainer = invoicePickupContainer;
+      const refreshed = await Api.scanner.ghanaInvoicePickupLookup(
+        invoicePickup.mark_id
+      );
+      setInvoicePickup(refreshed.data);
+      const rows = refreshed.data?.trackings || [];
+      const keys = [
+        ...new Set(rows.map((row) => invoicePickupContainerKey(row))),
+      ];
+      const nextKey = keys.includes(prevContainer)
+        ? prevContainer
+        : keys[0] || "";
+      applyInvoicePickupContainer(nextKey, rows);
+    } catch (e) {
+      setError(apiErrorMessage(e?.response?.data, "Pickup failed"));
+    } finally {
+      setBusy(false);
+    }
   };
 
   useEffect(() => {
@@ -706,6 +938,12 @@ export default function WarehouseApp() {
               onClick={() => startAction("picked_up")}
             />
             <ActionCard
+              title="Pickup by Mark ID"
+              hint="Enter Mark ID → load invoice packages → mark as pickup"
+              tone="teal"
+              onClick={openPickupByMark}
+            />
+            <ActionCard
               title="Pickup log"
               hint="Daily pickup activity by Mark ID"
               tone="teal"
@@ -817,7 +1055,7 @@ export default function WarehouseApp() {
 
               <Field
                 label="Mark ID"
-                hint="Type digits only — FIM is added automatically"
+                hint="Type digits only — FIM is added automatically. No shipping mark on the package? Use FIM752."
               >
                 <input
                   className={inputClass}
@@ -831,6 +1069,10 @@ export default function WarehouseApp() {
                     setError("");
                   }}
                 />
+                <p className="mt-1 text-sm font-semibold text-amber-300">
+                  No shipping mark? Enter <span className="font-black">752</span>{" "}
+                  → FIM752
+                </p>
                 {markLoading ? (
                   <p className="text-xs text-slate-400">Looking up name…</p>
                 ) : markName ? (
@@ -843,56 +1085,44 @@ export default function WarehouseApp() {
               </Field>
 
               {action !== "received" ? (
-                <Field label="Reason" hint="Required for reject / return">
-                  <textarea
-                    className={`${inputClass} min-h-[120px] resize-y`}
-                    value={draft.reason}
-                    placeholder="Why was this rejected or returned?"
-                    onChange={(e) => {
-                      patch({ reason: e.target.value });
-                      setError("");
-                    }}
-                  />
+                <Field
+                  label="Reason"
+                  hint="Select why this package cannot ship to Ghana"
+                >
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {REJECT_RETURN_REASONS.map((label) => {
+                      const selected = draft.reason === label;
+                      return (
+                        <button
+                          key={label}
+                          type="button"
+                          disabled={busy}
+                          onClick={() => {
+                            if (!isUsableMarkId(draft.markId)) {
+                              setError("Enter a valid Mark ID (FIM + digits)");
+                              return;
+                            }
+                            patch({ reason: label });
+                            setError("");
+                            submitScan(label);
+                          }}
+                          className={`rounded-xl border px-3 py-3 text-left text-sm font-semibold transition ${
+                            selected
+                              ? "border-amber-400/60 bg-amber-500/15 text-amber-200"
+                              : "border-white/10 bg-[#151D2E] text-slate-200 hover:border-white/20"
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </Field>
               ) : null}
             </Panel>
 
             {action === "received" ? (
               <Panel className="space-y-4">
-                <Field
-                  label="Package dimensions (cm)"
-                  hint="Height × Width × Length → CBM"
-                >
-                  <div className="grid grid-cols-3 gap-3">
-                    {["heightCm", "widthCm", "lengthCm"].map((key, i) => (
-                      <input
-                        key={key}
-                        className={inputClass}
-                        inputMode="decimal"
-                        placeholder={["H", "W", "L"][i]}
-                        value={draft[key]}
-                        disabled={busy}
-                        onChange={(e) => {
-                          patch({
-                            [key]: String(e.target.value || "").replace(
-                              /[^0-9.,]/g,
-                              ""
-                            ),
-                          });
-                          setError("");
-                        }}
-                      />
-                    ))}
-                  </div>
-                </Field>
-                <div className="rounded-xl border border-white/10 bg-[#151D2E] px-4 py-4">
-                  <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">
-                    CBM (auto)
-                  </div>
-                  <div className="mt-1 text-3xl font-black text-amber-300">
-                    {cbm || "—"}
-                  </div>
-                </div>
                 <Field label="Weight (kg)">
                   <input
                     className={inputClass}
@@ -911,7 +1141,36 @@ export default function WarehouseApp() {
                     }}
                   />
                 </Field>
-                <Field label="Product name">
+                <Field
+                  label="Package dimensions (cm)"
+                  hint="Type H*W*L or HxWxL — CBM calculates automatically"
+                >
+                  <input
+                    className={inputClass}
+                    inputMode="decimal"
+                    placeholder="e.g. 12*34*54 or 12x34x43"
+                    value={dimsInput}
+                    disabled={busy}
+                    onChange={(e) => applyDimsInput(e.target.value)}
+                  />
+                  {dimsInput.trim() && !cbm ? (
+                    <span className="mt-1 block text-xs text-rose-300">
+                      Use H*W*L format, e.g. 12*34*54
+                    </span>
+                  ) : null}
+                </Field>
+                <div className="rounded-xl border border-white/10 bg-[#151D2E] px-4 py-4">
+                  <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">
+                    CBM (auto)
+                  </div>
+                  <div className="mt-1 text-3xl font-black text-amber-300">
+                    {cbm || "—"}
+                  </div>
+                </div>
+                <Field
+                  label="Product name"
+                  hint="Press Enter when finished to save"
+                >
                   <input
                     className={inputClass}
                     value={draft.productName}
@@ -921,15 +1180,27 @@ export default function WarehouseApp() {
                       patch({ productName: e.target.value });
                       setError("");
                     }}
+                    onBlur={() => {
+                      setTimeout(() => finishReceivedIfReady(), 0);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key !== "Enter") return;
+                      e.preventDefault();
+                      e.currentTarget.blur();
+                    }}
                   />
                 </Field>
               </Panel>
             ) : null}
           </div>
 
-          {assignFormComplete || busy ? (
+          {busy || (action === "received" && assignFormComplete) || (action !== "received" && assignFormComplete) ? (
             <div className="flex items-center justify-end gap-3 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-300">
-              {busy ? "Saving…" : "All set — saving automatically…"}
+              {busy
+                ? "Saving…"
+                : action === "received"
+                  ? "All set — press Enter on product name to save"
+                  : "All set — saving…"}
             </div>
           ) : null}
         </Shell>
@@ -1115,7 +1386,7 @@ export default function WarehouseApp() {
               </div>
             ) : null}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <Field label="Container">
+              <Field label="Container (incl. laden / in transit)">
                 <select
                   className={inputClass}
                   value={draft.containerNumber}
@@ -1131,6 +1402,9 @@ export default function WarehouseApp() {
                       value={c.container_number}
                     >
                       {c.container_number}
+                      {c.status_display || c.status
+                        ? ` · ${String(c.status_display || c.status).replaceAll("_", " ")}`
+                        : ""}
                     </option>
                   ))}
                 </select>
@@ -1156,6 +1430,217 @@ export default function WarehouseApp() {
                 {busy ? "Uploading…" : "Upload to container"}
               </PrimaryButton>
             </div>
+          </Panel>
+        </Shell>
+      ) : null}
+
+      {view === "pickup-by-mark" ? (
+        <Shell
+          wide
+          eyebrow="Ghana warehouse"
+          title="Pickup by Mark ID"
+          subtitle="Load this customer’s paid shipping invoice packages, choose the container, then mark as pickup."
+          onBack={() => setView("ghana-home")}
+        >
+          {error ? (
+            <div className="mb-4 rounded-xl border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-sm font-semibold text-rose-300">
+              {error}
+            </div>
+          ) : null}
+          {info ? (
+            <div className="mb-4 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-300">
+              {info}
+            </div>
+          ) : null}
+          <Panel className="mx-auto max-w-4xl">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <Field label="Mark ID" className="flex-1">
+                <input
+                  className={inputClass}
+                  value={draft.markId}
+                  autoFocus
+                  autoComplete="off"
+                  spellCheck={false}
+                  placeholder="FIM000"
+                  onChange={(e) => {
+                    patch({ markId: withFimPrefix(e.target.value) });
+                    setError("");
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") loadInvoicePickup();
+                  }}
+                />
+              </Field>
+              <PrimaryButton
+                disabled={busy}
+                onClick={loadInvoicePickup}
+                className="min-w-[160px]"
+              >
+                {busy ? "Loading…" : "Load packages"}
+              </PrimaryButton>
+            </div>
+
+            {invoicePickup ? (
+              <div className="mt-5 space-y-4">
+                <div className="rounded-xl border border-white/10 bg-[#151D2E] px-4 py-3">
+                  <div className="text-xl font-black text-amber-300">
+                    {invoicePickup.mark_id}
+                  </div>
+                  <div className="text-sm font-semibold text-slate-300">
+                    {invoicePickup.full_name || "—"}
+                  </div>
+                  <div className="mt-1 text-xs font-bold text-teal-300">
+                    {invoicePickup.invoice_count || 0} paid invoice(s) ·{" "}
+                    {
+                      invoicePickupVisibleTrackings.filter(
+                        (row) => !row.picked_up && row.status !== "missing"
+                      ).length
+                    }{" "}
+                    pending in container
+                  </div>
+                  {Number(invoicePickup.unpaid_invoice_count || 0) > 0 ? (
+                    <div className="mt-1 text-xs font-bold text-amber-300">
+                      {invoicePickup.unpaid_invoice_count} unpaid invoice(s)
+                      hidden — payment required before pickup
+                    </div>
+                  ) : null}
+                </div>
+
+                {invoicePickupContainerOptions.length > 0 ? (
+                  <Field label="Container">
+                    <select
+                      className={inputClass}
+                      value={invoicePickupContainer}
+                      onChange={(e) => {
+                        setError("");
+                        applyInvoicePickupContainer(
+                          e.target.value,
+                          invoicePickup.trackings || []
+                        );
+                      }}
+                    >
+                      <option value="">Select container…</option>
+                      {invoicePickupContainerOptions.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                ) : null}
+
+                {invoicePickupContainer ? (
+                  <>
+                    <div className="flex items-center justify-between gap-3">
+                      <button
+                        type="button"
+                        className="text-sm font-bold text-teal-300 hover:text-teal-200"
+                        onClick={() => {
+                          const pending = invoicePickupVisibleTrackings.filter(
+                            (row) =>
+                              !row.picked_up && row.status !== "missing"
+                          );
+                          setInvoicePickupSelected(
+                            new Set(pending.map((row) => row.tracking_number))
+                          );
+                        }}
+                      >
+                        Select all pending
+                      </button>
+                      <button
+                        type="button"
+                        className="text-sm font-bold text-slate-400 hover:text-slate-200"
+                        onClick={() => setInvoicePickupSelected(new Set())}
+                      >
+                        Clear
+                      </button>
+                    </div>
+
+                    <div className="max-h-[28rem] space-y-2 overflow-y-auto pr-1">
+                      {invoicePickupVisibleTrackings.map((row) => {
+                        const disabled =
+                          row.picked_up || row.status === "missing";
+                        const checked = invoicePickupSelected.has(
+                          row.tracking_number
+                        );
+                        return (
+                          <label
+                            key={`${row.tracking_number}-${row.invoice_id || ""}`}
+                            className={`flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-3 ${
+                              checked
+                                ? "border-teal-400/50 bg-teal-500/10"
+                                : "border-white/10 bg-[#151D2E]"
+                            } ${disabled ? "cursor-not-allowed opacity-55" : ""}`}
+                          >
+                            <input
+                              type="checkbox"
+                              className="mt-1"
+                              disabled={disabled}
+                              checked={checked}
+                              onChange={() =>
+                                toggleInvoicePickupTn(row.tracking_number)
+                              }
+                            />
+                            <div className="min-w-0 flex-1">
+                              <div className="font-extrabold text-slate-50">
+                                {row.tracking_number}
+                              </div>
+                              <div className="text-xs font-semibold text-slate-400">
+                                Invoice {row.invoice_number || "—"}
+                                {row.invoice_status
+                                  ? ` · ${row.invoice_status}`
+                                  : ""}
+                                {row.container_number
+                                  ? ` · ${row.container_number}`
+                                  : ""}
+                              </div>
+                              <div
+                                className={`mt-0.5 text-xs font-bold ${
+                                  row.picked_up
+                                    ? "text-emerald-300"
+                                    : row.status === "missing"
+                                      ? "text-rose-300"
+                                      : "text-amber-300"
+                                }`}
+                              >
+                                {row.picked_up
+                                  ? "Already picked up"
+                                  : row.status === "missing"
+                                    ? "Not in system"
+                                    : row.status_display || row.status}
+                                {row.is_repack
+                                  ? ` · Repack (${row.package_count || 1})`
+                                  : ""}
+                              </div>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+
+                    <div className="flex justify-end">
+                      <PrimaryButton
+                        disabled={
+                          busy ||
+                          invoicePickupSelected.size === 0 ||
+                          !invoicePickupContainer
+                        }
+                        onClick={confirmInvoicePickup}
+                        className="min-w-[220px]"
+                      >
+                        {busy
+                          ? "Marking pickup…"
+                          : `Mark selected as pickup (${invoicePickupSelected.size})`}
+                      </PrimaryButton>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm font-semibold text-amber-300">
+                    Select a container to see packages for pickup.
+                  </p>
+                )}
+              </div>
+            ) : null}
           </Panel>
         </Shell>
       ) : null}

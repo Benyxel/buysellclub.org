@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import {
   FaSearch,
   FaTruck,
@@ -11,10 +12,15 @@ import {
   FaIdBadge,
   FaShip,
 } from "react-icons/fa";
-import API from "../api";
+import API, { Api } from "../api";
 import { TemaPortVoyageMini } from "./ContainerShipmentWidget";
 import TrackingNumberLabel from "./TrackingNumberLabel";
-import { formatMarkIdForDisplay, formatShippingMarkForDisplay, normalizeMarkIdInput } from "../utils/markIdFormat";
+import {
+  formatMarkIdForDisplay,
+  formatShippingMarkForDisplay,
+  isUnknownPackageMark,
+  normalizeMarkIdInput,
+} from "../utils/markIdFormat";
 
 const mapRepackFields = (data) => ({
   isRepack: !!data?.is_repack,
@@ -22,6 +28,35 @@ const mapRepackFields = (data) => ({
   repackMemberCount: data?.repack_member_count ?? 0,
   repackMemberNumbers: data?.repack_member_numbers || [],
 });
+
+const asQuickTrackingList = (data) => {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.results)) return data.results;
+  return [];
+};
+
+const noteContainsTracking = (note, trackingNumber) => {
+  const target = String(trackingNumber || "").trim().toUpperCase();
+  if (!target) return false;
+  const tokens = String(note?.description || "")
+    .split(/[\s,;/\r\n]+/)
+    .map((item) => item.trim().toUpperCase())
+    .filter(Boolean);
+  if (tokens.includes(target)) return true;
+  const heading = String(note?.heading || "").toUpperCase();
+  return heading.includes(target);
+};
+
+const resolveQuickTrackingAction = (note) => {
+  const action = String(note?.scanner_action || "").toLowerCase();
+  if (action === "rejected" || action === "returned" || action === "received") {
+    return action;
+  }
+  const heading = String(note?.heading || "").toLowerCase();
+  if (heading.includes("rejected")) return "rejected";
+  if (heading.includes("returned")) return "returned";
+  return "received";
+};
 
 const TrackingSearch = () => {
   const [searchMode, setSearchMode] = useState("tracking"); // "tracking" or "mark-container"
@@ -32,6 +67,7 @@ const TrackingSearch = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [trackingResult, setTrackingResult] = useState(null);
+  const [quickTrackingResult, setQuickTrackingResult] = useState(null);
   const [markContainerResult, setMarkContainerResult] = useState(null);
   const [activeRates, setActiveRates] = useState(null);
 
@@ -120,6 +156,7 @@ const TrackingSearch = () => {
     setError(null);
     setMarkContainerResult(null);
     setTrackingResult(null);
+    setQuickTrackingResult(null);
     
     try {
       const response = await API.get("/buysellapi/trackings/by-mark-container/", {
@@ -146,21 +183,33 @@ const TrackingSearch = () => {
     }
   };
 
+  const findQuickTrackingNote = async (value) => {
+    const { data } = await Api.quickTracking.search({ q: value });
+    if (data && !Array.isArray(data) && data.unknown_mark_directory) {
+      return {
+        unknownMarkDirectory: true,
+        message: data.message || "",
+      };
+    }
+    const notes = asQuickTrackingList(data);
+    return notes.find((item) => noteContainsTracking(item, value)) || null;
+  };
+
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!trackingNumber.trim()) {
       setError("Please enter a valid tracking number");
       return;
     }
+    const searchedValue = trackingNumber.trim().toUpperCase();
     setLoading(true);
     setError(null);
     setTrackingResult(null);
+    setQuickTrackingResult(null);
     setMarkContainerResult(null);
     try {
       const response = await API.get(
-        `/buysellapi/trackings/by-number/${encodeURIComponent(
-          trackingNumber.trim()
-        )}/`
+        `/buysellapi/trackings/by-number/${encodeURIComponent(searchedValue)}/`
       );
       if (response.data) {
         const backendData = response.data;
@@ -208,7 +257,39 @@ const TrackingSearch = () => {
     } catch (error) {
       console.error("Error searching for tracking:", error);
       if (error.response?.status === 404) {
-        setError("Tracking not found. It maybe a repack, please track by MARK ID & CONTAINER");
+        try {
+          const quickNote = await findQuickTrackingNote(searchedValue);
+          if (quickNote?.unknownMarkDirectory) {
+            setError(
+              quickNote.message ||
+                "Packages with no shipping mark are stored as Unknown. Search by your tracking number on Quick Tracking."
+            );
+          } else if (quickNote) {
+            const action = resolveQuickTrackingAction(quickNote);
+            setQuickTrackingResult({
+              trackingNumber: searchedValue,
+              action,
+              heading: quickNote.heading || "",
+              markId: quickNote.mark_id || "",
+              fullName: quickNote.full_name || "",
+              containerNumber: quickNote.container_number || null,
+              reason: String(quickNote.reason || "").trim(),
+              updatedAt: quickNote.updated_at || quickNote.created_at || null,
+              isUnknownPackage:
+                !!quickNote.is_unknown_package ||
+                isUnknownPackageMark(quickNote.mark_id),
+            });
+          } else {
+            setError(
+              "Tracking not found. It maybe a repack, please track by MARK ID & CONTAINER"
+            );
+          }
+        } catch (quickError) {
+          console.error("Quick tracking fallback failed:", quickError);
+          setError(
+            "Tracking not found. It maybe a repack, please track by MARK ID & CONTAINER"
+          );
+        }
       } else if (error.response?.status === 500) {
         setError("Server error. Please try again later.");
       } else {
@@ -316,6 +397,7 @@ const TrackingSearch = () => {
                 setSearchMode("tracking");
                 setError(null);
                 setTrackingResult(null);
+                setQuickTrackingResult(null);
                 setMarkContainerResult(null);
               }}
               className={`px-6 py-2 rounded-md font-medium transition-all ${
@@ -333,6 +415,7 @@ const TrackingSearch = () => {
                 setSearchMode("mark-container");
                 setError(null);
                 setTrackingResult(null);
+                setQuickTrackingResult(null);
                 setMarkContainerResult(null);
               }}
               className={`px-6 py-2 rounded-md font-medium transition-all ${
@@ -443,6 +526,172 @@ const TrackingSearch = () => {
             </div>
           )}
         </div>
+
+        {/* Quick Tracking goods (China warehouse) */}
+        {quickTrackingResult && (
+          <div
+            className={`relative rounded-xl shadow-xl p-6 animate-slide-in-up chrome-border-animation border ${
+              quickTrackingResult.action === "rejected"
+                ? "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800"
+                : quickTrackingResult.action === "returned"
+                  ? "bg-orange-50 dark:bg-orange-950/20 border-orange-200 dark:border-orange-800"
+                  : quickTrackingResult.isUnknownPackage
+                    ? "bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800"
+                    : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+            }`}
+          >
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-4 border-b border-gray-200/70 dark:border-gray-700 pb-4">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2 mb-2">
+                  <span
+                    className={`inline-flex px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wide text-white ${
+                      quickTrackingResult.action === "rejected"
+                        ? "bg-red-500"
+                        : quickTrackingResult.action === "returned"
+                          ? "bg-orange-500"
+                          : quickTrackingResult.isUnknownPackage
+                            ? "bg-amber-500"
+                            : "bg-green-500"
+                    }`}
+                  >
+                    {quickTrackingResult.action === "rejected"
+                      ? "Rejected"
+                      : quickTrackingResult.action === "returned"
+                        ? "Returned"
+                        : quickTrackingResult.isUnknownPackage
+                          ? "Unknown package"
+                          : "Received in China"}
+                  </span>
+                  <h3 className="text-xl font-bold text-gray-800 dark:text-white">
+                    {quickTrackingResult.heading ||
+                      (quickTrackingResult.isUnknownPackage
+                        ? "Received · no shipping mark"
+                        : "Quick Tracking")}
+                  </h3>
+                </div>
+                <p className="text-sm text-gray-600 dark:text-gray-400 font-mono">
+                  {quickTrackingResult.trackingNumber}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              {(quickTrackingResult.markId || quickTrackingResult.fullName) && (
+                <div className="flex items-start gap-3">
+                  <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-full">
+                    <FaIdBadge className="text-blue-500" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                      Customer
+                    </h4>
+                    {quickTrackingResult.markId ? (
+                      <p className="font-medium text-gray-800 dark:text-white">
+                        Mark ID:{" "}
+                        {formatMarkIdForDisplay(quickTrackingResult.markId)}
+                      </p>
+                    ) : null}
+                    {quickTrackingResult.fullName ? (
+                      <p className="text-gray-700 dark:text-gray-300">
+                        {quickTrackingResult.fullName}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+              )}
+
+              {quickTrackingResult.containerNumber && (
+                <div className="flex items-start gap-3">
+                  <div className="p-3 bg-cyan-50 dark:bg-cyan-900/20 rounded-full">
+                    <FaShip className="text-cyan-500" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                      Container
+                    </h4>
+                    <p className="font-medium text-gray-800 dark:text-white">
+                      {quickTrackingResult.containerNumber}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {quickTrackingResult.updatedAt && (
+                <div className="flex items-start gap-3">
+                  <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-full">
+                    <FaCalendarAlt className="text-green-500" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                      Updated
+                    </h4>
+                    <p className="font-medium text-gray-800 dark:text-white">
+                      {formatDate(quickTrackingResult.updatedAt)}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div
+              className={`rounded-lg p-4 text-sm space-y-2 ${
+                quickTrackingResult.action === "rejected"
+                  ? "bg-red-100/70 dark:bg-red-900/30 text-red-900 dark:text-red-100"
+                  : quickTrackingResult.action === "returned"
+                    ? "bg-orange-100/70 dark:bg-orange-900/30 text-orange-950 dark:text-orange-100"
+                    : quickTrackingResult.isUnknownPackage
+                      ? "bg-amber-100/70 dark:bg-amber-900/30 text-amber-950 dark:text-amber-100"
+                      : "bg-blue-50 dark:bg-blue-900/20 text-blue-900 dark:text-blue-200"
+              }`}
+            >
+              {quickTrackingResult.action === "rejected" ? (
+                <>
+                  <p>
+                    This package was rejected at the China warehouse.
+                    {quickTrackingResult.reason
+                      ? ` Reason: ${quickTrackingResult.reason}`
+                      : ""}
+                  </p>
+                  <p>Please contact your supplier about this package.</p>
+                </>
+              ) : quickTrackingResult.action === "returned" ? (
+                <>
+                  <p>
+                    This package was returned at the China warehouse.
+                    {quickTrackingResult.reason
+                      ? ` Reason: ${quickTrackingResult.reason}`
+                      : ""}
+                  </p>
+                  <p>Please contact your supplier about this package.</p>
+                </>
+              ) : quickTrackingResult.isUnknownPackage ? (
+                <>
+                  <p>
+                    This package was received at the China warehouse, but there
+                    was no shipping mark on the package. It is held as an
+                    Unknown package. It will not appear on your shipping bill
+                    until the container is offloaded.
+                  </p>
+                </>
+              ) : (
+                <p>
+                  These packages are currently in possession of FOFOOFO IMPORT
+                  at the China warehouse.
+                </p>
+              )}
+              <p>
+                For more Quick Tracking updates, visit{" "}
+                <Link
+                  to="/QuickTracking"
+                  className="underline font-semibold"
+                >
+                  Quick Tracking
+                </Link>
+                .
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Mark ID + Container Results */}
         {markContainerResult && (
