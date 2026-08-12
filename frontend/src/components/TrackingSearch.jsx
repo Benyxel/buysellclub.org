@@ -262,7 +262,7 @@ const TrackingSearch = () => {
           if (quickNote?.unknownMarkDirectory) {
             setError(
               quickNote.message ||
-                "Packages with no shipping mark are stored as Unknown. Search by your tracking number on Quick Tracking."
+                "Packages with no shipping mark are stored as Unknown. Search by your tracking number on Goods Received."
             );
           } else if (quickNote) {
             const action = resolveQuickTrackingAction(quickNote);
@@ -566,7 +566,7 @@ const TrackingSearch = () => {
                     {quickTrackingResult.heading ||
                       (quickTrackingResult.isUnknownPackage
                         ? "Received · no shipping mark"
-                        : "Quick Tracking")}
+                        : "Goods Received")}
                   </h3>
                 </div>
                 <p className="text-sm text-gray-600 dark:text-gray-400 font-mono">
@@ -680,12 +680,12 @@ const TrackingSearch = () => {
                 </p>
               )}
               <p>
-                For more Quick Tracking updates, visit{" "}
+                For more updates, visit{" "}
                 <Link
                   to="/QuickTracking"
                   className="underline font-semibold"
                 >
-                  Quick Tracking
+                  Goods Received
                 </Link>
                 .
               </p>

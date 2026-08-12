@@ -114,7 +114,7 @@ const Footer = () => {
               </li>
               <li>
                 <Link to="/QuickTracking" className={linkClass}>
-                  Quick tracking
+                  Goods Received
                 </Link>
               </li>
               <li>

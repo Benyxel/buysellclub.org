@@ -8,7 +8,7 @@ export function shippingMarkToMarkId(shippingMark) {
 
 /**
  * Warehouse catch-all mark(s) for unlabeled / unknown packages.
- * Shown to users as "Unknown" instead of the raw code.
+ * Package badges still say "Unknown"; the Mark ID itself stays FIM-752.
  */
 export const UNKNOWN_PACKAGE_MARK_IDS = new Set(["FIM752"]);
 
@@ -87,33 +87,34 @@ export function isUnknownPackageMark(markOrShippingMark) {
   return UNKNOWN_PACKAGE_MARK_IDS.has(normalizeMarkIdInput(bare));
 }
 
-/** Mark id only for tables/lists — unknown placeholder → "Unknown"; else no hyphen (FIM1330). */
+/** Mark id for tables/lists. Catch-all unlabeled packages show as Unknown (FIM-752). */
 export function formatShippingMarkForDisplay(shippingMark) {
   const id = shippingMarkToMarkId(shippingMark);
   if (!id) return "";
-  if (isUnknownPackageMark(id)) return "Unknown";
+  if (isUnknownPackageMark(id)) {
+    const bare = normalizeMarkIdInput(id);
+    const m = bare.match(/^([A-Za-z]+)(\d+)$/);
+    const pretty = m ? `${m[1]}-${m[2]}` : bare;
+    return `Unknown (${pretty})`;
+  }
   return id;
 }
 
 export function formatMarkIdForDisplay(markId) {
   const raw = String(markId || "").trim();
   if (!raw) return "";
-  if (isUnknownPackageMark(raw)) return "Unknown";
+  // Keep FIM-752 visible for the catch-all account / admin; package badge still says Unknown.
   if (raw.includes("-")) return raw;
   const m = raw.match(/^([A-Za-z]+)(\d+)$/);
   if (!m) return raw;
   return `${m[1]}-${m[2]}`;
 }
 
-/** Replace any inline mark ids like FIM000 → FIM-000 (and FIM752 → Unknown) inside free-form text. */
+/** Replace any inline mark ids like FIM000 → FIM-000 inside free-form text. */
 export function formatMarkIdInText(text) {
   const raw = String(text ?? "");
   if (!raw) return "";
   return raw.replace(/\b([A-Za-z]+)-?(\d{1,})\b/g, (full, pfx, digits) => {
-    const candidate = `${pfx}${digits}`;
-    if (isUnknownPackageMark(candidate) || isUnknownPackageMark(full)) {
-      return "Unknown";
-    }
     if (full.includes("-")) return full;
     // only format known prefix styles (avoid changing random words+numbers)
     if (!/^[A-Za-z]{2,6}$/.test(pfx)) return full;

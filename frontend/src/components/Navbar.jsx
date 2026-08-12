@@ -52,7 +52,7 @@ const Quicklinks = [
   { name: "Buy4Me", href: "/Buy4me" },
   { name: "Shipping Addresses", href: "/Shipping" },
   { name: "Tracking", href: "/tracking" },
-  { name: "Quick Tracking", href: "/QuickTracking" },
+  { name: "Goods Received", href: "/QuickTracking" },
   { name: "Wholesale", href: "/Wholesale" },
   { name: "Training", href: "/Training" },
   { name: "Digital Store", href: "/DigitalStore" },
@@ -144,9 +144,9 @@ const MOBILE_SHORTCUT_STYLES = {
     tile: "border border-slate-200 bg-gradient-to-tl from-emerald-50 via-white to-lime-50 text-slate-900 shadow-sm hover:border-emerald-300 hover:shadow-md dark:border-slate-600 dark:from-slate-900 dark:via-slate-900 dark:to-emerald-950 dark:text-slate-100 dark:hover:border-emerald-400",
     icon: "bg-gradient-to-br from-emerald-500 to-lime-600 text-white shadow-md ring-2 ring-emerald-200 dark:ring-emerald-950",
   },
-  "Quick Tracking": {
-    tile: "border border-slate-200 bg-gradient-to-br from-amber-50 via-white to-yellow-50 text-slate-900 shadow-sm hover:border-amber-300 hover:shadow-md dark:border-slate-600 dark:from-slate-900 dark:via-slate-900 dark:to-amber-950 dark:text-slate-100 dark:hover:border-amber-400",
-    icon: "bg-gradient-to-br from-amber-500 to-yellow-500 text-white shadow-md ring-2 ring-amber-200 dark:ring-amber-900",
+  "Goods Received": {
+    tile: "border border-slate-200 bg-gradient-to-br from-emerald-50 via-white to-lime-50 text-slate-900 shadow-sm hover:border-emerald-300 hover:shadow-md dark:border-slate-600 dark:from-slate-900 dark:via-slate-900 dark:to-emerald-950 dark:text-slate-100 dark:hover:border-emerald-400",
+    icon: "bg-gradient-to-br from-emerald-500 to-lime-600 text-white shadow-md ring-2 ring-emerald-200 dark:ring-emerald-950",
   },
   Training: {
     tile: "border border-slate-200 bg-gradient-to-br from-blue-50 via-white to-indigo-50 text-slate-900 shadow-sm hover:border-blue-300 hover:shadow-md dark:border-slate-600 dark:from-slate-900 dark:via-slate-900 dark:to-indigo-950 dark:text-slate-100 dark:hover:border-blue-400",
@@ -183,7 +183,7 @@ const MOBILE_LIST_ICON = {
   Buy4Me: "bg-violet-600 text-white",
   "Shipping Addresses": "bg-indigo-600 text-white",
   Tracking: "bg-blue-600 text-white",
-  "Quick Tracking": "bg-amber-500 text-white",
+  "Goods Received": "bg-emerald-600 text-white",
   Training: "bg-blue-600 text-white",
   Wholesale: "bg-teal-600 text-white",
   "Our Rates": "bg-amber-700 text-white",
@@ -387,7 +387,7 @@ export default function Navbar() {
       Buy4Me: FaShoppingCart,
       "Shipping Addresses": FaMapMarkerAlt,
       Tracking: FaRoute,
-      "Quick Tracking": FaTruck,
+      "Goods Received": FaTruck,
       Training: FaGraduationCap,
       Wholesale: FaBoxes,
       "Our Rates": FaInfoCircle,
@@ -423,7 +423,7 @@ export default function Navbar() {
       "Alipay Payment",
       isLoggedIn ? "/AlipayPayment" : "/Login"
     );
-    add("shortcuts", "Quick Tracking", "/QuickTracking");
+    add("shortcuts", "Goods Received", "/QuickTracking");
     add("shortcuts", "Training", "/Training");
     add(
       "shortcuts",
