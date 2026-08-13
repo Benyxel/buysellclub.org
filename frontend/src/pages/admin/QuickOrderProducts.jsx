@@ -360,7 +360,7 @@ const QuickOrderProducts = () => {
                   onChange={handleInputChange}
                   className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
                 >
-                  <option value="available">Available</option>
+                  <option value="available">Available (Arrived)</option>
                   <option value="arriving">Arriving</option>
                 </select>
               </div>

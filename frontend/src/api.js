@@ -1,7 +1,7 @@
 import axios from "axios";
 import { API_BASE_URL } from "./config/api";
 // Import caching utilities
-import { getCachedData, setCachedData, deduplicateRequest, CACHE_DURATION } from './utils/apiCache';
+import { getCachedData, setCachedData, deduplicateRequest, clearCache, CACHE_DURATION } from './utils/apiCache';
 
 /**
  * Frontend API client
@@ -699,20 +699,53 @@ const Api = {
       http.put(`/buysellapi/admin/alipay-payments/${id}/buying-rate/`, payload),
   },
   quickOrder: {
-    list: (params) => http.get("/buysellapi/quick-order-products/", { params }),
-    detail: (id) => http.get(`/buysellapi/quick-order-products/${id}/`),
+    list: (params) =>
+      http.get("/buysellapi/quick-order-products/", {
+        params,
+        cacheDuration: CACHE_DURATION.SHORT,
+      }),
+    detail: (id) =>
+      http.get(`/buysellapi/quick-order-products/${id}/`, {
+        cacheDuration: CACHE_DURATION.SHORT,
+      }),
     order: (id, payload) =>
       http.post(`/buysellapi/quick-order-products/${id}/order/`, payload || {}),
-    payment: (id, amount) => http.post(`/buysellapi/quick-order-products/${id}/payment/`, { amount }),
-    adminList: (params) => http.get("/buysellapi/admin/quick-order-products/", { params }),
+    payment: (id, amount) =>
+      http.post(`/buysellapi/quick-order-products/${id}/payment/`, { amount }),
+    adminList: (params) =>
+      http.get("/buysellapi/admin/quick-order-products/", {
+        params,
+        noCache: true,
+        cacheDuration: 0,
+      }),
     adminDetail: (id) =>
-      http.get(`/buysellapi/admin/quick-order-products/${id}/`),
-    create: (payload) =>
-      http.post("/buysellapi/admin/quick-order-products/", payload),
-    update: (id, payload) =>
-      http.put(`/buysellapi/admin/quick-order-products/${id}/`, payload),
-    remove: (id) =>
-      http.delete(`/buysellapi/admin/quick-order-products/${id}/`),
+      http.get(`/buysellapi/admin/quick-order-products/${id}/`, {
+        noCache: true,
+        cacheDuration: 0,
+      }),
+    create: async (payload) => {
+      const res = await http.post(
+        "/buysellapi/admin/quick-order-products/",
+        payload
+      );
+      clearCache("quick-order-products");
+      return res;
+    },
+    update: async (id, payload) => {
+      const res = await http.put(
+        `/buysellapi/admin/quick-order-products/${id}/`,
+        payload
+      );
+      clearCache("quick-order-products");
+      return res;
+    },
+    remove: async (id) => {
+      const res = await http.delete(
+        `/buysellapi/admin/quick-order-products/${id}/`
+      );
+      clearCache("quick-order-products");
+      return res;
+    },
   },
   wholesaleRequests: {
     list: (params) =>
