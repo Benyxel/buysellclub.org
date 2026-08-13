@@ -15,6 +15,10 @@ const ContainerInfoWidget = ({ launcherHidden = false } = {}) => {
   const [containerInfo, setContainerInfo] = useState({
     containerNumber: null,
     totalCbm: 0,
+    maxCbm: 74,
+    remainingCbm: 74,
+    isFull: false,
+    nextContainerNumber: null,
     rmbRate: null,
     shippingRate: null,
     status: null,
@@ -157,6 +161,22 @@ const ContainerInfoWidget = ({ launcherHidden = false } = {}) => {
       
       const containerNumber = containerResponse?.data?.container_number || "N/A";
       const totalCbm = containerResponse?.data?.total_cbm || "0.000";
+      const maxCbm = parseFloat(containerResponse?.data?.max_cbm) || 74;
+      const remainingCbm =
+        containerResponse?.data?.remaining_cbm != null
+          ? parseFloat(containerResponse.data.remaining_cbm)
+          : Math.max(0, maxCbm - parseFloat(totalCbm || 0));
+      const isFull =
+        Boolean(containerResponse?.data?.is_full) ||
+        parseFloat(totalCbm || 0) >= maxCbm - 0.0005;
+      let nextContainerNumber =
+        containerResponse?.data?.next_container_number || null;
+      if (!nextContainerNumber && isFull && containers.length > 1) {
+        const next =
+          containers[currentContainerIndex + 1] ||
+          containers.find((_, i) => i !== currentContainerIndex);
+        nextContainerNumber = next?.container_number || null;
+      }
       const containerStatus = containerResponse?.data?.status || null;
       const containerStatusDisplay =
         containerResponse?.data?.status_display || null;
@@ -189,6 +209,10 @@ const ContainerInfoWidget = ({ launcherHidden = false } = {}) => {
       setContainerInfo({
         containerNumber,
         totalCbm,
+        maxCbm,
+        remainingCbm: Number.isFinite(remainingCbm) ? remainingCbm.toFixed(3) : "0.000",
+        isFull,
+        nextContainerNumber,
         rmbRate: rmbRate ? rmbRate.toFixed(3) : null,
         shippingRate: shippingRate ? shippingRate.toFixed(2) : null,
         status: containerStatus,
@@ -201,6 +225,10 @@ const ContainerInfoWidget = ({ launcherHidden = false } = {}) => {
       setContainerInfo({
         containerNumber: "N/A",
         totalCbm: "0.000",
+        maxCbm: 74,
+        remainingCbm: "74.000",
+        isFull: false,
+        nextContainerNumber: null,
         rmbRate: null,
         shippingRate: null,
         status: null,
@@ -453,8 +481,26 @@ const ContainerInfoWidget = ({ launcherHidden = false } = {}) => {
                 </p>
               </div>
               <p className="text-2xl font-bold text-green-900 dark:text-green-100 relative z-10">
-                {containerInfo.totalCbm || "0.000"} <span className="text-lg text-green-600 dark:text-green-400">CBM</span>
+                {containerInfo.totalCbm || "0.000"}{" "}
+                <span className="text-lg text-green-600 dark:text-green-400">CBM</span>
               </p>
+              {containerInfo.isFull ? (
+                <div className="mt-3 relative z-10 rounded-lg border border-amber-300 dark:border-amber-600/60 bg-amber-50 dark:bg-amber-900/30 px-3 py-2.5">
+                  <p className="text-sm font-bold text-amber-900 dark:text-amber-100">
+                    Container is full
+                  </p>
+                  <p className="mt-0.5 text-xs font-semibold text-amber-800 dark:text-amber-200">
+                    {containerInfo.nextContainerNumber
+                      ? `Next CBM goes to ${containerInfo.nextContainerNumber}`
+                      : `Capacity reached (${containerInfo.maxCbm || 74} CBM)`}
+                  </p>
+                </div>
+              ) : (
+                <p className="mt-2 relative z-10 text-xs font-medium text-green-700/80 dark:text-green-300/80">
+                  {containerInfo.remainingCbm} CBM remaining of{" "}
+                  {containerInfo.maxCbm || 74} CBM
+                </p>
+              )}
             </div>
 
             {/* Current RMB Rate and Shipping Rate */}
