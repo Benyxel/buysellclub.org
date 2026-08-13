@@ -360,7 +360,7 @@ export default function BulkEmailAdmin() {
     const total = row.total_recipients || 0;
     const sent = row.sent_count || 0;
     if (sent >= total || total === 0) return false;
-    return ["sent", "partial", "failed", "stopped"].includes(row.status);
+    return ["sent", "partial", "failed", "stopped", "sending"].includes(row.status);
   };
 
   const canStop = (row) => row.status === "pending" || row.status === "sending";
