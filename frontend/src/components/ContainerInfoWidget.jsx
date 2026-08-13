@@ -125,20 +125,24 @@ const ContainerInfoWidget = ({ launcherHidden = false } = {}) => {
       const containersList = response?.data || [];
       // Filter to only show preparing/receiving/loading containers (backend should already filter, but double-check)
       const filteredContainers = containersList.filter(
-        c =>
+        (c) =>
           c.status === "preparing" ||
           c.status === "receiving_goods" ||
           c.status === "loading"
       );
-      setContainers(filteredContainers);
-      
-      // Find the index of the current loading container or most recent
-      if (filteredContainers.length > 0) {
-        const loadingIndex = filteredContainers.findIndex(c => c.status === "loading");
-        setCurrentContainerIndex(loadingIndex >= 0 ? loadingIndex : 0);
-      } else {
-        setCurrentContainerIndex(0);
-      }
+      // Newest active first; preparing always last until status is receiving_goods.
+      const sortedContainers = [...filteredContainers].sort((a, b) => {
+        const aPrep = a.status === "preparing" ? 1 : 0;
+        const bPrep = b.status === "preparing" ? 1 : 0;
+        if (aPrep !== bPrep) return aPrep - bPrep;
+        const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+        if (bTime !== aTime) return bTime - aTime;
+        return (b.id || 0) - (a.id || 0);
+      });
+      setContainers(sortedContainers);
+      // First in list = newest non-preparing (or preparing if that's all there is).
+      setCurrentContainerIndex(0);
     } catch (error) {
       console.error("Error fetching containers list:", error);
       setContainers([]);
