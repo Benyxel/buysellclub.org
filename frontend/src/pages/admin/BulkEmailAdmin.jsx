@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { toast } from "../../utils/toast";
 import API from "../../api";
-import { FaEnvelope, FaPaperPlane, FaUsers, FaHistory, FaSpinner, FaChevronLeft, FaChevronRight, FaImage, FaRedo, FaTrash } from "react-icons/fa";
+import { FaEnvelope, FaPaperPlane, FaUsers, FaHistory, FaSpinner, FaChevronLeft, FaChevronRight, FaImage, FaRedo, FaTrash, FaStop } from "react-icons/fa";
 import ConfirmModal from "../../components/shared/ConfirmModal";
 import { formatCompactCount } from "../../utils/formatCompactCount";
 
@@ -53,6 +53,7 @@ export default function BulkEmailAdmin() {
   const [historyPage, setHistoryPage] = useState(1);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [resendingId, setResendingId] = useState(null);
+  const [stoppingId, setStoppingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [bulkToDelete, setBulkToDelete] = useState(null);
@@ -237,6 +238,21 @@ export default function BulkEmailAdmin() {
       .finally(() => setResendingId(null));
   };
 
+  const handleStop = (row) => {
+    if (!row?.id) return;
+    setStoppingId(row.id);
+    API.post(`/buysellapi/admin/bulk-email/${row.id}/stop/`)
+      .then((res) => {
+        toast.success(res.data?.message || "Bulk email stopped.");
+        loadHistory(historyPage, { silent: true });
+      })
+      .catch((err) => {
+        const msg = err.response?.data?.detail || "Failed to stop bulk email.";
+        toast.error(msg);
+      })
+      .finally(() => setStoppingId(null));
+  };
+
   const handleDelete = (row) => {
     if (row.status === "sending") {
       toast.error("You cannot delete a bulk email while it is still sending.");
@@ -274,8 +290,10 @@ export default function BulkEmailAdmin() {
     const total = row.total_recipients || 0;
     const sent = row.sent_count || 0;
     if (sent >= total || total === 0) return false;
-    return ["sent", "partial", "failed"].includes(row.status);
+    return ["sent", "partial", "failed", "stopped"].includes(row.status);
   };
+
+  const canStop = (row) => row.status === "pending" || row.status === "sending";
 
   const remainingCount = (row) => Math.max(0, (row.total_recipients || 0) - (row.sent_count || 0));
 
@@ -516,6 +534,8 @@ export default function BulkEmailAdmin() {
                               ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
                               : row.status === "sending"
                               ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
+                              : row.status === "stopped"
+                              ? "bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-200"
                               : row.status === "failed"
                               ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
                               : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
@@ -540,6 +560,18 @@ export default function BulkEmailAdmin() {
                     </td>
                     <td className="px-4 py-2 text-right">
                       <div className="inline-flex items-center gap-2">
+                        {canStop(row) && (
+                          <button
+                            type="button"
+                            onClick={() => handleStop(row)}
+                            disabled={stoppingId === row.id}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded text-sm bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-300 hover:bg-rose-200 dark:hover:bg-rose-800/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Stop sending this bulk email"
+                          >
+                            {stoppingId === row.id ? <FaSpinner className="animate-spin" /> : <FaStop />}
+                            Stop
+                          </button>
+                        )}
                         {canResend(row) && (
                           <button
                             type="button"
