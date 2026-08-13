@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { toast } from "../../utils/toast";
 import API from "../../api";
-import { FaEnvelope, FaPaperPlane, FaUsers, FaHistory, FaSpinner, FaChevronLeft, FaChevronRight, FaImage, FaRedo, FaTrash, FaStop } from "react-icons/fa";
+import { FaEnvelope, FaPaperPlane, FaUsers, FaHistory, FaSpinner, FaChevronLeft, FaChevronRight, FaImage, FaRedo, FaTrash, FaStop, FaEye, FaEdit } from "react-icons/fa";
 import ConfirmModal from "../../components/shared/ConfirmModal";
 import { formatCompactCount } from "../../utils/formatCompactCount";
 
@@ -57,6 +57,13 @@ export default function BulkEmailAdmin() {
   const [deletingId, setDeletingId] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [bulkToDelete, setBulkToDelete] = useState(null);
+  const [showContentModal, setShowContentModal] = useState(false);
+  const [contentMode, setContentMode] = useState("view"); // view | edit
+  const [contentLoading, setContentLoading] = useState(false);
+  const [contentSaving, setContentSaving] = useState(false);
+  const [contentRow, setContentRow] = useState(null);
+  const [editSubject, setEditSubject] = useState("");
+  const [editMessage, setEditMessage] = useState("");
   const [processingPending, setProcessingPending] = useState(false);
   const [refreshingRowIds, setRefreshingRowIds] = useState([]);
   const historyRef = useRef([]);
@@ -253,6 +260,69 @@ export default function BulkEmailAdmin() {
       .finally(() => setStoppingId(null));
   };
 
+  const openContentModal = (row, mode = "view") => {
+    if (!row?.id) return;
+    setContentMode(mode);
+    setShowContentModal(true);
+    setContentLoading(true);
+    setContentRow(row);
+    setEditSubject(row.subject || "");
+    setEditMessage(row.message || "");
+    API.get(`/buysellapi/admin/bulk-email/${row.id}/`)
+      .then((res) => {
+        const data = res.data || {};
+        setContentRow({ ...row, ...data });
+        setEditSubject(data.subject || "");
+        setEditMessage(data.message || "");
+      })
+      .catch((err) => {
+        const msg = err.response?.data?.detail || "Could not load email content.";
+        toast.error(msg);
+        setShowContentModal(false);
+        setContentRow(null);
+      })
+      .finally(() => setContentLoading(false));
+  };
+
+  const closeContentModal = () => {
+    if (contentSaving) return;
+    setShowContentModal(false);
+    setContentRow(null);
+    setContentMode("view");
+    setEditSubject("");
+    setEditMessage("");
+  };
+
+  const handleSaveContent = () => {
+    if (!contentRow?.id) return;
+    const subject = editSubject.trim();
+    const message = editMessage.trim();
+    if (!subject || !message) {
+      toast.error("Subject and message are required.");
+      return;
+    }
+    setContentSaving(true);
+    API.patch(`/buysellapi/admin/bulk-email/${contentRow.id}/`, { subject, message })
+      .then((res) => {
+        toast.success(res.data?.message || "Bulk email updated.");
+        const updated = {
+          ...contentRow,
+          subject: res.data?.subject ?? subject,
+          message: res.data?.message ?? message,
+        };
+        setContentRow(updated);
+        setHistory((prev) =>
+          prev.map((row) => (row.id === updated.id ? { ...row, subject: updated.subject } : row))
+        );
+        setContentMode("view");
+      })
+      .catch((err) => {
+        const msg = err.response?.data?.detail || "Failed to update bulk email.";
+        toast.error(msg);
+      })
+      .finally(() => setContentSaving(false));
+  };
+
   const handleDelete = (row) => {
     if (row.status === "sending") {
       toast.error("You cannot delete a bulk email while it is still sending.");
@@ -294,6 +364,7 @@ export default function BulkEmailAdmin() {
   };
 
   const canStop = (row) => row.status === "pending" || row.status === "sending";
+  const canEditContent = (row) => row.status !== "sending";
 
   const remainingCount = (row) => Math.max(0, (row.total_recipients || 0) - (row.sent_count || 0));
 
@@ -559,7 +630,27 @@ export default function BulkEmailAdmin() {
                       )}
                     </td>
                     <td className="px-4 py-2 text-right">
-                      <div className="inline-flex items-center gap-2">
+                      <div className="inline-flex items-center gap-2 flex-wrap justify-end">
+                        <button
+                          type="button"
+                          onClick={() => openContentModal(row, "view")}
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded text-sm bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600"
+                          title="View subject and body"
+                        >
+                          <FaEye />
+                          View
+                        </button>
+                        {canEditContent(row) && (
+                          <button
+                            type="button"
+                            onClick={() => openContentModal(row, "edit")}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded text-sm bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300 hover:bg-indigo-200 dark:hover:bg-indigo-800/50"
+                            title="Edit subject and body"
+                          >
+                            <FaEdit />
+                            Edit
+                          </button>
+                        )}
                         {canStop(row) && (
                           <button
                             type="button"
@@ -668,6 +759,107 @@ export default function BulkEmailAdmin() {
         type="danger"
         disabled={Boolean(deletingId)}
       />
+
+      {showContentModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="w-full max-w-2xl rounded-xl bg-white dark:bg-gray-800 shadow-xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                {contentMode === "edit" ? "Edit bulk email" : "View bulk email"}
+              </h3>
+              <button
+                type="button"
+                onClick={closeContentModal}
+                disabled={contentSaving}
+                className="text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 disabled:opacity-50"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="px-5 py-4 overflow-y-auto space-y-4">
+              {contentLoading ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400 inline-flex items-center gap-2">
+                  <FaSpinner className="animate-spin" /> Loading…
+                </p>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Subject
+                    </label>
+                    {contentMode === "edit" ? (
+                      <input
+                        type="text"
+                        value={editSubject}
+                        onChange={(e) => setEditSubject(e.target.value)}
+                        maxLength={255}
+                        className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2"
+                      />
+                    ) : (
+                      <p className="text-gray-900 dark:text-white whitespace-pre-wrap break-words">
+                        {contentRow?.subject || "—"}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Body
+                    </label>
+                    {contentMode === "edit" ? (
+                      <textarea
+                        value={editMessage}
+                        onChange={(e) => setEditMessage(e.target.value)}
+                        rows={10}
+                        className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2"
+                      />
+                    ) : (
+                      <pre className="whitespace-pre-wrap break-words text-sm text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-gray-900/40 rounded-lg p-3 max-h-80 overflow-y-auto">
+                        {contentRow?.message || "—"}
+                      </pre>
+                    )}
+                  </div>
+                  {contentRow?.status === "sending" && (
+                    <p className="text-sm text-amber-600 dark:text-amber-400">
+                      This job is sending — stop it before editing.
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+            <div className="flex flex-wrap justify-end gap-2 px-5 py-4 border-t border-gray-200 dark:border-gray-700">
+              {contentMode === "view" && canEditContent(contentRow || {}) && (
+                <button
+                  type="button"
+                  onClick={() => setContentMode("edit")}
+                  disabled={contentLoading}
+                  className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  <FaEdit /> Edit
+                </button>
+              )}
+              {contentMode === "edit" && (
+                <button
+                  type="button"
+                  onClick={handleSaveContent}
+                  disabled={contentLoading || contentSaving}
+                  className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {contentSaving ? <FaSpinner className="animate-spin" /> : null}
+                  {contentSaving ? "Saving…" : "Save changes"}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={closeContentModal}
+                disabled={contentSaving}
+                className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
