@@ -54,6 +54,7 @@ import {
 } from "react-icons/fa";
 
 import UsersManagement from "./UsersManagement";
+import AdminsManagement from "./AdminsManagement";
 import AdminProducts from "./AdminProducts";
 import AdminDigitalProducts from "./AdminDigitalProducts";
 import TrackingManagement from "./TrackingManagement";
@@ -1319,7 +1320,7 @@ const AdminDashboard = () => {
       case "users":
         return <UsersManagement />;
       case "admins":
-        return <UsersManagement adminsOnly />;
+        return <AdminsManagement />;
       case "training":
         return (
           <div className="p-6">

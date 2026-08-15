@@ -70,14 +70,16 @@ const UsersManagement = ({ adminsOnly = false } = {}) => {
     // Always fetch fresh data from server with pagination
     try {
       setLoading(true);
-      // Use shared API wrapper (adds JWT automatically) with pagination params
-      const resp = await API.get("/buysellapi/users/", { 
-        isAdmin: true,
+      // Admins page uses a dedicated endpoint so it cannot fall back to all users.
+      const listUrl = adminsOnly
+        ? "/buysellapi/admin/admins/"
+        : "/buysellapi/users/";
+      const resp = await API.get(listUrl, { 
         params: {
           page: page || 1,
           page_size: size || (adminsOnly ? 50 : 10),
           q: query?.trim() || undefined,
-          ...(adminsOnly ? { admins_only: 1 } : {}),
+          ...(adminsOnly ? { admins_only: 1, role: "admin" } : {}),
         }
       });
       
@@ -94,6 +96,18 @@ const UsersManagement = ({ adminsOnly = false } = {}) => {
       } else {
         usersData = [];
         setTotal(0);
+      }
+
+      if (adminsOnly) {
+        usersData = usersData.filter((u) => (u.role || "").toLowerCase() === "admin");
+        if (resp.data && typeof resp.data === "object" && "results" in resp.data) {
+          // Keep server count when endpoint is correct; shrink if we had to filter.
+          if (usersData.length !== (resp.data.results || []).length) {
+            setTotal(usersData.length);
+          }
+        } else {
+          setTotal(usersData.length);
+        }
       }
       
       setUsers(usersData);
@@ -618,7 +632,11 @@ const UsersManagement = ({ adminsOnly = false } = {}) => {
   };
 
   const filteredUsers = users.filter((user) => {
+    if (adminsOnly && (user.role || "").toLowerCase() !== "admin") {
+      return false;
+    }
     const term = debouncedSearchTerm.toLowerCase();
+    if (!term) return true;
     return (
       (user.username || "").toLowerCase().includes(term) ||
       (user.full_name || "").toLowerCase().includes(term) ||
