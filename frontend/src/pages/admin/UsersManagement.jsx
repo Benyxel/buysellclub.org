@@ -59,6 +59,7 @@ const UsersManagement = () => {
     contact: "",
     location: "",
     is_rider: false,
+    receive_admin_alerts: true,
   });
 
   const fetchUsers = async (
@@ -554,6 +555,10 @@ const UsersManagement = () => {
           return;
         }
       }
+      // Only Django superusers may change admin ops-alert delivery.
+      if (!isSuper || payload.role !== "admin") {
+        delete payload.receive_admin_alerts;
+      }
       await API.put(`/buysellapi/users/${selectedUser.id}/update/`, payload);
       toast.success("User updated successfully");
       setShowEditModal(false);
@@ -897,6 +902,16 @@ const UsersManagement = () => {
                     >
                       {user.role}
                     </span>
+                    {isSuper &&
+                    user.role === "admin" &&
+                    user.receive_admin_alerts === false ? (
+                      <span
+                        className="ml-1 px-1.5 py-0.5 text-[10px] font-semibold rounded bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200"
+                        title="Ops emails and admin-app alerts are off for this admin"
+                      >
+                        alerts off
+                      </span>
+                    ) : null}
                   </td>
                   <td className="px-3 py-3 whitespace-nowrap text-sm">
                     {user.is_rider ? (
@@ -946,6 +961,8 @@ const UsersManagement = () => {
                           contact: user.contact || "",
                           location: user.location || "",
                           is_rider: Boolean(user.is_rider),
+                          receive_admin_alerts:
+                            user.receive_admin_alerts !== false,
                         });
                         setShowEditModal(true);
                       }}
@@ -1321,6 +1338,34 @@ const UsersManagement = () => {
                   Riders see the &quot;Rider&quot; tab on their profile instead of
                   &quot;Delivery&quot;.
                 </p>
+                {isSuper && editForm.role === "admin" ? (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50/80 p-3 dark:border-amber-800/60 dark:bg-amber-950/30">
+                    <label className="flex items-start gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(editForm.receive_admin_alerts)}
+                        onChange={(e) =>
+                          setEditForm({
+                            ...editForm,
+                            receive_admin_alerts: e.target.checked,
+                          })
+                        }
+                        className="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+                      />
+                      <span>
+                        <span className="block text-sm font-medium text-gray-800 dark:text-gray-200">
+                          Receive admin ops emails &amp; app alerts
+                        </span>
+                        <span className="block text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                          Signups, orders, Alipay, Buy4Me, live chat, and similar
+                          admin notifications. Turning this off does not stop
+                          personal account emails (bulk, tracking, password
+                          reset, etc.).
+                        </span>
+                      </span>
+                    </label>
+                  </div>
+                ) : null}
               </div>
               <div className="mt-6 flex justify-end space-x-3">
                 <button

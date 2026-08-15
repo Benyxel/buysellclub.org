@@ -9,13 +9,14 @@ import {
 
 const statusOptions = [
   { value: "pending", label: "Pending" },
-  { value: "in_transit", label: "In Transit" },
   { value: "arrived", label: "Arrived(China)" },
-  { value: "vessel", label: "On The Vessel" },
+  { value: "laden", label: "Laden" },
+  { value: "in_transit", label: "In Transit" },
+  { value: "arrived_port", label: "Arrived at Port" },
   { value: "clearing", label: "Clearing" },
-  { value: "arrived_ghana", label: "Arrived(Ghana)" },
-  { value: "off_loading", label: "Of Loading" },
+  { value: "offloaded", label: "Offloaded" },
   { value: "pick_up", label: "Pick up" },
+  { value: "rejected", label: "Rejected" },
 ];
 
 /**

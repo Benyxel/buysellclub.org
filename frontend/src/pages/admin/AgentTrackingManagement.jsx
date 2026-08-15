@@ -32,17 +32,25 @@ import { formatCompactCount } from "../../utils/formatCompactCount";
 
 const statusOptions = [
   { value: "pending", label: "Pending" },
-  { value: "in_transit", label: "In Transit" },
   { value: "arrived", label: "Arrived(China)" },
-  { value: "cancelled", label: "Cancelled" },
-  { value: "rejected", label: "Rejected" },
   { value: "not_received", label: "Not Received" },
-  { value: "vessel", label: "On The Vessel" },
+  { value: "cancelled", label: "Cancelled" },
+  { value: "returned", label: "Returned" },
+  { value: "laden", label: "Laden" },
+  { value: "in_transit", label: "In Transit" },
+  { value: "arrived_port", label: "Arrived at Port" },
   { value: "clearing", label: "Clearing" },
+  { value: "offloaded", label: "Offloaded" },
+  { value: "pick_up", label: "Pick up" },
+  { value: "rejected", label: "Rejected" },
+  { value: "vessel", label: "On The Vessel" },
   { value: "arrived_ghana", label: "Arrived(Ghana)" },
   { value: "off_loading", label: "Of Loading" },
-  { value: "pick_up", label: "Pick up" },
 ];
+
+const adminStatusSelectOptions = statusOptions.filter(
+  (o) => !["vessel", "arrived_ghana", "off_loading"].includes(o.value)
+);
 
 const normalize = (s) =>
   (s || "")
@@ -704,18 +712,23 @@ const AgentTrackingManagement = () => {
         return "bg-blue-100 text-blue-800";
       case "arrived":
         return "bg-green-100 text-green-800";
+      case "laden":
+      case "vessel":
+        return "bg-indigo-100 text-indigo-800";
+      case "arrived_port":
       case "arrived_ghana":
         return "bg-teal-100 text-teal-800";
       case "cancelled":
         return "bg-gray-200 text-gray-800 dark:text-white";
       case "rejected":
         return "bg-red-100 text-red-800";
+      case "returned":
+        return "bg-rose-100 text-rose-800";
       case "not_received":
         return "bg-orange-100 text-orange-800";
-      case "vessel":
-        return "bg-indigo-100 text-indigo-800";
       case "clearing":
         return "bg-purple-100 text-purple-800";
+      case "offloaded":
       case "off_loading":
         return "bg-pink-100 text-pink-800";
       case "pick_up":
@@ -761,7 +774,7 @@ const AgentTrackingManagement = () => {
               className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="all">All Statuses</option>
-              {statusOptions.map((opt) => (
+              {adminStatusSelectOptions.map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}
                 </option>
@@ -835,7 +848,7 @@ const AgentTrackingManagement = () => {
               onChange={(e) => setBulkStatus(e.target.value)}
               className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             >
-              {statusOptions.map((opt) => (
+              {adminStatusSelectOptions.map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}
                 </option>
@@ -1275,7 +1288,7 @@ const AgentTrackingManagement = () => {
                       className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       required
                     >
-                      {statusOptions.map((opt) => (
+                      {adminStatusSelectOptions.map((opt) => (
                         <option key={opt.value} value={opt.value}>
                           {opt.label}
                         </option>

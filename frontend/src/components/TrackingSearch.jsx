@@ -78,9 +78,13 @@ const TrackingSearch = () => {
       arrived: "Arrived(China)",
       cancelled: "Cancelled",
       rejected: "Rejected",
+      returned: "Returned",
       not_received: "Not Received",
-      vessel: "On The Vessel",
+      laden: "Laden",
+      arrived_port: "Arrived at Port",
+      offloaded: "Offloaded",
       clearing: "Clearing",
+      vessel: "On The Vessel",
       arrived_ghana: "Arrived(Ghana)",
       off_loading: "Of Loading",
       pick_up: "Pick up",
@@ -318,6 +322,7 @@ const TrackingSearch = () => {
       case "arrivedchina":
       case "arrived_china":
         return "bg-green-100 text-green-800 border-green-300";
+      case "arrived_port":
       case "arrivedghana":
       case "arrived_ghana":
         return "bg-teal-100 text-teal-800 border-teal-300";
@@ -325,15 +330,19 @@ const TrackingSearch = () => {
         return "bg-gray-200 text-gray-700 border-gray-400";
       case "rejected":
         return "bg-red-100 text-red-800 border-red-300";
+      case "returned":
+        return "bg-rose-100 text-rose-800 border-rose-300";
       case "not_received":
       case "not received":
         return "bg-orange-100 text-orange-800 border-orange-300";
+      case "laden":
       case "vessel":
       case "on_the_vessel":
       case "on the vessel":
         return "bg-indigo-100 text-indigo-800 border-indigo-300";
       case "clearing":
         return "bg-purple-100 text-purple-800 border-purple-300";
+      case "offloaded":
       case "off_loading":
       case "of_loading":
       case "of loading":
@@ -1138,22 +1147,30 @@ const TrackingSearch = () => {
                   .replace(/\s+/g, "_");
               const steps = [
                 { value: "arrived", label: "Arrived(China)", color: "green" },
-                { value: "vessel", label: "On The Vessel", color: "indigo" },
+                { value: "laden", label: "Laden", color: "indigo" },
+                { value: "in_transit", label: "In Transit", color: "blue" },
                 {
-                  value: "arrived_ghana",
-                  label: "Arrived(Ghana)",
+                  value: "arrived_port",
+                  label: "Arrived at Port",
                   color: "teal",
                 },
                 { value: "clearing", label: "Clearing", color: "purple" },
-                { value: "off_loading", label: "Of Loading", color: "pink" },
+                { value: "offloaded", label: "Offloaded", color: "pink" },
                 { value: "pick_up", label: "Pick up", color: "emerald" },
               ];
               const currentVal = normalize(
                 trackingResult.statusValue || trackingResult.status
               );
+              // Map legacy tracking codes onto the shared container timeline.
+              const legacyAlias = {
+                vessel: "laden",
+                arrived_ghana: "arrived_port",
+                off_loading: "offloaded",
+              };
+              const resolvedVal = legacyAlias[currentVal] || currentVal;
               const allowed = new Set(steps.map((s) => s.value));
-              if (!allowed.has(currentVal)) return null;
-              const currentStep = steps.find((s) => s.value === currentVal);
+              if (!allowed.has(resolvedVal)) return null;
+              const currentStep = steps.find((s) => s.value === resolvedVal);
               const colorClasses = (color) => {
                 switch (color) {
                   case "green":
@@ -1176,6 +1193,13 @@ const TrackingSearch = () => {
                       ring: "ring-indigo-200 dark:ring-indigo-900",
                       text: "text-indigo-700 dark:text-indigo-300",
                       border: "border-indigo-200 dark:border-indigo-700",
+                    };
+                  case "blue":
+                    return {
+                      bg: "bg-blue-500",
+                      ring: "ring-blue-200 dark:ring-blue-900",
+                      text: "text-blue-700 dark:text-blue-300",
+                      border: "border-blue-200 dark:border-blue-700",
                     };
                   case "purple":
                     return {
