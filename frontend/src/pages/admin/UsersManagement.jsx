@@ -18,7 +18,7 @@ import BulkActions from "../../components/shared/BulkActions";
 import { normalizePhone } from "../../utils/ghanaPhone";
 import { registrationEmailError } from "../../utils/registrationEmail";
 
-const UsersManagement = () => {
+const UsersManagement = ({ adminsOnly = false } = {}) => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -37,7 +37,7 @@ const UsersManagement = () => {
   const [exportingUsers, setExportingUsers] = useState(false);
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(adminsOnly ? 50 : 10);
   const [total, setTotal] = useState(0);
   // Add user form (matches backend /user/register/ fields)
   const [addForm, setAddForm] = useState({
@@ -75,8 +75,9 @@ const UsersManagement = () => {
         isAdmin: true,
         params: {
           page: page || 1,
-          page_size: size || 10,
+          page_size: size || (adminsOnly ? 50 : 10),
           q: query?.trim() || undefined,
+          ...(adminsOnly ? { admins_only: 1 } : {}),
         }
       });
       
@@ -742,11 +743,18 @@ const UsersManagement = () => {
   return (
     <div className="p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
-          Users Management
-        </h2>
+        <div>
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
+            {adminsOnly ? "Admins" : "Users Management"}
+          </h2>
+          {adminsOnly ? (
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              Admin accounts only — roles, status, dashboard tabs, and ops alerts.
+            </p>
+          ) : null}
+        </div>
         <div className="flex flex-wrap items-center gap-2">
-          {isAdmin && (
+          {isAdmin && !adminsOnly && (
             <button
               type="button"
               onClick={handleExportRegistrations}
@@ -761,13 +769,15 @@ const UsersManagement = () => {
               <span>{exportingUsers ? "Exporting…" : "Export to Excel"}</span>
             </button>
           )}
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2"
-          >
-            <FaUserPlus />
-            <span>Add User</span>
-          </button>
+          {!adminsOnly && (
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2"
+            >
+              <FaUserPlus />
+              <span>Add User</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -777,7 +787,7 @@ const UsersManagement = () => {
           <input
             type="text"
             ref={searchInputRef}
-            placeholder="Search users..."
+            placeholder={adminsOnly ? "Search admins..." : "Search users..."}
             value={searchTerm}
             onChange={(e) => {
               setSearchTerm(e.target.value);
@@ -787,7 +797,7 @@ const UsersManagement = () => {
           />
           <FaSearch className="absolute left-3 top-3 text-gray-400" />
         </div>
-        {isAdmin && (
+        {isAdmin && !adminsOnly && (
           <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
             Export includes all matching users (not only this page). Use search to narrow the export.
           </p>

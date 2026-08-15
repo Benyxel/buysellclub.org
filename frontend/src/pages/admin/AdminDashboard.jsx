@@ -50,6 +50,7 @@ import {
   FaShoppingBag,
   FaCrown,
   FaIdCard,
+  FaUserShield,
 } from "react-icons/fa";
 
 import UsersManagement from "./UsersManagement";
@@ -310,6 +311,7 @@ const AdminDashboard = () => {
     () => [
       { icon: <FaHome />, label: "Dashboard", section: "dashboard" },
       { icon: <FaUsers />, label: "Users", section: "users" },
+      { icon: <FaUserShield />, label: "Admins", section: "admins" },
       { icon: <FaShippingFast />, label: "Shipping", section: "shipping" },
       { icon: <FaMotorcycle />, label: "Delivery", section: "delivery" },
       {
@@ -1316,6 +1318,8 @@ const AdminDashboard = () => {
       }
       case "users":
         return <UsersManagement />;
+      case "admins":
+        return <UsersManagement adminsOnly />;
       case "training":
         return (
           <div className="p-6">
@@ -2418,10 +2422,16 @@ const AdminDashboard = () => {
                     !membershipSectionSet.has(i.section)
                 );
                 const headItems = mainItems.filter(
-                  (i) => i.section === "dashboard" || i.section === "users"
+                  (i) =>
+                    i.section === "dashboard" ||
+                    i.section === "users" ||
+                    i.section === "admins"
                 );
                 const tailItems = mainItems.filter(
-                  (i) => i.section !== "dashboard" && i.section !== "users"
+                  (i) =>
+                    i.section !== "dashboard" &&
+                    i.section !== "users" &&
+                    i.section !== "admins"
                 );
 
                 const quickGroupActive = quickItemsOrdered.some(
