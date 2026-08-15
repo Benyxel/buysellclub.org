@@ -555,14 +555,24 @@ const UsersManagement = ({ adminsOnly = false } = {}) => {
         return;
       }
       let payload = { ...editForm };
-      if ((payload.contact || "").trim()) {
-        const normalized = normalizePhone(payload.contact);
+      const contactRaw = (payload.contact || "").trim();
+      const isPlaceholderContact =
+        !contactRaw ||
+        contactRaw.startsWith("google-temp-") ||
+        ["-", "n/a", "N/A"].includes(contactRaw);
+
+      if (isPlaceholderContact) {
+        // Don't re-submit placeholder/missing contacts — they fail phone validation.
+        delete payload.contact;
+      } else {
+        const normalized = normalizePhone(contactRaw);
         if (!normalized.ok) {
           toast.error(normalized.error || "Please enter a valid contact number");
           return;
         }
         payload.contact = normalized.normalized;
       }
+
       if (payload.status === "suspended") {
         const r = (payload.account_suspension_reason || "").trim();
         if (!r) {
@@ -574,13 +584,30 @@ const UsersManagement = ({ adminsOnly = false } = {}) => {
       if (!isSuper || payload.role !== "admin") {
         delete payload.receive_admin_alerts;
       }
+
       await API.put(`/buysellapi/users/${selectedUser.id}/update/`, payload);
       toast.success("User updated successfully");
       setShowEditModal(false);
       fetchUsers(currentPage, pageSize);
     } catch (error) {
       console.error("Error updating user:", error);
-      const msg = error.response?.data?.detail || "Failed to update user";
+      const data = error.response?.data;
+      let msg = "Failed to update user";
+      if (typeof data?.detail === "string") {
+        msg = data.detail;
+      } else if (typeof data?.message === "string") {
+        msg = data.message;
+      } else if (typeof data?.error === "string") {
+        msg = data.error;
+      } else if (data && typeof data === "object") {
+        const parts = Object.entries(data).flatMap(([field, errs]) => {
+          const list = Array.isArray(errs) ? errs : [errs];
+          return list
+            .filter(Boolean)
+            .map((err) => `${field}: ${typeof err === "string" ? err : JSON.stringify(err)}`);
+        });
+        if (parts.length) msg = parts.join(" ");
+      }
       toast.error(msg);
     }
   };
@@ -1271,7 +1298,13 @@ const UsersManagement = ({ adminsOnly = false } = {}) => {
                     Role
                   </label>
                   <select
-                    value={editForm.role}
+                    value={
+                      ["user", "admin", "agent", "local_agent", "moderator"].includes(
+                        editForm.role
+                      )
+                        ? editForm.role
+                        : "user"
+                    }
                     onChange={(e) =>
                       setEditForm({ ...editForm, role: e.target.value })
                     }
@@ -1279,6 +1312,9 @@ const UsersManagement = ({ adminsOnly = false } = {}) => {
                   >
                     <option value="user">User</option>
                     <option value="admin">Admin</option>
+                    <option value="agent">Agent</option>
+                    <option value="local_agent">Local Agent</option>
+                    <option value="moderator">Moderator</option>
                   </select>
                 </div>
                 <div>
