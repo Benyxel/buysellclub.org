@@ -280,7 +280,6 @@ const MyProfile = () => {
   const [selectedNotification, setSelectedNotification] = useState(null);
   const [showAirCopyModal, setShowAirCopyModal] = useState(false);
   const [showSeaCopyModal, setShowSeaCopyModal] = useState(false);
-  const [showRepackCopyModal, setShowRepackCopyModal] = useState(false);
   const [buy4meOrders, setBuy4meOrders] = useState([]);
   const [showAllBuy4meOrders, setShowAllBuy4meOrders] = useState(false);
   const [showAllBuy4meTracking, setShowAllBuy4meTracking] = useState(false);
@@ -292,17 +291,16 @@ const MyProfile = () => {
   const AIR_ADDRESS_WHATSAPP_PHONE = "+233540266839";
 
   useEffect(() => {
-    if (!showAirCopyModal && !showSeaCopyModal && !showRepackCopyModal) return;
+    if (!showAirCopyModal && !showSeaCopyModal) return;
     const onKey = (e) => {
       if (e.key === "Escape") {
         setShowAirCopyModal(false);
         setShowSeaCopyModal(false);
-        setShowRepackCopyModal(false);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [showAirCopyModal, showSeaCopyModal, showRepackCopyModal]);
+  }, [showAirCopyModal, showSeaCopyModal]);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [selectedInvoiceRequest, setSelectedInvoiceRequest] = useState(null);
@@ -1132,8 +1130,6 @@ const MyProfile = () => {
       setShowAirCopyModal(true);
     } else if (typeof id === "string" && id.endsWith("-full")) {
       setShowSeaCopyModal(true);
-    } else if (typeof id === "string" && id.endsWith("-repack")) {
-      setShowRepackCopyModal(true);
     }
     setTimeout(() => setCopiedId(null), 2000);
   };
@@ -3438,6 +3434,12 @@ const MyProfile = () => {
                       </div>
                     </div>
 
+                    <div className="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-lg">
+                      <p className="text-emerald-800 dark:text-emerald-200 font-semibold text-sm">
+                        We offer free consolidation
+                      </p>
+                    </div>
+
                     {/* Address cards */}
                     {shippingMarks.map((mark, markIdx) => {
                       const copyId = mark._id ?? `m${markIdx}`;
@@ -3468,17 +3470,6 @@ const MyProfile = () => {
                         mark.markId && airAddressName
                           ? `FIM-${airAddressName} 18620999572\n广东省广州市越秀区广园西路101号通通商贸城AB110档8302专线\n入仓唛头贴外箱：\nFIM 8302-${airAddressName}`
                           : "";
-                      const repackAddressText =
-                        displayShippingMark
-                          ? `${baseChinaAddress}${displayShippingMark}"REPACK"${ghSuffix}`
-                          : "";
-                      const repackAddressTextDisplay = formatMarkIdInText(repackAddressText);
-                      const repackAddressParts = displayShippingMark
-                        ? {
-                            prefix: `${baseChinaAddress}${displayShippingMark}"`,
-                            suffix: `"${ghSuffix}`,
-                          }
-                        : null;
                       // Build address text for a warehouse (from backend warehouse-addresses), same logic as RegionAddressGenerator
                       const getWarehouseAddressText = (wa) => {
                         if (!displayShippingMark || !wa) return "";
@@ -3590,41 +3581,6 @@ const MyProfile = () => {
                               </button>
                             </div>
                           </div>
-
-                          {repackAddressText && (
-                            <div>
-                              <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
-                                Repack address (China)
-                              </p>
-                              <div className="relative">
-                                <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                                  <p className="text-sm text-gray-900 dark:text-white break-all whitespace-pre-line">
-                                    {repackAddressParts ? (
-                                      <>
-                                      {formatMarkIdInText(repackAddressParts.prefix)}
-                                        <span className="font-semibold">REPACK</span>
-                                      {formatMarkIdInText(repackAddressParts.suffix)}
-                                      </>
-                                    ) : (
-                                    repackAddressTextDisplay
-                                    )}
-                                  </p>
-                                </div>
-                                <button
-                                onClick={() =>
-                                  copyToClipboard(repackAddressTextDisplay, `${copyId}-repack`)
-                                }
-                                  className="absolute top-3 right-3 p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                                >
-                                  {copiedId === `${copyId}-repack` ? (
-                                    <FaCheck className="w-5 h-5 text-green-500" />
-                                  ) : (
-                                    <FaCopy className="w-5 h-5" />
-                                  )}
-                                </button>
-                              </div>
-                            </div>
-                          )}
 
                           {airAddressText && (
                             <div>
@@ -5853,71 +5809,6 @@ const MyProfile = () => {
               <button
                 type="button"
                 onClick={() => setShowSeaCopyModal(false)}
-                className="text-sm font-medium text-red-800 dark:text-red-300 hover:text-red-950 dark:hover:text-red-100"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Repack address copy popup (center) */}
-      {showRepackCopyModal && (
-        <div
-          className="fixed inset-0 z-[1200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="repack-address-modal-title"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setShowRepackCopyModal(false);
-          }}
-        >
-          <div
-            className="relative w-full max-w-md rounded-2xl bg-red-50 dark:bg-red-950/50 shadow-2xl border-2 border-red-200 dark:border-red-800/80 p-6 sm:p-8"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2
-              id="repack-address-modal-title"
-              className="text-lg font-semibold text-red-900 dark:text-red-100 text-center mb-3"
-            >
-              Repack address
-            </h2>
-            <div className="text-sm text-red-950 dark:text-red-50 text-left mb-4 rounded-lg bg-red-100 dark:bg-red-900/40 border border-red-200 dark:border-red-700/60 p-3 leading-relaxed">
-              <p className="font-semibold mb-2">Important notes</p>
-              <ol className="list-decimal pl-5 space-y-1">
-                <li>
-                  Note: We don’t inspect personal goods for clients. Verify your
-                  products from your suppliers.
-                </li>
-                <li>
-                  Chassis numbers must be provided for motorbikes and tricycles
-                  before we can ship.
-                </li>
-              </ol>
-            </div>
-            <p className="text-sm font-medium text-red-700 dark:text-red-300 text-center mb-6">
-              Copied to clipboard.
-            </p>
-            <div className="flex flex-col items-center gap-4">
-              <button
-                type="button"
-                onClick={() => {
-                  const clean = AIR_ADDRESS_WHATSAPP_PHONE.replace(/[^\d]/g, "");
-                  window.open(
-                    `https://wa.me/${clean}`,
-                    "_blank",
-                    "noopener,noreferrer"
-                  );
-                }}
-                className="flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2.5 text-sm font-semibold transition-colors w-full max-w-xs"
-              >
-                <FaWhatsapp className="text-base shrink-0" />
-                <span>WhatsApp</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowRepackCopyModal(false)}
                 className="text-sm font-medium text-red-800 dark:text-red-300 hover:text-red-950 dark:hover:text-red-100"
               >
                 Close
