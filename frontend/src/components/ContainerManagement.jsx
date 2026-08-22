@@ -1525,16 +1525,8 @@ const ContainerManagement = () => {
                             </td>
                             <td className="px-4 py-2">
                               {stat.has_invoice ? (
-                                <span
-                                  className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
-                                  title={stat.invoice_number || undefined}
-                                >
-                                  {(stat.invoice_count || 1) > 1
-                                    ? `${stat.invoice_count} Invoices Created`
-                                    : "Invoice Created"}
-                                  {stat.invoice_number
-                                    ? ` · ${stat.invoice_number}`
-                                    : ""}
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
+                                  Created
                                 </span>
                               ) : (
                                 <span className="text-xs text-gray-400 dark:text-gray-500">
