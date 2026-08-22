@@ -350,6 +350,30 @@ const ContainerManagement = () => {
     setRowInvoiceGoodsTypes((prev) => ({ ...prev, [shippingMark]: value }));
   };
 
+  const applyInvoiceCreatedToMarkStats = (markId, invoice) => {
+    const bare = shippingMarkToMarkId(markId).toUpperCase();
+    if (!bare) return;
+    setContainerDetails((prev) => {
+      if (!prev?.mark_id_stats) return prev;
+      return {
+        ...prev,
+        mark_id_stats: prev.mark_id_stats.map((stat) => {
+          const rowMark = shippingMarkToMarkId(stat.shipping_mark).toUpperCase();
+          if (rowMark !== bare) return stat;
+          return {
+            ...stat,
+            has_invoice: true,
+            invoice_count: (stat.invoice_count || 0) + 1,
+            invoice_id: invoice?.id ?? invoice?.invoice_id ?? stat.invoice_id,
+            invoice_number:
+              invoice?.invoice_number ?? stat.invoice_number ?? null,
+            invoice_status: invoice?.status ?? stat.invoice_status ?? "pending",
+          };
+        }),
+      };
+    });
+  };
+
   const handleCreateInvoiceForMark = async (stat) => {
     if (!containerDetails?.id || !stat?.shipping_mark) return;
     if (stat.has_invoice) {
@@ -376,6 +400,7 @@ const ContainerManagement = () => {
           ? `Invoice ${res.data.invoice_number} created successfully`
           : "Invoice created successfully"
       );
+      applyInvoiceCreatedToMarkStats(markId, res.data);
       await refreshContainerDetails(containerDetails.id);
     } catch (err) {
       console.error("Invoice create error", err);
@@ -970,7 +995,8 @@ const ContainerManagement = () => {
                           ? `Invoice ${res.data.invoice_number} created successfully`
                           : "Invoice created successfully"
                       );
-                      // Clear preview after successful creation
+                      // Reflect on mark stats table immediately, then refresh
+                      applyInvoiceCreatedToMarkStats(invoiceMarkId, res.data);
                       setInvoicePreview(null);
                       setInvoiceMarkId("");
                       await refreshContainerDetails(containerDetails.id);
