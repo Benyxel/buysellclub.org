@@ -13,7 +13,11 @@ import {
 } from "react-icons/fa";
 import ConfirmModal from "./shared/ConfirmModal";
 import { formatCompactCount } from "../utils/formatCompactCount";
-import { formatShippingMarkForDisplay, withFimPrefix } from "../utils/markIdFormat";
+import {
+  formatShippingMarkForDisplay,
+  shippingMarkToMarkId,
+  withFimPrefix,
+} from "../utils/markIdFormat";
 import { InvoiceItemTrackingLabel, InvoiceItemCbm } from "./InvoiceItemDisplay";
 import { InvoicePreviewExecutiveDiscountRows } from "./InvoicePreviewExecutiveDiscount";
 
@@ -30,8 +34,17 @@ const ContainerManagement = () => {
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [invoiceSending, setInvoiceSending] = useState(false);
   const [invoiceGoodsType, setInvoiceGoodsType] = useState("normal");
+  const [rowInvoiceGoodsTypes, setRowInvoiceGoodsTypes] = useState({});
+  const [creatingInvoiceMark, setCreatingInvoiceMark] = useState(null);
   const [agentShippingRates, setAgentShippingRates] = useState(null);
   const [shippingRates, setShippingRates] = useState(null);
+
+  const GOODS_TYPE_OPTIONS = [
+    { value: "normal", label: "Normal Goods" },
+    { value: "special", label: "Special Goods" },
+    { value: "agent_normal", label: "Agent Normal Rate" },
+    { value: "agent_special", label: "Agent Special Rate" },
+  ];
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -305,20 +318,81 @@ const ContainerManagement = () => {
     }
   };
 
+  const refreshContainerDetails = async (containerId) => {
+    if (!containerId) return null;
+    const response = await api.get(`/api/admin/containers/${containerId}`);
+    setContainerDetails(response.data);
+    return response.data;
+  };
+
   const handleViewDetails = async (containerId) => {
     setLoading(true);
     try {
-      const response = await api.get(`/api/admin/containers/${containerId}`);
-      setContainerDetails(response.data);
+      await refreshContainerDetails(containerId);
       setShowDetailModal(true);
       // reset invoice state on open
       setInvoiceMarkId("");
       setInvoicePreview(null);
+      setRowInvoiceGoodsTypes({});
+      setCreatingInvoiceMark(null);
     } catch (error) {
       console.error("Error fetching container details:", error);
       toast.error("Failed to fetch container details");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const getRowGoodsType = (shippingMark) =>
+    rowInvoiceGoodsTypes[shippingMark] || "normal";
+
+  const setRowGoodsType = (shippingMark, value) => {
+    setRowInvoiceGoodsTypes((prev) => ({ ...prev, [shippingMark]: value }));
+  };
+
+  const handleCreateInvoiceForMark = async (stat) => {
+    if (!containerDetails?.id || !stat?.shipping_mark) return;
+    if (stat.has_invoice) {
+      toast.error(
+        "Invoice already created for this mark. Use manual invoice to create another."
+      );
+      return;
+    }
+    const markId = shippingMarkToMarkId(stat.shipping_mark);
+    if (!markId) {
+      toast.error("Invalid Mark ID");
+      return;
+    }
+    const goodsType = getRowGoodsType(stat.shipping_mark);
+    setCreatingInvoiceMark(stat.shipping_mark);
+    try {
+      const res = await api.post("/buysellapi/invoices/", {
+        mark_id: markId,
+        container_id: containerDetails.id,
+        goods_type: goodsType,
+      });
+      toast.success(
+        res.data?.invoice_number
+          ? `Invoice ${res.data.invoice_number} created successfully`
+          : "Invoice created successfully"
+      );
+      await refreshContainerDetails(containerDetails.id);
+    } catch (err) {
+      console.error("Invoice create error", err);
+      const data = err.response?.data;
+      toast.error(
+        data?.detail ||
+          data?.error ||
+          (typeof data?.mark_id === "string" ? data.mark_id : null) ||
+          "Failed to create invoice"
+      );
+      try {
+        await refreshContainerDetails(containerDetails.id);
+      } catch (_) {
+        /* ignore */
+      }
+    } finally {
+      setCreatingInvoiceMark(null);
     }
   };
 
@@ -839,10 +913,11 @@ const ContainerManagement = () => {
                     onChange={(e) => setInvoiceGoodsType(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   >
-                    <option value="normal">Normal Goods</option>
-                    <option value="special">Special Goods</option>
-                    <option value="agent_normal">Agent Normal Rate</option>
-                    <option value="agent_special">Agent Special Rate</option>
+                    {GOODS_TYPE_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <button
@@ -898,6 +973,7 @@ const ContainerManagement = () => {
                       // Clear preview after successful creation
                       setInvoicePreview(null);
                       setInvoiceMarkId("");
+                      await refreshContainerDetails(containerDetails.id);
                     } catch (err) {
                       console.error("Invoice create error", err);
                       toast.error(
@@ -905,6 +981,11 @@ const ContainerManagement = () => {
                         err.response?.data?.error ||
                         "Failed to create invoice"
                       );
+                      try {
+                        await refreshContainerDetails(containerDetails.id);
+                      } catch (_) {
+                        /* ignore */
+                      }
                     } finally {
                       setInvoiceSending(false);
                     }
@@ -1386,10 +1467,19 @@ const ContainerManagement = () => {
                           <th className="px-4 py-2 text-left text-gray-700 dark:text-gray-300">
                             Total Fee
                           </th>
+                          <th className="px-4 py-2 text-left text-gray-700 dark:text-gray-300">
+                            Invoice
+                          </th>
+                          <th className="px-4 py-2 text-left text-gray-700 dark:text-gray-300">
+                            Create Invoice
+                          </th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                        {containerDetails.mark_id_stats.map((stat, index) => (
+                        {containerDetails.mark_id_stats.map((stat, index) => {
+                          const isCreating =
+                            creatingInvoiceMark === stat.shipping_mark;
+                          return (
                           <tr key={index}>
                             <td className="px-4 py-2 text-gray-900 dark:text-white font-medium">
                               {formatShippingMarkForDisplay(stat.shipping_mark) ||
@@ -1402,13 +1492,70 @@ const ContainerManagement = () => {
                               {stat.count}
                             </td>
                             <td className="px-4 py-2 text-gray-700 dark:text-gray-300">
-                              {stat.total_cbm.toFixed(3)}
+                              {parseFloat(stat.total_cbm || 0).toFixed(3)}
                             </td>
                             <td className="px-4 py-2 text-gray-700 dark:text-gray-300">
-                              ${stat.total_fee.toFixed(2)}
+                              ${parseFloat(stat.total_fee || 0).toFixed(2)}
+                            </td>
+                            <td className="px-4 py-2">
+                              {stat.has_invoice ? (
+                                <span
+                                  className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
+                                  title={stat.invoice_number || undefined}
+                                >
+                                  {(stat.invoice_count || 1) > 1
+                                    ? `${stat.invoice_count} Invoices Created`
+                                    : "Invoice Created"}
+                                  {stat.invoice_number
+                                    ? ` · ${stat.invoice_number}`
+                                    : ""}
+                                </span>
+                              ) : (
+                                <span className="text-xs text-gray-400 dark:text-gray-500">
+                                  Not created
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-4 py-2">
+                              {stat.has_invoice ? (
+                                <span className="text-xs text-gray-400 dark:text-gray-500">
+                                  Use manual invoice
+                                </span>
+                              ) : (
+                                <div className="flex flex-wrap items-center gap-2 min-w-[220px]">
+                                  <select
+                                    value={getRowGoodsType(stat.shipping_mark)}
+                                    onChange={(e) =>
+                                      setRowGoodsType(
+                                        stat.shipping_mark,
+                                        e.target.value
+                                      )
+                                    }
+                                    disabled={isCreating}
+                                    className="px-2 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                  >
+                                    {GOODS_TYPE_OPTIONS.map((opt) => (
+                                      <option key={opt.value} value={opt.value}>
+                                        {opt.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleCreateInvoiceForMark(stat)
+                                    }
+                                    disabled={isCreating}
+                                    className="px-3 py-1.5 text-xs font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 whitespace-nowrap"
+                                  >
+                                    {isCreating ? "Creating..." : "Create Invoice"}
+                                  </button>
+                                </div>
+                              )}
                             </td>
                           </tr>
-                        ))}
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
