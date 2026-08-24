@@ -73,6 +73,7 @@ const labelToValue = (label) =>
 const TrackingManagement = () => {
   const [trackings, setTrackings] = useState([]);
   const [filteredTrackings, setFilteredTrackings] = useState([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortField, setSortField] = useState("addedDate");
   const [sortDirection, setSortDirection] = useState("desc");
@@ -109,6 +110,8 @@ const TrackingManagement = () => {
     }
   });
   const viewContentRef = useRef(null);
+  const fetchRequestIdRef = useRef(0);
+  const searchDebounceRef = useRef(null);
 
   const [newTracking, setNewTracking] = useState({
     trackingNumber: "",
@@ -138,12 +141,59 @@ const TrackingManagement = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null); // 'selected' or specific tracking id
 
-  // Fetch trackings from backend on mount
+  // Fetch containers on mount; trackings load via paginated effect below
   useEffect(() => {
-    fetchTrackings();
     fetchContainers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const formatStatusLabel = (statusValue) => {
+    const option = statusOptions.find((o) => o.value === statusValue);
+    return option ? option.label : "Pending";
+  };
+
+  const transformTracking = (t) => ({
+    id: t.id,
+    TrackingNum: t.tracking_number,
+    ShippingMark: t.shipping_mark || "",
+    Status: formatStatusLabel(t.status),
+    CBM:
+      t.cbm_display != null && t.cbm_display !== ""
+        ? String(t.cbm_display)
+        : t.cbm != null && t.cbm !== ""
+        ? String(t.cbm)
+        : "",
+    bulkGroupId: t.bulk_group_id || null,
+    bulkTotalCbm: t.bulk_total_cbm,
+    bulkTrackingNumbers: t.bulk_tracking_numbers || [],
+    isRepack: !!t.is_repack,
+    repackParentNumber: t.repack_parent_number || "",
+    repackMemberCount: t.repack_member_count || 0,
+    repackMemberNumbers: t.repack_member_numbers || [],
+    ShippingFee: t.shipping_fee || "",
+    GoodsType: t.goods_type || "",
+    ETA: t.eta || "",
+    Container: t.container || "",
+    container_id: t.container ?? null,
+    ContainerNumber: t.container_number || "",
+    AddedDate: t.date_added,
+    LastUpdated: t.date_added,
+  });
+
+  const buildTrackingListParams = ({
+    page = currentPage,
+    limit = pageSize,
+    search = searchTerm,
+    status = filterStatus,
+    container = filterContainer,
+  } = {}) => {
+    const params = { page, limit };
+    const q = (search || "").trim();
+    if (q) params.search = q;
+    if (status && status !== "all") params.status = status;
+    if (container && container !== "all") params.container = container;
+    return params;
+  };
 
   const fetchContainers = async () => {
     // Speed up: render cached containers immediately, then refresh in background.
@@ -183,56 +233,43 @@ const TrackingManagement = () => {
     }
   };
 
-  const fetchTrackings = async () => {
-    // Always fetch fresh data from server
+  const fetchTrackings = async (overrides = {}) => {
+    const requestId = ++fetchRequestIdRef.current;
     try {
       setLoading(true);
-      const response = await API.get("/buysellapi/trackings/", { 
-        isAdmin: true
-      });
+      const params = buildTrackingListParams(overrides);
+      const response = await API.get("/buysellapi/trackings/", { params });
 
+      if (requestId !== fetchRequestIdRef.current) return;
+
+      let rows = [];
+      let total = 0;
       if (response.data && Array.isArray(response.data)) {
-        // Filter out agent-created trackings except local agents (local should appear here)
-        const nonAgentTrackings = response.data.filter(
-          (t) => !t.created_by_agent || t.created_by_agent_type === "local"
-        );
-        
-        // Transform backend data to frontend format
-        const transformed = nonAgentTrackings.map((t) => ({
-          id: t.id,
-          TrackingNum: t.tracking_number,
-          ShippingMark: t.shipping_mark || "",
-          Status: formatStatusLabel(t.status),
-          CBM:
-            t.cbm_display != null && t.cbm_display !== ""
-              ? String(t.cbm_display)
-              : t.cbm != null && t.cbm !== ""
-              ? String(t.cbm)
-              : "",
-          bulkGroupId: t.bulk_group_id || null,
-          bulkTotalCbm: t.bulk_total_cbm,
-          bulkTrackingNumbers: t.bulk_tracking_numbers || [],
-          isRepack: !!t.is_repack,
-          repackParentNumber: t.repack_parent_number || "",
-          repackMemberCount: t.repack_member_count || 0,
-          repackMemberNumbers: t.repack_member_numbers || [],
-          ShippingFee: t.shipping_fee || "",
-          GoodsType: t.goods_type || "",
-          ETA: t.eta || "",
-          Container: t.container || "",
-          container_id: t.container ?? null,
-          ContainerNumber: t.container_number || "",
-          AddedDate: t.date_added,
-          LastUpdated: t.date_added,
-        }));
-        setTrackings(transformed);
+        // Legacy unpaginated response (should not happen when page/limit sent)
+        rows = response.data;
+        total = rows.length;
+      } else if (response.data && Array.isArray(response.data.data)) {
+        rows = response.data.data;
+        total = Number(response.data.total) || rows.length;
       }
+
+      // Backend already scopes admin list; keep local-agent rows only as a safety net
+      const nonAgentTrackings = rows.filter(
+        (t) => !t.created_by_agent || t.created_by_agent_type === "local"
+      );
+
+      setTrackings(nonAgentTrackings.map(transformTracking));
+      setTotalCount(total);
     } catch (error) {
+      if (requestId !== fetchRequestIdRef.current) return;
       console.error("Error fetching trackings:", error);
       toast.error("Failed to load trackings from server");
       setTrackings([]);
+      setTotalCount(0);
     } finally {
-      setLoading(false);
+      if (requestId === fetchRequestIdRef.current) {
+        setLoading(false);
+      }
     }
   };
 
@@ -380,56 +417,37 @@ const TrackingManagement = () => {
     }
   };
 
-  // Helper to format status from backend value to display label
-  const formatStatusLabel = (statusValue) => {
-    const option = statusOptions.find((o) => o.value === statusValue);
-    return option ? option.label : "Pending";
-  };
-
   // Track previous filter values to detect actual changes
   const prevFiltersRef = useRef({ filterStatus, filterContainer, searchTerm });
   
   useEffect(() => {
-    // Check if filters actually changed
     const filtersChanged = 
       prevFiltersRef.current.filterStatus !== filterStatus ||
       prevFiltersRef.current.filterContainer !== filterContainer ||
       prevFiltersRef.current.searchTerm !== searchTerm;
     
-    // Only reset to page 1 if filters actually changed
     if (filtersChanged) {
       setCurrentPage(1);
       prevFiltersRef.current = { filterStatus, filterContainer, searchTerm };
     }
-    
+  }, [filterStatus, filterContainer, searchTerm, setCurrentPage]);
+
+  // Server-side pagination / search / filters (debounced for search typing)
+  useEffect(() => {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    const delay = searchTerm ? 350 : 0;
+    searchDebounceRef.current = setTimeout(() => {
+      fetchTrackings();
+    }, delay);
+    return () => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, pageSize, searchTerm, filterStatus, filterContainer]);
+
+  // Sort only the current page client-side
+  useEffect(() => {
     let result = [...trackings];
-    if (filterStatus !== "all") {
-      result = result.filter(
-        (item) => labelToValue(item.Status) === filterStatus
-      );
-    }
-    if (filterContainer !== "all") {
-      if (filterContainer === "none") {
-        result = result.filter((item) => !item.Container);
-      } else {
-        result = result.filter(
-          (item) =>
-            item.Container && item.Container.toString() === filterContainer
-        );
-      }
-    }
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      result = result.filter(
-        (item) =>
-          (item.TrackingNum && item.TrackingNum.toLowerCase().includes(term)) ||
-          (item.ShippingMark &&
-            item.ShippingMark.toLowerCase().includes(term)) ||
-          (item.ContainerNumber &&
-            item.ContainerNumber.toLowerCase().includes(term)) ||
-          (item.ETA && item.ETA.toLowerCase().includes(term))
-      );
-    }
     result.sort((a, b) => {
       let fieldA, fieldB;
       switch (sortField) {
@@ -466,14 +484,7 @@ const TrackingManagement = () => {
         : -1;
     });
     setFilteredTrackings(result);
-  }, [
-    trackings,
-    searchTerm,
-    sortField,
-    sortDirection,
-    filterStatus,
-    filterContainer,
-  ]);
+  }, [trackings, sortField, sortDirection]);
 
   // Open User View page in new tab by shipping mark (hyphenated URL, e.g. FIM-024)
   const handleShippingMarkClick = (shippingMark) => {
@@ -760,15 +771,9 @@ const TrackingManagement = () => {
     }
   };
 
-  // Pagination helpers
-  const totalPages = Math.max(
-    1,
-    Math.ceil(filteredTrackings.length / pageSize)
-  );
-  const pagedItems = filteredTrackings.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
-  );
+  // Pagination helpers (server-backed total)
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize) || 1);
+  const pagedItems = filteredTrackings;
   const goToPage = (p) => {
     const page = Math.min(Math.max(1, p), totalPages);
     setCurrentPage(page);
@@ -878,43 +883,65 @@ const TrackingManagement = () => {
 
   // User info and status history are managed server-side; omitted here.
 
-  const exportToCSV = () => {
-    if (filteredTrackings.length === 0) return;
-    const headers = [
-      "Tracking Number",
-      "Shipping Mark",
-      "Status",
-      "CBM",
-      "Shipping Fee",
-      "Added Date",
-      "ETA",
-    ];
-    const csvContent = [
-      headers.join(","),
-      ...filteredTrackings.map((item) =>
-        [
-          item.TrackingNum || "",
-          `"${(item.ShippingMark || "").replace(/"/g, '""')}"`,
-          item.Status || "",
-          item.CBM || "",
-          item.ShippingFee || "",
-          item.AddedDate ? new Date(item.AddedDate).toLocaleDateString() : "",
-          item.ETA || "",
-        ].join(",")
-      ),
-    ].join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute(
-      "download",
-      `tracking_export_${new Date().toISOString().slice(0, 10)}.csv`
-    );
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const exportToCSV = async () => {
+    try {
+      setLoading(true);
+      const params = buildTrackingListParams({ page: 1, limit: 5000 });
+      const response = await API.get("/buysellapi/trackings/", { params });
+      let rows = [];
+      if (Array.isArray(response.data)) {
+        rows = response.data;
+      } else if (Array.isArray(response.data?.data)) {
+        rows = response.data.data;
+      }
+      const exported = rows
+        .filter((t) => !t.created_by_agent || t.created_by_agent_type === "local")
+        .map(transformTracking);
+      if (exported.length === 0) {
+        toast.error("No trackings to export");
+        return;
+      }
+      const headers = [
+        "Tracking Number",
+        "Shipping Mark",
+        "Status",
+        "CBM",
+        "Shipping Fee",
+        "Added Date",
+        "ETA",
+      ];
+      const csvContent = [
+        headers.join(","),
+        ...exported.map((item) =>
+          [
+            item.TrackingNum || "",
+            `"${(item.ShippingMark || "").replace(/"/g, '""')}"`,
+            item.Status || "",
+            item.CBM || "",
+            item.ShippingFee || "",
+            item.AddedDate ? new Date(item.AddedDate).toLocaleDateString() : "",
+            item.ETA || "",
+          ].join(",")
+        ),
+      ].join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute(
+        "download",
+        `trackings_${new Date().toISOString().slice(0, 10)}.csv`
+      );
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Export error:", error);
+      toast.error("Failed to export trackings");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getStatusColor = (statusLabel) => {
@@ -1358,8 +1385,8 @@ const TrackingManagement = () => {
             {formatCompactCount(totalPages)}
           </span>{" "}
           • Showing {pagedItems.length} of{" "}
-          <span title={String(filteredTrackings.length)}>
-            {formatCompactCount(filteredTrackings.length)}
+          <span title={String(totalCount)}>
+            {formatCompactCount(totalCount)}
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -1416,12 +1443,12 @@ const TrackingManagement = () => {
       {/* Summary */}
       <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
         Showing{" "}
-        <span title={String(filteredTrackings.length)}>
-          {formatCompactCount(filteredTrackings.length)}
+        <span title={String(pagedItems.length)}>
+          {formatCompactCount(pagedItems.length)}
         </span>{" "}
         of{" "}
-        <span title={String(trackings.length)}>
-          {formatCompactCount(trackings.length)}
+        <span title={String(totalCount)}>
+          {formatCompactCount(totalCount)}
         </span>{" "}
         tracking records
         {selectedTrackings.length > 0 &&
