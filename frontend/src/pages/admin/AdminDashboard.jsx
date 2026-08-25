@@ -91,6 +91,7 @@ import AgentContainerManagement from "./AgentContainerManagement";
 import LiveChatAdminPanel from "./LiveChatAdminPanel";
 import AdminAgentTickets from "./AdminAgentTickets";
 import MaintenanceManagement from "./MaintenanceManagement";
+import MobileAppVersionManagement from "./MobileAppVersionManagement";
 const AgentShippingRatesManagement = React.lazy(() =>
   import("./AgentShippingRatesManagement.jsx")
 );
@@ -359,6 +360,11 @@ const AdminDashboard = () => {
       },
       { icon: <FaChartBar />, label: "Analytics", section: "analytics" },
       { icon: <FaUserCog />, label: "Staff", section: "staff" },
+      {
+        icon: <FaMobileAlt />,
+        label: "App Updates",
+        section: "app-updates",
+      },
       { icon: <FaCog />, label: "Settings", section: "settings" },
     ],
     []
@@ -2293,6 +2299,8 @@ const AdminDashboard = () => {
         );
       case "gallery":
         return <GalleryManagement />;
+      case "app-updates":
+        return <MobileAppVersionManagement />;
       case "settings":
         return <MaintenanceManagement />;
       default:
