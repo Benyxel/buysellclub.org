@@ -9,7 +9,9 @@ import {
   isMobileUserAgent,
   isStandaloneDisplay,
   openOrInstallApp,
+  SITE_ANDROID_APK_PATH,
 } from "../utils/appInstall";
+import { recordApkDownload } from "../utils/recordAppInstall";
 
 const STORAGE_KEY = "bsc:appInstallBannerDismissedAt";
 const DISMISS_DAYS = 14;
@@ -94,6 +96,7 @@ const MobileAppInstallBanner = () => {
       window.location.href = installUrl;
       return;
     }
+    recordApkDownload("banner");
     downloadAndroidApp(installUrl);
   };
 

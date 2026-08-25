@@ -8,6 +8,7 @@ import {
   isIosUserAgent,
   SITE_ANDROID_APK_PATH,
 } from "../utils/appInstall";
+import { recordApkDownload } from "../utils/recordAppInstall";
 
 /**
  * Public page: download the Android APK from this site + short install tips.
@@ -36,7 +37,10 @@ const GetApp = () => {
           <div className="mt-6 space-y-3">
             <button
               type="button"
-              onClick={() => downloadAndroidApp(androidUrl)}
+              onClick={() => {
+                recordApkDownload("get_app");
+                downloadAndroidApp(androidUrl);
+              }}
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-teal-600 px-4 py-3 text-sm font-semibold text-white hover:bg-teal-500"
             >
               <FaAndroid aria-hidden />
@@ -47,6 +51,7 @@ const GetApp = () => {
               href={SITE_ANDROID_APK_PATH}
               className="block text-center text-xs text-teal-700 dark:text-teal-300 underline"
               download="BuySellClub.apk"
+              onClick={() => recordApkDownload("get_app_direct")}
             >
               Direct link if the button does not start
             </a>
