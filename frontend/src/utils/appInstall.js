@@ -2,11 +2,17 @@
 export const APP_PACKAGE = "org.buysellclub.app";
 export const APP_DEEP_LINK = "buysellclub://";
 
+/** Direct APK on this website (public/downloads/BuySellClub.apk). */
+export const SITE_ANDROID_APK_PATH = "/downloads/BuySellClub.apk";
+
 export function getAndroidInstallUrl() {
   const fromEnv = (import.meta.env.VITE_ANDROID_APP_URL || "").trim();
   if (fromEnv) return fromEnv;
-  // Fallback: Play Store listing (update VITE_ANDROID_APP_URL when you have APK/store link)
-  return `https://play.google.com/store/apps/details?id=${APP_PACKAGE}`;
+  // Default: download APK from the website (not Play Store yet)
+  if (typeof window !== "undefined" && window.location?.origin) {
+    return `${window.location.origin}${SITE_ANDROID_APK_PATH}`;
+  }
+  return SITE_ANDROID_APK_PATH;
 }
 
 export function getIosInstallUrl() {
@@ -38,6 +44,19 @@ export function isStandaloneDisplay() {
   return false;
 }
 
+/** Start APK download (or open store URL). */
+export function downloadAndroidApp(installUrl = getAndroidInstallUrl()) {
+  if (typeof window === "undefined" || !installUrl) return;
+  // Force a download navigation; browsers handle .apk as installable file
+  const a = document.createElement("a");
+  a.href = installUrl;
+  a.setAttribute("download", "BuySellClub.apk");
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
 /**
  * Try to open the native app; after a short delay, fall back to install URL
  * if the page is still visible (app likely not installed).
@@ -54,15 +73,7 @@ export function openOrInstallApp({ installUrl, deepLink = APP_DEEP_LINK } = {}) 
   document.addEventListener("visibilitychange", onHide);
   window.addEventListener("pagehide", onHide);
 
-  // Prefer Android intent with browser fallback when we have an install URL
-  if (isAndroidUserAgent() && installUrl) {
-    const intent =
-      `intent://open#Intent;scheme=buysellclub;package=${APP_PACKAGE};` +
-      `S.browser_fallback_url=${encodeURIComponent(installUrl)};end`;
-    window.location.href = intent;
-    return;
-  }
-
+  // Deep link first — if the app is installed it should take over
   window.location.href = deepLink;
 
   if (!installUrl) return;
@@ -73,7 +84,11 @@ export function openOrInstallApp({ installUrl, deepLink = APP_DEEP_LINK } = {}) 
     if (leftPage) return;
     if (document.hidden) return;
     if (Date.now() - start < 2500) {
-      window.location.href = installUrl;
+      if (/\.apk(\?|$)/i.test(installUrl) || installUrl.includes("/downloads/")) {
+        downloadAndroidApp(installUrl);
+      } else {
+        window.location.href = installUrl;
+      }
     }
   }, 1500);
 }

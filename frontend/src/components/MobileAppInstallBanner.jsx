@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { FaMobileAlt, FaTimes } from "react-icons/fa";
 import {
+  downloadAndroidApp,
   getAndroidInstallUrl,
   getIosInstallUrl,
   isIosUserAgent,
@@ -89,7 +90,11 @@ const MobileAppInstallBanner = () => {
 
   const handleGetApp = () => {
     if (!installUrl) return;
-    window.location.href = installUrl;
+    if (ios && installUrl) {
+      window.location.href = installUrl;
+      return;
+    }
+    downloadAndroidApp(installUrl);
   };
 
   return (
@@ -108,7 +113,7 @@ const MobileAppInstallBanner = () => {
               Use the BuySellClub app
             </p>
             <p className="mt-0.5 text-xs leading-relaxed text-slate-300">
-              Faster tracking &amp; alerts on your phone.
+              Faster tracking &amp; alerts — download free from this site.
             </p>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               {hasInstall && (
@@ -117,7 +122,7 @@ const MobileAppInstallBanner = () => {
                   onClick={handleGetApp}
                   className="rounded-lg bg-teal-500 px-3.5 py-2 text-xs font-semibold text-slate-950 hover:bg-teal-400 active:scale-[0.98]"
                 >
-                  Get the app
+                  Download app
                 </button>
               )}
               <button

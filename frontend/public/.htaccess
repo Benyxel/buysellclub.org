@@ -150,6 +150,7 @@ ErrorDocument 404 /index.html
   AddType application/javascript js
   AddType application/json json
   AddType image/svg+xml svg svgz
+  AddType application/vnd.android.package-archive apk
   AddEncoding gzip svgz
 </IfModule>
 

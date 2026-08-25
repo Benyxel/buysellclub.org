@@ -128,6 +128,11 @@ const Footer = () => {
                 </Link>
               </li>
               <li>
+                <Link to="/get-app" className={linkClass}>
+                  Get the app
+                </Link>
+              </li>
+              <li>
                 <Link to="/Training" className={linkClass}>
                   Training
                 </Link>
