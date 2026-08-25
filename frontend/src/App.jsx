@@ -73,6 +73,7 @@ import Logout from "./components/Logout";
 import NotFound from "./pages/NotFound";
 import LoginPromptModal from "./components/LoginPromptModal";
 import RequireContactModal from "./components/RequireContactModal";
+import MobileAppInstallBanner from "./components/MobileAppInstallBanner";
 import UserView from "./pages/admin/UserView";
 import ScrollToTop from "./components/ScrollToTop";
 import ScrollToTopButton from "./components/ScrollToTopButton";
@@ -432,6 +433,7 @@ function App() {
           </Routes>
           <LoginPromptModal />
           <RequireContactModal />
+          <MobileAppInstallBanner />
         </div>
       )}
       <ToastContainer
