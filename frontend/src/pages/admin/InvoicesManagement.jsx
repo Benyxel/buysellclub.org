@@ -102,6 +102,7 @@ export default function InvoicesManagement() {
     payment_method: "",
     payment_reference: "",
     notes: "",
+    goods_type: "normal",
   });
   const [creating, setCreating] = useState(false);
   const [createLineItems, setCreateLineItems] = useState([]);
@@ -598,6 +599,7 @@ export default function InvoicesManagement() {
       payment_method: "",
       payment_reference: "",
       notes: "",
+      goods_type: "normal",
     });
     setCreateLineItems([]);
     setCreateAvailableTrackings([]);
@@ -682,6 +684,7 @@ export default function InvoicesManagement() {
           customer_name: createFormData.customer_name || "",
           customer_email: createFormData.customer_email || "",
           status: createFormData.status || "pending",
+          goods_type: createFormData.goods_type || "normal",
           issue_date:
             createFormData.issue_date || invoiceDefaultDates().issue_date,
           ...(createFormData.due_date
@@ -843,8 +846,23 @@ export default function InvoicesManagement() {
           params: {
             mark_id: createFormData.shipping_mark.trim(),
             container_id: createFormData.container_id,
+            goods_type: createFormData.goods_type || "normal",
           },
         });
+        // Auto-select agent rates when the mark owner is an approved agent
+        if (res.data?.owner?.is_approved_agent) {
+          setCreateFormData((prev) => {
+            const current = prev.goods_type || "normal";
+            if (current === "normal" || current === "special") {
+              return {
+                ...prev,
+                goods_type:
+                  current === "special" ? "agent_special" : "agent_normal",
+              };
+            }
+            return prev;
+          });
+        }
         if (!cancelled) {
           setCreateAvailableTrackings(res.data?.items || []);
         }
@@ -857,7 +875,7 @@ export default function InvoicesManagement() {
     return () => {
       cancelled = true;
     };
-  }, [showCreateModal, createFormData.shipping_mark, createFormData.container_id]);
+  }, [showCreateModal, createFormData.shipping_mark, createFormData.container_id, createFormData.goods_type]);
 
   return (
     <div className="p-4">
@@ -2272,6 +2290,29 @@ export default function InvoicesManagement() {
                       </option>
                     ))}
                   </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Goods / Rate Type
+                  </label>
+                  <select
+                    value={createFormData.goods_type || "normal"}
+                    onChange={(e) =>
+                      setCreateFormData({
+                        ...createFormData,
+                        goods_type: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  >
+                    <option value="normal">Normal Goods</option>
+                    <option value="special">Special Goods</option>
+                    <option value="agent_normal">Agent Normal Rate</option>
+                    <option value="agent_special">Agent Special Rate</option>
+                  </select>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Approved agents auto-use agent rates even if Normal/Special is selected.
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
