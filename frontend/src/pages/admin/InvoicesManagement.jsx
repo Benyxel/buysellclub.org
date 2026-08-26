@@ -849,20 +849,6 @@ export default function InvoicesManagement() {
             goods_type: createFormData.goods_type || "normal",
           },
         });
-        // Auto-select agent rates when the mark owner is an approved agent
-        if (res.data?.owner?.is_approved_agent) {
-          setCreateFormData((prev) => {
-            const current = prev.goods_type || "normal";
-            if (current === "normal" || current === "special") {
-              return {
-                ...prev,
-                goods_type:
-                  current === "special" ? "agent_special" : "agent_normal",
-              };
-            }
-            return prev;
-          });
-        }
         if (!cancelled) {
           setCreateAvailableTrackings(res.data?.items || []);
         }

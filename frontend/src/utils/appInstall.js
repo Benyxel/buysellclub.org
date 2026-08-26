@@ -5,6 +5,20 @@ export const APP_DEEP_LINK = "buysellclub://";
 /** Direct APK on this website (public/downloads/BuySellClub.apk). */
 export const SITE_ANDROID_APK_PATH = "/downloads/BuySellClub.apk";
 
+/**
+ * Public site download / “Get the app” surfaces.
+ * Off by default until the app is ready. Enable with VITE_APP_DOWNLOADS_ENABLED=true
+ * (or flip the hardcoded fallback below when you ship).
+ */
+export function isAppPublicDownloadEnabled() {
+  const v = String(import.meta.env.VITE_APP_DOWNLOADS_ENABLED || "")
+    .trim()
+    .toLowerCase();
+  if (v === "1" || v === "true" || v === "yes") return true;
+  if (v === "0" || v === "false" || v === "no") return false;
+  return false;
+}
+
 export function getAndroidInstallUrl() {
   const fromEnv = (import.meta.env.VITE_ANDROID_APP_URL || "").trim();
   if (fromEnv) return fromEnv;

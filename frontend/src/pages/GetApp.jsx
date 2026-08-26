@@ -1,10 +1,12 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import { FaAndroid, FaApple, FaDownload, FaMobileAlt } from "react-icons/fa";
 import {
   downloadAndroidApp,
   getAndroidInstallUrl,
   getIosInstallUrl,
   isAndroidUserAgent,
+  isAppPublicDownloadEnabled,
   isIosUserAgent,
   SITE_ANDROID_APK_PATH,
 } from "../utils/appInstall";
@@ -12,12 +14,41 @@ import { recordApkDownload } from "../utils/recordAppInstall";
 
 /**
  * Public page: download the Android APK from this site + short install tips.
+ * Hidden behind isAppPublicDownloadEnabled until the app is ready to ship.
  */
 const GetApp = () => {
+  const enabled = isAppPublicDownloadEnabled();
   const iosUrl = getIosInstallUrl();
   const androidUrl = getAndroidInstallUrl();
   const onAndroid = typeof navigator !== "undefined" && isAndroidUserAgent();
   const onIos = typeof navigator !== "undefined" && isIosUserAgent();
+
+  if (!enabled) {
+    return (
+      <div className="min-h-[70vh] bg-gray-50 dark:bg-gray-900 px-4 py-10">
+        <div className="mx-auto max-w-lg">
+          <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 sm:p-8 shadow-sm">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-500/15 text-teal-600 dark:text-teal-300">
+              <FaMobileAlt className="text-xl" aria-hidden />
+            </div>
+            <h1 className="mt-4 text-2xl font-bold text-gray-900 dark:text-white">
+              App coming soon
+            </h1>
+            <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+              The BuySellClub mobile app is not available for download yet.
+              Check back soon.
+            </p>
+            <Link
+              to="/"
+              className="mt-6 inline-flex rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-500"
+            >
+              Back to home
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[70vh] bg-gray-50 dark:bg-gray-900 px-4 py-10">

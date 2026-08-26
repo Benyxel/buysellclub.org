@@ -5,6 +5,7 @@ import {
   downloadAndroidApp,
   getAndroidInstallUrl,
   getIosInstallUrl,
+  isAppPublicDownloadEnabled,
   isIosUserAgent,
   isMobileUserAgent,
   isStandaloneDisplay,
@@ -62,6 +63,10 @@ const MobileAppInstallBanner = () => {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (!isAppPublicDownloadEnabled()) {
+      setVisible(false);
+      return;
+    }
     if (!isMobileUserAgent()) return;
     if (isStandaloneDisplay()) return;
     if (shouldHideOnPath(location.pathname)) {

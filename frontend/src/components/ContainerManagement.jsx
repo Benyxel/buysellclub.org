@@ -347,8 +347,6 @@ const ContainerManagement = () => {
     if (rowInvoiceGoodsTypes[stat.shipping_mark]) {
       return rowInvoiceGoodsTypes[stat.shipping_mark];
     }
-    // Approved agents default to agent normal rate
-    if (stat.is_approved_agent) return "agent_normal";
     return "normal";
   };
 
@@ -970,15 +968,6 @@ const ContainerManagement = () => {
                         }
                       );
                       setInvoicePreview(res.data);
-                      if (res.data?.goods_type) {
-                        setInvoiceGoodsType(res.data.goods_type);
-                      } else if (res.data?.owner?.is_approved_agent) {
-                        setInvoiceGoodsType((prev) =>
-                          prev === "special" || prev === "agent_special"
-                            ? "agent_special"
-                            : "agent_normal"
-                        );
-                      }
                     } catch (err) {
                       console.error("Invoice preview error", err);
                       toast.error(
@@ -1048,14 +1037,6 @@ const ContainerManagement = () => {
                     <span className="font-medium">Owner:</span>{" "}
                     {invoicePreview.owner?.full_name} (
                     {invoicePreview.owner?.email})
-                    {invoicePreview.owner?.is_approved_agent && (
-                      <span className="ml-2 inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300">
-                        Agent
-                        {invoicePreview.used_agent_rates
-                          ? " · agent rates"
-                          : ""}
-                      </span>
-                    )}
                   </div>
                   {invoicePreview.items?.length ? (
                     <div className="overflow-x-auto">
