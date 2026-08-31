@@ -2,17 +2,15 @@ import React, { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { FaMobileAlt, FaTimes } from "react-icons/fa";
 import {
-  downloadAndroidApp,
   getAndroidInstallUrl,
   getIosInstallUrl,
-  isAppPublicDownloadEnabled,
   isIosUserAgent,
   isMobileUserAgent,
   isStandaloneDisplay,
+  openAndroidInstall,
   openOrInstallApp,
-  SITE_ANDROID_APK_PATH,
 } from "../utils/appInstall";
-import { recordApkDownload } from "../utils/recordAppInstall";
+import { recordStoreClick } from "../utils/recordAppInstall";
 
 const STORAGE_KEY = "bsc:appInstallBannerDismissedAt";
 const DISMISS_DAYS = 14;
@@ -54,7 +52,7 @@ function shouldHideOnPath(pathname = "") {
 }
 
 /**
- * Soft mobile-web prompt: open the native app or send the user to install.
+ * Soft mobile-web prompt: open the native app or send the user to the store.
  * Desktop: hidden. Dismissible for 14 days.
  */
 const MobileAppInstallBanner = () => {
@@ -63,10 +61,6 @@ const MobileAppInstallBanner = () => {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (!isAppPublicDownloadEnabled()) {
-      setVisible(false);
-      return;
-    }
     if (!isMobileUserAgent()) return;
     if (isStandaloneDisplay()) return;
     if (shouldHideOnPath(location.pathname)) {
@@ -97,12 +91,12 @@ const MobileAppInstallBanner = () => {
 
   const handleGetApp = () => {
     if (!installUrl) return;
-    if (ios && installUrl) {
+    if (ios) {
       window.location.href = installUrl;
       return;
     }
-    recordApkDownload("banner");
-    downloadAndroidApp(installUrl);
+    recordStoreClick("banner");
+    openAndroidInstall(installUrl);
   };
 
   return (
@@ -121,7 +115,7 @@ const MobileAppInstallBanner = () => {
               Use the BuySellClub app
             </p>
             <p className="mt-0.5 text-xs leading-relaxed text-slate-300">
-              Faster tracking &amp; alerts — download free from this site.
+              Faster tracking &amp; alerts — get it free on Google Play.
             </p>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               {hasInstall && (
@@ -130,7 +124,7 @@ const MobileAppInstallBanner = () => {
                   onClick={handleGetApp}
                   className="rounded-lg bg-teal-500 px-3.5 py-2 text-xs font-semibold text-slate-950 hover:bg-teal-400 active:scale-[0.98]"
                 >
-                  Download app
+                  {ios ? "Get the app" : "Get on Play"}
                 </button>
               )}
               <button

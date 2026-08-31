@@ -1045,7 +1045,7 @@ const AdminDashboard = () => {
                 },
                 {
                   id: "app-downloads",
-                  title: "APK Downloads",
+                  title: "Store Clicks",
                   icon: (
                     <FaDownload className="text-2xl text-cyan-600 dark:text-cyan-400" />
                   ),
@@ -1055,7 +1055,7 @@ const AdminDashboard = () => {
                         {dashboardData.appDownloads ?? 0}
                       </p>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
-                        From website
+                        Play Store from website
                       </p>
                     </div>
                   ),

@@ -1,3 +1,2 @@
-# Place BuySellClub.apk here for website download:
-#   /downloads/BuySellClub.apk
-# Copy from repo apk-out/BuySellClub-customer.apk when releasing a new build.
+# Android installs use Google Play — do not place APKs here.
+# Play Store: https://play.google.com/store/apps/details?id=org.buysellclub.app

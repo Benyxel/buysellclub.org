@@ -8,7 +8,8 @@ const DEFAULTS = {
   latest_version: "1.0.0",
   min_supported_version: "",
   force_update: false,
-  android_apk_url: "https://buysellclub.org/downloads/BuySellClub.apk",
+  android_apk_url:
+    "https://play.google.com/store/apps/details?id=org.buysellclub.app",
   ios_store_url: "",
   message:
     "A new version of BuySellClub is available. Please update for the latest features and fixes.",
@@ -77,9 +78,10 @@ const MobileAppVersionManagement = () => {
           Mobile App Updates
         </h2>
         <p className="text-sm text-gray-600 dark:text-gray-400">
-          When you upload a new APK, bump <strong>Latest version</strong> to match
-          the app version in <code>app.config.js</code>. Users with older apps will
-          see an update prompt.
+          When you publish a new build on Google Play, bump{" "}
+          <strong>Latest version</strong> to match the app version in{" "}
+          <code>app.config.js</code>. Users with older apps will see an update
+          prompt that opens Play Store.
         </p>
       </div>
 
@@ -163,7 +165,7 @@ const MobileAppVersionManagement = () => {
 
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Android APK URL
+            Android install URL (Google Play)
           </label>
           <input
             type="url"
@@ -171,8 +173,13 @@ const MobileAppVersionManagement = () => {
             onChange={(e) =>
               setSettings((s) => ({ ...s, android_apk_url: e.target.value }))
             }
+            placeholder="https://play.google.com/store/apps/details?id=org.buysellclub.app"
             className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
           />
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            Used by the in-app update prompt. Prefer the Play Store listing — do
+            not host an APK on the website.
+          </p>
         </div>
 
         <div>

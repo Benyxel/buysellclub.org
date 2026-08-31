@@ -2,31 +2,16 @@
 export const APP_PACKAGE = "org.buysellclub.app";
 export const APP_DEEP_LINK = "buysellclub://";
 
-/** Direct APK on this website (public/downloads/BuySellClub.apk). */
-export const SITE_ANDROID_APK_PATH = "/downloads/BuySellClub.apk";
+/** Google Play listing (override with VITE_ANDROID_APP_URL if needed). */
+export const PLAY_STORE_URL = `https://play.google.com/store/apps/details?id=${APP_PACKAGE}`;
 
-/**
- * Public site download / “Get the app” surfaces.
- * Off by default until the app is ready. Enable with VITE_APP_DOWNLOADS_ENABLED=true
- * (or flip the hardcoded fallback below when you ship).
- */
-export function isAppPublicDownloadEnabled() {
-  const v = String(import.meta.env.VITE_APP_DOWNLOADS_ENABLED || "")
-    .trim()
-    .toLowerCase();
-  if (v === "1" || v === "true" || v === "yes") return true;
-  if (v === "0" || v === "false" || v === "no") return false;
-  return false;
-}
+/** @deprecated Site-hosted APK removed — use getAndroidInstallUrl() / PLAY_STORE_URL. */
+export const SITE_ANDROID_APK_PATH = PLAY_STORE_URL;
 
 export function getAndroidInstallUrl() {
   const fromEnv = (import.meta.env.VITE_ANDROID_APP_URL || "").trim();
   if (fromEnv) return fromEnv;
-  // Default: download APK from the website (not Play Store yet)
-  if (typeof window !== "undefined" && window.location?.origin) {
-    return `${window.location.origin}${SITE_ANDROID_APK_PATH}`;
-  }
-  return SITE_ANDROID_APK_PATH;
+  return PLAY_STORE_URL;
 }
 
 export function getIosInstallUrl() {
@@ -34,15 +19,21 @@ export function getIosInstallUrl() {
   return fromEnv || "";
 }
 
-export function isMobileUserAgent(ua = typeof navigator !== "undefined" ? navigator.userAgent : "") {
+export function isMobileUserAgent(
+  ua = typeof navigator !== "undefined" ? navigator.userAgent : ""
+) {
   return /Android|iPhone|iPad|iPod|Mobile/i.test(ua || "");
 }
 
-export function isIosUserAgent(ua = typeof navigator !== "undefined" ? navigator.userAgent : "") {
+export function isIosUserAgent(
+  ua = typeof navigator !== "undefined" ? navigator.userAgent : ""
+) {
   return /iPhone|iPad|iPod/i.test(ua || "");
 }
 
-export function isAndroidUserAgent(ua = typeof navigator !== "undefined" ? navigator.userAgent : "") {
+export function isAndroidUserAgent(
+  ua = typeof navigator !== "undefined" ? navigator.userAgent : ""
+) {
   return /Android/i.test(ua || "");
 }
 
@@ -58,24 +49,20 @@ export function isStandaloneDisplay() {
   return false;
 }
 
-/** Start APK download (or open store URL). */
-export function downloadAndroidApp(installUrl = getAndroidInstallUrl()) {
+/** Open the Play Store (or custom Android install URL) in a new tab / same window. */
+export function openAndroidInstall(installUrl = getAndroidInstallUrl()) {
   if (typeof window === "undefined" || !installUrl) return;
-  // Force a download navigation; browsers handle .apk as installable file
-  const a = document.createElement("a");
-  a.href = installUrl;
-  a.setAttribute("download", "BuySellClub.apk");
-  a.rel = "noopener";
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  window.open(installUrl, "_blank", "noopener,noreferrer");
 }
 
 /**
- * Try to open the native app; after a short delay, fall back to install URL
+ * Try to open the native app; after a short delay, fall back to store URL
  * if the page is still visible (app likely not installed).
  */
-export function openOrInstallApp({ installUrl, deepLink = APP_DEEP_LINK } = {}) {
+export function openOrInstallApp({
+  installUrl,
+  deepLink = APP_DEEP_LINK,
+} = {}) {
   if (typeof window === "undefined") return;
 
   const start = Date.now();
@@ -87,7 +74,6 @@ export function openOrInstallApp({ installUrl, deepLink = APP_DEEP_LINK } = {}) 
   document.addEventListener("visibilitychange", onHide);
   window.addEventListener("pagehide", onHide);
 
-  // Deep link first — if the app is installed it should take over
   window.location.href = deepLink;
 
   if (!installUrl) return;
@@ -98,11 +84,7 @@ export function openOrInstallApp({ installUrl, deepLink = APP_DEEP_LINK } = {}) 
     if (leftPage) return;
     if (document.hidden) return;
     if (Date.now() - start < 2500) {
-      if (/\.apk(\?|$)/i.test(installUrl) || installUrl.includes("/downloads/")) {
-        downloadAndroidApp(installUrl);
-      } else {
-        window.location.href = installUrl;
-      }
+      window.location.href = installUrl;
     }
   }, 1500);
 }

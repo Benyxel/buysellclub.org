@@ -10,7 +10,6 @@ import {
   FaMapMarkerAlt,
 } from "react-icons/fa";
 import buysellogo from "../assets/buysellogo.png";
-import { isAppPublicDownloadEnabled } from "../utils/appInstall";
 
 const linkClass =
   "text-slate-400 hover:text-white transition-colors text-sm leading-relaxed block";
@@ -128,13 +127,11 @@ const Footer = () => {
                   Our rates
                 </Link>
               </li>
-              {isAppPublicDownloadEnabled() && (
-                <li>
-                  <Link to="/get-app" className={linkClass}>
-                    Get the app
-                  </Link>
-                </li>
-              )}
+              <li>
+                <Link to="/get-app" className={linkClass}>
+                  Get the app
+                </Link>
+              </li>
               <li>
                 <Link to="/Training" className={linkClass}>
                   Training

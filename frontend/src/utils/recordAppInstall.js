@@ -1,5 +1,5 @@
 /**
- * Record APK downloads (website) and first-open installs (app) on the backend.
+ * Record store clicks (website) and first-open installs (app) on the backend.
  */
 
 import API from "../api";
@@ -10,7 +10,11 @@ function getOrCreateSessionId() {
   if (typeof window === "undefined") return "";
   let id = window.localStorage.getItem(SESSION_KEY);
   if (!id) {
-    id = "s_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 12);
+    id =
+      "s_" +
+      Date.now().toString(36) +
+      "_" +
+      Math.random().toString(36).slice(2, 12);
     try {
       window.localStorage.setItem(SESSION_KEY, id);
     } catch (_) {
@@ -35,10 +39,15 @@ export function recordAppInstallEvent(eventType, opts = {}) {
   return API.post("/buysellapi/app-installs/record/", payload).catch(() => null);
 }
 
-/** Call when the user starts an APK download from the website. */
-export function recordApkDownload(source = "other") {
+/** Call when the user opens Google Play / App Store from the website. */
+export function recordStoreClick(source = "other") {
   return recordAppInstallEvent("download", {
     source,
     platform: "android",
   });
+}
+
+/** @deprecated Use recordStoreClick */
+export function recordApkDownload(source = "other") {
+  return recordStoreClick(source);
 }
