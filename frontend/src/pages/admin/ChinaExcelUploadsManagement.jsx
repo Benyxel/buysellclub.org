@@ -316,8 +316,9 @@ export default function ChinaExcelUploadsManagement() {
                 )
               </h3>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Containers in Loading, Laden, In Transit, or Arrived at Port —
-                same list used by the scanner parking picker.
+                Containers in Loading, Laden, In Transit, or Arrived at Port.
+                Scanner “Parking list” uploads Excel for these containers — files
+                appear under Excel uploads.
               </p>
             </div>
             {parkingLoading ? (
