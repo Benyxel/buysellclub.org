@@ -19,24 +19,78 @@ function formatDate(value) {
   }
 }
 
-function formatDay(value) {
-  if (!value) return "—";
-  try {
-    return new Date(value).toLocaleDateString("en-GB", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  } catch {
-    return value;
-  }
-}
-
-function formatCbm(value) {
-  if (value == null || value === "") return "—";
-  const n = Number(value);
-  if (Number.isNaN(n)) return "—";
-  return n.toFixed(2);
+function UploadsTable({
+  rows,
+  loading,
+  emptyText,
+  title,
+  subtitle,
+  openingId,
+  onOpen,
+}) {
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border border-gray-200 dark:border-gray-700">
+      <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+        <h3 className="font-semibold text-gray-800 dark:text-white">
+          {title} ({rows.length})
+        </h3>
+        {subtitle ? (
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{subtitle}</p>
+        ) : null}
+      </div>
+      {loading ? (
+        <div className="flex items-center justify-center py-12 text-gray-600 dark:text-gray-300">
+          <FaSpinner className="animate-spin mr-2" />
+          Loading…
+        </div>
+      ) : rows.length === 0 ? (
+        <div className="py-12 text-center text-gray-500 dark:text-gray-400">
+          {emptyText}
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead className="bg-gray-50 dark:bg-gray-900/50 text-gray-600 dark:text-gray-300">
+              <tr>
+                <th className="px-4 py-3 text-left font-semibold">Uploaded</th>
+                <th className="px-4 py-3 text-left font-semibold">Container</th>
+                <th className="px-4 py-3 text-left font-semibold">File</th>
+                <th className="px-4 py-3 text-right font-semibold">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+              {rows.map((u) => (
+                <tr key={u.id} className="text-gray-800 dark:text-gray-100">
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    {formatDate(u.created_at)}
+                  </td>
+                  <td className="px-4 py-3 font-semibold">{u.container_number}</td>
+                  <td className="px-4 py-3">
+                    <div className="font-medium">{u.original_filename || "—"}</div>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      type="button"
+                      disabled={openingId === u.id}
+                      onClick={() => onOpen(u)}
+                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-60"
+                    >
+                      {openingId === u.id ? (
+                        <FaSpinner className="animate-spin" />
+                      ) : (
+                        <FaFileExcel />
+                      )}
+                      Open in Excel
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function ChinaExcelUploadsManagement() {
@@ -49,14 +103,15 @@ export default function ChinaExcelUploadsManagement() {
   const [openingId, setOpeningId] = useState(null);
 
   const [parkingLoading, setParkingLoading] = useState(true);
-  const [parkingRows, setParkingRows] = useState([]);
+  const [parkingUploads, setParkingUploads] = useState([]);
+  const [parkingContainerFilter, setParkingContainerFilter] = useState("");
   const [parkingQ, setParkingQ] = useState("");
-  const [parkingStatus, setParkingStatus] = useState("");
 
   const loadUploads = useCallback(async () => {
     setLoading(true);
     try {
       const res = await Api.chinaExcel.adminUploads({
+        source: "scanner",
         container_number: containerFilter || undefined,
         q: q.trim() || undefined,
       });
@@ -72,17 +127,21 @@ export default function ChinaExcelUploadsManagement() {
   const loadParking = useCallback(async () => {
     setParkingLoading(true);
     try {
-      const rows = await Api.containers.parkingList();
-      setParkingRows(Array.isArray(rows) ? rows : []);
+      const res = await Api.chinaExcel.adminUploads({
+        source: "parking",
+        container_number: parkingContainerFilter || undefined,
+        q: parkingQ.trim() || undefined,
+      });
+      setParkingUploads(res.data?.results || []);
     } catch (e) {
       toast.error(
-        apiErrorMessage(e?.response?.data, "Failed to load parking list")
+        apiErrorMessage(e?.response?.data, "Failed to load parking list files")
       );
-      setParkingRows([]);
+      setParkingUploads([]);
     } finally {
       setParkingLoading(false);
     }
-  }, []);
+  }, [parkingContainerFilter, parkingQ]);
 
   useEffect(() => {
     if (tab === "uploads") loadUploads();
@@ -100,26 +159,13 @@ export default function ChinaExcelUploadsManagement() {
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [uploads]);
 
-  const filteredParking = useMemo(() => {
-    const needle = parkingQ.trim().toLowerCase();
-    return parkingRows.filter((row) => {
-      if (parkingStatus && String(row.status || "") !== parkingStatus) {
-        return false;
-      }
-      if (!needle) return true;
-      const hay = [
-        row.container_number,
-        row.status_display,
-        row.status,
-        row.port_of_loading,
-        row.port_of_discharge,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      return hay.includes(needle);
-    });
-  }, [parkingRows, parkingQ, parkingStatus]);
+  const parkingContainerOptions = useMemo(() => {
+    const set = new Set();
+    for (const u of parkingUploads) {
+      if (u.container_number) set.add(u.container_number);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [parkingUploads]);
 
   const openInExcel = async (upload) => {
     const id = upload?.id;
@@ -147,8 +193,8 @@ export default function ChinaExcelUploadsManagement() {
             China Excel
           </h2>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Warehouse Excel uploads and parking list (loading, laden, in transit,
-            arrived at port).
+            Excel uploads from scanner “Upload Excel”, and Parking list files from
+            scanner “Parking list”.
           </p>
         </div>
         <button
@@ -220,174 +266,58 @@ export default function ChinaExcelUploadsManagement() {
             </button>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border border-gray-200 dark:border-gray-700">
-            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="font-semibold text-gray-800 dark:text-white">
-                Uploads ({uploads.length})
-              </h3>
-            </div>
-            {loading ? (
-              <div className="flex items-center justify-center py-12 text-gray-600 dark:text-gray-300">
-                <FaSpinner className="animate-spin mr-2" />
-                Loading uploads…
-              </div>
-            ) : uploads.length === 0 ? (
-              <div className="py-12 text-center text-gray-500 dark:text-gray-400">
-                No Excel uploads yet.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead className="bg-gray-50 dark:bg-gray-900/50 text-gray-600 dark:text-gray-300">
-                    <tr>
-                      <th className="px-4 py-3 text-left font-semibold">Uploaded</th>
-                      <th className="px-4 py-3 text-left font-semibold">Container</th>
-                      <th className="px-4 py-3 text-left font-semibold">File</th>
-                      <th className="px-4 py-3 text-right font-semibold">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                    {uploads.map((u) => (
-                      <tr key={u.id} className="text-gray-800 dark:text-gray-100">
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          {formatDate(u.created_at)}
-                        </td>
-                        <td className="px-4 py-3 font-semibold">
-                          {u.container_number}
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="font-medium">
-                            {u.original_filename || "—"}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <button
-                            type="button"
-                            disabled={openingId === u.id}
-                            onClick={() => openInExcel(u)}
-                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-60"
-                          >
-                            {openingId === u.id ? (
-                              <FaSpinner className="animate-spin" />
-                            ) : (
-                              <FaFileExcel />
-                            )}
-                            Open in Excel
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+          <UploadsTable
+            rows={uploads}
+            loading={loading}
+            emptyText="No Excel uploads yet."
+            title="Uploads"
+            openingId={openingId}
+            onOpen={openInExcel}
+          />
         </>
       ) : (
         <>
           <div className="flex flex-wrap gap-2 items-center">
             <select
               className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
-              value={parkingStatus}
-              onChange={(e) => setParkingStatus(e.target.value)}
+              value={parkingContainerFilter}
+              onChange={(e) => setParkingContainerFilter(e.target.value)}
             >
-              <option value="">All parking statuses</option>
-              <option value="loading">Loading</option>
-              <option value="laden">Laden</option>
-              <option value="in_transit">In Transit</option>
-              <option value="arrived_port">Arrived at Port</option>
+              <option value="">All containers</option>
+              {parkingContainerOptions.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
             </select>
             <input
               type="search"
-              placeholder="Search container or port…"
+              placeholder="Search file or container…"
               className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm min-w-[220px] flex-1"
               value={parkingQ}
               onChange={(e) => setParkingQ(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") loadParking();
+              }}
             />
+            <button
+              type="button"
+              onClick={loadParking}
+              className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700"
+            >
+              Search
+            </button>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border border-gray-200 dark:border-gray-700">
-            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="font-semibold text-gray-800 dark:text-white">
-                Parking list ({filteredParking.length}
-                {parkingQ || parkingStatus
-                  ? ` of ${parkingRows.length}`
-                  : ""}
-                )
-              </h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Containers in Loading, Laden, In Transit, or Arrived at Port.
-                Scanner “Parking list” uploads Excel for these containers — files
-                appear under Excel uploads.
-              </p>
-            </div>
-            {parkingLoading ? (
-              <div className="flex items-center justify-center py-12 text-gray-600 dark:text-gray-300">
-                <FaSpinner className="animate-spin mr-2" />
-                Loading parking list…
-              </div>
-            ) : filteredParking.length === 0 ? (
-              <div className="py-12 text-center text-gray-500 dark:text-gray-400">
-                No containers on the parking list.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead className="bg-gray-50 dark:bg-gray-900/50 text-gray-600 dark:text-gray-300">
-                    <tr>
-                      <th className="px-4 py-3 text-left font-semibold">
-                        Container
-                      </th>
-                      <th className="px-4 py-3 text-left font-semibold">Status</th>
-                      <th className="px-4 py-3 text-left font-semibold">POL</th>
-                      <th className="px-4 py-3 text-left font-semibold">POD</th>
-                      <th className="px-4 py-3 text-right font-semibold">CBM</th>
-                      <th className="px-4 py-3 text-left font-semibold">
-                        Departure
-                      </th>
-                      <th className="px-4 py-3 text-left font-semibold">Arrival</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                    {filteredParking.map((c) => (
-                      <tr
-                        key={c.id || c.container_number}
-                        className="text-gray-800 dark:text-gray-100"
-                      >
-                        <td className="px-4 py-3 font-semibold whitespace-nowrap">
-                          {c.container_number}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="inline-flex px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 text-xs font-semibold">
-                            {c.status_display ||
-                              String(c.status || "").replaceAll("_", " ")}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">{c.port_of_loading || "—"}</td>
-                        <td className="px-4 py-3">
-                          {c.port_of_discharge || "—"}
-                        </td>
-                        <td className="px-4 py-3 text-right tabular-nums">
-                          {formatCbm(c.display_cbm ?? c.total_cbm)}
-                          {c.is_full ? (
-                            <span className="ml-1 text-xs text-rose-600 font-semibold">
-                              full
-                            </span>
-                          ) : null}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          {formatDay(c.departure_date)}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          {formatDay(c.arrival_date)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+          <UploadsTable
+            rows={parkingUploads}
+            loading={parkingLoading}
+            emptyText="No parking list Excel files yet."
+            title="Parking list files"
+            subtitle="Files uploaded from scanner / warehouse Parking list (loading, laden, in transit, arrived at port)."
+            openingId={openingId}
+            onOpen={openInExcel}
+          />
         </>
       )}
     </div>

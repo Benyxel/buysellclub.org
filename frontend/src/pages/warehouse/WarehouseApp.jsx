@@ -750,6 +750,7 @@ export default function WarehouseApp() {
       await Api.scanner.uploadChinaExcel({
         containerNumber: parkingContainer,
         file: uploadFile,
+        source: "parking",
       });
       setInfo("Excel uploaded for this container.");
       setUploadFile(null);

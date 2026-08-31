@@ -580,10 +580,13 @@ const Api = {
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
     },
-    uploadChinaExcel: ({ containerNumber, file }) => {
+    uploadChinaExcel: ({ containerNumber, file, source }) => {
       const formData = new FormData();
       formData.append("container_number", String(containerNumber || "").trim());
       formData.append("file", file);
+      if (source) {
+        formData.append("source", String(source).trim());
+      }
       return http.post("/buysellapi/scanner/china/excel-upload/", formData, {
         timeout: 120000,
       });
