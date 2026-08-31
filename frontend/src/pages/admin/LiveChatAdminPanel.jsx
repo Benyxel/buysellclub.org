@@ -51,7 +51,7 @@ const LiveChatAdminPanel = ({ refreshSignal = 0, onUnreadCountChange }) => {
       setLoading(true);
     }
     try {
-      const response = await getLiveChatMessages({ limit: 200 });
+      const response = await getLiveChatMessages({ limit: 200, scope: "admin" });
       setMessages(response.data || []);
     } catch (error) {
       console.error("Failed to load chat logs:", error);
@@ -172,7 +172,8 @@ const LiveChatAdminPanel = ({ refreshSignal = 0, onUnreadCountChange }) => {
               setIsTyping(data.typing);
             }
           }
-        }
+        },
+        { mode: "admin" }
       );
       wsRef.current.connect();
     }

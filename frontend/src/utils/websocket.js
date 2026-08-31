@@ -25,13 +25,22 @@ const resolveWebSocketUrl = () => {
 };
 
 export class LiveChatWebSocket {
-  constructor(onMessage, onUnreadCount, onError, onOpen, onClose, onTyping) {
+  constructor(
+    onMessage,
+    onUnreadCount,
+    onError,
+    onOpen,
+    onClose,
+    onTyping,
+    options = {}
+  ) {
     this.onMessage = onMessage;
     this.onUnreadCount = onUnreadCount;
     this.onError = onError;
     this.onOpen = onOpen;
     this.onClose = onClose;
     this.onTyping = onTyping;
+    this.mode = (options && options.mode) || "";
     this.ws = null;
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 5;
@@ -48,7 +57,9 @@ export class LiveChatWebSocket {
       return;
     }
 
-    const wsUrl = `${resolveWebSocketUrl()}?token=${encodeURIComponent(token)}`;
+    const qs = new URLSearchParams({ token });
+    if (this.mode) qs.set("mode", this.mode);
+    const wsUrl = `${resolveWebSocketUrl()}?${qs.toString()}`;
     
     try {
       this.ws = new WebSocket(wsUrl);
