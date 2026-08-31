@@ -513,6 +513,21 @@ const Api = {
           String(row?.status || "").trim().toLowerCase() !== "completed"
       );
     },
+    /** Parking list: loading, laden, in transit, arrived at port. */
+    parkingList: async () => {
+      const res = await http.get("/buysellapi/containers/public/", {
+        params: { for_parking: true },
+        noCache: true,
+        cacheDuration: 0,
+        timeout: 120000,
+      });
+      const rows = Array.isArray(res.data)
+        ? res.data
+        : Array.isArray(res.data?.results)
+          ? res.data.results
+          : [];
+      return rows;
+    },
   },
   scanner: {
     markLookup: (markId) =>

@@ -278,6 +278,9 @@ export default function WarehouseApp() {
   const [exportContainer, setExportContainer] = useState("");
   const [uploadFile, setUploadFile] = useState(null);
   const [dimsInput, setDimsInput] = useState("");
+  const [parkingContainers, setParkingContainers] = useState([]);
+  const [parkingContainer, setParkingContainer] = useState("");
+  const [parkingLoading, setParkingLoading] = useState(false);
 
   const cbm = useMemo(
     () => calcCbm(draft.heightCm, draft.widthCm, draft.lengthCm),
@@ -337,12 +340,33 @@ export default function WarehouseApp() {
     try {
       const list = await Api.containers.receivingList();
       setContainers(list);
+      const current = String(draft.containerNumber || "").trim();
+      if (current) {
+        const row = list.find(
+          (c) =>
+            String(c.container_number || "").toUpperCase() ===
+            current.toUpperCase()
+        );
+        const total = Number(row?.total_cbm);
+        const max = Number(row?.max_cbm) || 74;
+        const isFull =
+          Boolean(row?.is_full) ||
+          (Number.isFinite(total) && total >= max);
+        if (isFull) {
+          patch({ containerNumber: "" });
+          setError(
+            `Container ${current} is full (${
+              Number.isFinite(total) ? total.toFixed(3) : "74"
+            } / ${max} CBM). Please select the next container.`
+          );
+        }
+      }
     } catch {
       setContainers([]);
     } finally {
       setContainersLoading(false);
     }
-  }, []);
+  }, [draft.containerNumber, patch]);
 
   useEffect(() => {
     if (view === "assign" && action === "received") {
@@ -437,8 +461,45 @@ export default function WarehouseApp() {
           ? String(reasonOverride).trim()
           : String(draft.reason || "").trim();
       if (warehouse === "china" && action === "received") {
+        if (!String(draft.containerNumber || "").trim()) {
+          setError("Select a container first");
+          setBusy(false);
+          return;
+        }
+        const selected = containers.find(
+          (c) =>
+            String(c.container_number || "").toUpperCase() ===
+            String(draft.containerNumber || "")
+              .trim()
+              .toUpperCase()
+        );
+        const total = Number(selected?.total_cbm);
+        const max = Number(selected?.max_cbm) || 74;
+        const remaining = Number(selected?.remaining_cbm);
+        const isFull =
+          Boolean(selected?.is_full) ||
+          (Number.isFinite(total) && total >= max);
+        if (isFull) {
+          setError(
+            `Container ${draft.containerNumber} is full (${
+              Number.isFinite(total) ? total.toFixed(3) : "74"
+            } / ${max} CBM). Please select the next container.`
+          );
+          patch({ containerNumber: "" });
+          setBusy(false);
+          return;
+        }
         if (!Number.isFinite(cbmNum) || cbmNum <= 0) {
           setError("Enter valid package dimensions (cm)");
+          setBusy(false);
+          return;
+        }
+        if (Number.isFinite(remaining) && cbmNum > remaining) {
+          setError(
+            `Container ${draft.containerNumber} only has ${remaining.toFixed(
+              3
+            )} CBM left (max ${max}). This package does not fit — use the next container.`
+          );
           setBusy(false);
           return;
         }
@@ -501,16 +562,20 @@ export default function WarehouseApp() {
       });
       setView("success");
     } catch (e) {
+      const data = e?.response?.data || {};
+      if (data?.code === "container_full" || data?.is_full) {
+        patch({ containerNumber: "" });
+      }
       setError(
         apiErrorMessage(
-          e?.response?.data,
+          data,
           e?.message || "Could not save this scan"
         )
       );
     } finally {
       setBusy(false);
     }
-  }, [busy, cbm, draft, warehouse, action]);
+  }, [busy, cbm, draft, warehouse, action, containers, patch]);
 
   // Received: only submit when product name is finished (Enter / blur).
   // Reject/return submits from the reason button click.
@@ -649,6 +714,23 @@ export default function WarehouseApp() {
       setError(apiErrorMessage(e?.response?.data, "Upload failed"));
     } finally {
       setBusy(false);
+    }
+  };
+
+  const openParking = async () => {
+    setView("parking");
+    setParkingContainer("");
+    setError("");
+    setInfo("");
+    setParkingLoading(true);
+    try {
+      const list = await Api.containers.parkingList();
+      setParkingContainers(Array.isArray(list) ? list : []);
+    } catch {
+      setParkingContainers([]);
+      setError("Could not load parking list");
+    } finally {
+      setParkingLoading(false);
     }
   };
 
@@ -919,6 +1001,12 @@ export default function WarehouseApp() {
               tone="amber"
               onClick={openUpload}
             />
+            <ActionCard
+              title="Parking list"
+              hint="Loading, laden, in transit, arrived at port"
+              tone="amber"
+              onClick={openParking}
+            />
           </ActionGrid>
         </Shell>
       ) : null}
@@ -1027,28 +1115,79 @@ export default function WarehouseApp() {
                     value={draft.containerNumber}
                     disabled={containersLoading}
                     onChange={(e) => {
-                      patch({ containerNumber: e.target.value });
+                      const value = e.target.value;
+                      const row = containers.find(
+                        (c) =>
+                          String(c.container_number || "") === String(value)
+                      );
+                      const total = Number(row?.total_cbm);
+                      const max = Number(row?.max_cbm) || 74;
+                      const remaining = Number(row?.remaining_cbm);
+                      const isFull =
+                        Boolean(row?.is_full) ||
+                        (Number.isFinite(total) && total >= max);
+                      if (value && isFull) {
+                        setError(
+                          `Container ${value} is full (${
+                            Number.isFinite(total) ? total.toFixed(3) : "74"
+                          } / ${max} CBM). Please select the next container.`
+                        );
+                        patch({ containerNumber: "" });
+                        return;
+                      }
+                      const packageCbm = Number(cbm);
+                      if (
+                        value &&
+                        Number.isFinite(packageCbm) &&
+                        packageCbm > 0 &&
+                        Number.isFinite(remaining) &&
+                        packageCbm > remaining
+                      ) {
+                        setError(
+                          `Container ${value} only has ${remaining.toFixed(
+                            3
+                          )} CBM left (max ${max}). This package does not fit — use the next container.`
+                        );
+                        patch({ containerNumber: "" });
+                        return;
+                      }
+                      patch({ containerNumber: value });
                       setError("");
                     }}
                   >
                     <option value="">
                       {containersLoading ? "Loading…" : "Select container…"}
                     </option>
-                    {containers.map((c) => (
-                      <option
-                        key={c.id || c.container_number}
-                        value={c.container_number}
-                      >
-                        {c.container_number}
-                        {c.status_display || c.status
-                          ? ` · ${String(c.status_display || c.status).replaceAll("_", " ")}`
-                          : ""}
-                      </option>
-                    ))}
+                    {containers.map((c) => {
+                      const total = Number(c.total_cbm);
+                      const max = Number(c.max_cbm) || 74;
+                      const isFull =
+                        Boolean(c.is_full) ||
+                        (Number.isFinite(total) && total >= max);
+                      const status = c.status_display || c.status
+                        ? ` · ${String(c.status_display || c.status).replaceAll("_", " ")}`
+                        : "";
+                      const cbmLabel = Number.isFinite(total)
+                        ? ` · ${total.toFixed(3)}/${max} CBM`
+                        : "";
+                      return (
+                        <option
+                          key={c.id || c.container_number}
+                          value={c.container_number}
+                          disabled={isFull}
+                        >
+                          {c.container_number}
+                          {status}
+                          {cbmLabel}
+                          {isFull ? " · FULL — use next" : ""}
+                        </option>
+                      );
+                    })}
                   </select>
                   <p className="text-xs text-slate-500">
                     {containers.length} container
-                    {containers.length === 1 ? "" : "s"} available
+                    {containers.length === 1 ? "" : "s"} available · full at 74
+                    CBM
                   </p>
                 </Field>
               ) : null}
@@ -1429,6 +1568,138 @@ export default function WarehouseApp() {
               >
                 {busy ? "Uploading…" : "Upload to container"}
               </PrimaryButton>
+            </div>
+          </Panel>
+        </Shell>
+      ) : null}
+
+      {view === "parking" ? (
+        <Shell
+          eyebrow="China warehouse"
+          title="Parking list"
+          subtitle="Containers in loading, laden, in transit, or arrived at port."
+          onBack={() => setView("china-home")}
+        >
+          <Panel className="mx-auto max-w-2xl space-y-4">
+            {error ? (
+              <div className="rounded-xl border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-sm font-semibold text-rose-300">
+                {error}
+              </div>
+            ) : null}
+            <Field label="Select parking container">
+              <select
+                className={inputClass}
+                value={parkingContainer}
+                disabled={parkingLoading}
+                onChange={(e) => setParkingContainer(e.target.value)}
+              >
+                <option value="">
+                  {parkingLoading ? "Loading…" : "Select container…"}
+                </option>
+                {parkingContainers.map((c) => (
+                  <option
+                    key={c.id || c.container_number}
+                    value={c.container_number}
+                  >
+                    {c.container_number}
+                    {c.status_display || c.status
+                      ? ` · ${String(c.status_display || c.status).replaceAll("_", " ")}`
+                      : ""}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            {parkingContainer ? (
+              (() => {
+                const selected =
+                  parkingContainers.find(
+                    (c) =>
+                      String(c.container_number || "").trim() ===
+                      String(parkingContainer || "").trim()
+                  ) || null;
+                if (!selected) return null;
+                const cbmVal =
+                  selected.display_cbm ?? selected.total_cbm ?? null;
+                return (
+                  <div className="rounded-xl border border-white/10 bg-[#0F1624] px-4 py-3 text-sm text-slate-300 space-y-1">
+                    <p className="font-bold text-slate-50 text-base">
+                      {selected.container_number}
+                    </p>
+                    <p>
+                      Status:{" "}
+                      {selected.status_display ||
+                        String(selected.status || "").replaceAll("_", " ")}
+                    </p>
+                    {(selected.port_of_loading ||
+                      selected.port_of_discharge) && (
+                      <p>
+                        {selected.port_of_loading || "—"} →{" "}
+                        {selected.port_of_discharge || "—"}
+                      </p>
+                    )}
+                    {cbmVal != null && cbmVal !== "" ? (
+                      <p>
+                        CBM: {Number(cbmVal).toFixed(2)}
+                        {selected.is_full ? " (full)" : ""}
+                      </p>
+                    ) : null}
+                  </div>
+                );
+              })()
+            ) : null}
+            <div className="rounded-xl border border-white/10 overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-2 border-b border-white/10">
+                <p className="text-sm font-semibold text-slate-200">
+                  {parkingContainers.length} container
+                  {parkingContainers.length === 1 ? "" : "s"}
+                </p>
+                <button
+                  type="button"
+                  className="text-sm font-semibold text-amber-400 hover:underline"
+                  onClick={openParking}
+                  disabled={parkingLoading}
+                >
+                  Refresh
+                </button>
+              </div>
+              {parkingLoading ? (
+                <p className="px-4 py-8 text-center text-sm text-slate-400">
+                  Loading…
+                </p>
+              ) : parkingContainers.length === 0 ? (
+                <p className="px-4 py-8 text-center text-sm text-slate-400">
+                  No containers on the parking list.
+                </p>
+              ) : (
+                <ul className="divide-y divide-white/5 max-h-80 overflow-y-auto">
+                  {parkingContainers.map((c) => {
+                    const active =
+                      String(c.container_number || "").trim() ===
+                      String(parkingContainer || "").trim();
+                    return (
+                      <li key={c.id || c.container_number}>
+                        <button
+                          type="button"
+                          className={`w-full text-left px-4 py-3 text-sm transition ${
+                            active
+                              ? "bg-amber-400/10 text-amber-200"
+                              : "text-slate-200 hover:bg-white/5"
+                          }`}
+                          onClick={() =>
+                            setParkingContainer(c.container_number || "")
+                          }
+                        >
+                          <span className="font-bold">{c.container_number}</span>
+                          <span className="ml-2 text-slate-400">
+                            {c.status_display ||
+                              String(c.status || "").replaceAll("_", " ")}
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </div>
           </Panel>
         </Shell>
