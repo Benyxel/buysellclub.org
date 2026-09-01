@@ -6,7 +6,8 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Api } from "../../api";
 import { apiErrorMessage } from "../../utils/apiErrorMessage";
 
-const MARK_PREFIX = "FIM";
+const MARK_PREFIXES = ["FIM", "BSC"];
+const DEFAULT_MARK_PREFIX = "FIM";
 
 const CHINA_ACTIONS = [
   {
@@ -31,7 +32,7 @@ const CHINA_ACTIONS = [
 
 const emptyDraft = () => ({
   trackingNumber: "",
-  markId: MARK_PREFIX,
+  markId: DEFAULT_MARK_PREFIX,
   fullName: "",
   containerNumber: "",
   heightCm: "",
@@ -60,25 +61,37 @@ const REJECT_RETURN_REASONS = [
   "Mannequin",
 ];
 
-function withFimPrefix(raw) {
+/** Normalize Mark ID: FIM### (default) or BSC###. Digits alone → FIM + digits. */
+function withMarkPrefix(raw) {
   const upper = String(raw || "")
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, "");
-  if (!upper) return MARK_PREFIX;
-  if (upper.startsWith(MARK_PREFIX)) {
-    return MARK_PREFIX + upper.slice(MARK_PREFIX.length).replace(/\D/g, "");
+  if (!upper) return DEFAULT_MARK_PREFIX;
+
+  for (const prefix of MARK_PREFIXES) {
+    if (upper.startsWith(prefix)) {
+      return prefix + upper.slice(prefix.length).replace(/\D/g, "");
+    }
   }
-  const fimAt = upper.indexOf(MARK_PREFIX);
-  if (fimAt >= 0) {
-    return (
-      MARK_PREFIX + upper.slice(fimAt + MARK_PREFIX.length).replace(/\D/g, "")
-    );
+  for (const prefix of MARK_PREFIXES) {
+    const at = upper.indexOf(prefix);
+    if (at >= 0) {
+      return prefix + upper.slice(at + prefix.length).replace(/\D/g, "");
+    }
   }
-  return MARK_PREFIX + upper.replace(/\D/g, "");
+  return DEFAULT_MARK_PREFIX + upper.replace(/\D/g, "");
 }
 
 function isUsableMarkId(mark) {
-  return /^FIM\d+$/i.test(String(mark || "").trim());
+  return /^(FIM|BSC)\d+$/i.test(String(mark || "").trim());
+}
+
+function markPrefixOf(mark) {
+  const upper = String(mark || "").toUpperCase();
+  for (const prefix of MARK_PREFIXES) {
+    if (upper.startsWith(prefix)) return prefix;
+  }
+  return DEFAULT_MARK_PREFIX;
 }
 
 const MIN_PACKAGE_CBM = 0.001;
@@ -773,7 +786,7 @@ export default function WarehouseApp() {
     setInvoicePickup(null);
     setInvoicePickupSelected(new Set());
     setInvoicePickupContainer("");
-    patch({ markId: MARK_PREFIX });
+    patch({ markId: DEFAULT_MARK_PREFIX });
   };
 
   const invoicePickupContainerKey = (row) => {
@@ -827,9 +840,9 @@ export default function WarehouseApp() {
   };
 
   const loadInvoicePickup = async () => {
-    const mark = withFimPrefix(draft.markId);
+    const mark = withMarkPrefix(draft.markId);
     if (!isUsableMarkId(mark)) {
-      setError("Enter a valid Mark ID (e.g. FIM000)");
+      setError("Enter a valid Mark ID (e.g. FIM000 or BSC000)");
       return;
     }
     setBusy(true);
@@ -1221,17 +1234,46 @@ export default function WarehouseApp() {
 
               <Field
                 label="Mark ID"
-                hint="Type digits only — FIM is added automatically. No shipping mark on the package? Use FIM752."
+                hint="Default FIM — type numbers only (123 → FIM123). Company mark: tap BSC or type BSC000. No mark? Use FIM752."
               >
+                <div className="mb-2 flex gap-2">
+                  {MARK_PREFIXES.map((prefix) => {
+                    const active = markPrefixOf(draft.markId) === prefix;
+                    return (
+                      <button
+                        key={prefix}
+                        type="button"
+                        disabled={busy}
+                        onClick={() => {
+                          const digits = String(draft.markId || "")
+                            .toUpperCase()
+                            .replace(/^(FIM|BSC)/, "")
+                            .replace(/\D/g, "");
+                          patch({
+                            markId: withMarkPrefix(prefix + digits),
+                          });
+                          setError("");
+                        }}
+                        className={`rounded-lg border px-3 py-1.5 text-sm font-bold transition ${
+                          active
+                            ? "border-amber-400/60 bg-amber-500/15 text-amber-200"
+                            : "border-white/10 bg-[#151D2E] text-slate-400 hover:border-white/20"
+                        }`}
+                      >
+                        {prefix}
+                      </button>
+                    );
+                  })}
+                </div>
                 <input
                   className={inputClass}
                   value={draft.markId}
                   autoComplete="off"
                   spellCheck={false}
-                  placeholder="FIM123"
+                  placeholder="FIM123 or BSC000"
                   disabled={busy}
                   onChange={(e) => {
-                    patch({ markId: withFimPrefix(e.target.value) });
+                    patch({ markId: withMarkPrefix(e.target.value) });
                     setError("");
                   }}
                 />
@@ -1265,7 +1307,7 @@ export default function WarehouseApp() {
                           disabled={busy}
                           onClick={() => {
                             if (!isUsableMarkId(draft.markId)) {
-                              setError("Enter a valid Mark ID (FIM + digits)");
+                              setError("Enter a valid Mark ID (FIM or BSC + digits)");
                               return;
                             }
                             patch({ reason: label });
@@ -1692,15 +1734,44 @@ export default function WarehouseApp() {
           <Panel className="mx-auto max-w-4xl">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
               <Field label="Mark ID" className="flex-1">
+                <div className="mb-2 flex gap-2">
+                  {MARK_PREFIXES.map((prefix) => {
+                    const active = markPrefixOf(draft.markId) === prefix;
+                    return (
+                      <button
+                        key={prefix}
+                        type="button"
+                        disabled={busy}
+                        onClick={() => {
+                          const digits = String(draft.markId || "")
+                            .toUpperCase()
+                            .replace(/^(FIM|BSC)/, "")
+                            .replace(/\D/g, "");
+                          patch({
+                            markId: withMarkPrefix(prefix + digits),
+                          });
+                          setError("");
+                        }}
+                        className={`rounded-lg border px-3 py-1.5 text-sm font-bold transition ${
+                          active
+                            ? "border-amber-400/60 bg-amber-500/15 text-amber-200"
+                            : "border-white/10 bg-[#151D2E] text-slate-400 hover:border-white/20"
+                        }`}
+                      >
+                        {prefix}
+                      </button>
+                    );
+                  })}
+                </div>
                 <input
                   className={inputClass}
                   value={draft.markId}
                   autoFocus
                   autoComplete="off"
                   spellCheck={false}
-                  placeholder="FIM000"
+                  placeholder="FIM000 or BSC000"
                   onChange={(e) => {
-                    patch({ markId: withFimPrefix(e.target.value) });
+                    patch({ markId: withMarkPrefix(e.target.value) });
                     setError("");
                   }}
                   onKeyDown={(e) => {
