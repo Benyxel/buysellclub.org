@@ -134,6 +134,15 @@ function sanitizeDimsInput(raw) {
     .slice(0, 40);
 }
 
+function formatDimensionTriplet(heightCm, widthCm, lengthCm) {
+  const h = String(heightCm || "").trim();
+  const w = String(widthCm || "").trim();
+  const l = String(lengthCm || "").trim();
+  if (!h && !w && !l) return "";
+  if (h && w && l) return `${h}*${w}*${l}`;
+  return [h, w, l].filter(Boolean).join("*");
+}
+
 function actionLabel(warehouse, action) {
   if (warehouse === "china") {
     return CHINA_ACTIONS.find((a) => a.id === action)?.label || action;
@@ -536,6 +545,14 @@ export default function WarehouseApp() {
         setBusy(false);
         return;
       }
+      const sizeText =
+        warehouse === "china" && action === "received"
+          ? formatDimensionTriplet(
+              draft.heightCm,
+              draft.widthCm,
+              draft.lengthCm
+            )
+          : "";
       const payload = {
         warehouse,
         action,
@@ -546,6 +563,19 @@ export default function WarehouseApp() {
           String(draft.containerNumber || "").trim() || undefined,
         cbm: Number.isFinite(cbmNum) && cbmNum > 0 ? cbmNum : undefined,
         kg: Number.isFinite(kgNum) && kgNum > 0 ? kgNum : undefined,
+        height_cm:
+          warehouse === "china" && action === "received" && draft.heightCm
+            ? draft.heightCm
+            : undefined,
+        width_cm:
+          warehouse === "china" && action === "received" && draft.widthCm
+            ? draft.widthCm
+            : undefined,
+        length_cm:
+          warehouse === "china" && action === "received" && draft.lengthCm
+            ? draft.lengthCm
+            : undefined,
+        size: sizeText || undefined,
         product_name: String(draft.productName || "").trim() || undefined,
         note: noteReason || undefined,
       };
