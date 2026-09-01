@@ -38,7 +38,6 @@ import CommunitySetPassword from "./pages/Community/CommunitySetPassword";
 import ResetPassword from "./pages/ResetPassword";
 import PaymentCallback from "./pages/PaymentCallback";
 import Donation from "./pages/Donation";
-import GetApp from "./pages/GetApp";
 import DigitalStore from "./pages/DigitalStore";
 import Favorites from "./pages/Favorites";
 import MyProfile from "./components/MyProfile";
@@ -74,7 +73,6 @@ import Logout from "./components/Logout";
 import NotFound from "./pages/NotFound";
 import LoginPromptModal from "./components/LoginPromptModal";
 import RequireContactModal from "./components/RequireContactModal";
-import MobileAppInstallBanner from "./components/MobileAppInstallBanner";
 import UserView from "./pages/admin/UserView";
 import ScrollToTop from "./components/ScrollToTop";
 import ScrollToTopButton from "./components/ScrollToTopButton";
@@ -279,7 +277,10 @@ function App() {
                       <Route path="reset-password" element={<ResetPassword />} />
                       {/* Donation: Paystack; not linked in nav */}
                       <Route path="donation" element={<Donation />} />
-                      <Route path="get-app" element={<GetApp />} />
+                      <Route
+                        path="get-app"
+                        element={<Navigate to="/" replace />}
+                      />
                       <Route path="DigitalStore" element={<DigitalStore />} />
 
                       {/* Protected routes - require login */}
@@ -435,7 +436,6 @@ function App() {
           </Routes>
           <LoginPromptModal />
           <RequireContactModal />
-          <MobileAppInstallBanner />
         </div>
       )}
       <ToastContainer
