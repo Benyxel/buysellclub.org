@@ -29,8 +29,22 @@ function trackingLinesFromNote(note) {
     .filter(Boolean)
     .filter(
       (item) =>
-        !/^(CBM|KG|WEIGHT|PRODUCT|DESCRIPTION|REASON)\s*:/i.test(item)
-    );
+        !/^(CBM|KG|WEIGHT|SIZE|DIMS|DIMENSIONS?|PRODUCT|DESCRIPTION|REASON)\s*:/i.test(
+          item
+        )
+    )
+    .filter((item) => !/^\d+(\.\d+)?\s*[x×*]\s*\d+(\.\d+)?\s*[x×*]\s*\d+(\.\d+)?$/i.test(item));
+}
+
+function formatNoteCbm(note) {
+  const raw = note?.package_cbm;
+  if (raw != null && String(raw).trim() !== "") {
+    const n = Number(raw);
+    if (Number.isFinite(n) && n > 0) return n.toFixed(3);
+    return String(raw).trim();
+  }
+  const match = String(note?.description || "").match(/^CBM:\s*(.+)$/im);
+  return match ? String(match[1]).trim() : "";
 }
 
 function noteIsUnknownPackage(note) {
@@ -407,8 +421,8 @@ const QuickTracking = () => {
     }
 
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-emerald-100 dark:border-gray-700 overflow-hidden">
-        <div className="p-5 sm:p-6 border-b border-gray-100 dark:border-gray-700 space-y-2">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-emerald-100 dark:border-gray-700 overflow-hidden flex flex-col max-h-[min(70vh,36rem)]">
+        <div className="shrink-0 p-5 sm:p-6 border-b border-gray-100 dark:border-gray-700 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wide bg-emerald-500 text-white">
               Received
@@ -435,9 +449,10 @@ const QuickTracking = () => {
           </p>
         </div>
 
-        <div className="max-h-[28rem] overflow-y-auto overscroll-contain divide-y divide-gray-100 dark:divide-gray-700">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain touch-pan-y divide-y divide-gray-100 dark:divide-gray-700">
           {rows.map((row) => {
             const badge = actionBadge(row.action, row.unknown);
+            const cbmLabel = formatNoteCbm(row.note);
             return (
               <div
                 key={row.key}
@@ -455,6 +470,7 @@ const QuickTracking = () => {
                       : row.action === "rejected" || row.action === "returned"
                         ? badge.label
                         : "Container not assigned yet"}
+                    {cbmLabel ? ` · ${cbmLabel} CBM` : ""}
                     {row.unknown ? " · No shipping mark" : ""}
                     {row.note?.reason ? ` · ${row.note.reason}` : ""}
                   </p>
@@ -469,7 +485,7 @@ const QuickTracking = () => {
           })}
         </div>
 
-        <div className="p-4 bg-emerald-50/70 dark:bg-emerald-900/20 border-t border-emerald-100 dark:border-emerald-900 text-sm text-emerald-950 dark:text-emerald-100">
+        <div className="shrink-0 p-4 bg-emerald-50/70 dark:bg-emerald-900/20 border-t border-emerald-100 dark:border-emerald-900 text-sm text-emerald-950 dark:text-emerald-100">
           For more shipment details after loaded, visit the{" "}
           <Link to="/tracking" className="underline font-semibold">
             tracking page

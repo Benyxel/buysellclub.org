@@ -13,7 +13,9 @@ function trackingOnlyDescription(raw) {
     .filter(Boolean)
     .filter(
       (line) =>
-        !/^(CBM|KG|WEIGHT|PRODUCT|DESCRIPTION|REASON)\s*:/i.test(line)
+        !/^(CBM|KG|WEIGHT|SIZE|DIMS|DIMENSIONS?|PRODUCT|DESCRIPTION|REASON)\s*:/i.test(
+          line
+        )
     )
     .join("\n");
 }
