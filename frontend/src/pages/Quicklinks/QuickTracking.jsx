@@ -25,7 +25,14 @@ function asNoteList(data) {
 function trackingLinesFromNote(note) {
   return String(note?.description || "")
     .split(/\r?\n|[,;]+/)
-    .map((item) => item.trim())
+    .map((item) =>
+      item
+        .replace(
+          /\s+(SIZE|DIMS|DIMENSIONS?|CBM|KG|WEIGHT|PRODUCT|DESCRIPTION|REASON)\s*:.*$/gi,
+          ""
+        )
+        .trim()
+    )
     .filter(Boolean)
     .filter(
       (item) =>

@@ -4,12 +4,19 @@ import { toast } from "../../utils/toast";
 import API, { Api } from "../../api";
 import { formatCompactCount } from "../../utils/formatCompactCount";
 
-/** Quick Tracking description should show tracking numbers only (not CBM/KG/product). */
+/** Quick Tracking description should show tracking numbers only (not CBM/KG/size). */
 function trackingOnlyDescription(raw) {
   return String(raw || "")
     .replace(/\r\n/g, "\n")
     .split("\n")
-    .map((line) => line.trim())
+    .map((line) =>
+      line
+        .replace(
+          /\s+(SIZE|DIMS|DIMENSIONS?|CBM|KG|WEIGHT|PRODUCT|DESCRIPTION|REASON)\s*:.*$/gi,
+          ""
+        )
+        .trim()
+    )
     .filter(Boolean)
     .filter(
       (line) =>
