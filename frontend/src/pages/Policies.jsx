@@ -424,10 +424,10 @@ const Policies = () => {
             Enterprise retailers, freight forwarders, and fintech partners can
             request bespoke policy addenda. Email{" "}
             <a
-              href="mailto:compliance@buysellclub.com"
+              href="mailto:support@buysellclub.org"
               className="text-primary font-semibold"
             >
-              compliance@buysellclub.com
+              support@buysellclub.org
             </a>{" "}
             for a dedicated appointment.
           </p>
