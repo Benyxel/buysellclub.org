@@ -165,7 +165,7 @@ const ContainerInfoWidget = ({ launcherHidden = false } = {}) => {
       
       const containerNumber = containerResponse?.data?.container_number || "N/A";
       const totalCbm = containerResponse?.data?.total_cbm || "0.000";
-      const maxCbm = parseFloat(containerResponse?.data?.max_cbm) || 74;
+      const maxCbm = parseFloat(containerResponse?.data?.max_cbm) || 78;
       const remainingCbm =
         containerResponse?.data?.remaining_cbm != null
           ? parseFloat(containerResponse.data.remaining_cbm)
@@ -496,13 +496,13 @@ const ContainerInfoWidget = ({ launcherHidden = false } = {}) => {
                   <p className="mt-0.5 text-xs font-semibold text-amber-800 dark:text-amber-200">
                     {containerInfo.nextContainerNumber
                       ? `Next CBM goes to ${containerInfo.nextContainerNumber}`
-                      : `Capacity reached (${containerInfo.maxCbm || 74} CBM)`}
+                      : `Capacity reached (${containerInfo.maxCbm || 78} CBM)`}
                   </p>
                 </div>
               ) : (
                 <p className="mt-2 relative z-10 text-xs font-medium text-green-700/80 dark:text-green-300/80">
                   {containerInfo.remainingCbm} CBM remaining of{" "}
-                  {containerInfo.maxCbm || 74} CBM
+                  {containerInfo.maxCbm || 78} CBM
                 </p>
               )}
             </div>

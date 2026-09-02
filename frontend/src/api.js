@@ -440,8 +440,8 @@ const Api = {
         : Array.isArray(res.data?.results)
           ? res.data.results
           : [];
-      const allowed = new Set(["preparing", "receiving_goods", "loading"]);
-      const rank = { loading: 0, receiving_goods: 1, preparing: 2 };
+      const allowed = new Set(["preparing", "receiving_goods", "loading", "laden"]);
+      const rank = { loading: 0, receiving_goods: 1, preparing: 2, laden: 3 };
       return rows
         .filter((row) =>
           allowed.has(String(row?.status || "").trim().toLowerCase())

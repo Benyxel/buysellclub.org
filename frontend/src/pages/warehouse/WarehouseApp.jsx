@@ -370,7 +370,7 @@ export default function WarehouseApp() {
             current.toUpperCase()
         );
         const total = Number(row?.total_cbm);
-        const max = Number(row?.max_cbm) || 74;
+        const max = Number(row?.max_cbm) || 78;
         const isFull =
           Boolean(row?.is_full) ||
           (Number.isFinite(total) && total >= max);
@@ -378,7 +378,7 @@ export default function WarehouseApp() {
           patch({ containerNumber: "" });
           setError(
             `Container ${current} is full (${
-              Number.isFinite(total) ? total.toFixed(3) : "74"
+              Number.isFinite(total) ? total.toFixed(3) : "0"
             } / ${max} CBM). Please select the next container.`
           );
         }
@@ -496,7 +496,7 @@ export default function WarehouseApp() {
               .toUpperCase()
         );
         const total = Number(selected?.total_cbm);
-        const max = Number(selected?.max_cbm) || 74;
+        const max = Number(selected?.max_cbm) || 78;
         const remaining = Number(selected?.remaining_cbm);
         const isFull =
           Boolean(selected?.is_full) ||
@@ -504,7 +504,7 @@ export default function WarehouseApp() {
         if (isFull) {
           setError(
             `Container ${draft.containerNumber} is full (${
-              Number.isFinite(total) ? total.toFixed(3) : "74"
+              Number.isFinite(total) ? total.toFixed(3) : "0"
             } / ${max} CBM). Please select the next container.`
           );
           patch({ containerNumber: "" });
@@ -1179,7 +1179,7 @@ export default function WarehouseApp() {
           >
             <Panel className="space-y-4">
               {action === "received" ? (
-                <Field label="Container (preparing / receiving / loading)">
+                <Field label="Container (preparing / receiving / loading / laden)">
                   <select
                     className={inputClass}
                     value={draft.containerNumber}
@@ -1191,7 +1191,7 @@ export default function WarehouseApp() {
                           String(c.container_number || "") === String(value)
                       );
                       const total = Number(row?.total_cbm);
-                      const max = Number(row?.max_cbm) || 74;
+                      const max = Number(row?.max_cbm) || 78;
                       const remaining = Number(row?.remaining_cbm);
                       const isFull =
                         Boolean(row?.is_full) ||
@@ -1199,7 +1199,7 @@ export default function WarehouseApp() {
                       if (value && isFull) {
                         setError(
                           `Container ${value} is full (${
-                            Number.isFinite(total) ? total.toFixed(3) : "74"
+                            Number.isFinite(total) ? total.toFixed(3) : "0"
                           } / ${max} CBM). Please select the next container.`
                         );
                         patch({ containerNumber: "" });
@@ -1230,7 +1230,7 @@ export default function WarehouseApp() {
                     </option>
                     {containers.map((c) => {
                       const total = Number(c.total_cbm);
-                      const max = Number(c.max_cbm) || 74;
+                      const max = Number(c.max_cbm) || 78;
                       const isFull =
                         Boolean(c.is_full) ||
                         (Number.isFinite(total) && total >= max);
@@ -1256,7 +1256,7 @@ export default function WarehouseApp() {
                   </select>
                   <p className="text-xs text-slate-500">
                     {containers.length} container
-                    {containers.length === 1 ? "" : "s"} available · full at 74
+                    {containers.length === 1 ? "" : "s"} available · full at 78
                     CBM
                   </p>
                 </Field>
