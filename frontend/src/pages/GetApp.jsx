@@ -7,7 +7,6 @@ import {
   isIosUserAgent,
   openAndroidInstall,
 } from "../utils/appInstall";
-import { recordStoreClick } from "../utils/recordAppInstall";
 
 /**
  * Public page: get the app from Google Play (and App Store when available).
@@ -37,7 +36,6 @@ const GetApp = () => {
             <button
               type="button"
               onClick={() => {
-                recordStoreClick("get_app");
                 openAndroidInstall(androidUrl);
               }}
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-teal-600 px-4 py-3 text-sm font-semibold text-white hover:bg-teal-500"
@@ -51,7 +49,6 @@ const GetApp = () => {
               target="_blank"
               rel="noopener noreferrer"
               className="block text-center text-xs text-teal-700 dark:text-teal-300 underline"
-              onClick={() => recordStoreClick("get_app_direct")}
             >
               Open Play Store listing
             </a>

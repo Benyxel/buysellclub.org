@@ -52,7 +52,6 @@ import {
   FaIdCard,
   FaUserShield,
   FaMobileAlt,
-  FaDownload,
 } from "react-icons/fa";
 
 import UsersManagement from "./UsersManagement";
@@ -550,8 +549,6 @@ const AdminDashboard = () => {
         executiveTotalRegistered: data.executiveTotalRegistered ?? 0,
         executiveTotalCash: data.executiveTotalCash ?? 0,
         membershipTotalCash: data.membershipTotalCash ?? 0,
-        appDownloads: data.appDownloads ?? 0,
-        appInstalls: data.appInstalls ?? 0,
       });
     } catch (err) {
       console.error("Dashboard fetch error:", err);
@@ -1024,42 +1021,6 @@ const AdminDashboard = () => {
                     </p>
                   ),
                   accent: "bg-blue-100 dark:bg-blue-900",
-                },
-                {
-                  id: "app-installs",
-                  title: "App Installs",
-                  icon: (
-                    <FaMobileAlt className="text-2xl text-teal-600 dark:text-teal-400" />
-                  ),
-                  value: (
-                    <div className="space-y-1">
-                      <p className="text-3xl font-bold text-teal-600 dark:text-teal-400">
-                        {dashboardData.appInstalls ?? 0}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        First opens (unique devices)
-                      </p>
-                    </div>
-                  ),
-                  accent: "bg-teal-100 dark:bg-teal-900",
-                },
-                {
-                  id: "app-downloads",
-                  title: "Store Clicks",
-                  icon: (
-                    <FaDownload className="text-2xl text-cyan-600 dark:text-cyan-400" />
-                  ),
-                  value: (
-                    <div className="space-y-1">
-                      <p className="text-3xl font-bold text-cyan-600 dark:text-cyan-400">
-                        {dashboardData.appDownloads ?? 0}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        Play Store from website
-                      </p>
-                    </div>
-                  ),
-                  accent: "bg-cyan-100 dark:bg-cyan-900",
                 },
                 {
                   id: "orders",
