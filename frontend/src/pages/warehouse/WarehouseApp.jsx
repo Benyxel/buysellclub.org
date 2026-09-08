@@ -134,6 +134,74 @@ function sanitizeDimsInput(raw) {
     .slice(0, 40);
 }
 
+/**
+ * Parse a warehouse paste line:
+ * 79137258956701 FIM752 0.9 10*10*20 clothes
+ * Size and product may be glued: 10*10*20clothes
+ */
+function parseWarehouseReceivePaste(raw) {
+  let text = String(raw || "").replace(/[\t,;]+/g, " ").replace(/\s+/g, " ").trim();
+  if (!text) return null;
+
+  text = text.replace(
+    /(\d+(?:[.,]\d+)?\s*[*xX×✕✖]\s*\d+(?:[.,]\d+)?\s*[*xX×✕✖]\s*\d+(?:[.,]\d+)?)([A-Za-z])/g,
+    "$1 $2"
+  );
+
+  const result = {
+    trackingNumber: "",
+    markId: "",
+    weightKg: "",
+    heightCm: "",
+    widthCm: "",
+    lengthCm: "",
+    dimsText: "",
+    productName: "",
+  };
+
+  const markMatch = text.match(/\b((?:FIM|BSC)\s*\d+)\b/i);
+  if (markMatch) {
+    const mark = withMarkPrefix(markMatch[1]);
+    if (isUsableMarkId(mark)) result.markId = mark;
+    text = `${text.slice(0, markMatch.index)} ${text.slice(markMatch.index + markMatch[0].length)}`;
+  }
+
+  const dimMatch = text.match(
+    /(\d+(?:[.,]\d+)?)\s*[*xX×✕✖]\s*(\d+(?:[.,]\d+)?)\s*[*xX×✕✖]\s*(\d+(?:[.,]\d+)?)/
+  );
+  if (dimMatch) {
+    const parsed = parseDimensionTriplet(
+      `${dimMatch[1]}*${dimMatch[2]}*${dimMatch[3]}`
+    );
+    if (parsed) {
+      Object.assign(result, parsed);
+      result.dimsText = `${parsed.heightCm}*${parsed.widthCm}*${parsed.lengthCm}`;
+    }
+    text = `${text.slice(0, dimMatch.index)} ${text.slice(dimMatch.index + dimMatch[0].length)}`;
+  }
+
+  const tokens = text.replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
+  const leftover = [];
+  for (const token of tokens) {
+    if (
+      !result.trackingNumber &&
+      /^[A-Za-z0-9]{6,}$/.test(token) &&
+      !/^(FIM|BSC)/i.test(token)
+    ) {
+      result.trackingNumber = token;
+      continue;
+    }
+    const asNum = Number(String(token).replace(",", "."));
+    if (!result.weightKg && Number.isFinite(asNum) && asNum > 0 && asNum < 10000) {
+      result.weightKg = String(asNum);
+      continue;
+    }
+    leftover.push(token);
+  }
+  result.productName = leftover.join(" ").trim();
+  return result.trackingNumber ? result : null;
+}
+
 function formatDimensionTriplet(heightCm, widthCm, lengthCm) {
   const h = String(heightCm || "").trim();
   const w = String(widthCm || "").trim();
@@ -427,12 +495,40 @@ export default function WarehouseApp() {
     };
   }, [view, draft.markId, patch]);
 
+  const applyReceivePaste = useCallback(
+    (parsed) => {
+      if (!parsed?.trackingNumber) return false;
+      patch({
+        trackingNumber: parsed.trackingNumber,
+        ...(parsed.markId ? { markId: parsed.markId } : {}),
+        ...(parsed.weightKg ? { weightKg: parsed.weightKg } : {}),
+        ...(parsed.heightCm
+          ? {
+              heightCm: parsed.heightCm,
+              widthCm: parsed.widthCm,
+              lengthCm: parsed.lengthCm,
+            }
+          : {}),
+        ...(parsed.productName ? { productName: parsed.productName } : {}),
+      });
+      if (parsed.dimsText) setDimsInput(parsed.dimsText);
+      return true;
+    },
+    [patch]
+  );
+
   const continueFromTracking = () => {
-    const tracking = String(draft.trackingNumber || "").trim();
-    if (!tracking) {
+    const raw = String(draft.trackingNumber || "").trim();
+    if (!raw) {
       setError("Enter a tracking number");
       return;
     }
+    const parsed = parseWarehouseReceivePaste(raw);
+    if (!parsed?.trackingNumber) {
+      setError("Enter a tracking number");
+      return;
+    }
+    applyReceivePaste(parsed);
     setError("");
     if (warehouse === "china") {
       setView("assign");
@@ -1118,7 +1214,7 @@ export default function WarehouseApp() {
             action
           )}`}
           title="Enter tracking"
-          subtitle="Type or paste the package tracking number."
+          subtitle="Paste tracking only, or a full line: 79137258956701 FIM752 0.9 10*10*20 clothes"
           onBack={() =>
             setView(warehouse === "china" ? "china-home" : "ghana-home")
           }
@@ -1136,10 +1232,25 @@ export default function WarehouseApp() {
                 autoFocus
                 autoComplete="off"
                 spellCheck={false}
-                placeholder="Paste or type tracking #"
+                placeholder="Tracking # or full line with mark, kg, size, product"
                 onChange={(e) => {
                   patch({ trackingNumber: e.target.value.trim() });
                   setError("");
+                }}
+                onPaste={(e) => {
+                  const pasted = e.clipboardData?.getData("text") || "";
+                  const parsed = parseWarehouseReceivePaste(pasted);
+                  if (
+                    parsed?.trackingNumber &&
+                    (parsed.markId ||
+                      parsed.weightKg ||
+                      parsed.dimsText ||
+                      parsed.productName)
+                  ) {
+                    e.preventDefault();
+                    applyReceivePaste(parsed);
+                    setError("");
+                  }
                 }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") continueFromTracking();
