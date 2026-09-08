@@ -1122,7 +1122,7 @@ export default function WarehouseApp() {
   return (
     <div className="min-h-screen bg-[#0B1220] text-slate-100">
       <header className="sticky top-0 z-20 border-b border-white/10 bg-[#0B1220]/95 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4 lg:px-10">
+        <div className="mx-auto flex max-w-[96rem] items-center justify-between px-6 py-4 lg:px-12">
           <button type="button" onClick={goHome} className="text-left">
             <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-amber-400">
               FIMW

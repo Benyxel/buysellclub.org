@@ -3,7 +3,7 @@ import { Api } from "../../api";
 import { apiErrorMessage } from "../../utils/apiErrorMessage";
 
 const inputClass =
-  "w-full rounded-lg border border-white/10 bg-[#151D2E] px-2.5 py-2 text-sm font-semibold text-slate-50 outline-none placeholder:text-slate-500 focus:border-amber-400/50 focus:ring-2 focus:ring-amber-400/20";
+  "w-full min-w-[7rem] rounded-lg border border-white/10 bg-[#151D2E] px-3 py-2.5 text-sm font-semibold text-slate-50 outline-none placeholder:text-slate-500 focus:border-amber-400/50 focus:ring-2 focus:ring-amber-400/20";
 
 function emptyEdit() {
   return {
@@ -188,7 +188,7 @@ export default function WarehouseReceivedPackages({ onBack }) {
   const pages = Math.max(1, Math.ceil(count / 50));
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-6 py-8 lg:px-10 lg:py-10">
+    <div className="mx-auto w-full max-w-[96rem] px-6 py-8 lg:px-12 lg:py-10">
       <button
         type="button"
         onClick={onBack}
@@ -215,9 +215,9 @@ export default function WarehouseReceivedPackages({ onBack }) {
         }}
       >
         <input
-          className={`${inputClass} max-w-md`}
+          className={`${inputClass} max-w-lg`}
           value={q}
-                    placeholder="Search tracking, mark, name, product, size, container"
+          placeholder="Search tracking, mark, name, product, size, container"
           onChange={(e) => setQ(e.target.value)}
         />
         <button
@@ -246,31 +246,31 @@ export default function WarehouseReceivedPackages({ onBack }) {
         </div>
       ) : null}
 
-      <div className="mt-5 overflow-x-auto rounded-2xl border border-white/10">
-        <table className="min-w-full text-left text-sm">
+      <div className="mt-6 overflow-x-auto rounded-2xl border border-white/10">
+        <table className="w-full min-w-[78rem] table-fixed text-left text-sm">
           <thead className="bg-white/5 text-xs font-bold uppercase tracking-wide text-slate-400">
             <tr>
-              <th className="px-3 py-3">Tracking number</th>
-              <th className="px-3 py-3">Weight</th>
-              <th className="px-3 py-3">Product</th>
-              <th className="px-3 py-3">Size</th>
-              <th className="px-3 py-3">CBM</th>
-              <th className="px-3 py-3">Mark ID</th>
-              <th className="px-3 py-3">Name</th>
-              <th className="px-3 py-3">Container</th>
-              <th className="px-3 py-3 text-right">Actions</th>
+              <th className="w-[14%] px-5 py-4">Tracking number</th>
+              <th className="w-[8%] px-5 py-4">Weight</th>
+              <th className="w-[12%] px-5 py-4">Product</th>
+              <th className="w-[10%] px-5 py-4">Size</th>
+              <th className="w-[7%] px-5 py-4">CBM</th>
+              <th className="w-[9%] px-5 py-4">Mark ID</th>
+              <th className="w-[14%] px-5 py-4">Name</th>
+              <th className="w-[12%] px-5 py-4">Container</th>
+              <th className="w-[14%] px-5 py-4 text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td className="px-3 py-6 text-slate-400" colSpan={9}>
+                <td className="px-5 py-8 text-slate-400" colSpan={9}>
                   Loading…
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td className="px-3 py-6 text-slate-400" colSpan={9}>
+                <td className="px-5 py-8 text-slate-400" colSpan={9}>
                   No received packages yet.
                 </td>
               </tr>
@@ -280,7 +280,7 @@ export default function WarehouseReceivedPackages({ onBack }) {
                 const busy = busyId === row.id;
                 return (
                   <tr key={row.id} className="border-t border-white/10">
-                    <td className="px-3 py-2 font-mono text-slate-100">
+                    <td className="px-5 py-3.5 font-mono text-slate-100">
                       {isEdit ? (
                         <input
                           className={inputClass}
@@ -293,7 +293,7 @@ export default function WarehouseReceivedPackages({ onBack }) {
                         row.tracking_number || "—"
                       )}
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-5 py-3.5">
                       {isEdit ? (
                         <input
                           className={inputClass}
@@ -308,7 +308,7 @@ export default function WarehouseReceivedPackages({ onBack }) {
                         row.package_kg || "—"
                       )}
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-5 py-3.5">
                       {isEdit ? (
                         <input
                           className={inputClass}
@@ -321,7 +321,7 @@ export default function WarehouseReceivedPackages({ onBack }) {
                         row.product_name || "—"
                       )}
                     </td>
-                    <td className="px-3 py-2 font-mono">
+                    <td className="px-5 py-3.5 font-mono">
                       {isEdit ? (
                         <input
                           className={inputClass}
@@ -335,7 +335,7 @@ export default function WarehouseReceivedPackages({ onBack }) {
                         row.package_size || "—"
                       )}
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-5 py-3.5">
                       {isEdit ? (
                         <input
                           className={inputClass}
@@ -350,7 +350,7 @@ export default function WarehouseReceivedPackages({ onBack }) {
                         row.package_cbm || "—"
                       )}
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-5 py-3.5">
                       {isEdit ? (
                         <input
                           className={inputClass}
@@ -363,7 +363,7 @@ export default function WarehouseReceivedPackages({ onBack }) {
                         row.mark_id || "—"
                       )}
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-5 py-3.5">
                       {isEdit ? (
                         editMarkLoading ? (
                           <span className="text-slate-400">Looking up…</span>
@@ -380,10 +380,10 @@ export default function WarehouseReceivedPackages({ onBack }) {
                         row.full_name || "—"
                       )}
                     </td>
-                    <td className="px-3 py-2 text-slate-400">
+                    <td className="px-5 py-3.5 text-slate-400">
                       {row.container_number || "—"}
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-5 py-3.5">
                       <div className="flex justify-end gap-2">
                         {isEdit ? (
                           <>
