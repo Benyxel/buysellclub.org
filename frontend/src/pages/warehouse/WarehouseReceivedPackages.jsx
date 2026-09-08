@@ -40,6 +40,9 @@ export default function WarehouseReceivedPackages({ onBack }) {
   const [editingId, setEditingId] = useState(null);
   const [edit, setEdit] = useState(emptyEdit());
   const [busyId, setBusyId] = useState(null);
+  const [editName, setEditName] = useState("");
+  const [editMarkLoading, setEditMarkLoading] = useState(false);
+  const [editMarkOk, setEditMarkOk] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -66,6 +69,46 @@ export default function WarehouseReceivedPackages({ onBack }) {
     load();
   }, [load]);
 
+  useEffect(() => {
+    if (!editingId) return undefined;
+    const mark = String(edit.mark_id || "").trim();
+    if (!mark) {
+      setEditName("");
+      setEditMarkOk(false);
+      setEditMarkLoading(false);
+      return undefined;
+    }
+    let cancelled = false;
+    setEditMarkLoading(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await Api.scanner.markLookup(mark);
+        if (cancelled) return;
+        const name = res.data?.full_name || res.data?.name || "";
+        setEditName(name);
+        setEditMarkOk(Boolean(name));
+        if (!name) {
+          setError(
+            "This Mark ID does not exist. Enter a registered Mark ID before saving."
+          );
+        }
+      } catch {
+        if (cancelled) return;
+        setEditName("");
+        setEditMarkOk(false);
+        setError(
+          "This Mark ID does not exist. Enter a registered Mark ID before saving."
+        );
+      } finally {
+        if (!cancelled) setEditMarkLoading(false);
+      }
+    }, 280);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [editingId, edit.mark_id]);
+
   const startEdit = (row) => {
     setEditingId(row.id);
     setEdit({
@@ -76,6 +119,9 @@ export default function WarehouseReceivedPackages({ onBack }) {
       package_cbm: row.package_cbm || "",
       product_name: row.product_name || "",
     });
+    setEditName(row.full_name || "");
+    setEditMarkOk(false);
+    setEditMarkLoading(true);
     setError("");
     setInfo("");
   };
@@ -92,6 +138,13 @@ export default function WarehouseReceivedPackages({ onBack }) {
   };
 
   const saveEdit = async (id) => {
+    if (editMarkLoading) return;
+    if (!String(edit.mark_id || "").trim() || !editMarkOk) {
+      setError(
+        "This Mark ID does not exist. Enter a registered Mark ID before saving."
+      );
+      return;
+    }
     setBusyId(id);
     setError("");
     try {
@@ -164,7 +217,7 @@ export default function WarehouseReceivedPackages({ onBack }) {
         <input
           className={`${inputClass} max-w-md`}
           value={q}
-          placeholder="Search tracking, mark, product, size, container"
+                    placeholder="Search tracking, mark, name, product, size, container"
           onChange={(e) => setQ(e.target.value)}
         />
         <button
@@ -203,6 +256,7 @@ export default function WarehouseReceivedPackages({ onBack }) {
               <th className="px-3 py-3">Size</th>
               <th className="px-3 py-3">CBM</th>
               <th className="px-3 py-3">Mark ID</th>
+              <th className="px-3 py-3">Name</th>
               <th className="px-3 py-3">Container</th>
               <th className="px-3 py-3 text-right">Actions</th>
             </tr>
@@ -210,13 +264,13 @@ export default function WarehouseReceivedPackages({ onBack }) {
           <tbody>
             {loading ? (
               <tr>
-                <td className="px-3 py-6 text-slate-400" colSpan={8}>
+                <td className="px-3 py-6 text-slate-400" colSpan={9}>
                   Loading…
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td className="px-3 py-6 text-slate-400" colSpan={8}>
+                <td className="px-3 py-6 text-slate-400" colSpan={9}>
                   No received packages yet.
                 </td>
               </tr>
@@ -309,6 +363,23 @@ export default function WarehouseReceivedPackages({ onBack }) {
                         row.mark_id || "—"
                       )}
                     </td>
+                    <td className="px-3 py-2">
+                      {isEdit ? (
+                        editMarkLoading ? (
+                          <span className="text-slate-400">Looking up…</span>
+                        ) : editName ? (
+                          <span className="font-semibold text-emerald-300">
+                            {editName}
+                          </span>
+                        ) : (
+                          <span className="font-semibold text-rose-300">
+                            Mark ID not found
+                          </span>
+                        )
+                      ) : (
+                        row.full_name || "—"
+                      )}
+                    </td>
                     <td className="px-3 py-2 text-slate-400">
                       {row.container_number || "—"}
                     </td>
@@ -318,7 +389,7 @@ export default function WarehouseReceivedPackages({ onBack }) {
                           <>
                             <button
                               type="button"
-                              disabled={busy}
+                              disabled={busy || editMarkLoading || !editMarkOk}
                               onClick={() => saveEdit(row.id)}
                               className="rounded-lg bg-amber-400 px-2.5 py-1 text-xs font-bold text-[#0B1220] disabled:opacity-50"
                             >

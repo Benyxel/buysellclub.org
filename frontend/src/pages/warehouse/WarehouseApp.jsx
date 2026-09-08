@@ -470,9 +470,12 @@ export default function WarehouseApp() {
     const mark = String(draft.markId || "").trim();
     if (!isUsableMarkId(mark)) {
       setMarkName("");
+      patch({ fullName: "" });
       return;
     }
     let cancelled = false;
+    setMarkName("");
+    patch({ fullName: "" });
     setMarkLoading(true);
     const timer = setTimeout(async () => {
       try {
@@ -481,10 +484,18 @@ export default function WarehouseApp() {
         const name = res.data?.full_name || res.data?.name || "";
         setMarkName(name);
         patch({ fullName: name });
+        if (!name) {
+          setError(
+            "This Mark ID does not exist. Enter a registered Mark ID before submitting."
+          );
+        }
       } catch {
         if (!cancelled) {
           setMarkName("");
           patch({ fullName: "" });
+          setError(
+            "This Mark ID does not exist. Enter a registered Mark ID before submitting."
+          );
         }
       } finally {
         if (!cancelled) setMarkLoading(false);
@@ -541,6 +552,7 @@ export default function WarehouseApp() {
   const assignFormComplete = useMemo(() => {
     if (view !== "assign" || busy || markLoading || error) return false;
     if (!isUsableMarkId(draft.markId)) return false;
+    if (!String(draft.fullName || markName || "").trim()) return false;
     if (action === "received") {
       if (!String(draft.containerNumber || "").trim()) return false;
       const cbmNum = Number(cbm);
@@ -559,6 +571,8 @@ export default function WarehouseApp() {
     markLoading,
     error,
     draft.markId,
+    draft.fullName,
+    markName,
     draft.containerNumber,
     draft.weightKg,
     draft.productName,
@@ -572,6 +586,20 @@ export default function WarehouseApp() {
     setBusy(true);
     setError("");
     try {
+      if (warehouse === "china") {
+        if (!isUsableMarkId(draft.markId)) {
+          setError("Enter a valid Mark ID (e.g. FIM000 or BSC000)");
+          setBusy(false);
+          return;
+        }
+        if (!String(draft.fullName || markName || "").trim()) {
+          setError(
+            "This Mark ID does not exist. Enter a registered Mark ID before submitting."
+          );
+          setBusy(false);
+          return;
+        }
+      }
       const cbmNum = Number(cbm);
       const kgRaw = String(draft.weightKg || "").trim().replace(",", ".");
       const kgNum = kgRaw ? Number(kgRaw) : NaN;
@@ -715,7 +743,7 @@ export default function WarehouseApp() {
     } finally {
       setBusy(false);
     }
-  }, [busy, cbm, draft, warehouse, action, containers, patch]);
+  }, [busy, cbm, draft, warehouse, action, containers, patch, markName]);
 
   // Received: only submit when product name is finished (Enter / blur).
   // Reject/return submits from the reason button click.
@@ -1463,7 +1491,10 @@ export default function WarehouseApp() {
                     {markName}
                   </p>
                 ) : isUsableMarkId(draft.markId) ? (
-                  <p className="text-xs text-slate-500">No user for this mark</p>
+                  <p className="text-sm font-semibold text-rose-300">
+                    This Mark ID does not exist. Data cannot be submitted until
+                    you enter a registered Mark ID.
+                  </p>
                 ) : null}
               </Field>
 
@@ -1481,8 +1512,10 @@ export default function WarehouseApp() {
                           type="button"
                           disabled={busy}
                           onClick={() => {
-                            if (!isUsableMarkId(draft.markId)) {
-                              setError("Enter a valid Mark ID (FIM or BSC + digits)");
+                            if (!isUsableMarkId(draft.markId) || !markName) {
+                              setError(
+                                "This Mark ID does not exist. Enter a registered Mark ID before submitting."
+                              );
                               return;
                             }
                             patch({ reason: label });
