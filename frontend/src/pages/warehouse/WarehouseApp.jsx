@@ -426,6 +426,19 @@ export default function WarehouseApp() {
     setView("tracking");
   };
 
+  const startChinaNavAction = (nextAction) => {
+    setWarehouse("china");
+    startAction(nextAction);
+  };
+
+  const openReceivedPackages = () => {
+    setError("");
+    setInfo("");
+    setAction(null);
+    setWarehouse("china");
+    setView("received-packages");
+  };
+
   const loadReceivingContainers = useCallback(async () => {
     setContainersLoading(true);
     try {
@@ -1131,24 +1144,34 @@ export default function WarehouseApp() {
               Warehouse scanner
             </div>
           </button>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {CHINA_ACTIONS.map((item) => {
+              const active =
+                warehouse === "china" &&
+                action === item.id &&
+                ["tracking", "assign", "submit", "success"].includes(view);
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => startChinaNavAction(item.id)}
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-semibold ${
+                    active
+                      ? "border-amber-400/50 bg-amber-500/15 text-amber-200"
+                      : "border-white/10 bg-white/5 text-slate-300 hover:border-white/25 hover:text-white"
+                  }`}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
+            <span className="hidden h-5 w-px bg-white/10 sm:inline" />
             {warehouse ? (
-              <span className="hidden rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold capitalize text-slate-300 sm:inline">
+              <span className="hidden rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold capitalize text-slate-300 lg:inline">
                 {warehouse} warehouse
                 {action ? ` · ${actionLabel(warehouse, action)}` : ""}
               </span>
             ) : null}
-            <button
-              type="button"
-              onClick={() => {
-                setError("");
-                setInfo("");
-                setView("received-packages");
-              }}
-              className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-200"
-            >
-              Received packages
-            </button>
             <span className="rounded-lg bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-400">
               Desktop · admin login
             </span>
@@ -1186,6 +1209,12 @@ export default function WarehouseApp() {
               tone="teal"
               onClick={() => openWarehouse("ghana")}
             />
+            <ActionCard
+              title="Received packages"
+              hint="View, edit, or delete goods submitted from the scanner"
+              tone="success"
+              onClick={openReceivedPackages}
+            />
           </ActionGrid>
         </Shell>
       ) : null}
@@ -1211,11 +1240,7 @@ export default function WarehouseApp() {
               title="Received packages"
               hint="View, edit, or delete goods submitted from this scanner"
               tone="success"
-              onClick={() => {
-                setError("");
-                setInfo("");
-                setView("received-packages");
-              }}
+              onClick={openReceivedPackages}
             />
             <ActionCard
               title="Export container"
