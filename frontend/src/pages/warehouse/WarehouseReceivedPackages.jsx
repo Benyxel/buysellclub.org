@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Api } from "../../api";
-import { apiErrorMessage } from "../../utils/apiErrorMessage";
+import { useWarehouseI18n } from "./warehouseI18n";
 
 const inputClass =
   "w-full min-w-[7rem] rounded-lg border border-white/10 bg-[#151D2E] px-3 py-2.5 text-sm font-semibold text-slate-50 outline-none placeholder:text-slate-500 focus:border-amber-400/50 focus:ring-2 focus:ring-amber-400/20";
@@ -29,6 +29,7 @@ function calcCbmFromSize(size) {
 }
 
 export default function WarehouseReceivedPackages({ onBack }) {
+  const { t } = useWarehouseI18n();
   const [rows, setRows] = useState([]);
   const [count, setCount] = useState(0);
   const [page, setPage] = useState(1);
@@ -59,11 +60,11 @@ export default function WarehouseReceivedPackages({ onBack }) {
     } catch (e) {
       setRows([]);
       setCount(0);
-      setError(apiErrorMessage(e?.response?.data, "Could not load received packages"));
+      setError(apiErrorMessage(e?.response?.data, t("couldNotLoadPackages")));
     } finally {
       setLoading(false);
     }
-  }, [page, search]);
+  }, [page, search, t]);
 
   useEffect(() => {
     load();
@@ -88,17 +89,13 @@ export default function WarehouseReceivedPackages({ onBack }) {
         setEditName(name);
         setEditMarkOk(Boolean(name));
         if (!name) {
-          setError(
-            "This Mark ID does not exist. Enter a registered Mark ID before saving."
-          );
+          setError(t("markRequiredSave"));
         }
       } catch {
         if (cancelled) return;
         setEditName("");
         setEditMarkOk(false);
-        setError(
-          "This Mark ID does not exist. Enter a registered Mark ID before saving."
-        );
+        setError(t("markRequiredSave"));
       } finally {
         if (!cancelled) setEditMarkLoading(false);
       }
@@ -107,7 +104,7 @@ export default function WarehouseReceivedPackages({ onBack }) {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [editingId, edit.mark_id]);
+  }, [editingId, edit.mark_id, t]);
 
   const startEdit = (row) => {
     setEditingId(row.id);
@@ -140,9 +137,7 @@ export default function WarehouseReceivedPackages({ onBack }) {
   const saveEdit = async (id) => {
     if (editMarkLoading) return;
     if (!String(edit.mark_id || "").trim() || !editMarkOk) {
-      setError(
-        "This Mark ID does not exist. Enter a registered Mark ID before saving."
-      );
+      setError(t("markRequiredSave"));
       return;
     }
     setBusyId(id);
@@ -157,10 +152,10 @@ export default function WarehouseReceivedPackages({ onBack }) {
         product_name: edit.product_name.trim(),
       });
       setEditingId(null);
-      setInfo("Saved — Quick Tracking and Excel/Sheets will use this update.");
+      setInfo(t("savedQtExcel"));
       await load();
     } catch (e) {
-      setError(apiErrorMessage(e?.response?.data, "Could not save changes"));
+      setError(apiErrorMessage(e?.response?.data, t("couldNotSaveChanges")));
     } finally {
       setBusyId(null);
     }
@@ -168,18 +163,18 @@ export default function WarehouseReceivedPackages({ onBack }) {
 
   const removeRow = async (row) => {
     const ok = window.confirm(
-      `Delete received package ${row.tracking_number || row.id}? This also removes it from Quick Tracking and Excel.`
+      t("deleteConfirm", { tracking: row.tracking_number || row.id })
     );
     if (!ok) return;
     setBusyId(row.id);
     setError("");
     try {
       await Api.scanner.warehouseReceivedDelete(row.id);
-      setInfo("Deleted — Quick Tracking and Excel/Sheets will refresh for that container.");
+      setInfo(t("deletedQtExcel"));
       if (editingId === row.id) setEditingId(null);
       await load();
     } catch (e) {
-      setError(apiErrorMessage(e?.response?.data, "Could not delete this package"));
+      setError(apiErrorMessage(e?.response?.data, t("couldNotDelete")));
     } finally {
       setBusyId(null);
     }
@@ -194,16 +189,14 @@ export default function WarehouseReceivedPackages({ onBack }) {
         onClick={onBack}
         className="mb-4 text-sm font-semibold text-slate-400 hover:text-amber-300"
       >
-        ← Back
+        ← {t("back")}
       </button>
       <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-amber-400">
-        China warehouse
+        {t("chinaWarehouse")}
       </p>
-      <h1 className="mt-1 text-2xl font-extrabold text-slate-50">Received packages</h1>
+      <h1 className="mt-1 text-2xl font-extrabold text-slate-50">{t("receivedPackages")}</h1>
       <p className="mt-2 max-w-3xl text-sm text-slate-400">
-        Edit or delete goods submitted from this scanner. Changes update the same
-        records as admin Quick Tracking and the container Excel / Google Sheet.
-        Those pages keep their current layout.
+        {t("receivedPackagesSub")}
       </p>
 
       <form
@@ -217,21 +210,21 @@ export default function WarehouseReceivedPackages({ onBack }) {
         <input
           className={`${inputClass} max-w-lg`}
           value={q}
-          placeholder="Search tracking, mark, name, product, size, container"
+          placeholder={t("searchPlaceholder")}
           onChange={(e) => setQ(e.target.value)}
         />
         <button
           type="submit"
           className="rounded-xl bg-amber-400 px-4 py-2 text-sm font-bold text-[#0B1220]"
         >
-          Search
+          {t("search")}
         </button>
         <button
           type="button"
           onClick={() => load()}
           className="rounded-xl border border-white/15 px-4 py-2 text-sm font-semibold text-slate-200"
         >
-          Refresh
+          {t("refresh")}
         </button>
       </form>
 
@@ -250,28 +243,28 @@ export default function WarehouseReceivedPackages({ onBack }) {
         <table className="w-full min-w-[78rem] table-fixed text-left text-sm">
           <thead className="bg-white/5 text-xs font-bold uppercase tracking-wide text-slate-400">
             <tr>
-              <th className="w-[14%] px-5 py-4">Tracking number</th>
-              <th className="w-[8%] px-5 py-4">Weight</th>
-              <th className="w-[12%] px-5 py-4">Product</th>
-              <th className="w-[10%] px-5 py-4">Size</th>
-              <th className="w-[7%] px-5 py-4">CBM</th>
-              <th className="w-[9%] px-5 py-4">Mark ID</th>
-              <th className="w-[14%] px-5 py-4">Name</th>
-              <th className="w-[12%] px-5 py-4">Container</th>
-              <th className="w-[14%] px-5 py-4 text-right">Actions</th>
+              <th className="w-[14%] px-5 py-4">{t("colTracking")}</th>
+              <th className="w-[8%] px-5 py-4">{t("colWeight")}</th>
+              <th className="w-[12%] px-5 py-4">{t("colProduct")}</th>
+              <th className="w-[10%] px-5 py-4">{t("colSize")}</th>
+              <th className="w-[7%] px-5 py-4">{t("colCbm")}</th>
+              <th className="w-[9%] px-5 py-4">{t("colMark")}</th>
+              <th className="w-[14%] px-5 py-4">{t("colName")}</th>
+              <th className="w-[12%] px-5 py-4">{t("colContainer")}</th>
+              <th className="w-[14%] px-5 py-4 text-right">{t("colActions")}</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
                 <td className="px-5 py-8 text-slate-400" colSpan={9}>
-                  Loading…
+                  {t("loading")}
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
                 <td className="px-5 py-8 text-slate-400" colSpan={9}>
-                  No received packages yet.
+                  {t("noReceivedYet")}
                 </td>
               </tr>
             ) : (
@@ -366,14 +359,14 @@ export default function WarehouseReceivedPackages({ onBack }) {
                     <td className="px-5 py-3.5">
                       {isEdit ? (
                         editMarkLoading ? (
-                          <span className="text-slate-400">Looking up…</span>
+                          <span className="text-slate-400">{t("lookingUp")}</span>
                         ) : editName ? (
                           <span className="font-semibold text-emerald-300">
                             {editName}
                           </span>
                         ) : (
                           <span className="font-semibold text-rose-300">
-                            Mark ID not found
+                            {t("markNotFound")}
                           </span>
                         )
                       ) : (
@@ -393,7 +386,7 @@ export default function WarehouseReceivedPackages({ onBack }) {
                               onClick={() => saveEdit(row.id)}
                               className="rounded-lg bg-amber-400 px-2.5 py-1 text-xs font-bold text-[#0B1220] disabled:opacity-50"
                             >
-                              Save
+                              {t("save")}
                             </button>
                             <button
                               type="button"
@@ -401,7 +394,7 @@ export default function WarehouseReceivedPackages({ onBack }) {
                               onClick={() => setEditingId(null)}
                               className="rounded-lg border border-white/15 px-2.5 py-1 text-xs font-semibold text-slate-300"
                             >
-                              Cancel
+                              {t("cancel")}
                             </button>
                           </>
                         ) : (
@@ -412,7 +405,7 @@ export default function WarehouseReceivedPackages({ onBack }) {
                               onClick={() => startEdit(row)}
                               className="rounded-lg border border-amber-400/40 px-2.5 py-1 text-xs font-semibold text-amber-300"
                             >
-                              Edit
+                              {t("edit")}
                             </button>
                             <button
                               type="button"
@@ -420,7 +413,7 @@ export default function WarehouseReceivedPackages({ onBack }) {
                               onClick={() => removeRow(row)}
                               className="rounded-lg border border-rose-400/40 px-2.5 py-1 text-xs font-semibold text-rose-300"
                             >
-                              Delete
+                              {t("delete")}
                             </button>
                           </>
                         )}
@@ -436,7 +429,12 @@ export default function WarehouseReceivedPackages({ onBack }) {
 
       <div className="mt-4 flex items-center justify-between text-sm text-slate-400">
         <span>
-          Page {page} of {pages} · {count} package{count === 1 ? "" : "s"}
+          {t("pageOf", {
+            page,
+            pages,
+            count,
+            plural: count === 1 ? "" : "s",
+          })}
         </span>
         <div className="flex gap-2">
           <button
@@ -445,7 +443,7 @@ export default function WarehouseReceivedPackages({ onBack }) {
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             className="rounded-lg border border-white/15 px-3 py-1 disabled:opacity-40"
           >
-            Previous
+            {t("previous")}
           </button>
           <button
             type="button"
@@ -453,7 +451,7 @@ export default function WarehouseReceivedPackages({ onBack }) {
             onClick={() => setPage((p) => p + 1)}
             className="rounded-lg border border-white/15 px-3 py-1 disabled:opacity-40"
           >
-            Next
+            {t("next")}
           </button>
         </div>
       </div>

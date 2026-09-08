@@ -7,6 +7,11 @@ import { Api } from "../../api";
 import { apiErrorMessage } from "../../utils/apiErrorMessage";
 import WarehouseReceivedPackages from "./WarehouseReceivedPackages";
 import "./warehouse-theme.css";
+import {
+  WarehouseI18nProvider,
+  useWarehouseI18n,
+  WAREHOUSE_LANGUAGES,
+} from "./warehouseI18n";
 
 const WAREHOUSE_THEME_KEY = "fimw-warehouse-theme";
 
@@ -26,20 +31,20 @@ const DEFAULT_MARK_PREFIX = "FIM";
 const CHINA_ACTIONS = [
   {
     id: "received",
-    label: "Received",
-    hint: "Accept into China warehouse",
+    labelKey: "received",
+    hintKey: "receivedHint",
     tone: "success",
   },
   {
     id: "rejected",
-    label: "Reject",
-    hint: "Mark as rejected (still searchable)",
+    labelKey: "rejected",
+    hintKey: "rejectedHint",
     tone: "danger",
   },
   {
     id: "returned",
-    label: "Return",
-    hint: "Mark as returned (still searchable)",
+    labelKey: "returned",
+    hintKey: "returnedHint",
     tone: "amber",
   },
 ];
@@ -58,21 +63,21 @@ const emptyDraft = () => ({
 });
 
 const REJECT_RETURN_REASONS = [
-  "No Shipping Mark",
-  "Broken",
-  "Dangerous Goods",
-  "Prohibited / Restricted Goods",
-  "Battery / Liquid / Powder Restricted",
-  "Counterfeit / Brand Goods",
-  "Insufficient Packaging",
-  "Wet / Water Damaged",
-  "Overweight / Oversized for This Shipment",
-  "Missing Invoice / Documents",
-  "Wrong or Incomplete Mark / Address",
-  "Customer Cancellation Request",
-  "Uncompressed Mattress",
-  "Swing Chair",
-  "Mannequin",
+  { value: "No Shipping Mark", labelKey: "reason_no_shipping_mark" },
+  { value: "Broken", labelKey: "reason_broken" },
+  { value: "Dangerous Goods", labelKey: "reason_dangerous_goods" },
+  { value: "Prohibited / Restricted Goods", labelKey: "reason_prohibited_goods" },
+  { value: "Battery / Liquid / Powder Restricted", labelKey: "reason_battery_liquid_powder" },
+  { value: "Counterfeit / Brand Goods", labelKey: "reason_counterfeit_brand" },
+  { value: "Insufficient Packaging", labelKey: "reason_insufficient_packaging" },
+  { value: "Wet / Water Damaged", labelKey: "reason_wet_water_damage" },
+  { value: "Overweight / Oversized for This Shipment", labelKey: "reason_overweight_oversized" },
+  { value: "Missing Invoice / Documents", labelKey: "reason_missing_documents" },
+  { value: "Wrong or Incomplete Mark / Address", labelKey: "reason_wrong_mark_or_address" },
+  { value: "Customer Cancellation Request", labelKey: "reason_customer_cancelled" },
+  { value: "Uncompressed Mattress", labelKey: "reason_uncompressed_mattress" },
+  { value: "Swing Chair", labelKey: "reason_swing_chair" },
+  { value: "Mannequin", labelKey: "reason_mannequin" },
 ];
 
 /** Normalize Mark ID: FIM### (default) or BSC###. Digits alone → FIM + digits. */
@@ -225,11 +230,12 @@ function formatDimensionTriplet(heightCm, widthCm, lengthCm) {
   return [h, w, l].filter(Boolean).join("*");
 }
 
-function actionLabel(warehouse, action) {
+function actionLabel(warehouse, action, t) {
   if (warehouse === "china") {
-    return CHINA_ACTIONS.find((a) => a.id === action)?.label || action;
+    const item = CHINA_ACTIONS.find((a) => a.id === action);
+    return item ? t(item.labelKey) : action;
   }
-  if (action === "picked_up") return "Confirm picked up";
+  if (action === "picked_up") return t("pickedUp");
   return action || "—";
 }
 
@@ -242,6 +248,7 @@ function toneClass(tone) {
 }
 
 function Shell({ children, title, subtitle, onBack, eyebrow, wide, actions }) {
+  const { t } = useWarehouseI18n();
   return (
     <div
       className={`mx-auto w-full px-6 py-8 lg:px-10 lg:py-10 ${
@@ -256,7 +263,7 @@ function Shell({ children, title, subtitle, onBack, eyebrow, wide, actions }) {
               onClick={onBack}
               className="mb-3 inline-flex items-center gap-1 text-sm font-semibold text-slate-300 hover:text-white"
             >
-              ← Back
+              ← {t("back")}
             </button>
           ) : null}
           {eyebrow ? (
@@ -355,6 +362,15 @@ const inputClass =
   "w-full rounded-xl border border-white/10 bg-[#151D2E] px-3.5 py-3 text-base font-semibold text-slate-50 outline-none placeholder:text-slate-500 focus:border-amber-400/50 focus:ring-2 focus:ring-amber-400/20";
 
 export default function WarehouseApp() {
+  return (
+    <WarehouseI18nProvider>
+      <WarehouseAppInner />
+    </WarehouseI18nProvider>
+  );
+}
+
+function WarehouseAppInner() {
+  const { t, language, setLanguage } = useWarehouseI18n();
   const [view, setView] = useState("home");
   const [warehouse, setWarehouse] = useState(null);
   const [action, setAction] = useState(null);
@@ -522,7 +538,7 @@ export default function WarehouseApp() {
         patch({ fullName: name });
         if (!name) {
           setError(
-            "This Mark ID does not exist. Enter a registered Mark ID before submitting."
+            t("noUserForMarkShort")
           );
         }
       } catch {
@@ -530,7 +546,7 @@ export default function WarehouseApp() {
           setMarkName("");
           patch({ fullName: "" });
           setError(
-            "This Mark ID does not exist. Enter a registered Mark ID before submitting."
+            t("noUserForMarkShort")
           );
         }
       } finally {
@@ -541,7 +557,7 @@ export default function WarehouseApp() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [view, draft.markId, patch]);
+  }, [view, draft.markId, patch, t]);
 
   const applyReceivePaste = useCallback(
     (parsed) => {
@@ -568,12 +584,12 @@ export default function WarehouseApp() {
   const continueFromTracking = () => {
     const raw = String(draft.trackingNumber || "").trim();
     if (!raw) {
-      setError("Enter a tracking number");
+      setError(t("enterTrackingNumber"));
       return;
     }
     const parsed = parseWarehouseReceivePaste(raw);
     if (!parsed?.trackingNumber) {
-      setError("Enter a tracking number");
+      setError(t("enterTrackingNumber"));
       return;
     }
     applyReceivePaste(parsed);
@@ -624,13 +640,13 @@ export default function WarehouseApp() {
     try {
       if (warehouse === "china") {
         if (!isUsableMarkId(draft.markId)) {
-          setError("Enter a valid Mark ID (e.g. FIM000 or BSC000)");
+          setError(t("enterMarkId"));
           setBusy(false);
           return;
         }
         if (!String(draft.fullName || markName || "").trim()) {
           setError(
-            "This Mark ID does not exist. Enter a registered Mark ID before submitting."
+            t("noUserForMarkShort")
           );
           setBusy(false);
           return;
@@ -645,7 +661,7 @@ export default function WarehouseApp() {
           : String(draft.reason || "").trim();
       if (warehouse === "china" && action === "received") {
         if (!String(draft.containerNumber || "").trim()) {
-          setError("Select a container first");
+          setError(t("selectContainerFirst"));
           setBusy(false);
           return;
         }
@@ -664,35 +680,39 @@ export default function WarehouseApp() {
           (Number.isFinite(total) && total >= max);
         if (isFull) {
           setError(
-            `Container ${draft.containerNumber} is full (${
-              Number.isFinite(total) ? total.toFixed(3) : "0"
-            } / ${max} CBM). Please select the next container.`
+            t("containerFullBody", {
+              number: draft.containerNumber,
+              total: Number.isFinite(total) ? total.toFixed(3) : "0",
+              max,
+            })
           );
           patch({ containerNumber: "" });
           setBusy(false);
           return;
         }
         if (!Number.isFinite(cbmNum) || cbmNum <= 0) {
-          setError("Enter valid package dimensions (cm)");
+          setError(t("enterDimensions"));
           setBusy(false);
           return;
         }
         if (Number.isFinite(remaining) && cbmNum > remaining) {
           setError(
-            `Container ${draft.containerNumber} only has ${remaining.toFixed(
-              3
-            )} CBM left (max ${max}). This package does not fit — use the next container.`
+            t("containerWouldExceedBody", {
+              number: draft.containerNumber,
+              remaining: remaining.toFixed(3),
+              max,
+            })
           );
           setBusy(false);
           return;
         }
         if (!Number.isFinite(kgNum) || kgNum <= 0) {
-          setError("Enter package weight in kg");
+          setError(t("enterWeight"));
           setBusy(false);
           return;
         }
         if (!String(draft.productName || "").trim()) {
-          setError("Enter the product name");
+          setError(t("enterProductName"));
           setBusy(false);
           return;
         }
@@ -702,7 +722,7 @@ export default function WarehouseApp() {
         (action === "rejected" || action === "returned") &&
         !noteReason
       ) {
-        setError("Select a reason");
+        setError(t("enterReason"));
         setBusy(false);
         return;
       }
@@ -773,13 +793,13 @@ export default function WarehouseApp() {
       setError(
         apiErrorMessage(
           data,
-          e?.message || "Could not save this scan"
+          e?.message || t("couldNotSave")
         )
       );
     } finally {
       setBusy(false);
     }
-  }, [busy, cbm, draft, warehouse, action, containers, patch, markName]);
+  }, [busy, cbm, draft, warehouse, action, containers, patch, markName, t]);
 
   // Received: only submit when product name is finished (Enter / blur).
   // Reject/return submits from the reason button click.
@@ -813,8 +833,8 @@ export default function WarehouseApp() {
           apiErrorMessage(
             e?.response?.data,
             e?.response?.status === 404
-              ? "Tracking not found"
-              : "Could not look up tracking"
+              ? t("trackingNotFound")
+              : t("couldNotLookupTracking")
           )
         );
       }
@@ -865,16 +885,16 @@ export default function WarehouseApp() {
 
   const doExport = async () => {
     if (!exportContainer) {
-      setError("Select a container");
+      setError(t("selectAContainer"));
       return;
     }
     setBusy(true);
     setError("");
     try {
       await Api.scanner.downloadContainerExport(exportContainer);
-      setInfo("Excel downloaded — open it with Excel.");
+      setInfo(t("excelDownloaded"));
     } catch (e) {
-      setError(apiErrorMessage(e?.response?.data, "Export failed"));
+      setError(apiErrorMessage(e?.response?.data, t("exportFailed")));
     } finally {
       setBusy(false);
     }
@@ -898,11 +918,11 @@ export default function WarehouseApp() {
 
   const doUpload = async () => {
     if (!draft.containerNumber) {
-      setError("Select a container");
+      setError(t("selectAContainer"));
       return;
     }
     if (!uploadFile) {
-      setError("Choose an Excel file (.xlsx)");
+      setError(t("chooseExcel"));
       return;
     }
     setBusy(true);
@@ -912,10 +932,10 @@ export default function WarehouseApp() {
         containerNumber: draft.containerNumber,
         file: uploadFile,
       });
-      setInfo("Excel uploaded for this container.");
+      setInfo(t("excelUploaded"));
       setUploadFile(null);
     } catch (e) {
-      setError(apiErrorMessage(e?.response?.data, "Upload failed"));
+      setError(apiErrorMessage(e?.response?.data, t("uploadFailed")));
     } finally {
       setBusy(false);
     }
@@ -933,7 +953,7 @@ export default function WarehouseApp() {
       setParkingContainers(Array.isArray(list) ? list : []);
     } catch {
       setParkingContainers([]);
-      setError("Could not load parking list");
+      setError(t("parkingLoadFailed"));
     } finally {
       setParkingLoading(false);
     }
@@ -941,11 +961,11 @@ export default function WarehouseApp() {
 
   const doParkingUpload = async () => {
     if (!parkingContainer) {
-      setError("Select a container");
+      setError(t("selectAContainer"));
       return;
     }
     if (!uploadFile) {
-      setError("Choose an Excel file (.xlsx)");
+      setError(t("chooseExcel"));
       return;
     }
     setBusy(true);
@@ -956,10 +976,10 @@ export default function WarehouseApp() {
         file: uploadFile,
         source: "parking",
       });
-      setInfo("Excel uploaded for this container.");
+      setInfo(t("excelUploaded"));
       setUploadFile(null);
     } catch (e) {
-      setError(apiErrorMessage(e?.response?.data, "Upload failed"));
+      setError(apiErrorMessage(e?.response?.data, t("uploadFailed")));
     } finally {
       setBusy(false);
     }
@@ -994,7 +1014,7 @@ export default function WarehouseApp() {
       seen.add(key);
       options.push({
         value: key,
-        label: key === "__none__" ? "No container" : key,
+        label: key === "__none__" ? t("noContainer") : key,
       });
     }
     options.sort((a, b) => {
@@ -1003,7 +1023,7 @@ export default function WarehouseApp() {
       return a.label.localeCompare(b.label);
     });
     return options;
-  }, [invoicePickup]);
+  }, [invoicePickup, t]);
 
   const invoicePickupVisibleTrackings = useMemo(() => {
     const rows = invoicePickup?.trackings || [];
@@ -1033,7 +1053,7 @@ export default function WarehouseApp() {
   const loadInvoicePickup = async () => {
     const mark = withMarkPrefix(draft.markId);
     if (!isUsableMarkId(mark)) {
-      setError("Enter a valid Mark ID (e.g. FIM000 or BSC000)");
+      setError(t("enterMarkId"));
       return;
     }
     setBusy(true);
@@ -1049,8 +1069,8 @@ export default function WarehouseApp() {
         const unpaid = Number(data?.unpaid_invoice_count || 0);
         setError(
           unpaid > 0
-            ? `${unpaid} invoice(s) for this Mark ID are not fully paid. Payment is required before pickup.`
-            : "No paid shipping invoice packages found for this Mark ID."
+            ? t("unpaidInvoices", { count: unpaid })
+            : t("noInvoicePackages")
         );
         return;
       }
@@ -1068,7 +1088,7 @@ export default function WarehouseApp() {
       setInvoicePickupSelected(new Set());
       setInvoicePickupContainer("");
       setError(
-        apiErrorMessage(e?.response?.data, "Could not load invoice packages")
+        apiErrorMessage(e?.response?.data, t("couldNotLoadInvoices"))
       );
     } finally {
       setBusy(false);
@@ -1087,7 +1107,7 @@ export default function WarehouseApp() {
   const confirmInvoicePickup = async () => {
     if (!invoicePickup?.mark_id || invoicePickupSelected.size === 0) return;
     if (!invoicePickupContainer) {
-      setError("Select a container for these packages.");
+      setError(t("pickupContainerRequired"));
       return;
     }
     setBusy(true);
@@ -1105,7 +1125,7 @@ export default function WarehouseApp() {
           }`
       );
       if (Number(data?.error_count || 0) > 0) {
-        setError("Some packages failed — check and retry.");
+        setError(t("pickupPartialFail"));
       }
       const prevContainer = invoicePickupContainer;
       const refreshed = await Api.scanner.ghanaInvoicePickupLookup(
@@ -1121,7 +1141,7 @@ export default function WarehouseApp() {
         : keys[0] || "";
       applyInvoicePickupContainer(nextKey, rows);
     } catch (e) {
-      setError(apiErrorMessage(e?.response?.data, "Pickup failed"));
+      setError(apiErrorMessage(e?.response?.data, t("pickupFailed")));
     } finally {
       setBusy(false);
     }
@@ -1144,7 +1164,7 @@ export default function WarehouseApp() {
         if (!cancelled) {
           setPickupLog(null);
           setPickupByMark(null);
-          setError(apiErrorMessage(e?.response?.data, "Could not load pickup log"));
+          setError(apiErrorMessage(e?.response?.data, t("pickupLogFailed")));
         }
       } finally {
         if (!cancelled) setBusy(false);
@@ -1156,7 +1176,7 @@ export default function WarehouseApp() {
   }, [view, pickupDate]);
 
   return (
-    <div className="warehouse-app min-h-screen" data-theme={theme}>
+    <div className="warehouse-app min-h-screen" data-theme={theme} lang={language}>
       <header className="sticky top-0 z-20 border-b border-white/[0.08] bg-[#0B1220]/90 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-[96rem] items-center gap-6 px-6 lg:px-10">
           <button
@@ -1167,7 +1187,9 @@ export default function WarehouseApp() {
             <span className="text-[13px] font-semibold tracking-[0.18em] text-amber-400">
               FIMW
             </span>
-            <span className="text-[15px] font-semibold text-white">Warehouse</span>
+            <span className="text-[15px] font-semibold text-white">
+              {t("brandWarehouse")}
+            </span>
           </button>
 
           <div className="h-5 w-px shrink-0 bg-white/10" />
@@ -1182,7 +1204,7 @@ export default function WarehouseApp() {
                   : "text-slate-400 hover:text-white"
               }`}
             >
-              China
+              {t("china")}
             </button>
             <button
               type="button"
@@ -1191,7 +1213,7 @@ export default function WarehouseApp() {
                 warehouse === "ghana" ? "text-white" : "text-slate-400 hover:text-white"
               }`}
             >
-              Ghana
+              {t("ghana")}
             </button>
 
             <div className="mx-2 hidden h-4 w-px bg-white/10 sm:block" />
@@ -1213,7 +1235,7 @@ export default function WarehouseApp() {
                         : "text-slate-400 hover:text-white"
                     }`}
                   >
-                    {item.label}
+                    {t(item.labelKey)}
                   </button>
                 );
               })}
@@ -1228,11 +1250,31 @@ export default function WarehouseApp() {
                   : "text-slate-400 hover:text-white"
               }`}
             >
-              Packages
+              {t("packages")}
             </button>
           </nav>
 
           <div className="flex shrink-0 items-center gap-3">
+            <div
+              className="flex items-center rounded-lg bg-white/[0.04] p-0.5 ring-1 ring-inset ring-white/10"
+              role="group"
+              aria-label={t("language")}
+            >
+              {WAREHOUSE_LANGUAGES.map((lang) => (
+                <button
+                  key={lang.id}
+                  type="button"
+                  onClick={() => setLanguage(lang.id)}
+                  className={`rounded-md px-3 py-1.5 text-[13px] font-medium transition ${
+                    language === lang.id
+                      ? "bg-white/10 text-white shadow-sm"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  {lang.label}
+                </button>
+              ))}
+            </div>
             <div
               className="flex items-center rounded-lg bg-white/[0.04] p-0.5 ring-1 ring-inset ring-white/10"
               role="group"
@@ -1247,7 +1289,7 @@ export default function WarehouseApp() {
                     : "text-slate-400 hover:text-white"
                 }`}
               >
-                Dark
+                {t("dark")}
               </button>
               <button
                 type="button"
@@ -1258,7 +1300,7 @@ export default function WarehouseApp() {
                     : "text-slate-400 hover:text-white"
                 }`}
               >
-                Light
+                {t("light")}
               </button>
             </div>
             <button
@@ -1271,7 +1313,7 @@ export default function WarehouseApp() {
               }}
               className="text-[13px] font-medium text-slate-400 transition hover:text-white"
             >
-              Sign out
+              {t("signOut")}
             </button>
           </div>
         </div>
@@ -1279,25 +1321,25 @@ export default function WarehouseApp() {
 
       {view === "home" ? (
         <Shell
-          title="Where are you scanning?"
-          subtitle="China warehouse for receiving. Ghana warehouse for customer pickup."
+          title={t("whereScanning")}
+          subtitle={t("whereScanningSub")}
         >
           <ActionGrid>
             <ActionCard
-              title="China warehouse"
-              hint="Receive, reject, or return packages"
+              title={t("chinaWarehouse")}
+              hint={t("chinaWarehouseDesc")}
               tone="amber"
               onClick={() => openWarehouse("china")}
             />
             <ActionCard
-              title="Ghana warehouse"
-              hint="Confirm pickup · sets tracking to Pick up"
+              title={t("ghanaWarehouse")}
+              hint={t("ghanaWarehouseDesc")}
               tone="teal"
               onClick={() => openWarehouse("ghana")}
             />
             <ActionCard
-              title="Received packages"
-              hint="View, edit, or delete goods submitted from the scanner"
+              title={t("receivedPackages")}
+              hint={t("receivedPackagesHint")}
               tone="success"
               onClick={openReceivedPackages}
             />
@@ -1307,42 +1349,42 @@ export default function WarehouseApp() {
 
       {view === "china-home" ? (
         <Shell
-          eyebrow="China warehouse"
-          title="Choose action"
-          subtitle="Select package status, then enter the tracking number."
+          eyebrow={t("chinaWarehouse")}
+          title={t("chooseAction")}
+          subtitle={t("chooseActionSub")}
           onBack={goHome}
         >
           <ActionGrid>
             {CHINA_ACTIONS.map((item) => (
               <ActionCard
                 key={item.id}
-                title={item.label}
-                hint={item.hint}
+                title={t(item.labelKey)}
+                hint={t(item.hintKey)}
                 tone={item.tone}
                 onClick={() => startAction(item.id)}
               />
             ))}
             <ActionCard
-              title="Received packages"
-              hint="View, edit, or delete goods submitted from this scanner"
+              title={t("receivedPackages")}
+              hint={t("receivedPackagesHintChina")}
               tone="success"
               onClick={openReceivedPackages}
             />
             <ActionCard
-              title="Export container"
-              hint="Download trackings grouped by Mark ID (Excel)"
+              title={t("exportContainer")}
+              hint={t("exportContainerHint")}
               tone="amber"
               onClick={openExport}
             />
             <ActionCard
-              title="Upload Excel"
-              hint="Assign an Excel sheet to a container"
+              title={t("uploadExcel")}
+              hint={t("uploadExcelHint")}
               tone="amber"
               onClick={openUpload}
             />
             <ActionCard
-              title="Parking list"
-              hint="Upload Excel for loading, laden, in transit, arrived at port"
+              title={t("parkingList")}
+              hint={t("parkingListHint")}
               tone="amber"
               onClick={openParking}
             />
@@ -1352,27 +1394,27 @@ export default function WarehouseApp() {
 
       {view === "ghana-home" ? (
         <Shell
-          eyebrow="Ghana warehouse"
-          title="Pickup"
-          subtitle="Confirm customer pickup or review today’s log."
+          eyebrow={t("ghanaWarehouse")}
+          title={t("pickup")}
+          subtitle={t("pickupSub")}
           onBack={goHome}
         >
           <ActionGrid>
             <ActionCard
-              title="Confirm picked up"
-              hint="Type tracking or sack barcode, then confirm"
+              title={t("pickedUp")}
+              hint={t("pickedUpHint")}
               tone="teal"
               onClick={() => startAction("picked_up")}
             />
             <ActionCard
-              title="Pickup by Mark ID"
-              hint="Enter Mark ID → load invoice packages → mark as pickup"
+              title={t("pickupByMark")}
+              hint={t("pickupByMarkHint")}
               tone="teal"
               onClick={openPickupByMark}
             />
             <ActionCard
-              title="Pickup log"
-              hint="Daily pickup activity by Mark ID"
+              title={t("pickupLog")}
+              hint={t("pickupLogHint")}
               tone="teal"
               onClick={openPickupLog}
             />
@@ -1382,12 +1424,13 @@ export default function WarehouseApp() {
 
       {view === "tracking" ? (
         <Shell
-          eyebrow={`${warehouse === "china" ? "China" : "Ghana"} · ${actionLabel(
+          eyebrow={`${warehouse === "china" ? t("chinaDot") : t("ghanaDot")} · ${actionLabel(
             warehouse,
-            action
+            action,
+            t
           )}`}
-          title="Enter tracking"
-          subtitle="Paste tracking only, or a full line: 79137258956701 FIM752 0.9 10*10*20 clothes"
+          title={t("enterTracking")}
+          subtitle={t("enterTrackingSub")}
           onBack={() =>
             setView(warehouse === "china" ? "china-home" : "ghana-home")
           }
@@ -1398,14 +1441,14 @@ export default function WarehouseApp() {
                 {error}
               </div>
             ) : null}
-            <Field label="Tracking number">
+            <Field label={t("trackingNumber")}>
               <input
                 className={inputClass}
                 value={draft.trackingNumber}
                 autoFocus
                 autoComplete="off"
                 spellCheck={false}
-                placeholder="Tracking # or full line with mark, kg, size, product"
+                placeholder={t("trackingPlaceholder")}
                 onChange={(e) => {
                   patch({ trackingNumber: e.target.value.trim() });
                   setError("");
@@ -1432,7 +1475,7 @@ export default function WarehouseApp() {
             </Field>
             <div className="mt-5 flex justify-end">
               <PrimaryButton onClick={continueFromTracking} className="min-w-[160px]">
-                Continue
+                {t("continue")}
               </PrimaryButton>
             </div>
           </Panel>
@@ -1441,12 +1484,10 @@ export default function WarehouseApp() {
 
       {view === "assign" ? (
         <Shell
-          eyebrow={`China · ${actionLabel(warehouse, action)} · ${draft.trackingNumber}`}
-          title={action === "received" ? "Container & Mark ID" : "Mark ID"}
+          eyebrow={`${t("chinaDot")} · ${actionLabel(warehouse, action, t)} · ${draft.trackingNumber}`}
+          title={action === "received" ? t("containerAndMark") : t("markId")}
           subtitle={
-            action === "received"
-              ? "Fill every field — saves automatically when complete."
-              : "Enter Mark ID and reason — saves automatically when complete."
+            action === "received" ? t("assignReceivedSub") : t("assignRejectSub")
           }
           onBack={() => setView("tracking")}
         >
@@ -1463,7 +1504,7 @@ export default function WarehouseApp() {
           >
             <Panel className="space-y-4">
               {action === "received" ? (
-                <Field label="Container (preparing / receiving / loading / laden)">
+                <Field label={t("containerLabel")}>
                   <select
                     className={inputClass}
                     value={draft.containerNumber}
@@ -1482,9 +1523,11 @@ export default function WarehouseApp() {
                         (Number.isFinite(total) && total >= max);
                       if (value && isFull) {
                         setError(
-                          `Container ${value} is full (${
-                            Number.isFinite(total) ? total.toFixed(3) : "0"
-                          } / ${max} CBM). Please select the next container.`
+                          t("containerFullBody", {
+                            number: value,
+                            total: Number.isFinite(total) ? total.toFixed(3) : "0",
+                            max,
+                          })
                         );
                         patch({ containerNumber: "" });
                         return;
@@ -1498,9 +1541,11 @@ export default function WarehouseApp() {
                         packageCbm > remaining
                       ) {
                         setError(
-                          `Container ${value} only has ${remaining.toFixed(
-                            3
-                          )} CBM left (max ${max}). This package does not fit — use the next container.`
+                          t("containerWouldExceedBody", {
+                            number: value,
+                            remaining: remaining.toFixed(3),
+                            max,
+                          })
                         );
                         patch({ containerNumber: "" });
                         return;
@@ -1510,7 +1555,7 @@ export default function WarehouseApp() {
                     }}
                   >
                     <option value="">
-                      {containersLoading ? "Loading…" : "Select container…"}
+                      {containersLoading ? t("loading") : t("selectContainer")}
                     </option>
                     {containers.map((c) => {
                       const total = Number(c.total_cbm);
@@ -1533,22 +1578,23 @@ export default function WarehouseApp() {
                           {c.container_number}
                           {status}
                           {cbmLabel}
-                          {isFull ? " · FULL — use next" : ""}
+                          {isFull ? ` · ${t("fullUseNext")}` : ""}
                         </option>
                       );
                     })}
                   </select>
                   <p className="text-xs text-slate-500">
-                    {containers.length} container
-                    {containers.length === 1 ? "" : "s"} available · full at 78
-                    CBM
+                    {t("containersAvailable", {
+                      count: containers.length,
+                      plural: containers.length === 1 ? "" : "s",
+                    })}
                   </p>
                 </Field>
               ) : null}
 
               <Field
-                label="Mark ID"
-                hint="Default FIM — type numbers only (123 → FIM123). Company mark: tap BSC or type BSC000. No mark? Use FIM752."
+                label={t("markId")}
+                hint={t("markFimHint")}
               >
                 <div className="mb-2 flex gap-2">
                   {MARK_PREFIXES.map((prefix) => {
@@ -1584,7 +1630,7 @@ export default function WarehouseApp() {
                   value={draft.markId}
                   autoComplete="off"
                   spellCheck={false}
-                  placeholder="FIM123 or BSC000"
+                  placeholder={t("markPlaceholder")}
                   disabled={busy}
                   onChange={(e) => {
                     patch({ markId: withMarkPrefix(e.target.value) });
@@ -1592,46 +1638,42 @@ export default function WarehouseApp() {
                   }}
                 />
                 <p className="mt-1 text-sm font-semibold text-amber-300">
-                  No shipping mark? Enter <span className="font-black">752</span>{" "}
-                  → FIM752
+                  {t("noShippingMarkHint")}
                 </p>
                 {markLoading ? (
-                  <p className="text-xs text-slate-400">Looking up name…</p>
+                  <p className="text-xs text-slate-400">{t("lookingUpName")}</p>
                 ) : markName ? (
                   <p className="text-sm font-semibold text-emerald-300">
                     {markName}
                   </p>
                 ) : isUsableMarkId(draft.markId) ? (
                   <p className="text-sm font-semibold text-rose-300">
-                    This Mark ID does not exist. Data cannot be submitted until
-                    you enter a registered Mark ID.
+                    {t("noUserForMark")}
                   </p>
                 ) : null}
               </Field>
 
               {action !== "received" ? (
                 <Field
-                  label="Reason"
-                  hint="Select why this package cannot ship to Ghana"
+                  label={t("reason")}
+                  hint={t("rejectReturnReasonHint")}
                 >
                   <div className="grid gap-2 sm:grid-cols-2">
-                    {REJECT_RETURN_REASONS.map((label) => {
-                      const selected = draft.reason === label;
+                    {REJECT_RETURN_REASONS.map((item) => {
+                      const selected = draft.reason === item.value;
                       return (
                         <button
-                          key={label}
+                          key={item.value}
                           type="button"
                           disabled={busy}
                           onClick={() => {
                             if (!isUsableMarkId(draft.markId) || !markName) {
-                              setError(
-                                "This Mark ID does not exist. Enter a registered Mark ID before submitting."
-                              );
+                              setError(t("noUserForMarkShort"));
                               return;
                             }
-                            patch({ reason: label });
+                            patch({ reason: item.value });
                             setError("");
-                            submitScan(label);
+                            submitScan(item.value);
                           }}
                           className={`rounded-xl border px-3 py-3 text-left text-sm font-semibold transition ${
                             selected
@@ -1639,7 +1681,7 @@ export default function WarehouseApp() {
                               : "border-white/10 bg-[#151D2E] text-slate-200 hover:border-white/20"
                           }`}
                         >
-                          {label}
+                          {t(item.labelKey)}
                         </button>
                       );
                     })}
@@ -1650,12 +1692,12 @@ export default function WarehouseApp() {
 
             {action === "received" ? (
               <Panel className="space-y-4">
-                <Field label="Weight (kg)">
+                <Field label={t("weightKg")}>
                   <input
                     className={inputClass}
                     inputMode="decimal"
                     value={draft.weightKg}
-                    placeholder="e.g. 12.5"
+                    placeholder={t("weightKgPlaceholder")}
                     disabled={busy}
                     onChange={(e) => {
                       patch({
@@ -1669,39 +1711,39 @@ export default function WarehouseApp() {
                   />
                 </Field>
                 <Field
-                  label="Package dimensions (cm)"
-                  hint="Type H*W*L or HxWxL — CBM calculates automatically"
+                  label={t("packageDimensions")}
+                  hint={t("cbmFormulaHint")}
                 >
                   <input
                     className={inputClass}
                     inputMode="decimal"
-                    placeholder="e.g. 12*34*54 or 12x34x43"
+                    placeholder={t("dimsInputPlaceholder")}
                     value={dimsInput}
                     disabled={busy}
                     onChange={(e) => applyDimsInput(e.target.value)}
                   />
                   {dimsInput.trim() && !cbm ? (
                     <span className="mt-1 block text-xs text-rose-300">
-                      Use H*W*L format, e.g. 12*34*54
+                      {t("dimsInputInvalid")}
                     </span>
                   ) : null}
                 </Field>
                 <div className="rounded-xl border border-white/10 bg-[#151D2E] px-4 py-4">
                   <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">
-                    CBM (auto)
+                    {t("cbmAuto")}
                   </div>
                   <div className="mt-1 text-3xl font-black text-amber-300">
                     {cbm || "—"}
                   </div>
                 </div>
                 <Field
-                  label="Product name"
-                  hint="Press Enter when finished to save"
+                  label={t("productName")}
+                  hint={t("productNameHint")}
                 >
                   <input
                     className={inputClass}
                     value={draft.productName}
-                    placeholder="e.g. Shoes"
+                    placeholder={t("productNamePlaceholder")}
                     disabled={busy}
                     onChange={(e) => {
                       patch({ productName: e.target.value });
@@ -1724,10 +1766,10 @@ export default function WarehouseApp() {
           {busy || (action === "received" && assignFormComplete) || (action !== "received" && assignFormComplete) ? (
             <div className="flex items-center justify-end gap-3 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-300">
               {busy
-                ? "Saving…"
+                ? t("saving")
                 : action === "received"
-                  ? "All set — press Enter on product name to save"
-                  : "All set — saving…"}
+                  ? t("pressEnterToSave")
+                  : t("allSetSaving")}
             </div>
           ) : null}
         </Shell>
@@ -1735,9 +1777,9 @@ export default function WarehouseApp() {
 
       {view === "submit" ? (
         <Shell
-          eyebrow={`${warehouse === "china" ? "China" : "Ghana"} · Review`}
-          title="Submit scan"
-          subtitle="Confirm details, then save."
+          eyebrow={`${warehouse === "china" ? t("chinaDot") : t("ghanaDot")} · ${t("review")}`}
+          title={t("submitScan")}
+          subtitle={t("submitScanSub")}
           onBack={() =>
             setView(warehouse === "china" ? "assign" : "tracking")
           }
@@ -1750,26 +1792,26 @@ export default function WarehouseApp() {
             ) : null}
             <Panel>
               <div className="grid grid-cols-1 gap-x-8 gap-y-1 sm:grid-cols-2">
-                <Row label="Action" value={actionLabel(warehouse, action)} />
-                <Row label="Tracking" value={draft.trackingNumber} />
+                <Row label={t("action")} value={actionLabel(warehouse, action, t)} />
+                <Row label={t("tracking")} value={draft.trackingNumber} />
                 {draft.markId ? (
-                  <Row label="Mark ID" value={draft.markId} />
+                  <Row label={t("markId")} value={draft.markId} />
                 ) : null}
                 {draft.fullName ? (
-                  <Row label="Customer" value={draft.fullName} accent />
+                  <Row label={t("customer")} value={draft.fullName} accent />
                 ) : null}
                 {draft.containerNumber ? (
-                  <Row label="Container" value={draft.containerNumber} />
+                  <Row label={t("container")} value={draft.containerNumber} />
                 ) : null}
-                {cbm ? <Row label="CBM" value={cbm} /> : null}
+                {cbm ? <Row label={t("cbm")} value={cbm} /> : null}
                 {draft.weightKg ? (
-                  <Row label="Weight (kg)" value={draft.weightKg} />
+                  <Row label={t("weightKg")} value={draft.weightKg} />
                 ) : null}
                 {draft.productName ? (
-                  <Row label="Product" value={draft.productName} />
+                  <Row label={t("product")} value={draft.productName} />
                 ) : null}
                 {draft.reason ? (
-                  <Row label="Reason" value={draft.reason} />
+                  <Row label={t("reason")} value={draft.reason} />
                 ) : null}
               </div>
             </Panel>
@@ -1779,7 +1821,7 @@ export default function WarehouseApp() {
                 onClick={submitScan}
                 className="min-w-[160px]"
               >
-                {busy ? "Saving…" : "Submit"}
+                {busy ? t("saving") : t("submit")}
               </PrimaryButton>
             </div>
           </div>
@@ -1787,56 +1829,56 @@ export default function WarehouseApp() {
       ) : null}
 
       {view === "success" && lastResult ? (
-        <Shell eyebrow="Saved" title="Scan recorded">
+        <Shell eyebrow={t("saved")} title={t("scanRecorded")}>
           <div className="mx-auto grid max-w-3xl gap-5">
             <Panel>
               <div className="grid grid-cols-1 gap-x-8 gap-y-1 sm:grid-cols-2">
                 <Row
-                  label="Action"
-                  value={actionLabel(lastResult.warehouse, lastResult.action)}
+                  label={t("action")}
+                  value={actionLabel(lastResult.warehouse, lastResult.action, t)}
                   accent
                 />
-                <Row label="Tracking" value={lastResult.trackingNumber} />
+                <Row label={t("tracking")} value={lastResult.trackingNumber} />
                 {lastResult.markId ? (
-                  <Row label="Mark ID" value={lastResult.markId} />
+                  <Row label={t("markId")} value={lastResult.markId} />
                 ) : null}
                 {lastResult.fullName ? (
-                  <Row label="Customer" value={lastResult.fullName} accent />
+                  <Row label={t("customer")} value={lastResult.fullName} accent />
                 ) : null}
                 {lastResult.containerNumber ? (
-                  <Row label="Container" value={lastResult.containerNumber} />
+                  <Row label={t("container")} value={lastResult.containerNumber} />
                 ) : null}
                 {lastResult.reassigned && lastResult.previousContainerNumber ? (
                   <Row
-                    label="Moved from"
+                    label={t("movedFrom")}
                     value={lastResult.previousContainerNumber}
                     accent
                   />
                 ) : null}
                 {lastResult.cbm ? (
-                  <Row label="CBM" value={lastResult.cbm} />
+                  <Row label={t("cbm")} value={lastResult.cbm} />
                 ) : null}
                 {lastResult.weightKg ? (
-                  <Row label="Weight (kg)" value={lastResult.weightKg} />
+                  <Row label={t("weightKg")} value={lastResult.weightKg} />
                 ) : null}
                 {lastResult.productName ? (
-                  <Row label="Product" value={lastResult.productName} />
+                  <Row label={t("product")} value={lastResult.productName} />
                 ) : null}
                 {lastResult.statusDisplay ? (
-                  <Row label="Status" value={lastResult.statusDisplay} accent />
+                  <Row label={t("status")} value={lastResult.statusDisplay} accent />
                 ) : null}
               </div>
             </Panel>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-sm font-semibold text-emerald-300">
-                Returning to tracking…
+                {t("returningToTracking")}
               </p>
               <SecondaryButton
                 onClick={() =>
                   setView(warehouse === "china" ? "china-home" : "ghana-home")
                 }
               >
-                Done · back to actions
+                {t("doneBack")}
               </SecondaryButton>
             </div>
           </div>
@@ -1854,9 +1896,9 @@ export default function WarehouseApp() {
 
       {view === "export" ? (
         <Shell
-          eyebrow="China warehouse"
-          title="Export container"
-          subtitle="Download trackings grouped by Mark ID."
+          eyebrow={t("chinaWarehouse")}
+          title={t("exportContainer")}
+          subtitle={t("exportContainerSub")}
           onBack={() => setView("china-home")}
         >
           <Panel className="mx-auto max-w-2xl space-y-4">
@@ -1870,13 +1912,13 @@ export default function WarehouseApp() {
                 {info}
               </div>
             ) : null}
-            <Field label="Container">
+            <Field label={t("container")}>
               <select
                 className={inputClass}
                 value={exportContainer}
                 onChange={(e) => setExportContainer(e.target.value)}
               >
-                <option value="">Select container…</option>
+                <option value="">{t("selectContainer")}</option>
                 {exportContainers.map((c) => (
                   <option
                     key={c.id || c.container_number}
@@ -1896,7 +1938,7 @@ export default function WarehouseApp() {
                 onClick={doExport}
                 className="min-w-[180px]"
               >
-                {busy ? "Exporting…" : "Export to Excel"}
+                {busy ? t("exporting") : t("exportExcel")}
               </PrimaryButton>
             </div>
           </Panel>
@@ -1905,9 +1947,9 @@ export default function WarehouseApp() {
 
       {view === "upload" ? (
         <Shell
-          eyebrow="China warehouse"
-          title="Upload Excel"
-          subtitle="Choose the container, then upload the warehouse Excel file."
+          eyebrow={t("chinaWarehouse")}
+          title={t("uploadExcel")}
+          subtitle={t("uploadExcelSub")}
           onBack={() => setView("china-home")}
         >
           <Panel className="mx-auto max-w-2xl space-y-4">
@@ -1922,7 +1964,7 @@ export default function WarehouseApp() {
               </div>
             ) : null}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <Field label="Container (incl. laden / in transit)">
+              <Field label={t("containerLabelUpload")}>
                 <select
                   className={inputClass}
                   value={draft.containerNumber}
@@ -1930,7 +1972,7 @@ export default function WarehouseApp() {
                   onChange={(e) => patch({ containerNumber: e.target.value })}
                 >
                   <option value="">
-                    {containersLoading ? "Loading…" : "Select container…"}
+                    {containersLoading ? t("loading") : t("selectContainer")}
                   </option>
                   {containers.map((c) => (
                     <option
@@ -1945,7 +1987,7 @@ export default function WarehouseApp() {
                   ))}
                 </select>
               </Field>
-              <Field label="Excel file">
+              <Field label={t("excelFile")}>
                 <input
                   type="file"
                   accept=".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -1963,7 +2005,7 @@ export default function WarehouseApp() {
                 onClick={doUpload}
                 className="min-w-[200px]"
               >
-                {busy ? "Uploading…" : "Upload to container"}
+                {busy ? t("uploading") : t("uploadToContainer")}
               </PrimaryButton>
             </div>
           </Panel>
@@ -1972,9 +2014,9 @@ export default function WarehouseApp() {
 
       {view === "parking" ? (
         <Shell
-          eyebrow="China warehouse"
-          title="Parking list"
-          subtitle="Choose a parking-list container, then upload the warehouse Excel file."
+          eyebrow={t("chinaWarehouse")}
+          title={t("parkingList")}
+          subtitle={t("parkingListSub")}
           onBack={() => setView("china-home")}
         >
           <Panel className="mx-auto max-w-2xl space-y-4">
@@ -1989,7 +2031,7 @@ export default function WarehouseApp() {
               </div>
             ) : null}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <Field label="Container (loading / laden / in transit / arrived at port)">
+              <Field label={t("parkingSelectLabel")}>
                 <select
                   className={inputClass}
                   value={parkingContainer}
@@ -2001,7 +2043,7 @@ export default function WarehouseApp() {
                   }}
                 >
                   <option value="">
-                    {parkingLoading ? "Loading…" : "Select container…"}
+                    {parkingLoading ? t("loading") : t("selectContainer")}
                   </option>
                   {parkingContainers.map((c) => (
                     <option
@@ -2016,7 +2058,7 @@ export default function WarehouseApp() {
                   ))}
                 </select>
               </Field>
-              <Field label="Excel file">
+              <Field label={t("excelFile")}>
                 <input
                   type="file"
                   accept=".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -2034,7 +2076,7 @@ export default function WarehouseApp() {
                 onClick={doParkingUpload}
                 className="min-w-[200px]"
               >
-                {busy ? "Uploading…" : "Upload to container"}
+                {busy ? t("uploading") : t("uploadToContainer")}
               </PrimaryButton>
             </div>
           </Panel>
@@ -2044,9 +2086,9 @@ export default function WarehouseApp() {
       {view === "pickup-by-mark" ? (
         <Shell
           wide
-          eyebrow="Ghana warehouse"
-          title="Pickup by Mark ID"
-          subtitle="Load this customer’s paid shipping invoice packages, choose the container, then mark as pickup."
+          eyebrow={t("ghanaWarehouse")}
+          title={t("pickupByMark")}
+          subtitle={t("pickupByMarkSub")}
           onBack={() => setView("ghana-home")}
         >
           {error ? (
@@ -2061,7 +2103,7 @@ export default function WarehouseApp() {
           ) : null}
           <Panel className="mx-auto max-w-4xl">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-              <Field label="Mark ID" className="flex-1">
+              <Field label={t("markId")} className="flex-1">
                 <div className="mb-2 flex gap-2">
                   {MARK_PREFIXES.map((prefix) => {
                     const active = markPrefixOf(draft.markId) === prefix;
@@ -2097,7 +2139,7 @@ export default function WarehouseApp() {
                   autoFocus
                   autoComplete="off"
                   spellCheck={false}
-                  placeholder="FIM000 or BSC000"
+                  placeholder={t("markPlaceholder")}
                   onChange={(e) => {
                     patch({ markId: withMarkPrefix(e.target.value) });
                     setError("");
@@ -2112,7 +2154,7 @@ export default function WarehouseApp() {
                 onClick={loadInvoicePickup}
                 className="min-w-[160px]"
               >
-                {busy ? "Loading…" : "Load packages"}
+                {busy ? t("loading") : t("lookupInvoices")}
               </PrimaryButton>
             </div>
 
@@ -2126,24 +2168,24 @@ export default function WarehouseApp() {
                     {invoicePickup.full_name || "—"}
                   </div>
                   <div className="mt-1 text-xs font-bold text-teal-300">
-                    {invoicePickup.invoice_count || 0} paid invoice(s) ·{" "}
-                    {
-                      invoicePickupVisibleTrackings.filter(
+                    {t("paidInvoicesPending", {
+                      invoices: invoicePickup.invoice_count || 0,
+                      pending: invoicePickupVisibleTrackings.filter(
                         (row) => !row.picked_up && row.status !== "missing"
-                      ).length
-                    }{" "}
-                    pending in container
+                      ).length,
+                    })}
                   </div>
                   {Number(invoicePickup.unpaid_invoice_count || 0) > 0 ? (
                     <div className="mt-1 text-xs font-bold text-amber-300">
-                      {invoicePickup.unpaid_invoice_count} unpaid invoice(s)
-                      hidden — payment required before pickup
+                      {t("unpaidHidden", {
+                        count: invoicePickup.unpaid_invoice_count,
+                      })}
                     </div>
                   ) : null}
                 </div>
 
                 {invoicePickupContainerOptions.length > 0 ? (
-                  <Field label="Container">
+                  <Field label={t("container")}>
                     <select
                       className={inputClass}
                       value={invoicePickupContainer}
@@ -2155,7 +2197,7 @@ export default function WarehouseApp() {
                         );
                       }}
                     >
-                      <option value="">Select container…</option>
+                      <option value="">{t("selectContainer")}</option>
                       {invoicePickupContainerOptions.map((opt) => (
                         <option key={opt.value} value={opt.value}>
                           {opt.label}
@@ -2181,14 +2223,14 @@ export default function WarehouseApp() {
                           );
                         }}
                       >
-                        Select all pending
+                        {t("selectAllPending")}
                       </button>
                       <button
                         type="button"
                         className="text-sm font-bold text-slate-400 hover:text-slate-200"
                         onClick={() => setInvoicePickupSelected(new Set())}
                       >
-                        Clear
+                        {t("clear")}
                       </button>
                     </div>
 
@@ -2222,7 +2264,7 @@ export default function WarehouseApp() {
                                 {row.tracking_number}
                               </div>
                               <div className="text-xs font-semibold text-slate-400">
-                                Invoice {row.invoice_number || "—"}
+                                {t("invoice")} {row.invoice_number || "—"}
                                 {row.invoice_status
                                   ? ` · ${row.invoice_status}`
                                   : ""}
@@ -2240,9 +2282,9 @@ export default function WarehouseApp() {
                                 }`}
                               >
                                 {row.picked_up
-                                  ? "Already picked up"
+                                  ? t("alreadyPicked")
                                   : row.status === "missing"
-                                    ? "Not in system"
+                                    ? t("missingTracking")
                                     : row.status_display || row.status}
                                 {row.is_repack
                                   ? ` · Repack (${row.package_count || 1})`
@@ -2265,14 +2307,16 @@ export default function WarehouseApp() {
                         className="min-w-[220px]"
                       >
                         {busy
-                          ? "Marking pickup…"
-                          : `Mark selected as pickup (${invoicePickupSelected.size})`}
+                          ? t("markingPickup")
+                          : t("markSelectedPickup", {
+                              count: invoicePickupSelected.size,
+                            })}
                       </PrimaryButton>
                     </div>
                   </>
                 ) : (
                   <p className="text-sm font-semibold text-amber-300">
-                    Select a container to see packages for pickup.
+                    {t("selectContainerToSee")}
                   </p>
                 )}
               </div>
@@ -2284,12 +2328,12 @@ export default function WarehouseApp() {
       {view === "pickup-log" ? (
         <Shell
           wide
-          eyebrow="Ghana warehouse"
-          title="Pickup log"
-          subtitle="Daily pickup activity."
+          eyebrow={t("ghanaWarehouse")}
+          title={t("pickupLog")}
+          subtitle={t("pickupLogSub")}
           onBack={() => setView("ghana-home")}
           actions={
-            <Field label="Date" className="w-44">
+            <Field label={t("date")} className="w-44">
               <input
                 type="date"
                 className={inputClass}
@@ -2305,14 +2349,14 @@ export default function WarehouseApp() {
             </div>
           ) : null}
           {busy ? (
-            <p className="text-sm text-slate-400">Loading…</p>
+            <p className="text-sm text-slate-400">{t("loading")}</p>
           ) : (
             <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
               <Panel className="xl:col-span-1">
                 {pickupLog?.summary ? (
                   <div className="mb-5">
                     <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
-                      Pickups today
+                      {t("pickupsToday")}
                     </div>
                     <div className="mt-1 text-4xl font-black text-amber-300">
                       {String(
@@ -2325,12 +2369,12 @@ export default function WarehouseApp() {
                   </div>
                 ) : null}
                 <h3 className="mb-3 text-sm font-bold text-slate-300">
-                  By Mark ID
+                  {t("byMarkId")}
                 </h3>
                 {(pickupByMark?.results || pickupByMark?.marks || []).length ===
                 0 ? (
                   <p className="text-sm text-slate-500">
-                    No pickups for this day.
+                    {t("noPickupsForDay")}
                   </p>
                 ) : (
                   <div className="max-h-[28rem] space-y-2 overflow-y-auto pr-1">
@@ -2346,7 +2390,8 @@ export default function WarehouseApp() {
                           <div className="text-slate-300">
                             {row.full_name || row.customer_name || "—"}
                             {" · "}
-                            {row.count ?? row.total ?? row.packages ?? 0} pkg
+                            {row.count ?? row.total ?? row.packages ?? 0}{" "}
+                            {t("pkg")}
                           </div>
                         </div>
                       )
@@ -2356,18 +2401,18 @@ export default function WarehouseApp() {
               </Panel>
               <Panel className="xl:col-span-2">
                 <h3 className="mb-3 text-sm font-bold text-slate-300">
-                  Activity
+                  {t("activity")}
                 </h3>
                 {(pickupLog?.results || []).length === 0 ? (
-                  <p className="text-sm text-slate-500">No activity.</p>
+                  <p className="text-sm text-slate-500">{t("noPickupsForDay")}</p>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="min-w-full text-left text-sm">
                       <thead>
                         <tr className="border-b border-white/10 text-[11px] uppercase tracking-[0.1em] text-slate-500">
-                          <th className="px-3 py-2 font-bold">Tracking</th>
-                          <th className="px-3 py-2 font-bold">Mark ID</th>
-                          <th className="px-3 py-2 font-bold">Customer</th>
+                          <th className="px-3 py-2 font-bold">{t("tracking")}</th>
+                          <th className="px-3 py-2 font-bold">{t("markId")}</th>
+                          <th className="px-3 py-2 font-bold">{t("customer")}</th>
                         </tr>
                       </thead>
                       <tbody>
