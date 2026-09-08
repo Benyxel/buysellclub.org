@@ -1134,60 +1134,93 @@ export default function WarehouseApp() {
 
   return (
     <div className="min-h-screen bg-[#0B1220] text-slate-100">
-      <header className="sticky top-0 z-20 border-b border-white/10 bg-[#0B1220]/95 backdrop-blur">
-        <div className="mx-auto flex max-w-[96rem] items-center justify-between px-6 py-4 lg:px-12">
-          <button type="button" onClick={goHome} className="text-left">
-            <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-amber-400">
+      <header className="sticky top-0 z-20 border-b border-white/[0.08] bg-[#0B1220]/90 backdrop-blur-md">
+        <div className="mx-auto flex h-16 max-w-[96rem] items-center gap-6 px-6 lg:px-10">
+          <button
+            type="button"
+            onClick={goHome}
+            className="flex shrink-0 items-baseline gap-2.5"
+          >
+            <span className="text-[13px] font-semibold tracking-[0.18em] text-amber-400">
               FIMW
-            </div>
-            <div className="text-base font-extrabold text-slate-50">
-              Warehouse scanner
-            </div>
-          </button>
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            {CHINA_ACTIONS.map((item) => {
-              const active =
-                warehouse === "china" &&
-                action === item.id &&
-                ["tracking", "assign", "submit", "success"].includes(view);
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => startChinaNavAction(item.id)}
-                  className={`rounded-lg border px-3 py-1.5 text-xs font-semibold ${
-                    active
-                      ? "border-amber-400/50 bg-amber-500/15 text-amber-200"
-                      : "border-white/10 bg-white/5 text-slate-300 hover:border-white/25 hover:text-white"
-                  }`}
-                >
-                  {item.label}
-                </button>
-              );
-            })}
-            <span className="hidden h-5 w-px bg-white/10 sm:inline" />
-            {warehouse ? (
-              <span className="hidden rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold capitalize text-slate-300 lg:inline">
-                {warehouse} warehouse
-                {action ? ` · ${actionLabel(warehouse, action)}` : ""}
-              </span>
-            ) : null}
-            <span className="rounded-lg bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-400">
-              Desktop · admin login
             </span>
+            <span className="text-[15px] font-semibold text-white">Warehouse</span>
+          </button>
+
+          <div className="h-5 w-px shrink-0 bg-white/10" />
+
+          <nav className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
             <button
               type="button"
-              onClick={() => {
-                localStorage.removeItem("token");
-                localStorage.removeItem("refreshToken");
-                localStorage.removeItem("adminToken");
-                window.location.href = "/admin-login?returnTo=/warehouse";
-              }}
-              className="rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:border-rose-400/40 hover:text-rose-200"
+              onClick={() => openWarehouse("china")}
+              className={`rounded-md px-3 py-1.5 text-[13px] font-medium transition ${
+                warehouse === "china"
+                  ? "text-white"
+                  : "text-slate-400 hover:text-white"
+              }`}
             >
-              Log out
+              China
             </button>
-          </div>
+            <button
+              type="button"
+              onClick={() => openWarehouse("ghana")}
+              className={`rounded-md px-3 py-1.5 text-[13px] font-medium transition ${
+                warehouse === "ghana" ? "text-white" : "text-slate-400 hover:text-white"
+              }`}
+            >
+              Ghana
+            </button>
+
+            <div className="mx-2 hidden h-4 w-px bg-white/10 sm:block" />
+
+            <div className="flex items-center rounded-lg bg-white/[0.04] p-0.5 ring-1 ring-inset ring-white/10">
+              {CHINA_ACTIONS.map((item) => {
+                const active =
+                  warehouse === "china" &&
+                  action === item.id &&
+                  ["tracking", "assign", "submit", "success"].includes(view);
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => startChinaNavAction(item.id)}
+                    className={`rounded-md px-3 py-1.5 text-[13px] font-medium transition ${
+                      active
+                        ? "bg-white/10 text-white shadow-sm"
+                        : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <button
+              type="button"
+              onClick={openReceivedPackages}
+              className={`rounded-md px-3 py-1.5 text-[13px] font-medium transition ${
+                view === "received-packages"
+                  ? "text-white"
+                  : "text-slate-400 hover:text-white"
+              }`}
+            >
+              Packages
+            </button>
+          </nav>
+
+          <button
+            type="button"
+            onClick={() => {
+              localStorage.removeItem("token");
+              localStorage.removeItem("refreshToken");
+              localStorage.removeItem("adminToken");
+              window.location.href = "/admin-login?returnTo=/warehouse";
+            }}
+            className="shrink-0 text-[13px] font-medium text-slate-400 transition hover:text-white"
+          >
+            Sign out
+          </button>
         </div>
       </header>
 
