@@ -1342,12 +1342,6 @@ function WarehouseAppInner() {
               tone="teal"
               onClick={() => openWarehouse("ghana")}
             />
-            <ActionCard
-              title={t("receivedPackages")}
-              hint={t("receivedPackagesHint")}
-              tone="success"
-              onClick={openReceivedPackages}
-            />
           </ActionGrid>
         </Shell>
       ) : null}
