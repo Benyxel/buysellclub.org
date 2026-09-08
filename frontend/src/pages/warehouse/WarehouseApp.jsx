@@ -581,6 +581,11 @@ function WarehouseAppInner() {
     [patch]
   );
 
+  const trackingPastePreview = useMemo(
+    () => parseWarehouseReceivePaste(draft.trackingNumber),
+    [draft.trackingNumber]
+  );
+
   const continueFromTracking = () => {
     const raw = String(draft.trackingNumber || "").trim();
     if (!raw) {
@@ -1442,37 +1447,63 @@ function WarehouseAppInner() {
               </div>
             ) : null}
             <Field label={t("trackingNumber")}>
-              <input
-                className={inputClass}
+              <textarea
+                className={`${inputClass} min-h-[7.5rem] resize-y leading-relaxed`}
                 value={draft.trackingNumber}
                 autoFocus
                 autoComplete="off"
                 spellCheck={false}
+                rows={4}
                 placeholder={t("trackingPlaceholder")}
                 onChange={(e) => {
-                  patch({ trackingNumber: e.target.value.trim() });
+                  patch({ trackingNumber: e.target.value });
                   setError("");
                 }}
-                onPaste={(e) => {
-                  const pasted = e.clipboardData?.getData("text") || "";
-                  const parsed = parseWarehouseReceivePaste(pasted);
-                  if (
-                    parsed?.trackingNumber &&
-                    (parsed.markId ||
-                      parsed.weightKg ||
-                      parsed.dimsText ||
-                      parsed.productName)
-                  ) {
-                    e.preventDefault();
-                    applyReceivePaste(parsed);
-                    setError("");
-                  }
-                }}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") continueFromTracking();
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    continueFromTracking();
+                  }
                 }}
               />
             </Field>
+            {trackingPastePreview?.trackingNumber ? (
+              <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3">
+                <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">
+                  {t("pastePreview")}
+                </p>
+                <p className="mt-1 text-xs text-slate-400">
+                  {t("pastePreviewHint")}
+                </p>
+                <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+                  <Row
+                    label={t("tracking")}
+                    value={trackingPastePreview.trackingNumber}
+                  />
+                  {trackingPastePreview.markId ? (
+                    <Row label={t("markId")} value={trackingPastePreview.markId} />
+                  ) : null}
+                  {trackingPastePreview.weightKg ? (
+                    <Row
+                      label={t("weightKg")}
+                      value={trackingPastePreview.weightKg}
+                    />
+                  ) : null}
+                  {trackingPastePreview.dimsText ? (
+                    <Row
+                      label={t("packageDimensions")}
+                      value={trackingPastePreview.dimsText}
+                    />
+                  ) : null}
+                  {trackingPastePreview.productName ? (
+                    <Row
+                      label={t("product")}
+                      value={trackingPastePreview.productName}
+                    />
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
             <div className="mt-5 flex justify-end">
               <PrimaryButton onClick={continueFromTracking} className="min-w-[160px]">
                 {t("continue")}
