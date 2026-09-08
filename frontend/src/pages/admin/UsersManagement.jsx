@@ -39,6 +39,7 @@ const UsersManagement = ({ adminsOnly = false } = {}) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(adminsOnly ? 50 : 10);
   const [total, setTotal] = useState(0);
+  const [statusFilter, setStatusFilter] = useState("");
   // Add user form (matches backend /user/register/ fields)
   const [addForm, setAddForm] = useState({
     username: "",
@@ -66,7 +67,8 @@ const UsersManagement = ({ adminsOnly = false } = {}) => {
   const fetchUsers = async (
     page = currentPage,
     size = pageSize,
-    query = debouncedSearchTerm
+    query = debouncedSearchTerm,
+    status = statusFilter
   ) => {
     // Always fetch fresh data from server with pagination
     try {
@@ -80,6 +82,7 @@ const UsersManagement = ({ adminsOnly = false } = {}) => {
           page: page || 1,
           page_size: size || (adminsOnly ? 50 : 10),
           q: query?.trim() || undefined,
+          status: status?.trim() || undefined,
           ...(adminsOnly ? { admins_only: 1, role: "admin" } : {}),
         }
       });
@@ -160,8 +163,8 @@ const UsersManagement = ({ adminsOnly = false } = {}) => {
   }, [searchTerm]);
 
   useEffect(() => {
-    fetchUsers(currentPage, pageSize, debouncedSearchTerm);
-  }, [currentPage, pageSize, debouncedSearchTerm]);
+    fetchUsers(currentPage, pageSize, debouncedSearchTerm, statusFilter);
+  }, [currentPage, pageSize, debouncedSearchTerm, statusFilter]);
 
   // Pagination handlers
   const totalPages = Math.ceil(total / pageSize);
@@ -738,7 +741,10 @@ const UsersManagement = ({ adminsOnly = false } = {}) => {
     try {
       const resp = await API.get("/buysellapi/admin/users/export/", {
         isAdmin: true,
-        params: { q: debouncedSearchTerm?.trim() || undefined },
+        params: {
+          q: debouncedSearchTerm?.trim() || undefined,
+          status: statusFilter?.trim() || undefined,
+        },
         responseType: "blob",
       });
       const blob = new Blob([resp.data], { type: "text/csv;charset=utf-8" });
@@ -774,9 +780,20 @@ const UsersManagement = ({ adminsOnly = false } = {}) => {
       toast.error("Only admins can update user status");
       return;
     }
+    let payload = { status: newStatus };
+    if (newStatus === "suspended") {
+      const reason = window.prompt(
+        "Enter a suspension reason (required). This is shown to the user."
+      );
+      if (!reason || !reason.trim()) {
+        toast.error("A suspension reason is required.");
+        return;
+      }
+      payload.account_suspension_reason = reason.trim();
+    }
     try {
       const updatePromises = selectedIds.map((id) =>
-        API.put(`/buysellapi/users/${id}/update/`, { status: newStatus })
+        API.put(`/buysellapi/users/${id}/update/`, payload)
       );
       await Promise.all(updatePromises);
       toast.success(`${selectedIds.length} user(s) status updated successfully`);
@@ -829,21 +846,37 @@ const UsersManagement = ({ adminsOnly = false } = {}) => {
         </div>
       </div>
 
-      {/* Search Bar */}
+      {/* Search + status filter */}
       <div className="mb-6">
-        <div className="relative">
-          <input
-            type="text"
-            ref={searchInputRef}
-            placeholder={adminsOnly ? "Search admins..." : "Search users..."}
-            value={searchTerm}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="relative flex-1">
+            <input
+              type="text"
+              ref={searchInputRef}
+              placeholder={adminsOnly ? "Search admins..." : "Search users..."}
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full px-4 py-2 pl-10 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-white"
+            />
+            <FaSearch className="absolute left-3 top-3 text-gray-400" />
+          </div>
+          <select
+            value={statusFilter}
             onChange={(e) => {
-              setSearchTerm(e.target.value);
+              setStatusFilter(e.target.value);
               setCurrentPage(1);
             }}
-            className="w-full px-4 py-2 pl-10 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-white"
-          />
-          <FaSearch className="absolute left-3 top-3 text-gray-400" />
+            className="w-full sm:w-56 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-white"
+            aria-label="Filter by account status"
+          >
+            <option value="">All statuses</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="suspended">Suspended</option>
+          </select>
         </div>
         {isAdmin && !adminsOnly && (
           <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
@@ -860,6 +893,7 @@ const UsersManagement = ({ adminsOnly = false } = {}) => {
         availableStatuses={[
           { value: "active", label: "Active" },
           { value: "inactive", label: "Inactive" },
+          { value: "suspended", label: "Suspended" },
         ]}
         showDelete={isAdmin}
         showStatusUpdate={isAdmin}
@@ -987,17 +1021,28 @@ const UsersManagement = ({ adminsOnly = false } = {}) => {
                     )}
                   </td>
                   <td className="px-3 py-3 whitespace-nowrap">
-                    <span
-                      className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full uppercase ${
-                        user.status === "active"
-                          ? "bg-gradient-to-r from-green-400 to-emerald-500 text-white shadow-sm"
-                          : user.status === "inactive"
-                            ? "bg-gradient-to-r from-amber-400 to-yellow-500 text-white shadow-sm"
-                            : "bg-gradient-to-r from-red-400 to-rose-500 text-white shadow-sm"
-                      }`}
-                    >
-                      {user.status}
-                    </span>
+                    <div className="flex flex-col gap-1">
+                      <span
+                        className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full uppercase w-fit ${
+                          user.status === "active"
+                            ? "bg-gradient-to-r from-green-400 to-emerald-500 text-white shadow-sm"
+                            : user.status === "inactive"
+                              ? "bg-gradient-to-r from-amber-400 to-yellow-500 text-white shadow-sm"
+                              : "bg-gradient-to-r from-red-400 to-rose-500 text-white shadow-sm"
+                        }`}
+                      >
+                        {user.status}
+                      </span>
+                      {user.status === "suspended" &&
+                      (user.account_suspension_reason || "").trim() ? (
+                        <span
+                          className="text-[11px] text-rose-700 dark:text-rose-300 max-w-[220px] leading-snug"
+                          title={user.account_suspension_reason}
+                        >
+                          {user.account_suspension_reason}
+                        </span>
+                      ) : null}
+                    </div>
                   </td>
                   <td className="px-3 py-3 text-sm text-gray-800 dark:text-white">
                     <div className="max-w-[140px]" title={user.contact || ""}>
