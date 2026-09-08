@@ -6,6 +6,19 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Api } from "../../api";
 import { apiErrorMessage } from "../../utils/apiErrorMessage";
 import WarehouseReceivedPackages from "./WarehouseReceivedPackages";
+import "./warehouse-theme.css";
+
+const WAREHOUSE_THEME_KEY = "fimw-warehouse-theme";
+
+function readWarehouseTheme() {
+  try {
+    const stored = localStorage.getItem(WAREHOUSE_THEME_KEY);
+    if (stored === "light" || stored === "dark") return stored;
+  } catch {
+    /* ignore */
+  }
+  return "dark";
+}
 
 const MARK_PREFIXES = ["FIM", "BSC"];
 const DEFAULT_MARK_PREFIX = "FIM";
@@ -368,10 +381,20 @@ export default function WarehouseApp() {
   const [exportContainers, setExportContainers] = useState([]);
   const [exportContainer, setExportContainer] = useState("");
   const [uploadFile, setUploadFile] = useState(null);
+  const [theme, setTheme] = useState(readWarehouseTheme);
   const [dimsInput, setDimsInput] = useState("");
   const [parkingContainers, setParkingContainers] = useState([]);
   const [parkingContainer, setParkingContainer] = useState("");
   const [parkingLoading, setParkingLoading] = useState(false);
+
+  const applyTheme = (next) => {
+    setTheme(next);
+    try {
+      localStorage.setItem(WAREHOUSE_THEME_KEY, next);
+    } catch {
+      /* ignore */
+    }
+  };
 
   const cbm = useMemo(
     () => calcCbm(draft.heightCm, draft.widthCm, draft.lengthCm),
@@ -1133,7 +1156,7 @@ export default function WarehouseApp() {
   }, [view, pickupDate]);
 
   return (
-    <div className="min-h-screen bg-[#0B1220] text-slate-100">
+    <div className="warehouse-app min-h-screen" data-theme={theme}>
       <header className="sticky top-0 z-20 border-b border-white/[0.08] bg-[#0B1220]/90 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-[96rem] items-center gap-6 px-6 lg:px-10">
           <button
@@ -1209,18 +1232,48 @@ export default function WarehouseApp() {
             </button>
           </nav>
 
-          <button
-            type="button"
-            onClick={() => {
-              localStorage.removeItem("token");
-              localStorage.removeItem("refreshToken");
-              localStorage.removeItem("adminToken");
-              window.location.href = "/admin-login?returnTo=/warehouse";
-            }}
-            className="shrink-0 text-[13px] font-medium text-slate-400 transition hover:text-white"
-          >
-            Sign out
-          </button>
+          <div className="flex shrink-0 items-center gap-3">
+            <div
+              className="flex items-center rounded-lg bg-white/[0.04] p-0.5 ring-1 ring-inset ring-white/10"
+              role="group"
+              aria-label="Theme"
+            >
+              <button
+                type="button"
+                onClick={() => applyTheme("dark")}
+                className={`rounded-md px-3 py-1.5 text-[13px] font-medium transition ${
+                  theme === "dark"
+                    ? "bg-white/10 text-white shadow-sm"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                Dark
+              </button>
+              <button
+                type="button"
+                onClick={() => applyTheme("light")}
+                className={`rounded-md px-3 py-1.5 text-[13px] font-medium transition ${
+                  theme === "light"
+                    ? "bg-white/10 text-white shadow-sm"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                Light
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                localStorage.removeItem("token");
+                localStorage.removeItem("refreshToken");
+                localStorage.removeItem("adminToken");
+                window.location.href = "/admin-login?returnTo=/warehouse";
+              }}
+              className="text-[13px] font-medium text-slate-400 transition hover:text-white"
+            >
+              Sign out
+            </button>
+          </div>
         </div>
       </header>
 

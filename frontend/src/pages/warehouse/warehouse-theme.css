@@ -1,0 +1,106 @@
+.warehouse-app {
+  --wh-bg: #0b1220;
+  --wh-header: rgba(11, 18, 32, 0.92);
+  --wh-surface: #121a2a;
+  --wh-input: #151d2e;
+  --wh-border: rgba(255, 255, 255, 0.1);
+  --wh-text: #f1f5f9;
+  --wh-muted: #94a3b8;
+  --wh-accent: #fbbf24;
+  min-height: 100vh;
+  background: var(--wh-bg);
+  color: var(--wh-text);
+  color-scheme: dark;
+}
+
+.warehouse-app[data-theme="light"] {
+  --wh-bg: #f5f6f8;
+  --wh-header: rgba(255, 255, 255, 0.94);
+  --wh-surface: #ffffff;
+  --wh-input: #ffffff;
+  --wh-border: rgba(15, 23, 42, 0.1);
+  --wh-text: #0f172a;
+  --wh-muted: #64748b;
+  --wh-accent: #b45309;
+  color-scheme: light;
+}
+
+.warehouse-app[data-theme="light"] .bg-\[\#0B1220\],
+.warehouse-app[data-theme="light"] .bg-\[\#0B1220\]\/90,
+.warehouse-app[data-theme="light"] .bg-\[\#0B1220\]\/95 {
+  background-color: var(--wh-bg) !important;
+}
+
+.warehouse-app[data-theme="light"] .bg-\[\#121A2A\] {
+  background-color: var(--wh-surface) !important;
+}
+
+.warehouse-app[data-theme="light"] .bg-\[\#151D2E\] {
+  background-color: var(--wh-input) !important;
+}
+
+.warehouse-app[data-theme="light"] .bg-white\/5,
+.warehouse-app[data-theme="light"] .bg-white\/\[0\.04\],
+.warehouse-app[data-theme="light"] .hover\:bg-white\/5:hover {
+  background-color: rgba(15, 23, 42, 0.04) !important;
+}
+
+.warehouse-app[data-theme="light"] .bg-white\/10,
+.warehouse-app[data-theme="light"] .hover\:bg-white\/10:hover {
+  background-color: rgba(15, 23, 42, 0.07) !important;
+}
+
+.warehouse-app[data-theme="light"] .border-white\/5,
+.warehouse-app[data-theme="light"] .border-white\/10,
+.warehouse-app[data-theme="light"] .border-white\/15,
+.warehouse-app[data-theme="light"] .border-white\/\[0\.08\],
+.warehouse-app[data-theme="light"] .hover\:border-white\/20:hover,
+.warehouse-app[data-theme="light"] .hover\:border-white\/25:hover {
+  border-color: var(--wh-border) !important;
+}
+
+.warehouse-app[data-theme="light"] .ring-white\/10 {
+  --tw-ring-color: rgba(15, 23, 42, 0.12);
+}
+
+.warehouse-app[data-theme="light"] .text-white,
+.warehouse-app[data-theme="light"] .text-slate-50,
+.warehouse-app[data-theme="light"] .text-slate-100,
+.warehouse-app[data-theme="light"] .text-slate-200,
+.warehouse-app[data-theme="light"] .hover\:text-white:hover,
+.warehouse-app[data-theme="light"] .hover\:text-slate-200:hover {
+  color: var(--wh-text) !important;
+}
+
+.warehouse-app[data-theme="light"] .text-slate-300,
+.warehouse-app[data-theme="light"] .text-slate-400,
+.warehouse-app[data-theme="light"] .text-slate-500,
+.warehouse-app[data-theme="light"] .placeholder\:text-slate-500::placeholder {
+  color: var(--wh-muted) !important;
+}
+
+.warehouse-app[data-theme="light"] .text-amber-200,
+.warehouse-app[data-theme="light"] .text-amber-300,
+.warehouse-app[data-theme="light"] .text-amber-400,
+.warehouse-app[data-theme="light"] .hover\:text-amber-300:hover {
+  color: var(--wh-accent) !important;
+}
+
+.warehouse-app[data-theme="light"] .text-emerald-200,
+.warehouse-app[data-theme="light"] .text-emerald-300 {
+  color: #047857 !important;
+}
+
+.warehouse-app[data-theme="light"] .text-rose-200,
+.warehouse-app[data-theme="light"] .text-rose-300 {
+  color: #be123c !important;
+}
+
+.warehouse-app[data-theme="light"] .text-teal-300 {
+  color: #0f766e !important;
+}
+
+.warehouse-app[data-theme="light"] header {
+  background-color: var(--wh-header) !important;
+  border-bottom-color: var(--wh-border) !important;
+}
