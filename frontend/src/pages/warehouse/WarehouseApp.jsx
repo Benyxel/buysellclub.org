@@ -5,6 +5,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Api } from "../../api";
 import { apiErrorMessage } from "../../utils/apiErrorMessage";
+import WarehouseReceivedPackages from "./WarehouseReceivedPackages";
 
 const MARK_PREFIXES = ["FIM", "BSC"];
 const DEFAULT_MARK_PREFIX = "FIM";
@@ -1109,9 +1110,32 @@ export default function WarehouseApp() {
                 {action ? ` · ${actionLabel(warehouse, action)}` : ""}
               </span>
             ) : null}
+            <button
+              type="button"
+              onClick={() => {
+                setError("");
+                setInfo("");
+                setView("received-packages");
+              }}
+              className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-200"
+            >
+              Received packages
+            </button>
             <span className="rounded-lg bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-400">
-              Desktop · type tracking
+              Desktop · admin login
             </span>
+            <button
+              type="button"
+              onClick={() => {
+                localStorage.removeItem("token");
+                localStorage.removeItem("refreshToken");
+                localStorage.removeItem("adminToken");
+                window.location.href = "/admin-login?returnTo=/warehouse";
+              }}
+              className="rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:border-rose-400/40 hover:text-rose-200"
+            >
+              Log out
+            </button>
           </div>
         </div>
       </header>
@@ -1155,6 +1179,16 @@ export default function WarehouseApp() {
                 onClick={() => startAction(item.id)}
               />
             ))}
+            <ActionCard
+              title="Received packages"
+              hint="View, edit, or delete goods submitted from this scanner"
+              tone="success"
+              onClick={() => {
+                setError("");
+                setInfo("");
+                setView("received-packages");
+              }}
+            />
             <ActionCard
               title="Export container"
               hint="Download trackings grouped by Mark ID (Excel)"
@@ -1663,6 +1697,15 @@ export default function WarehouseApp() {
             </div>
           </div>
         </Shell>
+      ) : null}
+
+      {view === "received-packages" ? (
+        <WarehouseReceivedPackages
+          onBack={() => {
+            setView("china-home");
+            setWarehouse("china");
+          }}
+        />
       ) : null}
 
       {view === "export" ? (

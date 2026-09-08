@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate, useNavigate, useLocation } from "react-router-dom";
 import { toast } from "../utils/toast";
 import API from "../api";
 
@@ -8,6 +8,7 @@ const AdminRoute = ({ children }) => {
   const [allowed, setAllowed] = useState(false);
   const [userRole, setUserRole] = useState(null);
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     const check = async () => {
@@ -68,11 +69,16 @@ const AdminRoute = ({ children }) => {
     );
   }
 
-  if (!allowed) {
-    // If not authenticated at all, send to admin login
-    if (!userRole) {
-      return <Navigate to="/admin-login" replace />;
-    }
+    if (!allowed) {
+        if (!userRole) {
+          return (
+            <Navigate
+              to="/admin-login"
+              replace
+              state={{ returnTo: `${location.pathname}${location.search}` }}
+            />
+          );
+        }
     // If user role, redirect handled by useEffect above
     return (
       <div className="min-h-[40vh] flex items-center justify-center">

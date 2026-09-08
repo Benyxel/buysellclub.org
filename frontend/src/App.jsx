@@ -182,8 +182,15 @@ function App() {
             />
             <Route path="/admin-login" element={<AdminLogin />} />
 
-            {/* Warehouse scanner (public floor tablet / PC) — no Navbar/Footer */}
-            <Route path="/warehouse" element={<WarehouseApp />} />
+            {/* Warehouse scanner — admin login only, no Navbar/Footer */}
+            <Route
+              path="/warehouse"
+              element={
+                <AdminRoute>
+                  <WarehouseApp />
+                </AdminRoute>
+              }
+            />
 
             {/* Admin routes without Navbar and Footer */}
             <Route

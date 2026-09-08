@@ -562,6 +562,21 @@ const Api = {
       ),
     ghanaInvoicePickupSubmit: (payload) =>
       http.post("/buysellapi/scanner/ghana/invoice-pickup/", payload),
+    warehouseReceivedList: (params = {}) =>
+      http.get("/buysellapi/scanner/warehouse/received/", {
+        params,
+        noCache: true,
+        cacheDuration: 0,
+      }),
+    warehouseReceivedUpdate: (id, payload) =>
+      http.patch(
+        `/buysellapi/scanner/warehouse/received/${encodeURIComponent(id)}/`,
+        payload
+      ),
+    warehouseReceivedDelete: (id) =>
+      http.delete(
+        `/buysellapi/scanner/warehouse/received/${encodeURIComponent(id)}/`
+      ),
     async downloadContainerExport(containerNumber) {
       const number = String(containerNumber || "").trim();
       const res = await api.get(
