@@ -438,7 +438,10 @@ export default function BulkEmailAdmin() {
                   ))}
                 </select>
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  Only registered users with trackings in this container. Completed containers are not listed.
+                  Only users with goods in this container who have not fully paid
+                  shipping. Paid invoices are skipped so they are not reminded again.
+                  Partial / unpaid invoices still receive the email. Completed
+                  containers are not listed.
                 </p>
               </div>
             )}
