@@ -709,6 +709,19 @@ const Api = {
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
     },
+    adminUpload: ({ containerNumber, file, source }) => {
+      const formData = new FormData();
+      formData.append("container_number", String(containerNumber || "").trim());
+      formData.append("file", file);
+      if (source) {
+        formData.append("source", String(source).trim());
+      }
+      return http.post("/buysellapi/admin/china-container-excel-uploads/", formData, {
+        timeout: 120000,
+      });
+    },
+    adminDelete: (uploadId) =>
+      http.delete(`/buysellapi/admin/china-container-excel-uploads/${uploadId}/`),
   },
   alipay: {
     payments: (params = {}, options = {}) => {

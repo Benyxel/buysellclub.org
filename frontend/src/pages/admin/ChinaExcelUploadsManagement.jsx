@@ -1,8 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { FaFileExcel, FaParking, FaSpinner } from "react-icons/fa";
+import {
+  FaFileExcel,
+  FaParking,
+  FaSpinner,
+  FaTrash,
+  FaUpload,
+} from "react-icons/fa";
 import { Api } from "../../api";
 import { toast } from "../../utils/toast";
 import { apiErrorMessage } from "../../utils/apiErrorMessage";
+import ConfirmModal from "../../components/shared/ConfirmModal";
 
 function formatDate(value) {
   if (!value) return "—";
@@ -26,7 +33,9 @@ function UploadsTable({
   title,
   subtitle,
   openingId,
+  deletingId,
   onOpen,
+  onDelete,
 }) {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border border-gray-200 dark:border-gray-700">
@@ -69,19 +78,34 @@ function UploadsTable({
                     <div className="font-medium">{u.original_filename || "—"}</div>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      type="button"
-                      disabled={openingId === u.id}
-                      onClick={() => onOpen(u)}
-                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-60"
-                    >
-                      {openingId === u.id ? (
-                        <FaSpinner className="animate-spin" />
-                      ) : (
-                        <FaFileExcel />
-                      )}
-                      Open in Excel
-                    </button>
+                    <div className="inline-flex flex-wrap items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        disabled={openingId === u.id}
+                        onClick={() => onOpen(u)}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-60"
+                      >
+                        {openingId === u.id ? (
+                          <FaSpinner className="animate-spin" />
+                        ) : (
+                          <FaFileExcel />
+                        )}
+                        Open in Excel
+                      </button>
+                      <button
+                        type="button"
+                        disabled={deletingId === u.id}
+                        onClick={() => onDelete(u)}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-60"
+                      >
+                        {deletingId === u.id ? (
+                          <FaSpinner className="animate-spin" />
+                        ) : (
+                          <FaTrash />
+                        )}
+                        Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -101,11 +125,19 @@ export default function ChinaExcelUploadsManagement() {
   const [containerFilter, setContainerFilter] = useState("");
   const [q, setQ] = useState("");
   const [openingId, setOpeningId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const [parkingLoading, setParkingLoading] = useState(true);
   const [parkingUploads, setParkingUploads] = useState([]);
   const [parkingContainerFilter, setParkingContainerFilter] = useState("");
   const [parkingQ, setParkingQ] = useState("");
+
+  const [uploadContainers, setUploadContainers] = useState([]);
+  const [uploadContainersLoading, setUploadContainersLoading] = useState(false);
+  const [uploadContainer, setUploadContainer] = useState("");
+  const [uploadFile, setUploadFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
   const loadUploads = useCallback(async () => {
     setLoading(true);
@@ -143,6 +175,21 @@ export default function ChinaExcelUploadsManagement() {
     }
   }, [parkingContainerFilter, parkingQ]);
 
+  const loadUploadContainers = useCallback(async (nextTab) => {
+    setUploadContainersLoading(true);
+    try {
+      const list =
+        nextTab === "parking"
+          ? await Api.containers.parkingList()
+          : await Api.containers.excelUploadList();
+      setUploadContainers(Array.isArray(list) ? list : []);
+    } catch {
+      setUploadContainers([]);
+    } finally {
+      setUploadContainersLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (tab === "uploads") loadUploads();
   }, [tab, loadUploads]);
@@ -150,6 +197,12 @@ export default function ChinaExcelUploadsManagement() {
   useEffect(() => {
     if (tab === "parking") loadParking();
   }, [tab, loadParking]);
+
+  useEffect(() => {
+    setUploadContainer("");
+    setUploadFile(null);
+    loadUploadContainers(tab);
+  }, [tab, loadUploadContainers]);
 
   const containerOptions = useMemo(() => {
     const set = new Set();
@@ -184,6 +237,90 @@ export default function ChinaExcelUploadsManagement() {
     }
   };
 
+  const confirmDelete = async () => {
+    const upload = deleteTarget;
+    if (!upload?.id) return;
+    setDeletingId(upload.id);
+    try {
+      await Api.chinaExcel.adminDelete(upload.id);
+      toast.success("Excel file deleted.");
+      setDeleteTarget(null);
+      if (tab === "parking") loadParking();
+      else loadUploads();
+    } catch (e) {
+      toast.error(apiErrorMessage(e?.response?.data, "Could not delete file"));
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const submitUpload = async () => {
+    if (!uploadContainer) {
+      toast.error("Select a container first.");
+      return;
+    }
+    if (!uploadFile) {
+      toast.error("Choose an Excel file (.xlsx).");
+      return;
+    }
+    setUploading(true);
+    try {
+      await Api.chinaExcel.adminUpload({
+        containerNumber: uploadContainer,
+        file: uploadFile,
+        source: tab === "parking" ? "parking" : "scanner",
+      });
+      toast.success("Excel uploaded.");
+      setUploadFile(null);
+      if (tab === "parking") loadParking();
+      else loadUploads();
+    } catch (e) {
+      toast.error(apiErrorMessage(e?.response?.data, "Upload failed"));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const uploadPanel = (
+    <div className="flex flex-wrap gap-2 items-center bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+      <select
+        className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm min-w-[180px]"
+        value={uploadContainer}
+        onChange={(e) => setUploadContainer(e.target.value)}
+        disabled={uploadContainersLoading || uploading}
+      >
+        <option value="">
+          {uploadContainersLoading ? "Loading containers…" : "Select container"}
+        </option>
+        {uploadContainers.map((c) => (
+          <option
+            key={c.id || c.container_number}
+            value={c.container_number}
+          >
+            {c.container_number}
+            {c.status ? ` (${String(c.status).replace(/_/g, " ")})` : ""}
+          </option>
+        ))}
+      </select>
+      <input
+        type="file"
+        accept=".xlsx,.xlsm,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        className="text-sm text-gray-700 dark:text-gray-200 file:mr-2 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-gray-200 dark:file:bg-gray-600 file:text-sm file:font-semibold"
+        onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+        disabled={uploading}
+      />
+      <button
+        type="button"
+        onClick={submitUpload}
+        disabled={uploading}
+        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:opacity-60"
+      >
+        {uploading ? <FaSpinner className="animate-spin" /> : <FaUpload />}
+        {tab === "parking" ? "Upload parking list" : "Upload Excel"}
+      </button>
+    </div>
+  );
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -193,8 +330,8 @@ export default function ChinaExcelUploadsManagement() {
             China Excel
           </h2>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Excel uploads from scanner “Upload Excel”, and Parking list files from
-            scanner “Parking list”.
+            Upload, open, or delete China Excel and Parking list files. Warehouse
+            scanner uploads still appear here too.
           </p>
         </div>
         <button
@@ -234,6 +371,7 @@ export default function ChinaExcelUploadsManagement() {
 
       {tab === "uploads" ? (
         <>
+          {uploadPanel}
           <div className="flex flex-wrap gap-2 items-center">
             <select
               className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
@@ -272,11 +410,14 @@ export default function ChinaExcelUploadsManagement() {
             emptyText="No Excel uploads yet."
             title="Uploads"
             openingId={openingId}
+            deletingId={deletingId}
             onOpen={openInExcel}
+            onDelete={setDeleteTarget}
           />
         </>
       ) : (
         <>
+          {uploadPanel}
           <div className="flex flex-wrap gap-2 items-center">
             <select
               className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
@@ -314,12 +455,32 @@ export default function ChinaExcelUploadsManagement() {
             loading={parkingLoading}
             emptyText="No parking list Excel files yet."
             title="Parking list files"
-            subtitle="Files uploaded from scanner / warehouse Parking list (loading, laden, in transit, arrived at port)."
+            subtitle="Upload here, or from scanner / warehouse Parking list (loading, laden, in transit, arrived at port)."
             openingId={openingId}
+            deletingId={deletingId}
             onOpen={openInExcel}
+            onDelete={setDeleteTarget}
           />
         </>
       )}
+
+      <ConfirmModal
+        isOpen={Boolean(deleteTarget)}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+        title="Delete Excel file?"
+        message={
+          deleteTarget
+            ? `Delete “${deleteTarget.original_filename || "this file"}” for ${
+                deleteTarget.container_number || "this container"
+              }? This cannot be undone.`
+            : "Delete this file?"
+        }
+        confirmText="Delete"
+        cancelText="Cancel"
+        type="danger"
+        disabled={Boolean(deletingId)}
+      />
     </div>
   );
 }
