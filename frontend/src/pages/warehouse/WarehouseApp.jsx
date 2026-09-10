@@ -101,6 +101,19 @@ function withMarkPrefix(raw) {
   return DEFAULT_MARK_PREFIX + upper.replace(/\D/g, "");
 }
 
+function isTrackingToken(raw) {
+  const value = String(raw || "").trim();
+  if (value.length < 3 || value.length > 64) return false;
+  if (
+    /^\d+(?:[.,]\d+)?(?:[*xX×✕✖])\d+(?:[.,]\d+)?(?:[*xX×✕✖])\d+(?:[.,]\d+)?$/.test(
+      value
+    )
+  ) {
+    return false;
+  }
+  return /^[A-Za-z0-9][A-Za-z0-9#/*._-]*$/.test(value);
+}
+
 function isUsableMarkId(mark) {
   return /^(FIM|BSC)\d+$/i.test(String(mark || "").trim());
 }
@@ -178,7 +191,7 @@ function parseWarehouseReceivePaste(raw) {
     productName: "",
   };
 
-  const markMatch = text.match(/\b((?:FIM|BSC)\s*\d+)\b/i);
+  const markMatch = text.match(/(?:^|\s)((?:FIM|BSC)\s*\d+)(?=\s|$)/i);
   if (markMatch) {
     const mark = withMarkPrefix(markMatch[1]);
     if (isUsableMarkId(mark)) result.markId = mark;
@@ -202,11 +215,7 @@ function parseWarehouseReceivePaste(raw) {
   const tokens = text.replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
   const leftover = [];
   for (const token of tokens) {
-    if (
-      !result.trackingNumber &&
-      /^[A-Za-z0-9]{6,}$/.test(token) &&
-      !/^(FIM|BSC)/i.test(token)
-    ) {
+    if (!result.trackingNumber && isTrackingToken(token) && !isUsableMarkId(token)) {
       result.trackingNumber = token;
       continue;
     }
@@ -593,11 +602,22 @@ function WarehouseAppInner() {
       return;
     }
     const parsed = parseWarehouseReceivePaste(raw);
-    if (!parsed?.trackingNumber) {
-      setError(t("enterTrackingNumber"));
-      return;
+    if (parsed?.trackingNumber) {
+      applyReceivePaste(parsed);
+    } else {
+      const compact = raw.replace(/\s+/g, "");
+      const first = raw.split(/\s+/).find(Boolean) || "";
+      const tracking = isTrackingToken(compact)
+        ? compact
+        : isTrackingToken(first)
+          ? first
+          : "";
+      if (!tracking) {
+        setError(t("enterTrackingNumber"));
+        return;
+      }
+      patch({ trackingNumber: tracking });
     }
-    applyReceivePaste(parsed);
     setError("");
     if (warehouse === "china") {
       setView("assign");
