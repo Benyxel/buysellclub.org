@@ -511,6 +511,10 @@ function WarehouseAppInner() {
               Number.isFinite(total) ? total.toFixed(3) : "0"
             } / ${max} CBM). Please select the next container.`
           );
+        } else {
+          setError((prev) =>
+            String(prev || "").includes("is full") ? "" : prev
+          );
         }
       }
     } catch {
@@ -546,9 +550,9 @@ function WarehouseAppInner() {
         setMarkName(name);
         patch({ fullName: name });
         if (!name) {
-          setError(
-            t("noUserForMarkShort")
-          );
+          setError(t("noUserForMarkShort"));
+        } else {
+          setError("");
         }
       } catch {
         if (!cancelled) {
@@ -625,38 +629,6 @@ function WarehouseAppInner() {
     }
     setView("submit");
   };
-
-  const assignFormComplete = useMemo(() => {
-    if (view !== "assign" || busy || markLoading || error) return false;
-    if (!isUsableMarkId(draft.markId)) return false;
-    if (!String(draft.fullName || markName || "").trim()) return false;
-    if (action === "received") {
-      if (!String(draft.containerNumber || "").trim()) return false;
-      const cbmNum = Number(cbm);
-      if (!Number.isFinite(cbmNum) || cbmNum <= 0) return false;
-      const kgNum = Number(
-        String(draft.weightKg || "").trim().replace(",", ".")
-      );
-      if (!Number.isFinite(kgNum) || kgNum <= 0) return false;
-      if (!String(draft.productName || "").trim()) return false;
-      return true;
-    }
-    return Boolean(String(draft.reason || "").trim());
-  }, [
-    view,
-    busy,
-    markLoading,
-    error,
-    draft.markId,
-    draft.fullName,
-    markName,
-    draft.containerNumber,
-    draft.weightKg,
-    draft.productName,
-    draft.reason,
-    action,
-    cbm,
-  ]);
 
   const submitScan = useCallback(async (reasonOverride) => {
     if (busy) return;
@@ -1798,7 +1770,7 @@ function WarehouseAppInner() {
               </div>
             ) : null}
             <PrimaryButton
-              disabled={busy || !assignFormComplete}
+              disabled={busy}
               onClick={() => submitScan()}
               className="min-w-[160px]"
             >
