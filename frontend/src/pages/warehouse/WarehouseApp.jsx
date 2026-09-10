@@ -826,14 +826,6 @@ function WarehouseAppInner() {
     }
   }, [busy, cbm, draft, warehouse, action, containers, patch, markName, t]);
 
-  // Received: only submit when product name is finished (Enter / blur).
-  // Reject/return submits from the reason button click.
-  const finishReceivedIfReady = useCallback(() => {
-    if (view !== "assign" || action !== "received") return;
-    if (!assignFormComplete) return;
-    submitScan();
-  }, [view, action, assignFormComplete, submitScan]);
-
   // Ghana submit: lookup tracking for confirmation
   useEffect(() => {
     if (view !== "submit" || warehouse !== "ghana" || action !== "picked_up") {
@@ -1718,7 +1710,6 @@ function WarehouseAppInner() {
                             }
                             patch({ reason: item.value });
                             setError("");
-                            submitScan(item.value);
                           }}
                           className={`rounded-xl border px-3 py-3 text-left text-sm font-semibold transition ${
                             selected
@@ -1794,29 +1785,26 @@ function WarehouseAppInner() {
                       patch({ productName: e.target.value });
                       setError("");
                     }}
-                    onBlur={() => {
-                      setTimeout(() => finishReceivedIfReady(), 0);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key !== "Enter") return;
-                      e.preventDefault();
-                      e.currentTarget.blur();
-                    }}
                   />
                 </Field>
               </Panel>
             ) : null}
           </div>
 
-          {busy || (action === "received" && assignFormComplete) || (action !== "received" && assignFormComplete) ? (
-            <div className="flex items-center justify-end gap-3 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-300">
-              {busy
-                ? t("saving")
-                : action === "received"
-                  ? t("pressEnterToSave")
-                  : t("allSetSaving")}
-            </div>
-          ) : null}
+          <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-end">
+            {busy ? (
+              <div className="flex items-center justify-end gap-3 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-300">
+                {t("saving")}
+              </div>
+            ) : null}
+            <PrimaryButton
+              disabled={busy || !assignFormComplete}
+              onClick={() => submitScan()}
+              className="min-w-[160px]"
+            >
+              {busy ? t("saving") : t("save")}
+            </PrimaryButton>
+          </div>
         </Shell>
       ) : null}
 
