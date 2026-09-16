@@ -225,6 +225,12 @@ const Footer = () => {
                 Privacy &amp; data policy
               </Link>
               <Link
+                to="/account-deletion"
+                className="hover:text-white transition-colors"
+              >
+                Delete account
+              </Link>
+              <Link
                 to="/Policies#operations"
                 className="hover:text-white transition-colors"
               >

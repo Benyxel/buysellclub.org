@@ -9,6 +9,7 @@ import Shop from "./pages/Shop";
 import Services from "./pages/Services";
 import About from "./pages/About";
 import Policies from "./pages/Policies";
+import AccountDeletion from "./pages/AccountDeletion";
 import Checkout from "./pages/Checkout";
 import Cart from "./pages/Cart";
 import Buy4me from "./pages/Quicklinks/Buy4me";
@@ -260,6 +261,10 @@ function App() {
                       <Route path="Services" element={<Services />} />
                       <Route path="Contact" element={<Contact />} />
                       <Route path="Policies" element={<Policies />} />
+                      <Route
+                        path="account-deletion"
+                        element={<AccountDeletion />}
+                      />
                       <Route path="About" element={<About />} />
                       <Route path="product/:productId" element={<Product />} />
                       <Route path="Trending" element={<Trending />} />

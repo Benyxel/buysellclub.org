@@ -311,7 +311,14 @@ export default function WarehouseReceivedPackages({ onBack }) {
                           }
                         />
                       ) : (
-                        row.product_name || "—"
+                        <div>
+                          <div>{row.product_name || "—"}</div>
+                          {row.product_name_en ? (
+                            <div className="mt-0.5 text-xs font-normal text-slate-400">
+                              {row.product_name_en}
+                            </div>
+                          ) : null}
+                        </div>
                       )}
                     </td>
                     <td className="px-5 py-3.5 font-mono">

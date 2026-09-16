@@ -8,6 +8,7 @@ import {
   FaShieldAlt,
   FaWarehouse,
   FaBalanceScale,
+  FaGavel,
 } from "react-icons/fa";
 
 const policySections = [
@@ -204,6 +205,74 @@ const policySections = [
           </h3>
           <p>
             Failure to comply with these terms may result in <strong>delays, penalties, seizure of goods, or loss without compensation</strong>.
+          </p>
+        </div>
+      </div>
+    ),
+  },
+  {
+    id: "auction",
+    title: "Auction Policy",
+    icon: <FaGavel className="text-amber-700 text-3xl" />,
+    description:
+      "Fofoofo Imports may auction goods left in our warehouse or goods that have been on storage fees for two (2) weeks, to recover storage, shipping, and handling costs.",
+    content: (
+      <div className="space-y-6 text-gray-700 dark:text-gray-300">
+        <p className="leading-relaxed">
+          By using Fofoofo Imports warehouse, shipping, or storage services, you
+          agree that uncollected or unpaid goods may be sold at auction as set
+          out below. This policy applies together with our Terms &amp; Conditions
+          and storage rules.
+        </p>
+        <div>
+          <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
+            When goods go to auction
+          </h4>
+          <p className="mb-3">
+            Fofoofo Imports will sell, by auction or other sale,{" "}
+            <strong>all products</strong> that fall into either of these cases:
+          </p>
+          <ul className="list-disc pl-6 space-y-2">
+            <li>
+              Goods that have been <strong>kept in our warehouse</strong>{" "}
+              (uncollected after arrival / pickup notice) and remain with us; or
+            </li>
+            <li>
+              Goods that have been <strong>running on storage fees for two (2)
+              weeks</strong> (14 days) without the storage and related charges
+              being cleared and the goods collected.
+            </li>
+          </ul>
+        </div>
+        <div>
+          <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
+            What we may recover
+          </h4>
+          <p>
+            Sale proceeds are used only to recover Fofoofo Imports{" "}
+            <strong>storage fees, shipping, handling, penalties</strong>, and
+            auction costs. <strong>The client is not paid any amount</strong>{" "}
+            from the auction or sale of their goods. There is no refund, credit,
+            or share of proceeds.
+          </p>
+        </div>
+        <div>
+          <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
+            Notice and title
+          </h4>
+          <p>
+            After the two-week storage period (or while goods remain kept in
+            storage as above), we may proceed to auction{" "}
+            <strong>without further notice or compensation</strong>. Once sold,
+            the client loses all claim to the goods and is not entitled to any
+            payment from the sale.
+          </p>
+        </div>
+        <div className="bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-500 p-4 rounded">
+          <p>
+            To avoid auction, collect your goods and pay all storage and shipping
+            charges <strong>before two (2) weeks of storage fees have accrued</strong>
+            , and do not leave cargo sitting in the warehouse uncollected.
           </p>
         </div>
       </div>
