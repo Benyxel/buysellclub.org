@@ -893,6 +893,25 @@ const Api = {
         cacheDuration: 0,
         timeout: 120000,
       }),
+    async downloadShippingClients() {
+      const res = await api.get(
+        normalizePath("/buysellapi/admin/analytics/shipping-clients/export/"),
+        { responseType: "blob", timeout: 120000 }
+      );
+      const blob = res.data;
+      const type = String(res.headers?.["content-type"] || blob?.type || "");
+      if (type.includes("application/json")) {
+        throw new Error("Export failed");
+      }
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "shipping_clients_by_fee.xlsx";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    },
   },
   liveChat: {
     messages: (params) =>
@@ -1378,6 +1397,7 @@ export const deleteProductOptionType = Api.productOptionTypes.remove;
 
 export const getAdminAnalytics = Api.analytics.admin;
 export const getAdminAnalyticsTrends = Api.analytics.trends;
+export const downloadShippingClientsExport = Api.analytics.downloadShippingClients;
 export const registerUser = Api.auth.register;
 export const getTrainingCourses = Api.training.courses;
 export const getTrainingBookings = Api.training.bookings;

@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "../../utils/toast";
 import { formatCompactCount } from "../../utils/formatCompactCount";
-import { getAdminAnalytics, getAdminAnalyticsTrends } from "../../api";
+import {
+  getAdminAnalytics,
+  getAdminAnalyticsTrends,
+  downloadShippingClientsExport,
+} from "../../api";
 import {
   FaShip,
   FaDollarSign,
@@ -17,6 +21,7 @@ import {
   FaCrown,
   FaTimes,
   FaFilePdf,
+  FaFileExcel,
 } from "react-icons/fa";
 import {
   ResponsiveContainer,
@@ -76,6 +81,7 @@ const Analytics = ({ activeTab = "overview" }) => {
   const [showAllContainersModal, setShowAllContainersModal] = useState(false);
   const [showAllMonthlyModal, setShowAllMonthlyModal] = useState(false);
   const [showAllYearlyModal, setShowAllYearlyModal] = useState(false);
+  const [exportingShippingClients, setExportingShippingClients] = useState(false);
 
   useEffect(() => {
     fetchAnalytics();
@@ -719,12 +725,43 @@ const Analytics = ({ activeTab = "overview" }) => {
       {/* Shipping Management Analytics */}
       {activeTab === "shipping" && (
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <FaShip className="text-2xl text-blue-600" />
-            <h3 className="text-xl font-semibold text-gray-800 dark:text-white">
-              Shipping Management
-            </h3>
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
+            <div className="flex items-center gap-3">
+              <FaShip className="text-2xl text-blue-600" />
+              <h3 className="text-xl font-semibold text-gray-800 dark:text-white">
+                Shipping Management
+              </h3>
+            </div>
+            <button
+              type="button"
+              onClick={async () => {
+                setExportingShippingClients(true);
+                try {
+                  await downloadShippingClientsExport();
+                  toast.success("Shipping clients Excel downloaded");
+                } catch (err) {
+                  toast.error(
+                    err?.response?.data?.detail ||
+                      "Could not export shipping clients"
+                  );
+                } finally {
+                  setExportingShippingClients(false);
+                }
+              }}
+              disabled={exportingShippingClients}
+              className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
+            >
+              {exportingShippingClients ? (
+                <FaSpinner className="animate-spin" />
+              ) : (
+                <FaFileExcel />
+              )}
+              Export clients (Excel)
+            </button>
           </div>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            The Excel file lists every client with a shipping invoice, highest shipping fee first, with total CBM.
+          </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
               <p className="text-sm text-gray-600 dark:text-gray-400">
