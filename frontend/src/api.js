@@ -496,9 +496,13 @@ const Api = {
           );
         });
     },
+    /**
+     * Excel download stays available after a container leaves the warehouse.
+     * Current loading container stays first, then the usual warehouse order.
+     */
     exportList: async () => {
       const res = await http.get("/buysellapi/containers/public/", {
-        params: { all: true },
+        params: { for_export: true },
         noCache: true,
         cacheDuration: 0,
         timeout: 120000,
@@ -508,10 +512,30 @@ const Api = {
         : Array.isArray(res.data?.results)
           ? res.data.results
           : [];
-      return rows.filter(
-        (row) =>
-          String(row?.status || "").trim().toLowerCase() !== "completed"
-      );
+      const rank = {
+        loading: 0,
+        receiving_goods: 1,
+        preparing: 2,
+        laden: 3,
+        in_transit: 4,
+        clearing: 5,
+        arrived_port: 6,
+        offloaded: 7,
+      };
+      return rows
+        .filter(
+          (row) =>
+            String(row?.status || "").trim().toLowerCase() !== "completed"
+        )
+        .sort((a, b) => {
+        const sa = String(a?.status || "").trim().toLowerCase();
+        const sb = String(b?.status || "").trim().toLowerCase();
+        const d = (rank[sa] ?? 9) - (rank[sb] ?? 9);
+        if (d !== 0) return d;
+        return String(b?.container_number || "").localeCompare(
+          String(a?.container_number || "")
+        );
+      });
     },
     /** Parking list: loading, laden, in transit, arrived at port. */
     parkingList: async () => {
