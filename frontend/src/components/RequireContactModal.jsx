@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import API from "../api";
 import { normalizePhone } from "../utils/ghanaPhone";
-import { contactNeedsUpdate } from "../utils/contactRequired";
+import { contactNeedsUpdate, contactSaveError } from "../utils/contactRequired";
 import { toast } from "../utils/toast";
 
 /** Routes where this prompt should not appear (auth/admin shells). */
@@ -57,9 +57,10 @@ const RequireContactModal = () => {
         return;
       }
 
+      const contactWasSent = Object.prototype.hasOwnProperty.call(data, "contact");
       const needsUpdate =
         data.needs_contact_update === true ||
-        contactNeedsUpdate(data.contact);
+        (contactWasSent && contactNeedsUpdate(data.contact));
 
       if (needsUpdate) {
         setUsername(data.username || data.full_name || "");
@@ -114,13 +115,25 @@ const RequireContactModal = () => {
       setContact("");
       window.dispatchEvent(new Event("authChange"));
     } catch (err) {
-      const message =
-        err.response?.data?.contact?.[0] ||
-        err.response?.data?.contact ||
-        err.response?.data?.detail ||
-        "Failed to save contact. Please try again.";
-      setError(typeof message === "string" ? message : "Failed to save contact.");
-      toast.error(typeof message === "string" ? message : "Failed to save contact.");
+      try {
+        const me = await API.get("/buysellapi/users/me/");
+        const profile = me.data || {};
+        const stillNeeded =
+          profile.needs_contact_update === true ||
+          (Object.prototype.hasOwnProperty.call(profile, "contact") &&
+            contactNeedsUpdate(profile.contact));
+        if (!stillNeeded) {
+          setOpen(false);
+          setContact("");
+          window.dispatchEvent(new Event("authChange"));
+          return;
+        }
+      } catch {
+        // Keep the save error below.
+      }
+      const message = contactSaveError(err.response?.data);
+      setError(message);
+      toast.error(message);
     } finally {
       setSaving(false);
     }
