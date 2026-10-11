@@ -24,6 +24,7 @@ import { InvoicePreviewExecutiveDiscountRows } from "./InvoicePreviewExecutiveDi
 const ContainerManagement = () => {
   const [containers, setContainers] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [detailsLoading, setDetailsLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [currentContainer, setCurrentContainer] = useState(null);
@@ -70,6 +71,7 @@ const ContainerManagement = () => {
   const statusOptions = [
     { value: "preparing", label: "Preparing" },
     { value: "receiving_goods", label: "Receiving Goods" },
+    { value: "full", label: "Full" },
     { value: "loading", label: "Loading" },
     { value: "laden", label: "Laden" },
     { value: "in_transit", label: "In Transit" },
@@ -326,10 +328,11 @@ const ContainerManagement = () => {
   };
 
   const handleViewDetails = async (containerId) => {
-    setLoading(true);
+    setDetailsLoading(true);
+    setContainerDetails(null);
+    setShowDetailModal(true);
     try {
       await refreshContainerDetails(containerId);
-      setShowDetailModal(true);
       // reset invoice state on open
       setInvoiceMarkId("");
       setInvoicePreview(null);
@@ -338,8 +341,9 @@ const ContainerManagement = () => {
     } catch (error) {
       console.error("Error fetching container details:", error);
       toast.error("Failed to fetch container details");
+      setShowDetailModal(false);
     } finally {
-      setLoading(false);
+      setDetailsLoading(false);
     }
   };
 
@@ -451,6 +455,7 @@ const ContainerManagement = () => {
         "bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-sm",
       loading:
         "bg-gradient-to-r from-blue-400 to-cyan-500 text-white shadow-sm",
+      full: "bg-gradient-to-r from-rose-500 to-red-600 text-white shadow-sm",
       laden:
         "bg-gradient-to-r from-indigo-400 to-blue-500 text-white shadow-sm",
       in_transit:
@@ -895,6 +900,13 @@ const ContainerManagement = () => {
       )}
 
       {/* Details Modal */}
+      {showDetailModal && detailsLoading && !containerDetails && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg px-8 py-6 text-gray-700 dark:text-gray-200">
+            Loading container...
+          </div>
+        </div>
+      )}
       {showDetailModal && containerDetails && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
