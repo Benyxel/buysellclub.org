@@ -22,67 +22,25 @@ const ContainerExpensesManagement = () => {
   const [editingExpense, setEditingExpense] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
-  // Load containers from admin API, then merge expense data from /api/admin/container-expenses (backend: buysellclub-backend buysellapi.views).
+  // One request. The expense API already returns container number, status, and totals.
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // 1. Fetch container list from admin containers API (same as Containers tab)
-      const containerList = [];
-      let page = 1;
-      let totalPages = 1;
-      let totalCount = 0;
-      do {
-        const res = await api.get("/api/admin/containers", {
-          params: { page, limit: 100, sortBy: "-created_at" },
-        });
-        const data = res.data?.data || [];
-        totalPages = res.data?.totalPages ?? 1;
-        totalCount = res.data?.total ?? 0;
-        containerList.push(...data);
-        page += 1;
-      } while (page <= totalPages && containerList.length < totalCount);
-
-      // 2. Fetch expense data from same backend (bsbackend urls.py → AdminContainerExpenseListView)
-      let expenseByContainerId = {};
-      try {
-        const expRes = await api.get("/api/admin/container-expenses");
-        const expenseContainers = expRes.data?.containers || [];
-        expenseContainers.forEach((c) => {
-          expenseByContainerId[c.id] = {
-            total_amount_ghs: c.total_amount_ghs ?? c.total_invoiced_ghs ?? c.total_shipping_fee ?? 0,
-            total_collected_ghs: c.total_collected_ghs ?? c.total_amount_ghs ?? 0,
-            total_expenses: c.total_expenses ?? 0,
-            gain: c.gain ?? 0,
-            expenses: c.expenses || [],
-          };
-        });
-      } catch (expErr) {
-        if (import.meta.env?.DEV) {
-          console.warn("Container expense totals could not be loaded:", expErr?.response?.status ?? expErr);
-        }
-      }
-
-      // 3. Merge: each container gets expense fields from expense API or defaults
-      const merged = containerList.map((c) => {
-        const exp = expenseByContainerId[c.id] || {
-          total_amount_ghs: 0,
-          total_collected_ghs: 0,
-          total_expenses: 0,
-          gain: 0,
-          expenses: [],
-        };
-        return {
+      const expRes = await api.get("/api/admin/container-expenses");
+      const expenseContainers = expRes.data?.containers || [];
+      setContainers(
+        expenseContainers.map((c) => ({
           id: c.id,
           container_number: c.container_number,
           status: c.status,
-          total_amount_ghs: exp.total_amount_ghs,
-          total_collected_ghs: exp.total_collected_ghs,
-          total_expenses: exp.total_expenses,
-          gain: exp.gain,
-          expenses: exp.expenses,
-        };
-      });
-      setContainers(merged);
+          total_amount_ghs: c.total_amount_ghs ?? c.total_invoiced_ghs ?? c.total_shipping_fee ?? 0,
+          total_collected_ghs: c.total_collected_ghs ?? c.total_amount_ghs ?? 0,
+          total_coupons_ghs: c.total_coupons_ghs ?? 0,
+          total_expenses: c.total_expenses ?? 0,
+          gain: c.gain ?? 0,
+          expenses: c.expenses || [],
+        }))
+      );
     } catch (err) {
       console.error("Error fetching containers:", err);
       toast.error(err.response?.data?.error || "Failed to load containers");
@@ -197,6 +155,7 @@ const ContainerExpensesManagement = () => {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Container</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Invoiced (₵)</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Collected (₵)</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Coupons used (₵)</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Expenses (₵)</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Gain (₵)</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Actions</th>
@@ -205,7 +164,7 @@ const ContainerExpensesManagement = () => {
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {containers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan={7} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                     No containers yet. Create containers under the Containers tab first.
                   </td>
                 </tr>
@@ -219,6 +178,7 @@ const ContainerExpensesManagement = () => {
                       </td>
                       <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">{formatCedis(c.total_amount_ghs)}</td>
                       <td className="px-4 py-3 text-right text-green-700 dark:text-green-400 font-medium">{formatCedis(c.total_collected_ghs)}</td>
+                      <td className="px-4 py-3 text-right text-emerald-700 dark:text-emerald-300">{formatCedis(c.total_coupons_ghs)}</td>
                       <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-300">{formatCedis(c.total_expenses)}</td>
                       <td className="px-4 py-3 text-right">
                         <span className={c.gain >= 0 ? "text-green-600 dark:text-green-400 font-medium" : "text-red-600 dark:text-red-400 font-medium"}>
@@ -237,7 +197,7 @@ const ContainerExpensesManagement = () => {
                     </tr>
                     {c.expenses && c.expenses.length > 0 && (
                       <tr>
-                        <td colSpan={6} className="px-4 py-2 bg-gray-50 dark:bg-gray-700/30">
+                        <td colSpan={7} className="px-4 py-2 bg-gray-50 dark:bg-gray-700/30">
                           <div className="flex flex-wrap items-center gap-2 text-sm">
                             <span className="text-gray-500 dark:text-gray-400">Expenses:</span>
                             {c.expenses.map((ex) => (

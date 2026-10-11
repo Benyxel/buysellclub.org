@@ -814,9 +814,9 @@ export default function InvoicesManagement() {
   const fetchContainers = async () => {
     setLoadingContainers(true);
     try {
-      // Fetch ALL containers without any filtering (same as container page)
+      // Dropdown only needs id and container number. summary skips the scanner CBM scan.
       const response = await API.get("/buysellapi/containers/public/", {
-        params: { all: true }
+        params: { summary: true }
       });
       const allContainers = response.data || [];
       setContainers(allContainers);
@@ -1346,7 +1346,9 @@ export default function InvoicesManagement() {
                         return (
                           <>
                             <span className="block text-xs text-gray-600 dark:text-gray-300 font-medium">
-                              ₵{g.freightGhs.toFixed(2)} shipping + ₵{g.storageGhs.toFixed(2)} storage
+                              ₵{g.freightGhs.toFixed(2)} shipping
+                              {g.couponGhs > 0 ? ` − ₵${g.couponGhs.toFixed(2)} coupon` : ""}
+                              {" + "}₵{g.storageGhs.toFixed(2)} storage
                             </span>
                             <span className="block text-xs text-green-600 dark:text-green-400 font-medium">
                               ₵{g.totalGhs.toFixed(2)} total GHS
@@ -1935,6 +1937,19 @@ export default function InvoicesManagement() {
                             ₵{ghs.freightGhs.toFixed(2)}
                           </span>
                         </div>
+                        {ghs.couponGhs > 0 ? (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-emerald-700 dark:text-emerald-300">
+                              Reward coupon (GHS)
+                              <span className="block text-xs font-normal mt-0.5">
+                                Customer used reward points on this invoice
+                              </span>
+                            </span>
+                            <span className="font-medium text-emerald-700 dark:text-emerald-300 shrink-0">
+                              -₵{ghs.couponGhs.toFixed(2)}
+                            </span>
+                          </div>
+                        ) : null}
                         {ghs.storageGhs > 0 ? (
                           <div className="flex justify-between text-sm gap-3">
                             <span className="text-amber-700 dark:text-amber-300">
