@@ -28,15 +28,17 @@ import {
   FaFileInvoiceDollar,
   FaGraduationCap,
   FaBoxes,
+  FaWhatsapp,
 } from "react-icons/fa";
 import { IoMdArrowDropdown, IoMdMenu } from "react-icons/io";
 import DarkMode from "./DarkMode";
-import { Link, NavLink } from "react-router-dom";
+import { Link, NavLink, useLocation } from "react-router-dom";
 import { IoClose } from "react-icons/io5";
 import { ShopContext } from "../context/ShopContext";
 import API, { Api } from "../api";
 import buysellogo from "../assets/buysellogo.png";
 import buysellogod from "../assets/buysellogod.png";
+import { LOGO_PINK } from "../constants/brandColors";
 
 const MenuLinks = [
   { name: "Home", href: "/" },
@@ -115,60 +117,13 @@ const MOBILE_TAB_ACTIVE =
 const MOBILE_TAB_INACTIVE =
   "text-gray-600 hover:scale-[1.02] bg-gray-100 hover:bg-pink-100 hover:text-pink-900 dark:text-gray-200 dark:bg-gray-700 dark:hover:bg-pink-950 dark:hover:text-pink-100";
 
-/**
- * Mobile shortcuts: soft pastel “wash” cards + strong icon jewel
- * (different from full solid blocks — readable text, hue via gradient + icon).
- */
-const MOBILE_SHORTCUT_STYLES = {
-  Tracking: {
-    tile: "border border-slate-200 bg-gradient-to-br from-sky-50 via-white to-blue-50 text-slate-900 shadow-sm hover:border-sky-300 hover:shadow-md dark:border-slate-600 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 dark:text-slate-100 dark:hover:border-sky-500",
-    icon: "bg-gradient-to-br from-sky-500 to-blue-600 text-white shadow-md ring-2 ring-sky-200 dark:ring-sky-900",
-  },
-  "Shipping Addresses": {
-    tile: "border border-slate-200 bg-gradient-to-bl from-indigo-50 via-white to-violet-50 text-slate-900 shadow-sm hover:border-indigo-300 hover:shadow-md dark:border-slate-600 dark:from-slate-900 dark:via-slate-900 dark:to-indigo-950 dark:text-slate-100 dark:hover:border-indigo-400",
-    icon: "bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-md ring-2 ring-indigo-200 dark:ring-indigo-950",
-  },
-  Buy4Me: {
-    tile: "border border-slate-200 bg-gradient-to-tr from-violet-50 via-white to-fuchsia-50 text-slate-900 shadow-sm hover:border-violet-300 hover:shadow-md dark:border-slate-600 dark:from-slate-900 dark:via-slate-900 dark:to-violet-950 dark:text-slate-100 dark:hover:border-violet-400",
-    icon: "bg-gradient-to-br from-violet-500 to-fuchsia-600 text-white shadow-md ring-2 ring-violet-200 dark:ring-violet-950",
-  },
-  Wholesale: {
-    tile: "border border-slate-200 bg-gradient-to-br from-teal-50 via-white to-cyan-50 text-slate-900 shadow-sm hover:border-teal-300 hover:shadow-md dark:border-slate-600 dark:from-slate-900 dark:via-slate-900 dark:to-teal-950 dark:text-slate-100 dark:hover:border-teal-400",
-    icon: "bg-gradient-to-br from-teal-500 to-cyan-600 text-white shadow-md ring-2 ring-teal-200 dark:ring-teal-950",
-  },
-  "Digital Store": {
-    tile: "border border-slate-200 bg-gradient-to-br from-rose-50 via-white to-orange-50 text-slate-900 shadow-sm hover:border-rose-300 hover:shadow-md dark:border-slate-600 dark:from-slate-900 dark:via-slate-900 dark:to-rose-950 dark:text-slate-100 dark:hover:border-rose-400",
-    icon: "bg-gradient-to-br from-rose-500 to-orange-500 text-white shadow-md ring-2 ring-rose-200 dark:ring-rose-950",
-  },
-  "Alipay Payment": {
-    tile: "border border-slate-200 bg-gradient-to-tl from-emerald-50 via-white to-lime-50 text-slate-900 shadow-sm hover:border-emerald-300 hover:shadow-md dark:border-slate-600 dark:from-slate-900 dark:via-slate-900 dark:to-emerald-950 dark:text-slate-100 dark:hover:border-emerald-400",
-    icon: "bg-gradient-to-br from-emerald-500 to-lime-600 text-white shadow-md ring-2 ring-emerald-200 dark:ring-emerald-950",
-  },
-  "Goods Received": {
-    tile: "border border-slate-200 bg-gradient-to-br from-emerald-50 via-white to-lime-50 text-slate-900 shadow-sm hover:border-emerald-300 hover:shadow-md dark:border-slate-600 dark:from-slate-900 dark:via-slate-900 dark:to-emerald-950 dark:text-slate-100 dark:hover:border-emerald-400",
-    icon: "bg-gradient-to-br from-emerald-500 to-lime-600 text-white shadow-md ring-2 ring-emerald-200 dark:ring-emerald-950",
-  },
-  Training: {
-    tile: "border border-slate-200 bg-gradient-to-br from-blue-50 via-white to-indigo-50 text-slate-900 shadow-sm hover:border-blue-300 hover:shadow-md dark:border-slate-600 dark:from-slate-900 dark:via-slate-900 dark:to-indigo-950 dark:text-slate-100 dark:hover:border-blue-400",
-    icon: "bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-md ring-2 ring-blue-200 dark:ring-indigo-950",
-  },
-  Community: {
-    tile: "border border-slate-200 bg-gradient-to-bl from-purple-50 via-white to-pink-50 text-slate-900 shadow-sm hover:border-purple-300 hover:shadow-md dark:border-slate-600 dark:from-slate-900 dark:via-slate-900 dark:to-purple-950 dark:text-slate-100 dark:hover:border-purple-400",
-    icon: "bg-gradient-to-br from-purple-500 to-pink-600 text-white shadow-md ring-2 ring-purple-200 dark:ring-purple-950",
-  },
-  Membership: {
-    tile: "border border-slate-200 bg-gradient-to-bl from-purple-50 via-white to-pink-50 text-slate-900 shadow-sm hover:border-purple-300 hover:shadow-md dark:border-slate-600 dark:from-slate-900 dark:via-slate-900 dark:to-purple-950 dark:text-slate-100 dark:hover:border-purple-400",
-    icon: "bg-gradient-to-br from-purple-500 to-pink-600 text-white shadow-md ring-2 ring-purple-200 dark:ring-purple-950",
-  },
-};
-
+/** One brand treatment for all mobile shortcuts — no rainbow AI tiles. */
 const DEFAULT_SHORTCUT_STYLE = {
-  tile: "border border-slate-200 bg-gradient-to-br from-slate-50 to-white text-slate-900 shadow-sm hover:border-slate-300 dark:border-slate-600 dark:from-slate-900 dark:to-slate-800 dark:text-slate-100",
-  icon: "bg-gradient-to-br from-slate-600 to-slate-800 text-white shadow-md ring-2 ring-slate-300 dark:ring-slate-900",
+  tile: "border border-gray-200 bg-white text-gray-900 shadow-sm hover:border-primary/40 hover:bg-primary/[0.03] dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:hover:border-primary/50",
+  icon: "bg-primary text-white",
 };
 
-const mobileShortcutStyles = (label) =>
-  MOBILE_SHORTCUT_STYLES[label] || DEFAULT_SHORTCUT_STYLE;
+const mobileShortcutStyles = () => DEFAULT_SHORTCUT_STYLE;
 
 /** Solid icon chips for browse / quick / account rows in mobile drawer. */
 const MOBILE_LIST_ICON = {
@@ -203,11 +158,14 @@ const mobileListIconClass = (label) =>
   MOBILE_LIST_ICON[label] || "bg-gray-700 text-white";
 
 export default function Navbar() {
+  const location = useLocation();
+  const isHome = location.pathname === "/";
+  const [channelUrl, setChannelUrl] = useState("");
   const [visible, setVisible] = useState(false);
   const [mobileQuery, setMobileQuery] = useState("");
-  /** Mobile drawer: which link group is shown above the bottom icon bar */
+  /** Mobile drawer: which link group is shown in the bottom sheet (null = sheet closed) */
   const [mobileNavTab, setMobileNavTab] = useState(
-    /** @type {"browse" | "quick" | "account" | "membership"} */ ("browse")
+    /** @type {null | "browse" | "quick" | "account" | "membership"} */ (null)
   );
   const { getCartCount } = useContext(ShopContext);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -216,6 +174,25 @@ export default function Navbar() {
   const [shippingMark, setShippingMark] = useState("");
   const [updatesUnreadCount, setUpdatesUnreadCount] = useState(0);
   const [isCommunityMember, setIsCommunityMember] = useState(false);
+
+  useEffect(() => {
+    if (!isHome) return undefined;
+    let cancelled = false;
+    API.get("/buysellapi/mobile-app-version/")
+      .then((res) => {
+        const url = String(res?.data?.whatsapp_channel_url || "").trim();
+        if (
+          !cancelled &&
+          (url.startsWith("https://") || url.startsWith("http://"))
+        ) {
+          setChannelUrl(url);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [isHome]);
 
   const fetchCommunityMember = async () => {
     const token = localStorage.getItem("token");
@@ -348,8 +325,20 @@ export default function Navbar() {
   }, [visible, isLoggedIn]);
 
   useEffect(() => {
-    if (!visible) setMobileNavTab("browse");
+    if (!visible) setMobileNavTab(null);
   }, [visible]);
+
+  useEffect(() => {
+    const menuOpen = visible || Boolean(mobileNavTab);
+    document.body.classList.toggle("bsc-mobile-menu-open", menuOpen);
+    if (!menuOpen) return undefined;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+      document.body.classList.remove("bsc-mobile-menu-open");
+    };
+  }, [visible, mobileNavTab]);
 
   useEffect(() => {
     const onUnread = (e) => {
@@ -457,8 +446,22 @@ export default function Navbar() {
   const bySection = (section) => filteredItems.filter((i) => i.section === section);
 
   return (
-    <div className="bg-white shadow-md dark:bg-gray-900 dark:text-white duration-200 sticky top-0 z-30">
-      <div className="py-4">
+    <header className="bg-white shadow-md dark:bg-gray-900 dark:text-white duration-200 sticky top-0 z-30">
+      {isHome ? (
+        <a
+          href={channelUrl || undefined}
+          target={channelUrl ? "_blank" : undefined}
+          rel={channelUrl ? "noopener noreferrer" : undefined}
+          className="flex items-center justify-center gap-1.5 px-3 py-[12.5px] text-xs font-bold leading-none text-white sm:hidden"
+          style={{ backgroundColor: LOGO_PINK }}
+          aria-label="Join our WhatsApp channel"
+        >
+          <FaWhatsapp className="text-sm" aria-hidden />
+          Join our WhatsApp channel
+        </a>
+      ) : null}
+      <nav aria-label="Main navigation">
+      <div className="py-[13.5px] sm:py-4">
         <div className="container flex justify-between">
           <div className="flex items-center gap-12">
             <Link
@@ -625,21 +628,26 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Mobile Menu */}
+      {/* Mobile side drawer (slides from right) */}
       {visible && (
         <div
-          className="fixed inset-0 bg-black/20 z-[1300] lg:hidden"
-          onClick={() => setVisible(false)}
+          className="fixed inset-0 z-[1300] bg-black/20 lg:hidden"
+          onClick={() => {
+            setVisible(false);
+            setMobileQuery("");
+            setMobileNavTab(null);
+          }}
+          aria-hidden
         />
       )}
       <div
-        className={`fixed top-0 right-0 bottom-0 bg-white shadow-2xl transition-transform transform ${
+        className={`fixed top-0 right-0 bottom-0 z-[1310] w-[92vw] max-w-[420px] transform bg-white shadow-2xl transition-transform dark:bg-zinc-950 lg:hidden ${
           visible ? "translate-x-0" : "translate-x-full"
-        } w-[92vw] max-w-[420px] z-[1310] dark:bg-zinc-950 lg:hidden`}
+        }`}
         onClick={(e) => {
-          // Close menu when clicking on empty space (not on menu items)
           if (e.target === e.currentTarget) {
             setVisible(false);
+            setMobileNavTab(null);
           }
         }}
       >
@@ -653,13 +661,14 @@ export default function Navbar() {
               onClick={() => {
                 setVisible(false);
                 setMobileQuery("");
+                setMobileNavTab(null);
               }}
               className="h-8 cursor-pointer text-[30px] text-white drop-shadow-sm duration-300 hover:text-white/90"
+              aria-label="Close menu"
             />
           </div>
 
           <div className="mobile-nav-scrollable min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
-            {/* User card */}
             {isLoggedIn ? (
               <div className="flex items-stretch overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 shadow-sm dark:border-gray-800 dark:bg-gray-900">
                 <Link
@@ -667,6 +676,7 @@ export default function Navbar() {
                   onClick={() => {
                     setVisible(false);
                     setMobileQuery("");
+                    setMobileNavTab(null);
                   }}
                   className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 transition hover:bg-pink-50 dark:hover:bg-pink-950"
                 >
@@ -699,6 +709,7 @@ export default function Navbar() {
                   onClick={() => {
                     setVisible(false);
                     setMobileQuery("");
+                    setMobileNavTab(null);
                   }}
                   className="relative flex min-w-[4.25rem] shrink-0 flex-col items-center justify-center gap-0.5 border-l border-gray-200 bg-gray-50 px-3 py-2 text-gray-700 transition hover:bg-pink-50 hover:text-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-pink-950 dark:hover:text-primary"
                   aria-label={
@@ -724,24 +735,24 @@ export default function Navbar() {
                 onClick={() => {
                   setVisible(false);
                   setMobileQuery("");
+                  setMobileNavTab(null);
                 }}
                 className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 shadow-sm transition hover:bg-pink-50 dark:border-gray-800 dark:bg-gray-900 dark:hover:bg-pink-950"
               >
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center text-white shadow">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-cyan-600 text-white shadow">
                   <FaUser />
                 </div>
                 <div className="min-w-0">
-                  <p className="font-semibold text-gray-900 dark:text-white truncate">
+                  <p className="truncate font-semibold text-gray-900 dark:text-white">
                     Log in
                   </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                  <p className="truncate text-xs text-gray-500 dark:text-gray-400">
                     Access profile, orders, favorites
                   </p>
                 </div>
               </Link>
             )}
 
-            {/* Search */}
             <div>
               <input
                 value={mobileQuery}
@@ -751,9 +762,8 @@ export default function Navbar() {
               />
             </div>
 
-            {/* Shortcuts grid */}
             <div>
-              <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
+              <p className="mb-2 text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                 Shortcuts
               </p>
               <div className="grid grid-cols-2 gap-2">
@@ -764,6 +774,7 @@ export default function Navbar() {
                     onClick={() => {
                       setVisible(false);
                       setMobileQuery("");
+                      setMobileNavTab(null);
                     }}
                     className={`group flex items-center gap-2 rounded-2xl border px-3 py-3 transition hover:ring-2 hover:ring-pink-200/90 active:scale-[0.98] dark:hover:ring-pink-500/35 ${
                       mobileShortcutStyles(it.label).tile
@@ -774,245 +785,87 @@ export default function Navbar() {
                     >
                       <it.Icon className="text-base" />
                     </span>
-                    <span className="text-sm font-bold leading-tight text-inherit flex items-center gap-1.5 min-w-0">
+                    <span className="flex min-w-0 items-center gap-1.5 text-sm font-bold leading-tight text-inherit">
                       <span className="min-w-0 truncate">{it.label}</span>
                     </span>
                   </Link>
                 ))}
               </div>
             </div>
-
-            {/* Browse / Q-Links / Account / Membership — list matches bottom icon bar */}
-            <div className="overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-              <div className="bg-gradient-to-r from-fuchsia-400 via-pink-400 to-rose-400 px-4 py-2.5 dark:from-fuchsia-500 dark:via-pink-500 dark:to-rose-500">
-                <p className="text-xs font-bold uppercase tracking-wide text-white drop-shadow-sm">
-                  {mobileNavTab === "browse"
-                    ? "Browse"
-                    : mobileNavTab === "quick"
-                      ? "Quick links"
-                      : mobileNavTab === "membership"
-                        ? "Membership"
-                        : "Account"}
-                </p>
-              </div>
-              <ul className="mobile-nav-scrollable max-h-[38vh] min-h-0 overflow-y-auto px-2 py-2">
-                {mobileNavTab === "browse" &&
-                  bySection("browse").map((it) => (
-                    <li key={it.id}>
-                      <NavLink
-                        to={it.to}
-                        onClick={() => {
-                          setVisible(false);
-                          setMobileQuery("");
-                        }}
-                        className={({ isActive }) =>
-                          `${MOBILE_SUBMENU_ROW} ${
-                            isActive
-                              ? "bg-gray-200 text-gray-950 dark:bg-gray-800 dark:text-white"
-                              : ""
-                          }`
-                        }
-                      >
-                        <span
-                          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm shadow-sm ${mobileListIconClass(
-                            it.label
-                          )}`}
-                        >
-                          <it.Icon className="text-sm" />
-                        </span>
-                        <span className="min-w-0 truncate">{it.label}</span>
-                      </NavLink>
-                    </li>
-                  ))}
-                {mobileNavTab === "quick" &&
-                  bySection("quick").map((it) => (
-                    <li key={it.id}>
-                      <Link
-                        to={it.to}
-                        onClick={() => {
-                          setVisible(false);
-                          setMobileQuery("");
-                        }}
-                        className={MOBILE_SUBMENU_ROW}
-                      >
-                        <span
-                          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm shadow-sm ${mobileListIconClass(
-                            it.label
-                          )}`}
-                        >
-                          <it.Icon className="text-sm" />
-                        </span>
-                        <span className="flex min-w-0 flex-1 items-center gap-2 truncate">
-                          <span className="truncate">{it.label}</span>
-                        </span>
-                      </Link>
-                    </li>
-                  ))}
-                {mobileNavTab === "account" &&
-                  bySection("account").map((it) => (
-                    <li key={it.id}>
-                      <Link
-                        to={it.to}
-                        onClick={() => {
-                          setVisible(false);
-                          setMobileQuery("");
-                        }}
-                        className={MOBILE_SUBMENU_ROW}
-                      >
-                        <span
-                          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm shadow-sm ${mobileListIconClass(
-                            it.label
-                          )}`}
-                        >
-                          <it.Icon className="text-sm" />
-                        </span>
-                        <span className="min-w-0 truncate">{it.label}</span>
-                      </Link>
-                    </li>
-                  ))}
-                {mobileNavTab === "membership" && (
-                  <>
-                    <li>
-                      <Link
-                        to="/Community"
-                        onClick={() => {
-                          setVisible(false);
-                          setMobileQuery("");
-                        }}
-                        className={MOBILE_SUBMENU_ROW}
-                      >
-                        <span
-                          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm shadow-sm ${mobileListIconClass(
-                            "Apply for membership"
-                          )}`}
-                        >
-                          <FaUsers className="text-sm" />
-                        </span>
-                        <span className="min-w-0 truncate">Apply for membership</span>
-                      </Link>
-                    </li>
-                    {isLoggedIn ? (
-                      <li>
-                        <Link
-                          to="/Profile?tab=community"
-                          onClick={() => {
-                            setVisible(false);
-                            setMobileQuery("");
-                          }}
-                          className={MOBILE_SUBMENU_ROW}
-                        >
-                          <span
-                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm shadow-sm ${mobileListIconClass(
-                              "Member hub in profile"
-                            )}`}
-                          >
-                            <FaInfoCircle className="text-sm" />
-                          </span>
-                          <span className="min-w-0 truncate">Member hub in profile</span>
-                        </Link>
-                      </li>
-                    ) : null}
-                    {MEMBERSHIP_BENEFITS.map(({ Icon, title, blurb }) => (
-                      <li key={title}>
-                        <div
-                          className={MOBILE_MEMBERSHIP_BENEFIT_ROW}
-                          role="presentation"
-                        >
-                          <span
-                            className={`${MOBILE_SUBMENU_ICON} mt-0.5 shrink-0`}
-                          >
-                            <Icon className="text-sm" />
-                          </span>
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                              {title}
-                            </p>
-                            <p className="mt-0.5 text-xs leading-snug text-gray-500 dark:text-gray-400">
-                              {blurb}
-                            </p>
-                          </div>
-                        </div>
-                      </li>
-                    ))}
-                  </>
-                )}
-              </ul>
-            </div>
           </div>
 
-          {/* Bottom nav: Browse · Q-Links · Account · Membership */}
+          {/* Bottom tabs open content bottom sheet */}
           <div className="shrink-0 border-t border-gray-200 bg-gray-100 px-3 pb-3 pt-2 dark:border-gray-800 dark:bg-zinc-900">
             <div className="rounded-2xl border border-gray-200 bg-white p-2 shadow-sm dark:border-gray-700 dark:bg-gray-800">
               <div className="grid grid-cols-4 gap-2">
                 <button
-                type="button"
-                onClick={() => setMobileNavTab("browse")}
-                className={`${MOBILE_TAB_BTN_BASE} ${
-                  mobileNavTab === "browse"
-                    ? MOBILE_TAB_ACTIVE
-                    : MOBILE_TAB_INACTIVE
-                }`}
-                aria-label="Browse menu"
-                aria-pressed={mobileNavTab === "browse"}
-              >
-                <FaCompass className={MOBILE_TAB_ICON} />
-                <span className="max-w-full truncate text-center text-[9px] font-bold uppercase leading-none tracking-tight">
-                  Browse
-                </span>
+                  type="button"
+                  onClick={() => setMobileNavTab("browse")}
+                  className={`${MOBILE_TAB_BTN_BASE} ${
+                    mobileNavTab === "browse"
+                      ? MOBILE_TAB_ACTIVE
+                      : MOBILE_TAB_INACTIVE
+                  }`}
+                  aria-label="Browse menu"
+                  aria-pressed={mobileNavTab === "browse"}
+                >
+                  <FaCompass className={MOBILE_TAB_ICON} />
+                  <span className="max-w-full truncate text-center text-[9px] font-bold uppercase leading-none tracking-tight">
+                    Browse
+                  </span>
                 </button>
                 <button
-                type="button"
-                onClick={() => setMobileNavTab("quick")}
-                className={`${MOBILE_TAB_BTN_BASE} ${
-                  mobileNavTab === "quick"
-                    ? MOBILE_TAB_ACTIVE
-                    : MOBILE_TAB_INACTIVE
-                }`}
-                aria-label="Quick links"
-                aria-pressed={mobileNavTab === "quick"}
-              >
-                <FaLink className={MOBILE_TAB_ICON} />
-                <span className="max-w-full truncate text-center text-[9px] font-bold uppercase leading-none tracking-tight">
-                  Q-Links
-                </span>
+                  type="button"
+                  onClick={() => setMobileNavTab("quick")}
+                  className={`${MOBILE_TAB_BTN_BASE} ${
+                    mobileNavTab === "quick"
+                      ? MOBILE_TAB_ACTIVE
+                      : MOBILE_TAB_INACTIVE
+                  }`}
+                  aria-label="Quick links"
+                  aria-pressed={mobileNavTab === "quick"}
+                >
+                  <FaLink className={MOBILE_TAB_ICON} />
+                  <span className="max-w-full truncate text-center text-[9px] font-bold uppercase leading-none tracking-tight">
+                    Q-Links
+                  </span>
                 </button>
                 <button
-                type="button"
-                onClick={() => setMobileNavTab("account")}
-                className={`${MOBILE_TAB_BTN_BASE} ${
-                  mobileNavTab === "account"
-                    ? MOBILE_TAB_ACTIVE
-                    : MOBILE_TAB_INACTIVE
-                }`}
-                aria-label="Account menu"
-                aria-pressed={mobileNavTab === "account"}
-              >
-                <FaUser className={MOBILE_TAB_ICON} />
-                <span className="max-w-full truncate text-center text-[9px] font-bold uppercase leading-none tracking-tight">
-                  Account
-                </span>
+                  type="button"
+                  onClick={() => setMobileNavTab("account")}
+                  className={`${MOBILE_TAB_BTN_BASE} ${
+                    mobileNavTab === "account"
+                      ? MOBILE_TAB_ACTIVE
+                      : MOBILE_TAB_INACTIVE
+                  }`}
+                  aria-label="Account menu"
+                  aria-pressed={mobileNavTab === "account"}
+                >
+                  <FaUser className={MOBILE_TAB_ICON} />
+                  <span className="max-w-full truncate text-center text-[9px] font-bold uppercase leading-none tracking-tight">
+                    Account
+                  </span>
                 </button>
                 <button
-                type="button"
-                onClick={() => setMobileNavTab("membership")}
-                className={`${MOBILE_TAB_BTN_BASE} ${
-                  mobileNavTab === "membership"
-                    ? MOBILE_TAB_ACTIVE
-                    : MOBILE_TAB_INACTIVE
-                }`}
-                aria-label="Membership benefits"
-                aria-pressed={mobileNavTab === "membership"}
-              >
-                <FaCrown className={MOBILE_TAB_ICON} />
-                <span className="max-w-[min(100%,4.25rem)] whitespace-normal text-center text-[8px] font-bold leading-tight tracking-tight">
-                  Membership
-                </span>
+                  type="button"
+                  onClick={() => setMobileNavTab("membership")}
+                  className={`${MOBILE_TAB_BTN_BASE} ${
+                    mobileNavTab === "membership"
+                      ? MOBILE_TAB_ACTIVE
+                      : MOBILE_TAB_INACTIVE
+                  }`}
+                  aria-label="Membership benefits"
+                  aria-pressed={mobileNavTab === "membership"}
+                >
+                  <FaCrown className={MOBILE_TAB_ICON} />
+                  <span className="max-w-[min(100%,4.25rem)] whitespace-normal text-center text-[8px] font-bold leading-tight tracking-tight">
+                    Membership
+                  </span>
                 </button>
               </div>
             </div>
           </div>
 
-          {/* Sticky CTA row */}
           <div className="border-t border-gray-200 bg-white px-3 pb-4 pt-3 dark:border-gray-800 dark:bg-zinc-950 sm:px-4">
             {isLoggedIn ? (
               <Link
@@ -1020,8 +873,9 @@ export default function Navbar() {
                 onClick={() => {
                   setVisible(false);
                   setMobileQuery("");
+                  setMobileNavTab(null);
                 }}
-                className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-gray-900 text-white font-semibold hover:opacity-95 dark:bg-white dark:text-gray-900 transition"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gray-900 px-4 py-3 font-semibold text-white transition hover:opacity-95 dark:bg-white dark:text-gray-900"
               >
                 <FaUser />
                 Logout
@@ -1032,8 +886,9 @@ export default function Navbar() {
                 onClick={() => {
                   setVisible(false);
                   setMobileQuery("");
+                  setMobileNavTab(null);
                 }}
-                className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-gray-900 text-white font-semibold hover:opacity-95 dark:bg-white dark:text-gray-900 transition"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gray-900 px-4 py-3 font-semibold text-white transition hover:opacity-95 dark:bg-white dark:text-gray-900"
               >
                 <FaUser />
                 Login
@@ -1042,7 +897,201 @@ export default function Navbar() {
           </div>
         </div>
       </div>
-    </div>
+
+      {/* Tab content bottom sheet (Browse / Q-Links / Account / Membership) */}
+      {mobileNavTab && (
+        <div
+          className="fixed inset-0 z-[1320] bg-black/40 lg:hidden"
+          onClick={() => setMobileNavTab(null)}
+          aria-hidden
+        />
+      )}
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={
+          mobileNavTab === "browse"
+            ? "Browse"
+            : mobileNavTab === "quick"
+              ? "Quick links"
+              : mobileNavTab === "membership"
+                ? "Membership"
+                : "Account"
+        }
+        className={`fixed inset-x-0 bottom-0 z-[1330] flex max-h-[75vh] flex-col rounded-t-3xl bg-white shadow-2xl transition-transform duration-300 ease-out dark:bg-zinc-950 lg:hidden ${
+          mobileNavTab
+            ? "translate-y-0"
+            : "pointer-events-none translate-y-full"
+        }`}
+      >
+        <div className="flex shrink-0 flex-col items-center border-b border-pink-200 bg-gradient-to-r from-fuchsia-400 via-pink-400 to-rose-400 px-4 pb-3 pt-2 dark:border-pink-800/50 dark:from-fuchsia-500 dark:via-pink-500 dark:to-rose-500">
+          <div className="mb-2 h-1 w-10 rounded-full bg-white/70" aria-hidden />
+          <div className="flex w-full items-center justify-between">
+            <p className="text-sm font-bold uppercase tracking-wide text-white drop-shadow-sm">
+              {mobileNavTab === "browse"
+                ? "Browse"
+                : mobileNavTab === "quick"
+                  ? "Quick links"
+                  : mobileNavTab === "membership"
+                    ? "Membership"
+                    : "Account"}
+            </p>
+            <IoClose
+              onClick={() => setMobileNavTab(null)}
+              className="h-7 cursor-pointer text-[26px] text-white drop-shadow-sm hover:text-white/90"
+              aria-label="Close sheet"
+            />
+          </div>
+        </div>
+
+        <ul className="mobile-nav-scrollable min-h-0 flex-1 overflow-y-auto px-2 py-2 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          {mobileNavTab === "browse" &&
+            bySection("browse").map((it) => (
+              <li key={it.id}>
+                <NavLink
+                  to={it.to}
+                  onClick={() => {
+                    setVisible(false);
+                    setMobileQuery("");
+                    setMobileNavTab(null);
+                  }}
+                  className={({ isActive }) =>
+                    `${MOBILE_SUBMENU_ROW} ${
+                      isActive
+                        ? "bg-gray-200 text-gray-950 dark:bg-gray-800 dark:text-white"
+                        : ""
+                    }`
+                  }
+                >
+                  <span
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm shadow-sm ${mobileListIconClass(
+                      it.label
+                    )}`}
+                  >
+                    <it.Icon className="text-sm" />
+                  </span>
+                  <span className="min-w-0 truncate">{it.label}</span>
+                </NavLink>
+              </li>
+            ))}
+          {mobileNavTab === "quick" &&
+            bySection("quick").map((it) => (
+              <li key={it.id}>
+                <Link
+                  to={it.to}
+                  onClick={() => {
+                    setVisible(false);
+                    setMobileQuery("");
+                    setMobileNavTab(null);
+                  }}
+                  className={MOBILE_SUBMENU_ROW}
+                >
+                  <span
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm shadow-sm ${mobileListIconClass(
+                      it.label
+                    )}`}
+                  >
+                    <it.Icon className="text-sm" />
+                  </span>
+                  <span className="min-w-0 truncate">{it.label}</span>
+                </Link>
+              </li>
+            ))}
+          {mobileNavTab === "account" &&
+            bySection("account").map((it) => (
+              <li key={it.id}>
+                <Link
+                  to={it.to}
+                  onClick={() => {
+                    setVisible(false);
+                    setMobileQuery("");
+                    setMobileNavTab(null);
+                  }}
+                  className={MOBILE_SUBMENU_ROW}
+                >
+                  <span
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm shadow-sm ${mobileListIconClass(
+                      it.label
+                    )}`}
+                  >
+                    <it.Icon className="text-sm" />
+                  </span>
+                  <span className="min-w-0 truncate">{it.label}</span>
+                </Link>
+              </li>
+            ))}
+          {mobileNavTab === "membership" && (
+            <>
+              <li>
+                <Link
+                  to="/Community"
+                  onClick={() => {
+                    setVisible(false);
+                    setMobileQuery("");
+                    setMobileNavTab(null);
+                  }}
+                  className={MOBILE_SUBMENU_ROW}
+                >
+                  <span
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm shadow-sm ${mobileListIconClass(
+                      "Apply for membership"
+                    )}`}
+                  >
+                    <FaUsers className="text-sm" />
+                  </span>
+                  <span className="min-w-0 truncate">Apply for membership</span>
+                </Link>
+              </li>
+              {isLoggedIn ? (
+                <li>
+                  <Link
+                    to="/Profile?tab=community"
+                    onClick={() => {
+                      setVisible(false);
+                      setMobileQuery("");
+                      setMobileNavTab(null);
+                    }}
+                    className={MOBILE_SUBMENU_ROW}
+                  >
+                    <span
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm shadow-sm ${mobileListIconClass(
+                        "Member hub in profile"
+                      )}`}
+                    >
+                      <FaInfoCircle className="text-sm" />
+                    </span>
+                    <span className="min-w-0 truncate">
+                      Member hub in profile
+                    </span>
+                  </Link>
+                </li>
+              ) : null}
+              {MEMBERSHIP_BENEFITS.map(({ Icon, title, blurb }) => (
+                <li key={title}>
+                  <div
+                    className={MOBILE_MEMBERSHIP_BENEFIT_ROW}
+                    role="presentation"
+                  >
+                    <span className={`${MOBILE_SUBMENU_ICON} mt-0.5 shrink-0`}>
+                      <Icon className="text-sm" />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                        {title}
+                      </p>
+                      <p className="mt-0.5 text-xs leading-snug text-gray-500 dark:text-gray-400">
+                        {blurb}
+                      </p>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </>
+          )}
+        </ul>
+      </div>
+      </nav>
+    </header>
   );
 }
 
