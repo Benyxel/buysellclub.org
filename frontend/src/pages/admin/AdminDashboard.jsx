@@ -84,6 +84,7 @@ import HomeAnnouncementManagement from "./HomeAnnouncementManagement";
 import OrderManagement from "./OrderManagement";
 import CategoriesTypesManagement from "./CategoriesTypesManagement";
 import Analytics from "./Analytics";
+import FinanceManagement from "./FinanceManagement";
 import GalleryManagement from "./GalleryManagement";
 import AgentTrackingManagement from "./AgentTrackingManagement";
 import AgentContainerManagement from "./AgentContainerManagement";
@@ -132,6 +133,133 @@ const ecommerceSectionSet = new Set(ECOMMERCE_SECTIONS);
 /** Sections grouped under sidebar "Membership" (Community, Executive Members). */
 const MEMBERSHIP_SECTIONS = ["community", "executive-members", "card-holders"];
 const membershipSectionSet = new Set(MEMBERSHIP_SECTIONS);
+
+const SHIPPING_NAV = [
+  {
+    id: "shipments",
+    label: "Shipments",
+    items: [
+      { id: "tracking", label: "Tracking Numbers", icon: FaTruck },
+      { id: "quick-tracking-notes", label: "Quick Tracking Notes", icon: FaBookmark },
+      { id: "containers", label: "Containers", icon: FaBox },
+      { id: "container-expenses", label: "Container Expenses", icon: FaDollarSign },
+      { id: "china-excel", label: "China Excel", icon: FaFileInvoice },
+    ],
+  },
+  {
+    id: "billing",
+    label: "Billing",
+    items: [
+      { id: "invoices", label: "Invoices", icon: FaFileInvoice },
+      { id: "payment-proofs", label: "Payment Proofs", icon: FaFileInvoice, badgeKey: "shippingPaymentProofs" },
+    ],
+  },
+  {
+    id: "rates",
+    label: "Rates",
+    items: [
+      { id: "rates", label: "Shipping Rates", icon: FaDollarSign },
+      { id: "ad-rates", label: "Ad Shipping Rates", icon: FaDollarSign },
+      { id: "air-ad-services", label: "Air Ad Services", icon: FaShippingFast },
+    ],
+  },
+  {
+    id: "agents",
+    label: "Local agents",
+    items: [
+      { id: "local-agent", label: "Local Agent", icon: FaMapMarkerAlt },
+      { id: "local-agent-settings", label: "Local Agent Settings", icon: FaCog },
+      { id: "local-agent-requests", label: "Local Agent Requests", icon: FaUserTag, badgeKey: "localAgentRequests" },
+      { id: "local-agent-reward-claims", label: "Reward Claims", icon: FaGift, badgeKey: "rewardClaims" },
+    ],
+  },
+  {
+    id: "addresses",
+    label: "Addresses",
+    items: [
+      { id: "addresses", label: "China Address Management", icon: FaMapMarkerAlt },
+      { id: "warehouse-addresses", label: "Address Generators", icon: FaMapMarkerAlt },
+      { id: "shipping-marks", label: "Shipping Marks Viewer", icon: FaTag },
+    ],
+  },
+];
+
+function shippingGroupBadge(group, unreadCounts) {
+  return group.items.reduce((sum, item) => {
+    if (!item.badgeKey) return sum;
+    return sum + (Number(unreadCounts?.[item.badgeKey]) || 0);
+  }, 0);
+}
+
+function ShippingSectionNav({ activeId, onSelect, unreadCounts }) {
+  const activeGroup =
+    SHIPPING_NAV.find((group) => group.items.some((item) => item.id === activeId)) ||
+    SHIPPING_NAV[0];
+
+  return (
+    <div className="mb-6 w-full min-w-0 rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/50">
+      <div className="flex flex-wrap gap-2">
+        {SHIPPING_NAV.map((group) => {
+          const selected = group.id === activeGroup.id;
+          const badge = shippingGroupBadge(group, unreadCounts);
+          return (
+            <button
+              key={group.id}
+              type="button"
+              onClick={() => {
+                if (group.items.some((item) => item.id === activeId)) return;
+                onSelect(group.items[0].id);
+              }}
+              className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium ${
+                selected
+                  ? "bg-blue-600 text-white"
+                  : "bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-300 dark:ring-gray-600 dark:hover:bg-gray-700"
+              }`}
+            >
+              {group.label}
+              {badge > 0 ? (
+                <span
+                  className={`inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1.5 py-0.5 text-xs font-bold ${
+                    selected ? "bg-white text-blue-700" : "bg-red-500 text-white"
+                  }`}
+                >
+                  {badge > 99 ? "99+" : badge}
+                </span>
+              ) : null}
+            </button>
+          );
+        })}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-1 border-t border-gray-200 pt-3 dark:border-gray-700">
+        {activeGroup.items.map((item) => {
+          const Icon = item.icon;
+          const selected = item.id === activeId;
+          const count = item.badgeKey ? Number(unreadCounts?.[item.badgeKey]) || 0 : 0;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => onSelect(item.id)}
+              className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${
+                selected
+                  ? "bg-white text-blue-600 shadow-sm ring-1 ring-blue-200 dark:bg-gray-800 dark:text-blue-400 dark:ring-blue-500/40"
+                  : "text-gray-600 hover:bg-white dark:text-gray-300 dark:hover:bg-gray-800"
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              <span>{item.label}</span>
+              {count > 0 ? (
+                <span className="inline-flex items-center justify-center rounded-full bg-red-500 px-2 py-0.5 text-xs font-bold text-white">
+                  {count > 99 ? "99+" : count}
+                </span>
+              ) : null}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -275,6 +403,7 @@ const AdminDashboard = () => {
     digital_orders: 0,
     training: 0,
     community: 0,
+    executive: 0,
     agentRequests: 0,
     localAgentRequests: 0,
     rewardClaims: 0,
@@ -358,6 +487,7 @@ const AdminDashboard = () => {
         section: "quick-orders",
       },
       { icon: <FaChartBar />, label: "Analytics", section: "analytics" },
+      { icon: <FaDollarSign />, label: "Finance", section: "finance" },
       { icon: <FaUserCog />, label: "Staff", section: "staff" },
       {
         icon: <FaMobileAlt />,
@@ -464,7 +594,8 @@ const AdminDashboard = () => {
     
     try {
       const response = await API.get("/buysellapi/admin/unread-counts/", {
-        cacheDuration: CACHE_DURATION.SHORT, // 30 seconds
+        noCache: true,
+        cacheDuration: 0,
       });
       if (response?.data) {
         const counts = {
@@ -475,6 +606,7 @@ const AdminDashboard = () => {
           digital_orders: response.data.digital_orders || 0,
           training: response.data.training || 0,
           community: response.data.community_pending || 0,
+          executive: response.data.executive_pending || 0,
           agentRequests: response.data.agent_requests || 0,
           localAgentRequests: response.data.local_agent_requests || 0,
           rewardClaims: response.data.reward_claims || 0,
@@ -1464,282 +1596,11 @@ const AdminDashboard = () => {
               Shipping Management
             </h2>
 
-            {/* Shipping Tabs */}
-            <div className="border-b border-gray-200 dark:border-gray-700 mb-6">
-              <div className="flex flex-wrap">
-                {/* 1. Trackingnumber */}
-                <button
-                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
-                    shippingSubMenu === "tracking"
-                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
-                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  }`}
-                  onClick={() => setShippingSubMenu("tracking")}
-                >
-                  <div className="flex items-center gap-2">
-                    <FaTruck className="w-4 h-4" />
-                    <span>Tracking Numbers</span>
-                  </div>
-                </button>
-
-                {/* 1b. Quick Tracking Notes */}
-                <button
-                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
-                    shippingSubMenu === "quick-tracking-notes"
-                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
-                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  }`}
-                  onClick={() => setShippingSubMenu("quick-tracking-notes")}
-                >
-                  <div className="flex items-center gap-2">
-                    <FaBookmark className="w-4 h-4" />
-                    <span>Quick Tracking Notes</span>
-                  </div>
-                </button>
-
-                {/* 2. Container */}
-                <button
-                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
-                    shippingSubMenu === "containers"
-                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
-                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  }`}
-                  onClick={() => setShippingSubMenu("containers")}
-                >
-                  <div className="flex items-center gap-2">
-                    <FaBox className="w-4 h-4" />
-                    <span>Containers</span>
-                  </div>
-                </button>
-
-                {/* 2b. Container Expenses */}
-                <button
-                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
-                    shippingSubMenu === "container-expenses"
-                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
-                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  }`}
-                  onClick={() => setShippingSubMenu("container-expenses")}
-                >
-                  <div className="flex items-center gap-2">
-                    <FaDollarSign className="w-4 h-4" />
-                    <span>Container Expenses</span>
-                  </div>
-                </button>
-
-                {/* 3. Invoices */}
-                <button
-                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
-                    shippingSubMenu === "invoices"
-                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
-                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  }`}
-                  onClick={() => setShippingSubMenu("invoices")}
-                >
-                  <div className="flex items-center gap-2">
-                    <FaFileInvoice className="w-4 h-4" />
-                    <span>Invoices</span>
-                  </div>
-                </button>
-
-                {/* 3b. Shipping payment proofs */}
-                <button
-                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
-                    shippingSubMenu === "payment-proofs"
-                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
-                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  }`}
-                  onClick={() => setShippingSubMenu("payment-proofs")}
-                >
-                  <div className="flex items-center gap-2">
-                    <FaFileInvoice className="w-4 h-4" />
-                    <span>Payment Proofs</span>
-                    {unreadCounts.shippingPaymentProofs > 0 && (
-                      <span className="ml-1 px-2 py-0.5 text-xs font-bold bg-red-500 text-white rounded-full">
-                        {unreadCounts.shippingPaymentProofs > 99
-                          ? "99+"
-                          : unreadCounts.shippingPaymentProofs}
-                      </span>
-                    )}
-                  </div>
-                </button>
-
-                {/* 3c. China Excel uploads */}
-                <button
-                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
-                    shippingSubMenu === "china-excel"
-                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
-                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  }`}
-                  onClick={() => setShippingSubMenu("china-excel")}
-                >
-                  <div className="flex items-center gap-2">
-                    <FaFileInvoice className="w-4 h-4" />
-                    <span>China Excel</span>
-                  </div>
-                </button>
-
-                {/* 4. Shipping Rates */}
-                <button
-                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
-                    shippingSubMenu === "rates"
-                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
-                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  }`}
-                  onClick={() => setShippingSubMenu("rates")}
-                >
-                  <div className="flex items-center gap-2">
-                    <FaDollarSign className="w-4 h-4" />
-                    <span>Shipping Rates</span>
-                  </div>
-                </button>
-
-                {/* 5. Ad Shipping Rates */}
-                <button
-                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
-                    shippingSubMenu === "ad-rates"
-                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
-                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  }`}
-                  onClick={() => setShippingSubMenu("ad-rates")}
-                >
-                  <div className="flex items-center gap-2">
-                    <FaDollarSign className="w-4 h-4" />
-                    <span>Ad Shipping Rates</span>
-                  </div>
-                </button>
-
-                {/* 6. Air Ad Services */}
-                <button
-                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
-                    shippingSubMenu === "air-ad-services"
-                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
-                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  }`}
-                  onClick={() => setShippingSubMenu("air-ad-services")}
-                >
-                  <div className="flex items-center gap-2">
-                    <FaShippingFast className="w-4 h-4" />
-                    <span>Air Ad Services</span>
-                  </div>
-                </button>
-
-                {/* 7. Local Agent */}
-                <button
-                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
-                    shippingSubMenu === "local-agent"
-                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
-                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  }`}
-                  onClick={() => setShippingSubMenu("local-agent")}
-                >
-                  <div className="flex items-center gap-2">
-                    <FaMapMarkerAlt className="w-4 h-4" />
-                    <span>Local Agent</span>
-                  </div>
-                </button>
-
-                {/* 8. Local Agent Settings */}
-                <button
-                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
-                    shippingSubMenu === "local-agent-settings"
-                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
-                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  }`}
-                  onClick={() => setShippingSubMenu("local-agent-settings")}
-                >
-                  <div className="flex items-center gap-2">
-                    <FaCog className="w-4 h-4" />
-                    <span>Local Agent Settings</span>
-                  </div>
-                </button>
-
-                {/* 8. Local Agent Requests */}
-                <button
-                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
-                    shippingSubMenu === "local-agent-requests"
-                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
-                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  }`}
-                  onClick={() => setShippingSubMenu("local-agent-requests")}
-                >
-                  <div className="flex items-center gap-2">
-                    <FaUserTag className="w-4 h-4" />
-                    <span>Local Agent Requests</span>
-                    {unreadCounts.localAgentRequests > 0 && (
-                      <span className="ml-1 inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold rounded-full bg-red-500 text-white">
-                        {unreadCounts.localAgentRequests}
-                      </span>
-                    )}
-                  </div>
-                </button>
-
-                {/* 9. Reward Claims */}
-                <button
-                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
-                    shippingSubMenu === "local-agent-reward-claims"
-                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
-                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  }`}
-                  onClick={() => setShippingSubMenu("local-agent-reward-claims")}
-                >
-                  <div className="flex items-center gap-2">
-                    <FaGift className="w-4 h-4" />
-                    <span>Reward Claims</span>
-                    {unreadCounts.rewardClaims > 0 && (
-                      <span className="ml-1 inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold rounded-full bg-red-500 text-white">
-                        {unreadCounts.rewardClaims}
-                      </span>
-                    )}
-                  </div>
-                </button>
-
-                {/* 10. China Address Management */}
-                <button
-                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
-                    shippingSubMenu === "addresses"
-                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
-                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  }`}
-                  onClick={() => setShippingSubMenu("addresses")}
-                >
-                  <div className="flex items-center gap-2">
-                    <FaMapMarkerAlt className="w-4 h-4" />
-                    <span>China Address Management</span>
-                  </div>
-                </button>
-
-                {/* Address Generators (USA, Dubai, etc.) */}
-                <button
-                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
-                    shippingSubMenu === "warehouse-addresses"
-                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
-                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  }`}
-                  onClick={() => setShippingSubMenu("warehouse-addresses")}
-                >
-                  <div className="flex items-center gap-2">
-                    <FaMapMarkerAlt className="w-4 h-4" />
-                    <span>Address Generators</span>
-                  </div>
-                </button>
-
-                {/* Keep Shipping Marks Viewer at the end */}
-                <button
-                  className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
-                    shippingSubMenu === "shipping-marks"
-                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
-                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  }`}
-                  onClick={() => setShippingSubMenu("shipping-marks")}
-                >
-                  <div className="flex items-center gap-2">
-                    <FaTag className="w-4 h-4" />
-                    <span>Shipping Marks Viewer</span>
-                  </div>
-                </button>
-              </div>
-            </div>
+            <ShippingSectionNav
+              activeId={shippingSubMenu}
+              onSelect={setShippingSubMenu}
+              unreadCounts={unreadCounts}
+            />
 
             {/* Shipping Content */}
             {shippingSubMenu === "tracking" ? (
@@ -2143,14 +2004,24 @@ const AdminDashboard = () => {
             )}
           </div>
         );
+      case "finance":
+        return (
+          <FinanceManagement
+            onOpenContainerExpenses={() => {
+              setActiveSection("shipping");
+              setShippingSubMenu("container-expenses");
+            }}
+          />
+        );
       case "analytics":
         return (
-          <div className="p-6">
-            <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">
-              Analytics
-            </h2>
-            <div className="border-b border-gray-200 dark:border-gray-700 mb-6">
-              <div className="flex flex-wrap">
+          <div className="min-h-full bg-gray-50 p-6 text-gray-900 dark:bg-gray-950 dark:text-white">
+            <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-semibold tracking-tight">Analytics overview</h2>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Site, shipping, and sales</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
                 {[
                   { key: "overview", label: "Overview" },
                   { key: "site", label: "Site" },
@@ -2166,20 +2037,17 @@ const AdminDashboard = () => {
                   <button
                     key={tab.key}
                     onClick={() => setAnalyticsTab(tab.key)}
-                    className={`py-3 px-6 font-medium text-sm rounded-t-lg mr-2 ${
+                    className={`rounded-full border px-3 py-1.5 text-sm ${
                       analyticsTab === tab.key
-                        ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600"
-                        : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        ? "border-gray-300 bg-white text-gray-900 dark:border-white/20 dark:bg-gray-700 dark:text-white"
+                        : "border-transparent text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
                     }`}
                   >
-                    <div className="flex items-center gap-2">
-                      <span>{tab.label}</span>
-                    </div>
+                    {tab.label}
                   </button>
                 ))}
               </div>
             </div>
-
             <Analytics activeTab={analyticsTab} />
           </div>
         );
@@ -2285,6 +2153,7 @@ const AdminDashboard = () => {
     }
     if (section === "training") return unreadCounts.training;
     if (section === "community") return unreadCounts.community;
+    if (section === "executive-members") return unreadCounts.executive || 0;
     if (section === "delivery") return unreadCounts.delivery;
     if (section === "shipping") {
       return unreadCounts.shippingPaymentProofs || 0;
@@ -2349,14 +2218,14 @@ const AdminDashboard = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
+      <div className="admin-root min-h-screen bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
       </div>
     );
   }
 
   return (
-    <div className={`min-h-screen flex bg-gray-50 dark:bg-gray-900 ${darkMode ? "dark" : ""}`}>
+    <div className={`admin-root min-h-screen flex bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100 ${darkMode ? "dark" : ""}`}>
       {/* Sidebar */}
       <div
         className={`bg-white dark:bg-gray-800 shadow-lg transition-all duration-300 ${
@@ -2878,6 +2747,8 @@ const AdminDashboard = () => {
                             setQuickTabsOpen(false);
                             setEcommerceOpen(false);
                             setMembershipOpen((o) => !o);
+                            clearCache("admin-unread-counts");
+                            fetchUnreadCounts();
                           }}
                           className={`w-full flex items-center relative ${
                             isSidebarOpen ? "justify-between gap-2" : "justify-center"
@@ -3090,7 +2961,7 @@ const AdminDashboard = () => {
 
       {/* Main Content */}
       <div
-        className={`flex-1 transition-all duration-300 bg-gray-50 dark:bg-gray-900 ${
+        className={`flex-1 min-w-0 overflow-x-auto transition-all duration-300 bg-gray-50 dark:bg-gray-900 ${
           isSidebarOpen ? "ml-64" : "ml-20"
         }`}
       >

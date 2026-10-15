@@ -35,6 +35,8 @@ const emptyForm = () => ({
   expectedSellingPrice: "",
   saleEnabled: false,
   salePrice: "",
+  adminChargeType: "",
+  adminChargeValue: "",
   active: true,
 });
 
@@ -52,6 +54,11 @@ const mapProduct = (product) => ({
   expectedSellingPrice: product.expected_selling_price ?? 0,
   saleEnabled: Boolean(product.sale_enabled),
   salePrice: product.sale_price ?? "",
+  adminChargeType: product.admin_charge_type || "",
+  adminChargeValue:
+    product.admin_charge_value != null && product.admin_charge_value !== ""
+      ? String(product.admin_charge_value)
+      : "",
   effectiveUnitPrice: product.effective_unit_price ?? product.unit_cost ?? 0,
   minOrderTotal: product.min_order_total ?? 0,
   active: product.is_active !== undefined ? product.is_active : true,
@@ -140,6 +147,8 @@ const QuickOrderProducts = () => {
       expectedSellingPrice: product.expectedSellingPrice,
       saleEnabled: product.saleEnabled,
       salePrice: product.salePrice || "",
+      adminChargeType: product.adminChargeType || "",
+      adminChargeValue: product.adminChargeValue || "",
       active: product.active,
     });
     setEditMode(true);
@@ -228,10 +237,17 @@ const QuickOrderProducts = () => {
   };
 
   const moqPreview = Number(formData.minQuantity) || 0;
-  const unitPreview = formData.saleEnabled
-    ? Number(formData.salePrice) || 0
-    : Number(formData.unitCost) || 0;
-  const minOrderPreview = (unitPreview * moqPreview).toFixed(2);
+  const unitCostPreview = Number(formData.unitCost) || 0;
+  const sellingPreview = Number(formData.expectedSellingPrice) || 0;
+  const salePreview = Number(formData.salePrice) || 0;
+  const customerUnitPreview =
+    formData.saleEnabled && salePreview > 0
+      ? salePreview
+      : sellingPreview > 0
+        ? sellingPreview
+        : unitCostPreview;
+  const cutPreview = Math.max(customerUnitPreview - unitCostPreview, 0);
+  const minOrderPreview = (customerUnitPreview * moqPreview).toFixed(2);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -266,6 +282,8 @@ const QuickOrderProducts = () => {
         sale_price: formData.saleEnabled
           ? parseFloat(formData.salePrice) || 0
           : null,
+        admin_charge_type: null,
+        admin_charge_value: null,
         is_active: formData.active !== undefined ? formData.active : true,
       };
 
@@ -289,6 +307,8 @@ const QuickOrderProducts = () => {
             data.detail ||
             data.arriving_date?.[0] ||
             data.sale_price?.[0] ||
+            data.admin_charge_value?.[0] ||
+            data.admin_charge_type?.[0] ||
             data.min_quantity?.[0] ||
             Object.values(data).flat?.()?.[0])) ||
         error.message ||
@@ -428,10 +448,11 @@ const QuickOrderProducts = () => {
                   className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
                   required
                 />
+                <p className="text-xs text-gray-500 mt-1">What the goods cost the company</p>
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">
-                  Expected selling price (GHS)
+                  Selling price (GHS)
                 </label>
                 <input
                   type="number"
@@ -442,6 +463,7 @@ const QuickOrderProducts = () => {
                   min="0"
                   className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
                 />
+                <p className="text-xs text-gray-500 mt-1">What the customer pays</p>
               </div>
             </div>
 
@@ -474,7 +496,9 @@ const QuickOrderProducts = () => {
                 </div>
               )}
               <p className="text-sm text-gray-700 dark:text-gray-300">
-                MOQ total (unit × MOQ): <strong>GHS {minOrderPreview}</strong>
+                Customer pays <strong>GHS {customerUnitPreview.toFixed(2)}</strong> per
+                unit. Admin cut <strong>GHS {cutPreview.toFixed(2)}</strong> (customer
+                price minus unit cost). MOQ total <strong>GHS {minOrderPreview}</strong>.
               </p>
             </div>
 
@@ -646,8 +670,16 @@ const QuickOrderProducts = () => {
                     MOQ {product.minQuantity} · Available {product.totalQuantity}
                   </p>
                   <p>
-                    Unit GHS {Number(product.effectiveUnitPrice).toFixed(2)}
+                    Unit cost GHS {Number(product.unitCost).toFixed(2)} · Selling GHS{" "}
+                    {Number(product.effectiveUnitPrice).toFixed(2)}
                     {product.saleEnabled ? " (sale)" : ""}
+                  </p>
+                  <p>
+                    Admin cut GHS{" "}
+                    {Math.max(
+                      Number(product.effectiveUnitPrice) - Number(product.unitCost),
+                      0
+                    ).toFixed(2)}
                   </p>
                   <p>
                     MOQ total GHS {Number(product.minOrderTotal).toFixed(2)}
