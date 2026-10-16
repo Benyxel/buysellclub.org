@@ -136,6 +136,7 @@ export default function FinanceManagement({ onOpenContainerExpenses }) {
   const [view, setView] = useState("overview");
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState(null);
+  const [expenseOpen, setExpenseOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const dark = useDarkMode();
 
@@ -193,6 +194,23 @@ export default function FinanceManagement({ onOpenContainerExpenses }) {
     }
   };
 
+  const blankExpense = () => ({
+    ...EMPTY_FORM,
+    expense_date: new Date().toISOString().slice(0, 10),
+  });
+
+  const closeExpense = () => {
+    setExpenseOpen(false);
+    setEditingId(null);
+    setForm(blankExpense());
+  };
+
+  const startAdd = () => {
+    setEditingId(null);
+    setForm(blankExpense());
+    setExpenseOpen(true);
+  };
+
   const startEdit = (expense) => {
     setEditingId(expense.id);
     setForm({
@@ -203,6 +221,7 @@ export default function FinanceManagement({ onOpenContainerExpenses }) {
       description: expense.description || "",
       container: expense.container_id ? String(expense.container_id) : "",
     });
+    setExpenseOpen(true);
     setView("expenses");
   };
 
@@ -225,11 +244,7 @@ export default function FinanceManagement({ onOpenContainerExpenses }) {
         await API.post("/buysellapi/admin/finance/expenses/", body);
         toast.success("Expense added");
       }
-      setEditingId(null);
-      setForm({
-        ...EMPTY_FORM,
-        expense_date: new Date().toISOString().slice(0, 10),
-      });
+      closeExpense();
       setView("expenses");
       await load();
     } catch (err) {
@@ -403,15 +418,11 @@ export default function FinanceManagement({ onOpenContainerExpenses }) {
           form={form}
           setForm={setForm}
           editingId={editingId}
+          expenseOpen={expenseOpen}
           saving={saving}
           onSubmit={saveExpense}
-          onCancel={() => {
-            setEditingId(null);
-            setForm({
-              ...EMPTY_FORM,
-              expense_date: new Date().toISOString().slice(0, 10),
-            });
-          }}
+          onAdd={startAdd}
+          onCancel={closeExpense}
           companyExpenses={report?.company_expenses || []}
           containerExpenses={report?.container_expenses || []}
           containerOptions={report?.container_options || []}
@@ -700,8 +711,10 @@ function ExpensesPanel({
   form,
   setForm,
   editingId,
+  expenseOpen,
   saving,
   onSubmit,
+  onAdd,
   onCancel,
   companyExpenses,
   containerExpenses,
@@ -715,9 +728,12 @@ function ExpensesPanel({
 
   return (
     <div className="space-y-4">
+      {expenseOpen ? (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onCancel}>
       <form
         onSubmit={onSubmit}
-        className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-gray-800"
+        onClick={(event) => event.stopPropagation()}
+        className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-gray-800"
       >
         <div className="mb-4">
           <h3 className="text-lg font-semibold">{editingId ? "Edit expense" : "Add expense"}</h3>
@@ -811,22 +827,31 @@ function ExpensesPanel({
           >
             {saving ? "Saving…" : editingId ? "Save changes" : "Add expense"}
           </button>
-          {editingId ? (
-            <button
-              type="button"
-              onClick={onCancel}
-              className="rounded-xl px-4 py-2.5 text-sm text-gray-500 dark:text-gray-400"
-            >
-              Cancel edit
-            </button>
-          ) : null}
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-xl px-4 py-2.5 text-sm text-gray-500 dark:text-gray-400"
+          >
+            Cancel
+          </button>
         </div>
       </form>
+      </div>
+      ) : null}
 
       <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-white/10 dark:bg-gray-800">
-        <div className="border-b border-gray-200 px-5 py-4 dark:border-white/10">
-          <h3 className="font-semibold">Company expenses</h3>
-          <p className="text-xs text-gray-500 dark:text-gray-400">Entered by an admin for this period</p>
+        <div className="flex items-center justify-between gap-3 border-b border-gray-200 px-5 py-4 dark:border-white/10">
+          <div>
+            <h3 className="font-semibold">Company expenses</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Entered by an admin for this period</p>
+          </div>
+          <button
+            type="button"
+            onClick={onAdd}
+            className="rounded-xl bg-[#7c6cf0] px-4 py-2 text-sm font-medium text-white"
+          >
+            Add expense
+          </button>
         </div>
         <ExpenseTable rows={companyExpenses} onEdit={onEdit} onDelete={onDelete} />
       </section>
