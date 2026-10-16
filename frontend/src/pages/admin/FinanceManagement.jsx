@@ -91,6 +91,7 @@ const SOURCE_COLORS = [
 const EXPENSE_COLORS = ["#7c6cf0", "#a78bfa", "#60a5fa", "#34d399", "#fb7185"];
 const PANEL_PAGE_SIZE = 20;
 const CONTAINER_PAGE_SIZE = 5;
+const EXPENSE_PAGE_SIZE = 10;
 
 function useDarkMode() {
   const [dark, setDark] = useState(() =>
@@ -837,37 +838,41 @@ function ExpensesPanel({
             Read-only. Open a container to change port or handling costs.
           </p>
         </div>
-        <table className="min-w-full text-sm">
-          <thead className="bg-gray-50 text-left text-gray-500 dark:bg-gray-900 dark:text-gray-400">
-            <tr>
-              <th className="px-4 py-2">Container</th>
-              <th className="px-4 py-2">Date</th>
-              <th className="px-4 py-2">Amount</th>
-              <th className="px-4 py-2">Note</th>
-            </tr>
-          </thead>
-          <tbody>
-            {containerExpenses.length === 0 && (
-              <tr>
-                <td className="px-4 py-4 text-gray-500 dark:text-gray-400" colSpan={4}>
-                  No container expenses in this period.
-                </td>
-              </tr>
-            )}
-            {containerExpenses.map((row) => (
-              <tr key={row.id} className="border-t border-gray-200 dark:border-white/10">
-                <td className="px-4 py-3">
-                  <button type="button" className="font-medium text-[#7c6cf0]" onClick={onOpenContainerExpenses}>
-                    {row.container_number}
-                  </button>
-                </td>
-                <td className="px-4 py-3">{row.expense_date}</td>
-                <td className="px-4 py-3">{money(row.amount)}</td>
-                <td className="px-4 py-3">{row.description || "—"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <PagedRows rows={containerExpenses}>
+          {(visible) => (
+            <table className="min-w-full text-sm">
+              <thead className="bg-gray-50 text-left text-gray-500 dark:bg-gray-900 dark:text-gray-400">
+                <tr>
+                  <th className="px-4 py-2">Container</th>
+                  <th className="px-4 py-2">Date</th>
+                  <th className="px-4 py-2">Amount</th>
+                  <th className="px-4 py-2">Note</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visible.length === 0 && (
+                  <tr>
+                    <td className="px-4 py-4 text-gray-500 dark:text-gray-400" colSpan={4}>
+                      No container expenses in this period.
+                    </td>
+                  </tr>
+                )}
+                {visible.map((row) => (
+                  <tr key={row.id} className="border-t border-gray-200 dark:border-white/10">
+                    <td className="px-4 py-3">
+                      <button type="button" className="font-medium text-[#7c6cf0]" onClick={onOpenContainerExpenses}>
+                        {row.container_number}
+                      </button>
+                    </td>
+                    <td className="px-4 py-3">{row.expense_date}</td>
+                    <td className="px-4 py-3">{money(row.amount)}</td>
+                    <td className="px-4 py-3">{row.description || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </PagedRows>
       </section>
     </div>
   );
@@ -875,6 +880,8 @@ function ExpensesPanel({
 
 function ExpenseTable({ rows, onEdit, onDelete }) {
   return (
+    <PagedRows rows={rows}>
+      {(visible) => (
     <table className="min-w-full text-sm">
       <thead className="bg-gray-50 dark:bg-gray-900 text-left text-gray-500 dark:text-gray-400">
         <tr>
@@ -887,14 +894,14 @@ function ExpenseTable({ rows, onEdit, onDelete }) {
         </tr>
       </thead>
       <tbody>
-        {rows.length === 0 && (
+        {visible.length === 0 && (
           <tr>
             <td className="px-4 py-4 text-gray-500 dark:text-gray-400" colSpan={6}>
               No company expenses in this period.
             </td>
           </tr>
         )}
-        {rows.map((row) => (
+        {visible.map((row) => (
           <tr key={row.id} className="border-t border-gray-200 dark:border-white/10">
             <td className="px-4 py-3">{row.category_label}</td>
             <td className="px-4 py-3">{row.expense_date}</td>
@@ -916,6 +923,55 @@ function ExpenseTable({ rows, onEdit, onDelete }) {
         ))}
       </tbody>
     </table>
+      )}
+    </PagedRows>
+  );
+}
+
+function PagedRows({ rows, children }) {
+  const [page, setPage] = useState(1);
+  useEffect(() => {
+    setPage(1);
+  }, [rows]);
+  const total = rows.length;
+  const totalPages = Math.max(1, Math.ceil(total / EXPENSE_PAGE_SIZE));
+  const safePage = Math.min(Math.max(page, 1), totalPages);
+  const start = (safePage - 1) * EXPENSE_PAGE_SIZE;
+  const visible = rows.slice(start, start + EXPENSE_PAGE_SIZE);
+  const from = total === 0 ? 0 : start + 1;
+  const to = Math.min(start + EXPENSE_PAGE_SIZE, total);
+  return (
+    <div>
+      {children(visible)}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between border-t border-gray-200 px-4 py-3 text-sm text-gray-500 dark:border-white/10 dark:text-gray-400">
+          <span>
+            {from}–{to} of {total}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={safePage <= 1}
+              onClick={() => setPage(safePage - 1)}
+              className="rounded-lg border border-gray-200 px-3 py-1.5 disabled:opacity-40 dark:border-white/10"
+            >
+              Previous
+            </button>
+            <span>
+              {safePage} / {totalPages}
+            </span>
+            <button
+              type="button"
+              disabled={safePage >= totalPages}
+              onClick={() => setPage(safePage + 1)}
+              className="rounded-lg border border-gray-200 px-3 py-1.5 disabled:opacity-40 dark:border-white/10"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
