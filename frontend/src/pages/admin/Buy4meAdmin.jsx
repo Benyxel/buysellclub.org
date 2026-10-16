@@ -21,6 +21,7 @@ import {
 } from '../../api';
 import API from '../../api';
 import { formatCompactCount } from '../../utils/formatCompactCount';
+import { proofImageSrc } from '../../utils/proofImage';
 
 const Buy4meAdmin = () => {
   const [requests, setRequests] = useState([]);
@@ -45,6 +46,7 @@ const Buy4meAdmin = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [previewProof, setPreviewProof] = useState('');
+  const [proofLoadingId, setProofLoadingId] = useState(null);
   const [downloadingInvoiceId, setDownloadingInvoiceId] = useState(null);
   
   // Settings state
@@ -264,6 +266,30 @@ const Buy4meAdmin = () => {
       setTotal(0);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const openPaymentProof = async (request) => {
+    const existing = request.proof_of_payment || request.proofOfPayment;
+    if (proofImageSrc(existing)) {
+      setPreviewProof(existing);
+      return;
+    }
+    const requestId = request?.id || request?._id;
+    if (!requestId) return;
+    setProofLoadingId(requestId);
+    try {
+      const response = await getAdminBuy4meRequest(requestId);
+      const proof = response?.data?.proof_of_payment;
+      if (proofImageSrc(proof)) {
+        setPreviewProof(proof);
+      } else {
+        toast.error("No payment proof on this request");
+      }
+    } catch (error) {
+      toast.error("Could not load payment proof");
+    } finally {
+      setProofLoadingId(null);
     }
   };
 
@@ -980,6 +1006,9 @@ const Buy4meAdmin = () => {
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Invoice
                 </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  Proof
+                </th>
                 <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Actions
                 </th>
@@ -988,7 +1017,7 @@ const Buy4meAdmin = () => {
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {loading ? (
                 <tr>
-                  <td colSpan="8" className="px-6 py-4 text-center">
+                  <td colSpan="9" className="px-6 py-4 text-center">
                     <div className="flex justify-center">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                     </div>
@@ -996,7 +1025,7 @@ const Buy4meAdmin = () => {
                 </tr>
               ) : filteredRequests.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan="9" className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
                     No Buy4me requests found
                   </td>
                 </tr>
@@ -1088,6 +1117,33 @@ const Buy4meAdmin = () => {
                         <span className="text-sm text-gray-500 dark:text-gray-400">
                           {request.status === 'pending' ? 'Pending Approval' : 'Not Available'}
                         </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {proofImageSrc(request.proof_of_payment || request.proofOfPayment) ? (
+                        <button
+                          type="button"
+                          onClick={() => openPaymentProof(request)}
+                          title="View payment proof"
+                        >
+                          <img
+                            src={request.proof_of_payment || request.proofOfPayment}
+                            alt="Payment proof"
+                            className="h-14 w-14 rounded border object-cover"
+                          />
+                        </button>
+                      ) : request.has_proof ? (
+                        <button
+                          type="button"
+                          onClick={() => openPaymentProof(request)}
+                          disabled={proofLoadingId === (request.id || request._id)}
+                          className="text-sm text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+                          title="View payment proof"
+                        >
+                          {proofLoadingId === (request.id || request._id) ? "Loading..." : "View proof"}
+                        </button>
+                      ) : (
+                        <span className="text-sm text-gray-500 dark:text-gray-400">No proof</span>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-gray-900 dark:text-white">
