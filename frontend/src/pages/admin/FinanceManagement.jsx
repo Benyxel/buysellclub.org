@@ -429,6 +429,8 @@ export default function FinanceManagement({ onOpenContainerExpenses }) {
           onEdit={startEdit}
           onDelete={removeExpense}
           onOpenContainerExpenses={onOpenContainerExpenses}
+          points={report?.months || []}
+          dark={dark}
         />
       ) : (
         <>
@@ -722,12 +724,31 @@ function ExpensesPanel({
   onEdit,
   onDelete,
   onOpenContainerExpenses,
+  points,
+  dark,
 }) {
   const fieldClass =
     "w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-[#7c6cf0] dark:border-white/10 dark:bg-gray-900 dark:text-white";
 
+  const grain = expenseGrain(points);
   return (
     <div className="space-y-4">
+      <section className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-gray-800">
+        <h3 className="font-semibold">Expenses</h3>
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          Company and container expenses · {grain}
+        </p>
+        <div className="mt-2 h-[240px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={points}>
+              <CartesianGrid vertical stroke={dark ? "#2a3348" : "#e5e7eb"} strokeDasharray="3 6" horizontal={false} />
+              <XAxis dataKey="label" axisLine={false} tickLine={false} minTickGap={28} tick={{ fill: dark ? "#8b93a7" : "#6b7280", fontSize: 11 }} />
+              <Tooltip content={<FinanceTooltip />} />
+              <Line type="monotone" dataKey="expenses_ghs" name="Expenses" stroke="#f5b942" strokeWidth={2.5} dot={{ r: 3, strokeWidth: 0, fill: "#f5b942" }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </section>
       {expenseOpen ? (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onCancel}>
       <form
@@ -951,6 +972,13 @@ function ExpenseTable({ rows, onEdit, onDelete }) {
       )}
     </PagedRows>
   );
+}
+
+function expenseGrain(points) {
+  const label = points[0]?.label || "";
+  if (/^\d{4}$/.test(label)) return "by year";
+  if (/\d{4}$/.test(label)) return "by month";
+  return "by day";
 }
 
 function PagedRows({ rows, children }) {
