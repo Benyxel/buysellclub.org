@@ -14,6 +14,7 @@ import {
 } from "recharts";
 
 const PRESETS = [
+  { id: "this_year", label: "This year" },
   { id: "custom", label: "Custom" },
   { id: "all", label: "All time" },
 ];
@@ -310,25 +311,6 @@ export default function FinanceManagement({ onOpenContainerExpenses }) {
         </div>
         <div className="flex max-w-3xl flex-col items-end gap-2">
           <div className="flex flex-wrap justify-end gap-1.5">
-            {YEAR_CHOICES.map((item) => (
-              <button
-                key={item}
-                type="button"
-                onClick={() => {
-                  setYear(item);
-                  setPreset(`year-${item}`);
-                }}
-                className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${
-                  preset === `year-${item}` || preset.startsWith(`month-${item}-`)
-                    ? "border-[#7c6cf0] bg-[#7c6cf0] text-white"
-                    : "border-gray-200 bg-white text-gray-600 dark:border-white/10 dark:bg-gray-800 dark:text-gray-300"
-                }`}
-              >
-                {item}
-              </button>
-            ))}
-          </div>
-          <div className="flex flex-wrap justify-end gap-1.5">
             {yearMonths.map((item) => (
               <button
                 key={item.id}
@@ -345,11 +327,32 @@ export default function FinanceManagement({ onOpenContainerExpenses }) {
             ))}
           </div>
           <div className="flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+            Year
+            <select
+              value={year}
+              onChange={(event) => {
+                const nextYear = Number(event.target.value);
+                setYear(nextYear);
+                setPreset(nextYear === CURRENT_YEAR ? "this_year" : `year-${nextYear}`);
+              }}
+              className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-900 dark:border-white/10 dark:bg-gray-800 dark:text-white"
+            >
+              {YEAR_CHOICES.map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+            </select>
+          </label>
           {PRESETS.map((item) => (
             <button
               key={item.id}
               type="button"
-              onClick={() => setPreset(item.id)}
+              onClick={() => {
+                if (item.id === "this_year") setYear(CURRENT_YEAR);
+                setPreset(item.id);
+              }}
               className={`rounded-full border px-3 py-1.5 text-sm ${
                 preset === item.id
                   ? "border-gray-300 bg-white text-gray-900 dark:border-white/20 dark:bg-gray-700 dark:text-white"
