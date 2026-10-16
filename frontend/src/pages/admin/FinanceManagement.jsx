@@ -20,7 +20,7 @@ const PRESETS = [
 ];
 
 const CURRENT_YEAR = new Date().getFullYear();
-const FIRST_FINANCE_YEAR = 2020;
+const FIRST_FINANCE_YEAR = 1990;
 const YEAR_CHOICES = Array.from(
   { length: CURRENT_YEAR - FIRST_FINANCE_YEAR + 1 },
   (_, index) => FIRST_FINANCE_YEAR + index
