@@ -14,20 +14,24 @@ import {
 } from "recharts";
 
 const PRESETS = [
-  { id: "this_year", label: "This year" },
   { id: "custom", label: "Custom" },
   { id: "all", label: "All time" },
 ];
 
-const FINANCE_YEAR = new Date().getFullYear();
-const CURRENT_MONTH_ID = `month-${FINANCE_YEAR}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
-const YEAR_MONTHS = Array.from({ length: 12 }, (_, index) => {
-  const month = String(index + 1).padStart(2, "0");
-  const id = `month-${FINANCE_YEAR}-${month}`;
-  const label = new Date(FINANCE_YEAR, index, 1).toLocaleString("en-GB", { month: "long" });
-  const short = new Date(FINANCE_YEAR, index, 1).toLocaleString("en-GB", { month: "short" });
-  return { id, label, short };
-});
+const CURRENT_YEAR = new Date().getFullYear();
+const YEAR_CHOICES = Array.from({ length: 6 }, (_, index) => CURRENT_YEAR - 5 + index);
+const CURRENT_MONTH_ID = `month-${CURRENT_YEAR}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
+
+function monthsForYear(year) {
+  return Array.from({ length: 12 }, (_, index) => {
+    const month = String(index + 1).padStart(2, "0");
+    return {
+      id: `month-${year}-${month}`,
+      label: new Date(year, index, 1).toLocaleString("en-GB", { month: "long", year: "numeric" }),
+      short: new Date(year, index, 1).toLocaleString("en-GB", { month: "short" }),
+    };
+  });
+}
 const HIDDEN_SOURCES = new Set(["courses", "membership_cards"]);
 
 const CATEGORIES = [
@@ -112,6 +116,7 @@ function FinanceTooltip({ active, payload, label }) {
 }
 
 export default function FinanceManagement({ onOpenContainerExpenses }) {
+  const [year, setYear] = useState(CURRENT_YEAR);
   const [preset, setPreset] = useState(CURRENT_MONTH_ID);
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
@@ -240,8 +245,10 @@ export default function FinanceManagement({ onOpenContainerExpenses }) {
   };
 
   const summary = report?.summary;
+  const yearMonths = monthsForYear(year);
   const periodName =
-    YEAR_MONTHS.find((item) => item.id === preset)?.label ||
+    yearMonths.find((item) => item.id === preset)?.label ||
+    (preset.startsWith("year-") ? preset.slice(5) : "") ||
     PRESETS.find((item) => item.id === preset)?.label ||
     "This month";
   const cards = [
@@ -303,7 +310,26 @@ export default function FinanceManagement({ onOpenContainerExpenses }) {
         </div>
         <div className="flex max-w-3xl flex-col items-end gap-2">
           <div className="flex flex-wrap justify-end gap-1.5">
-            {YEAR_MONTHS.map((item) => (
+            {YEAR_CHOICES.map((item) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => {
+                  setYear(item);
+                  setPreset(`year-${item}`);
+                }}
+                className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${
+                  preset === `year-${item}` || preset.startsWith(`month-${item}-`)
+                    ? "border-[#7c6cf0] bg-[#7c6cf0] text-white"
+                    : "border-gray-200 bg-white text-gray-600 dark:border-white/10 dark:bg-gray-800 dark:text-gray-300"
+                }`}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-wrap justify-end gap-1.5">
+            {yearMonths.map((item) => (
               <button
                 key={item.id}
                 type="button"
