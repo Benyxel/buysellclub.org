@@ -190,26 +190,31 @@ const UsersManagement = ({ adminsOnly = false } = {}) => {
   const availableMenuItems = [
     { label: "Dashboard", section: "dashboard" },
     { label: "Users", section: "users" },
+    { label: "Admins", section: "admins" },
     { label: "Shipping", section: "shipping" },
     { label: "Delivery", section: "delivery" },
     { label: "Alipay Payments", section: "alipay-payments" },
     { label: "Alipay Buying Rate", section: "alipay-buying-rate" },
     { label: "Buy4me", section: "buy4me" },
     { label: "Agent Management", section: "agents" },
-    { label: "Orders", section: "orders" },
+    { label: "Messages", section: "messages" },
+    { label: "Bulk Email", section: "bulk-email" },
     { label: "Community", section: "community" },
     { label: "Executive Members", section: "executive-members" },
     { label: "Card Holders", section: "card-holders" },
+    { label: "Orders", section: "orders" },
     { label: "Products", section: "products" },
     { label: "Categories", section: "categories" },
     { label: "Training", section: "training" },
+    { label: "Shop", section: "shop" },
     { label: "YouTube", section: "youtube" },
     { label: "Home Announcements", section: "home-announcements" },
     { label: "Gallery", section: "gallery" },
     { label: "Wholesale Orders", section: "quick-orders" },
-    { label: "Messages", section: "messages" },
     { label: "Analytics", section: "analytics" },
+    { label: "Finance", section: "finance" },
     { label: "Staff", section: "staff" },
+    { label: "App Updates", section: "app-updates" },
     { label: "Settings", section: "settings" },
   ];
 
@@ -444,29 +449,7 @@ const UsersManagement = ({ adminsOnly = false } = {}) => {
     if (!isSuper) return;
     try {
       setTabsLoading(true);
-      // Define default menu items to sync - must match AdminDashboard.jsx menuItems
-      const menuItems = [
-        { label: "Dashboard", section: "dashboard" },
-        { label: "Users", section: "users" },
-        { label: "Shipping", section: "shipping" },
-        { label: "Alipay Payments", section: "alipay-payments" },
-        { label: "Buy4me", section: "buy4me" },
-        { label: "Agent Management", section: "agents" },
-        { label: "Orders", section: "orders" },
-        { label: "Products", section: "products" },
-        { label: "Categories", section: "categories" },
-        { label: "Training", section: "training" },
-        { label: "YouTube", section: "youtube" },
-        { label: "Home Announcements", section: "home-announcements" },
-        { label: "Gallery", section: "gallery" },
-        { label: "Wholesale Orders", section: "quick-orders" },
-        { label: "Messages", section: "messages" },
-        { label: "Analytics", section: "analytics" },
-        { label: "Staff", section: "staff" },
-        { label: "Settings", section: "settings" },
-      ];
-
-      const tabs = menuItems.map((m, idx) => ({
+      const tabs = availableMenuItems.map((m, idx) => ({
         name: m.label,
         slug: m.section,
         description: m.label,
