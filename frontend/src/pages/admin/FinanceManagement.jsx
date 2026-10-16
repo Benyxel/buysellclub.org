@@ -20,7 +20,11 @@ const PRESETS = [
 ];
 
 const CURRENT_YEAR = new Date().getFullYear();
-const YEAR_CHOICES = Array.from({ length: 6 }, (_, index) => CURRENT_YEAR - 5 + index);
+const FIRST_FINANCE_YEAR = 2020;
+const YEAR_CHOICES = Array.from(
+  { length: CURRENT_YEAR - FIRST_FINANCE_YEAR + 1 },
+  (_, index) => FIRST_FINANCE_YEAR + index
+);
 const CURRENT_MONTH_ID = `month-${CURRENT_YEAR}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
 
 function monthsForYear(year) {
