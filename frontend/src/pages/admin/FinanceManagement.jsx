@@ -20,12 +20,15 @@ const PRESETS = [
 ];
 
 const FINANCE_YEAR = new Date().getFullYear();
+const CURRENT_MONTH_ID = `month-${FINANCE_YEAR}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
 const YEAR_MONTHS = Array.from({ length: 12 }, (_, index) => {
   const month = String(index + 1).padStart(2, "0");
   const id = `month-${FINANCE_YEAR}-${month}`;
   const label = new Date(FINANCE_YEAR, index, 1).toLocaleString("en-GB", { month: "long" });
-  return { id, label };
+  const short = new Date(FINANCE_YEAR, index, 1).toLocaleString("en-GB", { month: "short" });
+  return { id, label, short };
 });
+const HIDDEN_SOURCES = new Set(["courses", "membership_cards"]);
 
 const CATEGORIES = [
   { id: "salaries", label: "Salaries" },
@@ -109,7 +112,7 @@ function FinanceTooltip({ active, payload, label }) {
 }
 
 export default function FinanceManagement({ onOpenContainerExpenses }) {
-  const [preset, setPreset] = useState("this_month");
+  const [preset, setPreset] = useState(CURRENT_MONTH_ID);
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
   const [report, setReport] = useState(null);
@@ -247,7 +250,10 @@ export default function FinanceManagement({ onOpenContainerExpenses }) {
     { label: "Profit", value: summary?.profit_ghs, hint: "Revenue minus expenses" },
     { label: "Outstanding", value: summary?.outstanding_ghs, hint: "Invoiced or approved, not paid" },
   ];
-  const sourceSlices = (report?.revenue_by_source || []).map((row, index) => ({
+  const visibleSources = (report?.sources || []).filter((row) => !HIDDEN_SOURCES.has(row.key));
+  const sourceSlices = (report?.revenue_by_source || [])
+    .filter((row) => !HIDDEN_SOURCES.has(row.key))
+    .map((row, index) => ({
     ...row,
     color: SOURCE_COLORS[index % SOURCE_COLORS.length],
   }));
@@ -295,22 +301,24 @@ export default function FinanceManagement({ onOpenContainerExpenses }) {
             ))}
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <select
-            value={preset.startsWith("month-") || preset === "this_month" ? (preset === "this_month" ? `month-${FINANCE_YEAR}-${String(new Date().getMonth() + 1).padStart(2, "0")}` : preset) : ""}
-            onChange={(event) => {
-              if (event.target.value) setPreset(event.target.value);
-            }}
-            className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-900 dark:border-white/10 dark:bg-gray-800 dark:text-white"
-            aria-label="Month"
-          >
-            <option value="">{FINANCE_YEAR} months</option>
+        <div className="flex max-w-3xl flex-col items-end gap-2">
+          <div className="flex flex-wrap justify-end gap-1.5">
             {YEAR_MONTHS.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.label}
-              </option>
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setPreset(item.id)}
+                className={`rounded-full border px-2.5 py-1 text-xs ${
+                  preset === item.id
+                    ? "border-[#7c6cf0] bg-[#7c6cf0] text-white"
+                    : "border-gray-200 bg-white text-gray-600 dark:border-white/10 dark:bg-gray-800 dark:text-gray-300"
+                }`}
+              >
+                {item.short}
+              </button>
             ))}
-          </select>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
           {PRESETS.map((item) => (
             <button
               key={item.id}
@@ -325,6 +333,7 @@ export default function FinanceManagement({ onOpenContainerExpenses }) {
               {item.label}
             </button>
           ))}
+          </div>
         </div>
       </div>
 
@@ -463,7 +472,7 @@ export default function FinanceManagement({ onOpenContainerExpenses }) {
                   <li key={row.key || row.label}>
                     <button
                       type="button"
-                      onClick={() => openSource(report.sources.find((item) => item.key === row.key) || row)}
+                      onClick={() => openSource(visibleSources.find((item) => item.key === row.key) || row)}
                       className="flex w-full items-center justify-between text-sm"
                     >
                       <span className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
@@ -483,7 +492,7 @@ export default function FinanceManagement({ onOpenContainerExpenses }) {
               <h3 className="font-semibold">Sources</h3>
               <p className="text-xs text-gray-500 dark:text-gray-400">Click a source to open the payments behind it</p>
               <div className="mt-4 grid gap-x-8 sm:grid-cols-2">
-                {(report?.sources || []).map((row) => (
+                {visibleSources.map((row) => (
                   <button
                     key={row.key}
                     type="button"
@@ -536,7 +545,7 @@ export default function FinanceManagement({ onOpenContainerExpenses }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {(report?.sources || []).map((row) => (
+                  {visibleSources.map((row) => (
                     <tr
                       key={row.key}
                       className="cursor-pointer border-t border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5"
