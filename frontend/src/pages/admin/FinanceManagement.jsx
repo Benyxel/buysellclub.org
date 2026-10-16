@@ -14,12 +14,18 @@ import {
 } from "recharts";
 
 const PRESETS = [
-  { id: "this_month", label: "This month" },
-  { id: "last_month", label: "Last month" },
   { id: "this_year", label: "This year" },
   { id: "custom", label: "Custom" },
   { id: "all", label: "All time" },
 ];
+
+const FINANCE_YEAR = new Date().getFullYear();
+const YEAR_MONTHS = Array.from({ length: 12 }, (_, index) => {
+  const month = String(index + 1).padStart(2, "0");
+  const id = `month-${FINANCE_YEAR}-${month}`;
+  const label = new Date(FINANCE_YEAR, index, 1).toLocaleString("en-GB", { month: "long" });
+  return { id, label };
+});
 
 const CATEGORIES = [
   { id: "salaries", label: "Salaries" },
@@ -231,7 +237,10 @@ export default function FinanceManagement({ onOpenContainerExpenses }) {
   };
 
   const summary = report?.summary;
-  const periodName = PRESETS.find((item) => item.id === preset)?.label || "This month";
+  const periodName =
+    YEAR_MONTHS.find((item) => item.id === preset)?.label ||
+    PRESETS.find((item) => item.id === preset)?.label ||
+    "This month";
   const cards = [
     { label: "Total revenue", value: summary?.revenue_ghs, hint: "Received in GHS" },
     { label: "Total expenses", value: summary?.expenses_ghs, hint: "GHS only" },
@@ -287,6 +296,21 @@ export default function FinanceManagement({ onOpenContainerExpenses }) {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={preset.startsWith("month-") || preset === "this_month" ? (preset === "this_month" ? `month-${FINANCE_YEAR}-${String(new Date().getMonth() + 1).padStart(2, "0")}` : preset) : ""}
+            onChange={(event) => {
+              if (event.target.value) setPreset(event.target.value);
+            }}
+            className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-900 dark:border-white/10 dark:bg-gray-800 dark:text-white"
+            aria-label="Month"
+          >
+            <option value="">{FINANCE_YEAR} months</option>
+            {YEAR_MONTHS.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.label}
+              </option>
+            ))}
+          </select>
           {PRESETS.map((item) => (
             <button
               key={item.id}
@@ -400,7 +424,7 @@ export default function FinanceManagement({ onOpenContainerExpenses }) {
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={report?.months || []}>
                     <CartesianGrid vertical stroke={dark ? "#2a3348" : "#e5e7eb"} strokeDasharray="3 6" horizontal={false} />
-                    <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: dark ? "#8b93a7" : "#6b7280", fontSize: 12 }} />
+                    <XAxis dataKey="label" axisLine={false} tickLine={false} minTickGap={28} tick={{ fill: dark ? "#8b93a7" : "#6b7280", fontSize: 11 }} />
                     <Tooltip content={<FinanceTooltip />} />
                     <Line type="monotone" dataKey="revenue_ghs" name="Revenue" stroke="#8b7cf6" strokeWidth={2.5} dot={{ r: 3, strokeWidth: 0, fill: "#8b7cf6" }} />
                     <Line type="monotone" dataKey="expenses_ghs" name="Expenses" stroke="#f5b942" strokeWidth={2.5} dot={{ r: 3, strokeWidth: 0, fill: "#f5b942" }} />
