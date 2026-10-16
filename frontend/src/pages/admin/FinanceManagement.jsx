@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import API from "../../api";
 import { toast } from "../../utils/toast";
 import {
+  Bar,
+  BarChart,
   CartesianGrid,
   Cell,
   Line,
@@ -430,6 +432,7 @@ export default function FinanceManagement({ onOpenContainerExpenses }) {
           onDelete={removeExpense}
           onOpenContainerExpenses={onOpenContainerExpenses}
           points={report?.months || []}
+          categories={report?.expenses_by_category || []}
           dark={dark}
         />
       ) : (
@@ -725,6 +728,7 @@ function ExpensesPanel({
   onDelete,
   onOpenContainerExpenses,
   points,
+  categories,
   dark,
 }) {
   const fieldClass =
@@ -733,6 +737,7 @@ function ExpensesPanel({
   const grain = expenseGrain(points);
   return (
     <div className="space-y-4">
+      <div className="grid gap-4 xl:grid-cols-2">
       <section className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-gray-800">
         <h3 className="font-semibold">Expenses</h3>
         <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -749,6 +754,25 @@ function ExpensesPanel({
           </ResponsiveContainer>
         </div>
       </section>
+      <section className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-gray-800">
+        <h3 className="font-semibold">By category</h3>
+        <p className="text-xs text-gray-500 dark:text-gray-400">Salaries, warehouse, other, and container expenses</p>
+        <div className="mt-2 h-[240px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={categories}>
+              <CartesianGrid vertical={false} stroke={dark ? "#2a3348" : "#e5e7eb"} strokeDasharray="3 6" />
+              <XAxis dataKey="label" axisLine={false} tickLine={false} interval={0} tick={{ fill: dark ? "#8b93a7" : "#6b7280", fontSize: 10 }} />
+              <Tooltip content={<FinanceTooltip />} />
+              <Bar dataKey="amount_ghs" name="Expenses" radius={[8, 8, 0, 0]}>
+                {categories.map((row, index) => (
+                  <Cell key={row.key} fill={EXPENSE_COLORS[index % EXPENSE_COLORS.length]} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </section>
+      </div>
       {expenseOpen ? (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onCancel}>
       <form
