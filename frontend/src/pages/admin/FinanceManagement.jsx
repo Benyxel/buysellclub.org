@@ -379,7 +379,7 @@ export default function FinanceManagement({ onOpenContainerExpenses }) {
               type="date"
               value={start}
               onChange={(event) => setStart(event.target.value)}
-              className="ml-2 rounded-lg border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-gray-900 px-2 py-1 text-gray-900 dark:text-white"
+              className="ml-2 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 text-gray-900 dark:border-white/10 dark:bg-gray-900 dark:text-white dark:[color-scheme:dark]"
             />
           </label>
           <label>
@@ -388,7 +388,7 @@ export default function FinanceManagement({ onOpenContainerExpenses }) {
               type="date"
               value={end}
               onChange={(event) => setEnd(event.target.value)}
-              className="ml-2 rounded-lg border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-gray-900 px-2 py-1 text-gray-900 dark:text-white"
+              className="ml-2 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 text-gray-900 dark:border-white/10 dark:bg-gray-900 dark:text-white dark:[color-scheme:dark]"
             />
           </label>
         </div>
@@ -772,7 +772,7 @@ function ExpensesPanel({
               type="date"
               value={form.expense_date}
               onChange={(event) => setForm({ ...form, expense_date: event.target.value })}
-              className={fieldClass}
+              className={`${fieldClass} dark:[color-scheme:dark]`}
             />
           </label>
           <label className="block text-sm">
