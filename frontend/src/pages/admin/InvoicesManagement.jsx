@@ -678,6 +678,7 @@ export default function InvoicesManagement() {
 
       let payload;
       if (useAutoGenerate) {
+        const adminShipping = parseFloat(createFormData.total_amount);
         payload = {
           mark_id: markId,
           container_id: createFormData.container_id,
@@ -691,6 +692,10 @@ export default function InvoicesManagement() {
             ? { due_date: createFormData.due_date }
             : {}),
           notes: createFormData.notes || "",
+          // Let admin set / adjust shipping outside tracking lines.
+          ...(Number.isFinite(adminShipping) && adminShipping > 0
+            ? { shipping_fee: adminShipping }
+            : {}),
         };
       } else {
         const rateResp = await API.get("/buysellapi/currency-rate/");
@@ -851,6 +856,17 @@ export default function InvoicesManagement() {
         });
         if (!cancelled) {
           setCreateAvailableTrackings(res.data?.items || []);
+          const suggested = Number(
+            res.data?.totals?.shipping_fee ??
+              res.data?.totals?.tracking_fees_total ??
+              0
+          );
+          // Prefill editable shipping total from tracking fees (not rate sheet override).
+          setCreateFormData((prev) => {
+            if (prev.total_amount && Number(prev.total_amount) > 0) return prev;
+            if (!Number.isFinite(suggested) || suggested <= 0) return prev;
+            return { ...prev, total_amount: suggested };
+          });
         }
       } catch {
         if (!cancelled) setCreateAvailableTrackings([]);
@@ -1258,7 +1274,7 @@ export default function InvoicesManagement() {
                   Due Date
                 </div>
                 <div className="font-medium text-gray-900 dark:text-white">
-                  {invoiceDetails.due_date || "N/A"}
+                  {invoiceDetails.due_date || "Not set"}
                 </div>
               </div>
             </div>
@@ -2557,7 +2573,7 @@ export default function InvoicesManagement() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Total Amount (USD){" "}
+                    Shipping / Total (USD){" "}
                     {createItemsPayload.length > 0 ? (
                       <span className="text-gray-400 font-normal">(from lines)</span>
                     ) : (
@@ -2583,6 +2599,12 @@ export default function InvoicesManagement() {
                     }`}
                     required={createItemsPayload.length === 0}
                   />
+                  {createItemsPayload.length === 0 ? (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Prefills from package shipping fees. Edit freely to adjust the invoice
+                      total — it will not be overwritten by the rate sheet.
+                    </p>
+                  ) : null}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">

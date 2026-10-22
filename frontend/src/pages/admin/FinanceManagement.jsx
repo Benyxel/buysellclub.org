@@ -45,7 +45,17 @@ const CATEGORIES = [
   { id: "salaries", label: "Salaries" },
   { id: "china_warehouse", label: "China warehouse" },
   { id: "china_warehouse_salaries", label: "China staff salary" },
+  { id: "data_bundle", label: "Data Bundle" },
+  { id: "electricity", label: "Electricity" },
+  { id: "stationaries", label: "Stationaries" },
+  { id: "ssnit", label: "SSNIT" },
+  { id: "rent_ghana", label: "Rent (Ghana)" },
   { id: "other", label: "Other" },
+];
+
+const INCOME_CATEGORIES = [
+  { id: "cash_in", label: "Cash in" },
+  { id: "other", label: "Other income" },
 ];
 
 const EMPTY_FORM = {
@@ -55,6 +65,14 @@ const EMPTY_FORM = {
   expense_date: "",
   description: "",
   container: "",
+};
+
+const EMPTY_INCOME_FORM = {
+  category: "cash_in",
+  amount: "",
+  currency: "GHS",
+  income_date: "",
+  description: "",
 };
 
 function money(value, currency = "GHS") {
@@ -139,6 +157,9 @@ export default function FinanceManagement({ onOpenContainerExpenses }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState(null);
   const [expenseOpen, setExpenseOpen] = useState(false);
+  const [incomeForm, setIncomeForm] = useState(EMPTY_INCOME_FORM);
+  const [incomeEditingId, setIncomeEditingId] = useState(null);
+  const [incomeOpen, setIncomeOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const dark = useDarkMode();
 
@@ -201,16 +222,33 @@ export default function FinanceManagement({ onOpenContainerExpenses }) {
     expense_date: new Date().toISOString().slice(0, 10),
   });
 
+  const blankIncome = () => ({
+    ...EMPTY_INCOME_FORM,
+    income_date: new Date().toISOString().slice(0, 10),
+  });
+
   const closeExpense = () => {
     setExpenseOpen(false);
     setEditingId(null);
     setForm(blankExpense());
   };
 
+  const closeIncome = () => {
+    setIncomeOpen(false);
+    setIncomeEditingId(null);
+    setIncomeForm(blankIncome());
+  };
+
   const startAdd = () => {
     setEditingId(null);
     setForm(blankExpense());
     setExpenseOpen(true);
+  };
+
+  const startAddIncome = () => {
+    setIncomeEditingId(null);
+    setIncomeForm(blankIncome());
+    setIncomeOpen(true);
   };
 
   const startEdit = (expense) => {
@@ -225,6 +263,19 @@ export default function FinanceManagement({ onOpenContainerExpenses }) {
     });
     setExpenseOpen(true);
     setView("expenses");
+  };
+
+  const startEditIncome = (income) => {
+    setIncomeEditingId(income.id);
+    setIncomeForm({
+      category: income.category,
+      amount: String(income.amount),
+      currency: income.currency || "GHS",
+      income_date: income.income_date,
+      description: income.description || "",
+    });
+    setIncomeOpen(true);
+    setView("income");
   };
 
   const saveExpense = async (event) => {
@@ -256,6 +307,37 @@ export default function FinanceManagement({ onOpenContainerExpenses }) {
     }
   };
 
+  const saveIncome = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+    const body = {
+      category: incomeForm.category,
+      amount: incomeForm.amount,
+      currency: incomeForm.currency || "GHS",
+      income_date: incomeForm.income_date,
+      description: incomeForm.description,
+    };
+    try {
+      if (incomeEditingId) {
+        await API.patch(
+          `/buysellapi/admin/finance/incomes/${incomeEditingId}/`,
+          body
+        );
+        toast.success("Income updated");
+      } else {
+        await API.post("/buysellapi/admin/finance/incomes/", body);
+        toast.success("Income added");
+      }
+      closeIncome();
+      setView("income");
+      await load();
+    } catch (err) {
+      toast.error(err?.response?.data?.error || "Could not save income");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const removeExpense = async (expense) => {
     if (!window.confirm("Delete this company expense?")) return;
     try {
@@ -264,6 +346,17 @@ export default function FinanceManagement({ onOpenContainerExpenses }) {
       await load();
     } catch (err) {
       toast.error(err?.response?.data?.error || "Could not delete expense");
+    }
+  };
+
+  const removeIncome = async (income) => {
+    if (!window.confirm("Delete this company income?")) return;
+    try {
+      await API.delete(`/buysellapi/admin/finance/incomes/${income.id}/`);
+      toast.success("Income deleted");
+      await load();
+    } catch (err) {
+      toast.error(err?.response?.data?.error || "Could not delete income");
     }
   };
 
@@ -277,7 +370,7 @@ export default function FinanceManagement({ onOpenContainerExpenses }) {
   const cards = [
     { label: "Total revenue", value: summary?.revenue_ghs, hint: "Received in GHS" },
     { label: "Total expenses", value: summary?.expenses_ghs, hint: "GHS only" },
-    { label: "Profit", value: summary?.profit_ghs, hint: "Revenue minus expenses" },
+    { label: "Profit", value: summary?.profit_ghs, hint: "Revenue (incl. manual income) minus expenses" },
     { label: "Outstanding", value: summary?.outstanding_ghs, hint: "Invoiced or approved, not paid" },
   ];
   const visibleSources = (report?.sources || []).filter((row) => !HIDDEN_SOURCES.has(row.key));
@@ -302,6 +395,7 @@ export default function FinanceManagement({ onOpenContainerExpenses }) {
           <div className="mt-3 flex gap-2">
             {[
               { id: "overview", label: "Overview" },
+              { id: "income", label: "Income" },
               { id: "expenses", label: "Expenses" },
             ].map((item) => (
               <button
@@ -316,6 +410,16 @@ export default function FinanceManagement({ onOpenContainerExpenses }) {
                         : {
                             ...current,
                             expense_date: new Date().toISOString().slice(0, 10),
+                          }
+                    );
+                  }
+                  if (item.id === "income") {
+                    setIncomeForm((current) =>
+                      current.income_date
+                        ? current
+                        : {
+                            ...current,
+                            income_date: new Date().toISOString().slice(0, 10),
                           }
                     );
                   }
@@ -415,6 +519,22 @@ export default function FinanceManagement({ onOpenContainerExpenses }) {
         <p className="text-sm text-gray-500 dark:text-gray-400">Choose a start and end date.</p>
       ) : loading && !report ? (
         <p className="text-sm text-gray-500 dark:text-gray-400">Loading finance…</p>
+      ) : view === "income" ? (
+        <IncomePanel
+          form={incomeForm}
+          setForm={setIncomeForm}
+          editingId={incomeEditingId}
+          incomeOpen={incomeOpen}
+          saving={saving}
+          onSubmit={saveIncome}
+          onAdd={startAddIncome}
+          onCancel={closeIncome}
+          companyIncomes={report?.company_incomes || []}
+          onEdit={startEditIncome}
+          onDelete={removeIncome}
+          points={report?.months || []}
+          dark={dark}
+        />
       ) : view === "expenses" ? (
         <ExpensesPanel
           form={form}
@@ -461,9 +581,15 @@ export default function FinanceManagement({ onOpenContainerExpenses }) {
               <> Outstanding USD with no rate: {money(summary.usd_outstanding, "USD")}.</>
             )}
             {(summary?.non_ghs_expenses || []).map((row) => (
-              <span key={row.currency}>
+              <span key={`exp-${row.currency}`}>
                 {" "}
                 {row.currency} expenses are stored and not converted: {money(row.amount, row.currency)}.
+              </span>
+            ))}
+            {(summary?.non_ghs_income || []).map((row) => (
+              <span key={`inc-${row.currency}`}>
+                {" "}
+                {row.currency} income is stored and not converted: {money(row.amount, row.currency)}.
               </span>
             ))}
           </p>
@@ -712,6 +838,281 @@ function FooterStat({ label, value }) {
   );
 }
 
+function IncomePanel({
+  form,
+  setForm,
+  editingId,
+  incomeOpen,
+  saving,
+  onSubmit,
+  onAdd,
+  onCancel,
+  companyIncomes,
+  onEdit,
+  onDelete,
+  points,
+  dark,
+}) {
+  const fieldClass =
+    "w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-[#7c6cf0] dark:border-white/10 dark:bg-gray-900 dark:text-white";
+  const grain = expenseGrain(points);
+
+  return (
+    <div className="space-y-4">
+      <section className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-gray-800">
+        <h3 className="font-semibold">Manual income</h3>
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          Admin-entered income is added to revenue and profit · {grain}
+        </p>
+        <div className="mt-2 h-[240px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={points}>
+              <CartesianGrid
+                vertical
+                stroke={dark ? "#2a3348" : "#e5e7eb"}
+                strokeDasharray="3 6"
+                horizontal={false}
+              />
+              <XAxis
+                dataKey="label"
+                axisLine={false}
+                tickLine={false}
+                minTickGap={28}
+                tick={{ fill: dark ? "#8b93a7" : "#6b7280", fontSize: 11 }}
+              />
+              <Tooltip content={<FinanceTooltip />} />
+              <Line
+                type="monotone"
+                dataKey="revenue_ghs"
+                name="Revenue"
+                stroke="#8b7cf6"
+                strokeWidth={2.5}
+                dot={{ r: 3, strokeWidth: 0, fill: "#8b7cf6" }}
+              />
+              <Line
+                type="monotone"
+                dataKey="profit_ghs"
+                name="Profit"
+                stroke="#3dce8a"
+                strokeWidth={2.5}
+                dot={{ r: 3, strokeWidth: 0, fill: "#3dce8a" }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </section>
+
+      {incomeOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={onCancel}
+        >
+          <form
+            onSubmit={onSubmit}
+            onClick={(event) => event.stopPropagation()}
+            className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-gray-800"
+          >
+            <div className="mb-4">
+              <h3 className="text-lg font-semibold">
+                {editingId ? "Edit income" : "Add income"}
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                GHS amounts are added to total revenue and increase profit.
+              </p>
+            </div>
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              Category
+            </p>
+            <div className="mb-4 flex flex-wrap gap-2">
+              {INCOME_CATEGORIES.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setForm({ ...form, category: item.id })}
+                  className={`rounded-full px-3 py-1.5 text-sm ${
+                    form.category === item.id
+                      ? "bg-[#7c6cf0] text-white"
+                      : "bg-gray-100 text-gray-700 dark:bg-gray-900 dark:text-gray-300"
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="block text-sm">
+                <span className="mb-1 block text-gray-500 dark:text-gray-400">
+                  Amount
+                </span>
+                <input
+                  required
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={form.amount}
+                  onChange={(event) =>
+                    setForm({ ...form, amount: event.target.value })
+                  }
+                  className={fieldClass}
+                />
+              </label>
+              <label className="block text-sm">
+                <span className="mb-1 block text-gray-500 dark:text-gray-400">
+                  Currency
+                </span>
+                <input
+                  value={form.currency}
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      currency: event.target.value.toUpperCase(),
+                    })
+                  }
+                  className={fieldClass}
+                  placeholder="GHS"
+                />
+              </label>
+              <label className="block text-sm">
+                <span className="mb-1 block text-gray-500 dark:text-gray-400">
+                  Date
+                </span>
+                <input
+                  required
+                  type="date"
+                  value={form.income_date}
+                  onChange={(event) =>
+                    setForm({ ...form, income_date: event.target.value })
+                  }
+                  className={`${fieldClass} dark:[color-scheme:dark]`}
+                />
+              </label>
+              <label className="block text-sm md:col-span-2">
+                <span className="mb-1 block text-gray-500 dark:text-gray-400">
+                  {form.category === "other"
+                    ? "Description (required)"
+                    : "Description"}
+                </span>
+                <input
+                  placeholder="What was this income for?"
+                  required={form.category === "other"}
+                  value={form.description}
+                  onChange={(event) =>
+                    setForm({ ...form, description: event.target.value })
+                  }
+                  className={fieldClass}
+                />
+              </label>
+            </div>
+            <div className="mt-4 flex gap-2">
+              <button
+                type="submit"
+                disabled={saving}
+                className="rounded-xl bg-[#7c6cf0] px-4 py-2.5 text-sm font-medium text-white disabled:opacity-60"
+              >
+                {saving
+                  ? "Saving…"
+                  : editingId
+                    ? "Save changes"
+                    : "Add income"}
+              </button>
+              <button
+                type="button"
+                onClick={onCancel}
+                className="rounded-xl px-4 py-2.5 text-sm text-gray-500 dark:text-gray-400"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
+
+      <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-white/10 dark:bg-gray-800">
+        <div className="flex items-center justify-between gap-3 border-b border-gray-200 px-5 py-4 dark:border-white/10">
+          <div>
+            <h3 className="font-semibold">Company income</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Entered by an admin for this period
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onAdd}
+            className="rounded-xl bg-[#7c6cf0] px-4 py-2 text-sm font-medium text-white"
+          >
+            Add income
+          </button>
+        </div>
+        <IncomeTable rows={companyIncomes} onEdit={onEdit} onDelete={onDelete} />
+      </section>
+    </div>
+  );
+}
+
+function IncomeTable({ rows, onEdit, onDelete }) {
+  return (
+    <PagedRows rows={rows}>
+      {(visible) => (
+        <table className="min-w-full text-sm">
+          <thead className="bg-gray-50 text-left text-gray-500 dark:bg-gray-900 dark:text-gray-400">
+            <tr>
+              <th className="px-4 py-2">Category</th>
+              <th className="px-4 py-2">Date</th>
+              <th className="px-4 py-2">Amount</th>
+              <th className="px-4 py-2">Description</th>
+              <th className="px-4 py-2">Entered by</th>
+              <th className="px-4 py-2"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {visible.length === 0 && (
+              <tr>
+                <td
+                  className="px-4 py-4 text-gray-500 dark:text-gray-400"
+                  colSpan={6}
+                >
+                  No company income in this period.
+                </td>
+              </tr>
+            )}
+            {visible.map((row) => (
+              <tr
+                key={row.id}
+                className="border-t border-gray-200 dark:border-white/10"
+              >
+                <td className="px-4 py-3">{row.category_label}</td>
+                <td className="px-4 py-3">{row.income_date}</td>
+                <td className="px-4 py-3">
+                  {money(row.amount, row.currency)}
+                </td>
+                <td className="px-4 py-3">{row.description || "—"}</td>
+                <td className="px-4 py-3">{row.entered_by || "—"}</td>
+                <td className="px-4 py-3 text-right">
+                  <button
+                    type="button"
+                    className="mr-3 text-[#7c6cf0]"
+                    onClick={() => onEdit(row)}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    className="text-[#fb7185]"
+                    onClick={() => onDelete(row)}
+                  >
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </PagedRows>
+  );
+}
+
 function ExpensesPanel({
   form,
   setForm,
@@ -756,7 +1157,7 @@ function ExpensesPanel({
       </section>
       <section className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-gray-800">
         <h3 className="font-semibold">By category</h3>
-        <p className="text-xs text-gray-500 dark:text-gray-400">Salaries, warehouse, other, and container expenses</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400">Company categories and container expenses</p>
         <div className="mt-2 h-[240px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={categories}>
