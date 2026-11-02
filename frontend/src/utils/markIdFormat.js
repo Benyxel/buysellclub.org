@@ -14,8 +14,20 @@ export const UNKNOWN_PACKAGE_MARK_IDS = new Set(["FIM752"]);
 
 export const MARK_ID_PREFIX = "FIM";
 export const MARK_PREFIXES = ["FIM", "BSC"];
-const DEFAULT_MARK_PREFIX = "FIM";
+export const DEFAULT_MARK_PREFIX = "FIM";
 const CANONICAL_MARK_ID_RE = /^(FIM|BSC)\d+$/i;
+
+/** Swap FIM ↔ BSC while keeping the typed digits. */
+export function switchMarkPrefix(raw, nextPrefix) {
+  const prefix = MARK_PREFIXES.includes(String(nextPrefix || "").toUpperCase())
+    ? String(nextPrefix).toUpperCase()
+    : DEFAULT_MARK_PREFIX;
+  const digits = String(raw || "")
+    .toUpperCase()
+    .replace(/^(FIM|BSC)/, "")
+    .replace(/\D/g, "");
+  return withMarkPrefix(prefix + digits);
+}
 
 /**
  * Keep mark prefix in the field (FIM or BSC) and let the user type digits.
