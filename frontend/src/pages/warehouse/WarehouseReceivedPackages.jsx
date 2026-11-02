@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Api } from "../../api";
 import { useWarehouseI18n } from "./warehouseI18n";
+import { MARK_PREFIXES, markPrefixOf, switchMarkPrefix, withMarkPrefix } from "../../utils/markIdFormat";
 
 const inputClass =
   "w-full min-w-[7rem] rounded-lg border border-white/10 bg-[#151D2E] px-3 py-2.5 text-sm font-semibold text-slate-50 outline-none placeholder:text-slate-500 focus:border-amber-400/50 focus:ring-2 focus:ring-amber-400/20";
@@ -13,6 +14,7 @@ function emptyEdit() {
     package_size: "",
     package_cbm: "",
     product_name: "",
+    container_number: "",
   };
 }
 
@@ -44,6 +46,16 @@ export default function WarehouseReceivedPackages({ onBack }) {
   const [editName, setEditName] = useState("");
   const [editMarkLoading, setEditMarkLoading] = useState(false);
   const [editMarkOk, setEditMarkOk] = useState(true);
+  const [containers, setContainers] = useState([]);
+
+  const loadContainers = useCallback(async () => {
+    try {
+      const list = await Api.containers.receivingList();
+      setContainers(Array.isArray(list) ? list : []);
+    } catch {
+      setContainers([]);
+    }
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -69,6 +81,10 @@ export default function WarehouseReceivedPackages({ onBack }) {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    loadContainers();
+  }, [loadContainers]);
 
   useEffect(() => {
     if (!editingId) return undefined;
@@ -115,12 +131,14 @@ export default function WarehouseReceivedPackages({ onBack }) {
       package_size: row.package_size || "",
       package_cbm: row.package_cbm || "",
       product_name: row.product_name || "",
+      container_number: row.container_number || "",
     });
     setEditName(row.full_name || "");
     setEditMarkOk(false);
     setEditMarkLoading(true);
     setError("");
     setInfo("");
+    if (!containers.length) loadContainers();
   };
 
   const patchEdit = (partial) => {
@@ -140,6 +158,10 @@ export default function WarehouseReceivedPackages({ onBack }) {
       setError(t("markRequiredSave"));
       return;
     }
+    if (!String(edit.container_number || "").trim()) {
+      setError(t("selectContainerFirst"));
+      return;
+    }
     setBusyId(id);
     setError("");
     try {
@@ -150,6 +172,7 @@ export default function WarehouseReceivedPackages({ onBack }) {
         package_size: edit.package_size.trim(),
         package_cbm: edit.package_cbm,
         product_name: edit.product_name.trim(),
+        container_number: String(edit.container_number || "").trim(),
       });
       setEditingId(null);
       setInfo(t("savedQtExcel"));
@@ -352,13 +375,44 @@ export default function WarehouseReceivedPackages({ onBack }) {
                     </td>
                     <td className="px-5 py-3.5">
                       {isEdit ? (
-                        <input
-                          className={inputClass}
-                          value={edit.mark_id}
-                          onChange={(e) =>
-                            patchEdit({ mark_id: e.target.value.toUpperCase() })
-                          }
-                        />
+                        <div className="min-w-[10rem] space-y-1.5">
+                          <div className="flex gap-1">
+                            {MARK_PREFIXES.map((prefix) => {
+                              const active = markPrefixOf(edit.mark_id) === prefix;
+                              return (
+                                <button
+                                  key={prefix}
+                                  type="button"
+                                  onClick={() =>
+                                    patchEdit({
+                                      mark_id: switchMarkPrefix(
+                                        edit.mark_id,
+                                        prefix
+                                      ),
+                                    })
+                                  }
+                                  className={`rounded-md border px-2 py-1 text-xs font-bold ${
+                                    active
+                                      ? "border-amber-400/60 bg-amber-500/15 text-amber-200"
+                                      : "border-white/10 bg-[#151D2E] text-slate-400"
+                                  }`}
+                                >
+                                  {prefix}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <input
+                            className={inputClass}
+                            value={edit.mark_id}
+                            placeholder="FIM000 or BSC000"
+                            onChange={(e) =>
+                              patchEdit({
+                                mark_id: withMarkPrefix(e.target.value),
+                              })
+                            }
+                          />
+                        </div>
                       ) : (
                         row.mark_id || "—"
                       )}
@@ -381,7 +435,44 @@ export default function WarehouseReceivedPackages({ onBack }) {
                       )}
                     </td>
                     <td className="px-5 py-3.5 text-slate-400">
-                      {row.container_number || "—"}
+                      {isEdit ? (
+                        <select
+                          className={inputClass}
+                          value={edit.container_number}
+                          onChange={(e) =>
+                            patchEdit({ container_number: e.target.value })
+                          }
+                        >
+                          <option value="">{t("selectAContainer")}</option>
+                          {(() => {
+                            const current = String(edit.container_number || "").trim();
+                            const options = [...containers];
+                            if (
+                              current &&
+                              !options.some(
+                                (c) =>
+                                  String(c.container_number || "").toUpperCase() ===
+                                  current.toUpperCase()
+                              )
+                            ) {
+                              options.unshift({
+                                id: `current-${current}`,
+                                container_number: current,
+                              });
+                            }
+                            return options.map((c) => (
+                              <option
+                                key={c.id || c.container_number}
+                                value={c.container_number}
+                              >
+                                {c.container_number}
+                              </option>
+                            ));
+                          })()}
+                        </select>
+                      ) : (
+                        row.container_number || "—"
+                      )}
                     </td>
                     <td className="px-5 py-3.5">
                       <div className="flex justify-end gap-2">
@@ -389,7 +480,12 @@ export default function WarehouseReceivedPackages({ onBack }) {
                           <>
                             <button
                               type="button"
-                              disabled={busy || editMarkLoading || !editMarkOk}
+                              disabled={
+                                busy ||
+                                editMarkLoading ||
+                                !editMarkOk ||
+                                !String(edit.container_number || "").trim()
+                              }
                               onClick={() => saveEdit(row.id)}
                               className="rounded-lg bg-amber-400 px-2.5 py-1 text-xs font-bold text-[#0B1220] disabled:opacity-50"
                             >

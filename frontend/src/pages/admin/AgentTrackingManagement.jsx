@@ -29,6 +29,7 @@ import {
   preferExactMarkMatches,
   withMarkPrefix,
 } from "../../utils/markIdFormat";
+import MarkPrefixChooser from "../../components/MarkPrefixChooser";
 import { formatCompactCount } from "../../utils/formatCompactCount";
 
 const statusOptions = [
@@ -1356,11 +1357,20 @@ const AgentTrackingManagement = () => {
                         <span className="text-green-600">✓</span>
                       )}
                     </label>
+                    <MarkPrefixChooser
+                      value={newTracking.shippingMark}
+                      onChange={(markId) =>
+                        setNewTracking({
+                          ...newTracking,
+                          shippingMark: markId,
+                        })
+                      }
+                    />
                     <div className="relative">
                       <input
                         id="shippingMark"
                         type="text"
-                        placeholder="Search mark IDs..."
+                        placeholder="FIM000 or BSC000"
                         value={newTracking.shippingMark}
                         onChange={async (e) => {
                           const val = withMarkPrefix(e.target.value);

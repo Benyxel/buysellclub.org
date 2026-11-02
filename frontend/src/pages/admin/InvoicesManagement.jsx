@@ -7,12 +7,10 @@ import { getInvoiceGhsBreakdown, getInvoiceTotalCbm } from "../../utils/invoiceG
 import { formatCompactCount } from "../../utils/formatCompactCount";
 import {
   isUsableMarkId,
-  markPrefixOf,
-  MARK_PREFIXES,
-  switchMarkPrefix,
   withFimPrefixIfMarkLike,
   withMarkPrefix,
 } from "../../utils/markIdFormat";
+import MarkPrefixChooser from "../../components/MarkPrefixChooser";
 
 const statusOptions = [
   { value: "", label: "All" },
@@ -2244,40 +2242,20 @@ export default function InvoicesManagement() {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Shipping Mark <span className="text-red-500">*</span>
                   </label>
-                  <div className="mb-2 flex gap-2">
-                    {MARK_PREFIXES.map((prefix) => {
-                      const active =
-                        markPrefixOf(createFormData.shipping_mark) === prefix;
-                      return (
-                        <button
-                          key={prefix}
-                          type="button"
-                          onClick={() => {
-                            const markId = switchMarkPrefix(
-                              createFormData.shipping_mark,
-                              prefix
-                            );
-                            const usable = isUsableMarkId(markId);
-                            setCreateFormData((prev) => ({
-                              ...prev,
-                              shipping_mark: markId,
-                              ...(usable
-                                ? {}
-                                : { customer_name: "", customer_email: "" }),
-                            }));
-                            if (usable) fetchMarkInfo(markId);
-                          }}
-                          className={`px-3 py-1.5 text-sm font-bold rounded-lg border ${
-                            active
-                              ? "border-indigo-500 bg-indigo-50 text-indigo-700 dark:border-indigo-400 dark:bg-indigo-900/40 dark:text-indigo-200"
-                              : "border-gray-300 bg-white text-gray-600 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
-                          }`}
-                        >
-                          {prefix}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <MarkPrefixChooser
+                    value={createFormData.shipping_mark}
+                    onChange={(markId) => {
+                      const usable = isUsableMarkId(markId);
+                      setCreateFormData((prev) => ({
+                        ...prev,
+                        shipping_mark: markId,
+                        ...(usable
+                          ? {}
+                          : { customer_name: "", customer_email: "" }),
+                      }));
+                      if (usable) fetchMarkInfo(markId);
+                    }}
+                  />
                   <input
                     type="text"
                     value={createFormData.shipping_mark}
