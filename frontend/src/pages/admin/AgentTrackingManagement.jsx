@@ -20,13 +20,14 @@ import html2canvas from "html2canvas";
 import API from "../../api";
 import { CACHE_DURATION } from "../../api";
 import ConfirmModal from "../../components/shared/ConfirmModal";
-import RepackTrackingModal from "../../components/admin/RepackTrackingModal";
+import BulkAndConsolidationModal from "../../components/admin/BulkAndConsolidationModal";
 import TrackingNumberCell from "../../components/admin/TrackingNumberCell";
 import {
   formatMarkIdForDisplay,
   formatShippingMarkForDisplay,
   normalizeMarkIdInput,
   preferExactMarkMatches,
+  withMarkPrefix,
 } from "../../utils/markIdFormat";
 import { formatCompactCount } from "../../utils/formatCompactCount";
 
@@ -71,7 +72,7 @@ const AgentTrackingManagement = () => {
   const [selectedTrackings, setSelectedTrackings] = useState([]);
   const [selectAll, setSelectAll] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [showRepackForm, setShowRepackForm] = useState(false);
+  const [showBulkConsolForm, setShowBulkConsolForm] = useState(false);
   const [editTracking, setEditTracking] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
   const [viewTracking, setViewTracking] = useState(null);
@@ -820,10 +821,10 @@ const AgentTrackingManagement = () => {
           </button>
           <button
             type="button"
-            onClick={() => setShowRepackForm(true)}
+            onClick={() => setShowBulkConsolForm(true)}
             className="px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition-colors flex items-center gap-2"
           >
-            <FaPlus /> Repack tracking
+            <FaPlus /> Consolidation
           </button>
           <button
             onClick={exportToCSV}
@@ -1194,12 +1195,14 @@ const AgentTrackingManagement = () => {
       </div>
 
       {/* Add/Edit Form Modal */}
-      <RepackTrackingModal
-        open={showRepackForm}
-        onClose={() => setShowRepackForm(false)}
+      <BulkAndConsolidationModal
+        open={showBulkConsolForm}
+        onClose={() => setShowBulkConsolForm(false)}
         onSuccess={() => fetchTrackings()}
         forAgent
+        allowBulk={false}
         containers={containers}
+        initialMode="consolidation"
       />
 
       {showAddForm && (
@@ -1360,7 +1363,7 @@ const AgentTrackingManagement = () => {
                         placeholder="Search mark IDs..."
                         value={newTracking.shippingMark}
                         onChange={async (e) => {
-                          const val = e.target.value.toUpperCase();
+                          const val = withMarkPrefix(e.target.value);
                           setNewTracking({
                             ...newTracking,
                             shippingMark: val,
@@ -1532,7 +1535,7 @@ const AgentTrackingManagement = () => {
                     viewTracking.repackMemberNumbers?.length > 0 && (
                       <div className="md:col-span-2">
                         <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
-                          All numbers in this repack ({viewTracking.repackMemberCount})
+                          All numbers in this consolidation ({viewTracking.repackMemberCount})
                         </label>
                         <p className="text-xs text-gray-700 dark:text-gray-300 mt-1 break-all font-mono">
                           {viewTracking.repackMemberNumbers.join(", ")}

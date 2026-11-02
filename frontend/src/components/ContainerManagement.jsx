@@ -16,7 +16,7 @@ import { formatCompactCount } from "../utils/formatCompactCount";
 import {
   formatShippingMarkForDisplay,
   shippingMarkToMarkId,
-  withFimPrefix,
+  withMarkPrefix,
 } from "../utils/markIdFormat";
 import { InvoiceItemTrackingLabel, InvoiceItemCbm } from "./InvoiceItemDisplay";
 import { InvoicePreviewExecutiveDiscountRows } from "./InvoicePreviewExecutiveDiscount";
@@ -853,7 +853,8 @@ const ContainerManagement = () => {
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     Calendar date when shipping invoices for this container are due and when
                     daily storage fees start (day after this date). Required for storage
-                    fees — leave blank if not set yet (invoice due date will be N/A).
+                    fees — leave blank if not set yet (shows as Not set; no automatic
+                    two-week due date is used).
                   </p>
                 </div>
 
@@ -936,12 +937,12 @@ const ContainerManagement = () => {
                     type="text"
                     value={invoiceMarkId}
                     onChange={(e) =>
-                      setInvoiceMarkId(withFimPrefix(e.target.value))
+                      setInvoiceMarkId(withMarkPrefix(e.target.value))
                     }
                     onFocus={() => {
                       if (!invoiceMarkId) setInvoiceMarkId("FIM");
                     }}
-                    placeholder="e.g., FIM123"
+                    placeholder="e.g., FIM123 or BSC000"
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
                 </div>
@@ -1269,7 +1270,7 @@ const ContainerManagement = () => {
                 <div className="font-medium text-gray-900 dark:text-white">
                   {containerDetails.invoice_due_date
                     ? new Date(containerDetails.invoice_due_date).toLocaleDateString()
-                    : "N/A"}
+                    : "Not set"}
                 </div>
               </div>
               <div>
@@ -1454,7 +1455,7 @@ const ContainerManagement = () => {
                                   ${containerDetails.mark_id_stats.map((stat) => `
                                     <tr>
                                       <td style="font-weight: bold;">${formatShippingMarkForDisplay(stat.shipping_mark) || "-"}</td>
-                                      <td>${stat.full_name || stat.username || stat.client_username || "-"}</td>
+                                      <td>${stat.full_name || stat.username || stat.client_username || "-"}${stat.is_agent && stat.agent_type === "corporate" ? " (Corporate agent)" : ""}</td>
                                       <td>${stat.count || 0}</td>
                                       <td>${parseFloat(stat.total_cbm || 0).toFixed(3)}</td>
                                       <td>$${parseFloat(stat.total_fee || 0).toFixed(2)}</td>
@@ -1528,7 +1529,16 @@ const ContainerManagement = () => {
                                 "—"}
                             </td>
                             <td className="px-4 py-2 text-gray-700 dark:text-gray-300">
-                              {stat.full_name || stat.username || stat.client_username || "-"}
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span>
+                                  {stat.full_name || stat.username || stat.client_username || "-"}
+                                </span>
+                                {stat.is_agent && stat.agent_type === "corporate" ? (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300">
+                                    Corporate agent
+                                  </span>
+                                ) : null}
+                              </div>
                             </td>
                             <td className="px-4 py-2 text-gray-700 dark:text-gray-300">
                               {stat.count}

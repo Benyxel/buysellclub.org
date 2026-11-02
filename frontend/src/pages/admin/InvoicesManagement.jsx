@@ -6,8 +6,9 @@ import { InvoiceItemTrackingLabel, InvoiceItemCbm } from "../../components/Invoi
 import { getInvoiceGhsBreakdown, getInvoiceTotalCbm } from "../../utils/invoiceGhsBreakdown";
 import { formatCompactCount } from "../../utils/formatCompactCount";
 import {
-  withFimPrefix,
+  isUsableMarkId,
   withFimPrefixIfMarkLike,
+  withMarkPrefix,
 } from "../../utils/markIdFormat";
 
 const statusOptions = [
@@ -2244,8 +2245,8 @@ export default function InvoicesManagement() {
                     type="text"
                     value={createFormData.shipping_mark}
                     onChange={(e) => {
-                      const markId = withFimPrefix(e.target.value);
-                      const usable = /^FIM\d+$/i.test(markId.trim());
+                      const markId = withMarkPrefix(e.target.value);
+                      const usable = isUsableMarkId(markId);
 
                       setCreateFormData((prev) => ({
                         ...prev,
@@ -2279,7 +2280,7 @@ export default function InvoicesManagement() {
                       }
                     }}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    placeholder="Enter shipping mark ID"
+                    placeholder="FIM000 or BSC000"
                     required
                   />
                   {loadingMarkInfo && (

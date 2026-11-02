@@ -27,6 +27,7 @@ import {
   formatShippingMarkForDisplay,
   normalizeMarkIdInput,
   preferExactMarkMatches,
+  withMarkPrefix,
 } from "../../utils/markIdFormat";
 import { formatCompactCount } from "../../utils/formatCompactCount";
 
@@ -1614,7 +1615,7 @@ const TrackingManagement = () => {
                         placeholder="Search mark IDs..."
                         value={newTracking.shippingMark}
                         onChange={async (e) => {
-                          const val = e.target.value.toUpperCase();
+                          const val = withMarkPrefix(e.target.value);
                           setNewTracking({
                             ...newTracking,
                             shippingMark: val,
@@ -1784,7 +1785,7 @@ const TrackingManagement = () => {
                     placeholder="Search mark IDs..."
                     value={bulkShippingMark}
                     onChange={(e) => {
-                      const val = e.target.value.toUpperCase();
+                      const val = withMarkPrefix(e.target.value);
                       setBulkShippingMark(val);
                       setBulkResolvedOwner(null);
                       if (bulkMarkDebounceRef.current) {
