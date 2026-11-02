@@ -13,50 +13,77 @@ export function shippingMarkToMarkId(shippingMark) {
 export const UNKNOWN_PACKAGE_MARK_IDS = new Set(["FIM752"]);
 
 export const MARK_ID_PREFIX = "FIM";
+export const MARK_PREFIXES = ["FIM", "BSC"];
+const DEFAULT_MARK_PREFIX = "FIM";
+const CANONICAL_MARK_ID_RE = /^(FIM|BSC)\d+$/i;
 
 /**
- * Keep `FIM` in the field and let the user type digits only.
- * Used on dedicated Mark ID inputs (container invoice, create invoice, scanner).
+ * Keep mark prefix in the field (FIM or BSC) and let the user type digits.
+ * Digits alone default to FIM. Used on Mark ID inputs (invoice, scanner, etc.).
  */
 export function withFimPrefix(raw) {
+  return withMarkPrefix(raw);
+}
+
+/** Warehouse / scanner Mark ID field: FIM### or BSC###. Digits alone → FIM. */
+export function withMarkPrefix(raw) {
   const upper = String(raw || "")
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, "");
-  if (!upper) return MARK_ID_PREFIX;
-  if (upper.startsWith(MARK_ID_PREFIX)) {
-    return (
-      MARK_ID_PREFIX + upper.slice(MARK_ID_PREFIX.length).replace(/\D/g, "")
-    );
+  if (!upper) return DEFAULT_MARK_PREFIX;
+
+  for (const prefix of MARK_PREFIXES) {
+    if (upper.startsWith(prefix)) {
+      return prefix + upper.slice(prefix.length).replace(/\D/g, "");
+    }
   }
-  const fimAt = upper.indexOf(MARK_ID_PREFIX);
-  if (fimAt >= 0) {
-    return (
-      MARK_ID_PREFIX +
-      upper.slice(fimAt + MARK_ID_PREFIX.length).replace(/\D/g, "")
-    );
+  for (const prefix of MARK_PREFIXES) {
+    const at = upper.indexOf(prefix);
+    if (at >= 0) {
+      return prefix + upper.slice(at + prefix.length).replace(/\D/g, "");
+    }
   }
-  return MARK_ID_PREFIX + upper.replace(/\D/g, "");
+  return DEFAULT_MARK_PREFIX + upper.replace(/\D/g, "");
+}
+
+/** True when mark is complete enough to look up / assign shipping. */
+export function isUsableMarkId(mark) {
+  return CANONICAL_MARK_ID_RE.test(normalizeMarkIdInput(mark));
+}
+
+export function markPrefixOf(mark) {
+  const upper = String(mark || "").toUpperCase();
+  for (const prefix of MARK_PREFIXES) {
+    if (upper.startsWith(prefix)) return prefix;
+  }
+  return DEFAULT_MARK_PREFIX;
 }
 
 /**
  * For multi-purpose search bars (invoice # / mark / container):
- * digits-only or FIM… → auto FIM mark; leave other queries alone.
+ * digits-only or FIM…/BSC… → auto mark; leave other queries alone.
  */
 export function withFimPrefixIfMarkLike(raw) {
   const trimmed = String(raw || "").trim();
   if (!trimmed) return "";
   if (/#/i.test(trimmed) || /FIMC/i.test(trimmed)) return trimmed.toUpperCase();
-  if (/^\d+$/.test(trimmed)) return withFimPrefix(trimmed);
+  if (/^\d+$/.test(trimmed)) return withMarkPrefix(trimmed);
   const alnum = trimmed.toUpperCase().replace(/[^A-Z0-9]/g, "");
-  if (alnum.startsWith(MARK_ID_PREFIX)) return withFimPrefix(trimmed);
+  for (const prefix of MARK_PREFIXES) {
+    if (alnum.startsWith(prefix)) return withMarkPrefix(trimmed);
+  }
   return trimmed;
 }
 
-/** Accept both `FIM000` and `FIM-000` forms for API calls / comparisons. */
+/** Accept both `FIM000`/`FIM-000` and `BSC000`/`BSC-000` for API calls / comparisons. */
 export function normalizeMarkIdInput(markId) {
-  const raw = String(markId || "").trim().toUpperCase();
+  const raw = String(markId || "")
+    .trim()
+    .toUpperCase()
+    .split(":", 1)[0]
+    .trim();
   if (!raw) return "";
-  const m = raw.match(/^([A-Z]+)-(\d+)$/);
+  const m = raw.match(/^([A-Z]{2,6})-(\d+)$/);
   if (m) return `${m[1]}${m[2]}`;
   return raw;
 }
@@ -72,7 +99,7 @@ export function preferExactMarkMatches(
 ) {
   const list = Array.isArray(items) ? items : [];
   const target = normalizeMarkIdInput(shippingMarkToMarkId(query));
-  if (!target || !/^[A-Z]{2,6}\d{1,10}$/.test(target)) return list;
+  if (!target || !/^(FIM|BSC)\d{1,10}$/i.test(target)) return list;
   const exact = list.filter(
     (item) =>
       normalizeMarkIdInput(shippingMarkToMarkId(getMark(item))) === target
@@ -117,7 +144,7 @@ export function formatMarkIdInText(text) {
   return raw.replace(/\b([A-Za-z]+)-?(\d{1,})\b/g, (full, pfx, digits) => {
     if (full.includes("-")) return full;
     // only format known prefix styles (avoid changing random words+numbers)
-    if (!/^[A-Za-z]{2,6}$/.test(pfx)) return full;
+    if (!/^(FIM|BSC)$/i.test(pfx)) return full;
     return `${pfx}-${digits}`;
   });
 }

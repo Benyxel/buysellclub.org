@@ -12,6 +12,17 @@ import {
   useWarehouseI18n,
   WAREHOUSE_LANGUAGES,
 } from "./warehouseI18n";
+import {
+  calcCbm,
+  parseDimensionTriplet,
+  sanitizeDimsInput,
+} from "../../utils/packageDims";
+import {
+  isUsableMarkId,
+  markPrefixOf,
+  MARK_PREFIXES,
+  withMarkPrefix,
+} from "../../utils/markIdFormat";
 
 const WAREHOUSE_THEME_KEY = "fimw-warehouse-theme";
 
@@ -25,7 +36,6 @@ function readWarehouseTheme() {
   return "dark";
 }
 
-const MARK_PREFIXES = ["FIM", "BSC"];
 const DEFAULT_MARK_PREFIX = "FIM";
 
 const CHINA_ACTIONS = [
@@ -80,27 +90,6 @@ const REJECT_RETURN_REASONS = [
   { value: "Mannequin", labelKey: "reason_mannequin" },
 ];
 
-/** Normalize Mark ID: FIM### (default) or BSC###. Digits alone → FIM + digits. */
-function withMarkPrefix(raw) {
-  const upper = String(raw || "")
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, "");
-  if (!upper) return DEFAULT_MARK_PREFIX;
-
-  for (const prefix of MARK_PREFIXES) {
-    if (upper.startsWith(prefix)) {
-      return prefix + upper.slice(prefix.length).replace(/\D/g, "");
-    }
-  }
-  for (const prefix of MARK_PREFIXES) {
-    const at = upper.indexOf(prefix);
-    if (at >= 0) {
-      return prefix + upper.slice(at + prefix.length).replace(/\D/g, "");
-    }
-  }
-  return DEFAULT_MARK_PREFIX + upper.replace(/\D/g, "");
-}
-
 function isTrackingToken(raw) {
   const value = String(raw || "").trim();
   if (value.length < 3 || value.length > 64) return false;
@@ -112,58 +101,6 @@ function isTrackingToken(raw) {
     return false;
   }
   return /^[A-Za-z0-9][A-Za-z0-9#/*._-]*$/.test(value);
-}
-
-function isUsableMarkId(mark) {
-  return /^(FIM|BSC)\d+$/i.test(String(mark || "").trim());
-}
-
-function markPrefixOf(mark) {
-  const upper = String(mark || "").toUpperCase();
-  for (const prefix of MARK_PREFIXES) {
-    if (upper.startsWith(prefix)) return prefix;
-  }
-  return DEFAULT_MARK_PREFIX;
-}
-
-const MIN_PACKAGE_CBM = 0.001;
-
-function calcCbm(h, w, l) {
-  const height = Number(String(h || "").replace(",", "."));
-  const width = Number(String(w || "").replace(",", "."));
-  const length = Number(String(l || "").replace(",", "."));
-  if (
-    ![height, width, length].every((n) => Number.isFinite(n) && n > 0)
-  ) {
-    return "";
-  }
-  const raw = (height * width * length) / 1000000;
-  if (!Number.isFinite(raw) || raw <= 0) return "";
-  // Tiny packages round to 0.000 with 3 decimals and block submit — floor them.
-  return Math.max(raw, MIN_PACKAGE_CBM).toFixed(3);
-}
-
-function parseDimensionTriplet(raw) {
-  const text = String(raw || "").trim();
-  if (!text) return null;
-  const parts = text
-    .split(/[*xX×✕✖/\-\s]+/)
-    .map((part) => part.trim())
-    .filter(Boolean);
-  if (parts.length !== 3) return null;
-  const nums = parts.map((part) => Number(String(part).replace(",", ".")));
-  if (!nums.every((n) => Number.isFinite(n) && n > 0)) return null;
-  return {
-    heightCm: String(nums[0]),
-    widthCm: String(nums[1]),
-    lengthCm: String(nums[2]),
-  };
-}
-
-function sanitizeDimsInput(raw) {
-  return String(raw || "")
-    .replace(/[^0-9.,*xX×✕✖/\-\s]/g, "")
-    .slice(0, 40);
 }
 
 /**
@@ -2292,7 +2229,7 @@ function WarehouseAppInner() {
                                     ? t("missingTracking")
                                     : row.status_display || row.status}
                                 {row.is_repack
-                                  ? ` · Repack (${row.package_count || 1})`
+                                  ? ` · Consolidation (${row.package_count || 1})`
                                   : ""}
                               </div>
                             </div>
