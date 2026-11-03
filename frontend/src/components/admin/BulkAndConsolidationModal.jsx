@@ -496,11 +496,29 @@ export default function BulkAndConsolidationModal({
             )}
           </div>
 
-          {false && canBulk ? (
+          {canBulk ? (
             <div className="flex flex-wrap items-center gap-4">
               <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">
                 Include:
               </span>
+              <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={addBulk}
+                  onChange={(e) => setAddBulk(e.target.checked)}
+                  className="rounded border-gray-300"
+                />
+                Bulk tracking
+              </label>
+              <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={addConsol}
+                  onChange={(e) => setAddConsol(e.target.checked)}
+                  className="rounded border-gray-300"
+                />
+                Consolidation
+              </label>
             </div>
           ) : null}
 
