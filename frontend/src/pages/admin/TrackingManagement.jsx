@@ -90,6 +90,7 @@ const TrackingManagement = () => {
   const [showBulkAddForm, setShowBulkAddForm] = useState(false);
   const [showRepackForm, setShowRepackForm] = useState(false);
   const [showBulkConsolForm, setShowBulkConsolForm] = useState(false);
+  const [bulkConsolMode, setBulkConsolMode] = useState("bulk");
   const [bulkShippingMark, setBulkShippingMark] = useState("");
   const [bulkMarkSearchOptions, setBulkMarkSearchOptions] = useState([]);
   const [bulkMarkSearchLoading, setBulkMarkSearchLoading] = useState(false);
@@ -1064,10 +1065,23 @@ const TrackingManagement = () => {
           </button>
           <button
             type="button"
-            onClick={() => setShowBulkConsolForm(true)}
+            onClick={() => {
+              setBulkConsolMode("bulk");
+              setShowBulkConsolForm(true);
+            }}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2"
+          >
+            <FaPlus /> Bulk tracking
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setBulkConsolMode("consolidation");
+              setShowBulkConsolForm(true);
+            }}
             className="px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition-colors flex items-center gap-2"
           >
-            <FaPlus /> Bulk + Consolidation
+            <FaPlus /> Consolidation
           </button>
           <button
             onClick={exportToCSV}
@@ -1603,6 +1617,7 @@ const TrackingManagement = () => {
                         id="shippingMark"
                         type="text"
                         placeholder="FIM000 or BSC000"
+                        className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent caret-current"
                         value={newTracking.shippingMark}
                         onChange={async (e) => {
                           const val = withMarkPrefix(e.target.value);
@@ -1628,7 +1643,6 @@ const TrackingManagement = () => {
                             setMarkLoading(false);
                           }
                         }}
-                        className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                       {(markLoading ||
                         (markOptions && markOptions.length > 0)) && (
@@ -1744,7 +1758,7 @@ const TrackingManagement = () => {
         onClose={() => setShowBulkConsolForm(false)}
         onSuccess={() => fetchTrackings()}
         containers={containers}
-        initialMode="both"
+        initialMode={bulkConsolMode}
         allowBulk
       />
 

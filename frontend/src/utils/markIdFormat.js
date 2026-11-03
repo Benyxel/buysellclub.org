@@ -39,23 +39,29 @@ export function withFimPrefix(raw) {
 
 /** Warehouse / scanner Mark ID field: FIM### or BSC###. Digits alone → FIM. */
 export function withMarkPrefix(raw) {
-  const upper = String(raw || "")
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, "");
+  const firstLine = String(raw || "")
+    .replace(/\u00a0/g, " ")
+    .split(/[\r\n]+/)[0]
+    .trim();
+  const upper = firstLine.toUpperCase().replace(/[^A-Z0-9-]/g, "");
   if (!upper) return DEFAULT_MARK_PREFIX;
+  const hyphenated = upper.match(/^(FIM|BSC)-(\d*)$/);
+  if (hyphenated) return `${hyphenated[1]}${hyphenated[2]}`;
+  const alnum = upper.replace(/[^A-Z0-9]/g, "");
+  if (!alnum) return DEFAULT_MARK_PREFIX;
 
   for (const prefix of MARK_PREFIXES) {
-    if (upper.startsWith(prefix)) {
-      return prefix + upper.slice(prefix.length).replace(/\D/g, "");
+    if (alnum.startsWith(prefix)) {
+      return prefix + alnum.slice(prefix.length).replace(/\D/g, "");
     }
   }
   for (const prefix of MARK_PREFIXES) {
-    const at = upper.indexOf(prefix);
+    const at = alnum.indexOf(prefix);
     if (at >= 0) {
-      return prefix + upper.slice(at + prefix.length).replace(/\D/g, "");
+      return prefix + alnum.slice(at + prefix.length).replace(/\D/g, "");
     }
   }
-  return DEFAULT_MARK_PREFIX + upper.replace(/\D/g, "");
+  return DEFAULT_MARK_PREFIX + alnum.replace(/\D/g, "");
 }
 
 /** True when mark is complete enough to look up / assign shipping. */

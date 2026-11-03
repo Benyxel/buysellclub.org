@@ -176,6 +176,7 @@ export default function BulkAndConsolidationModal({
 
   const handleMarkChange = (val) => {
     const upper = withMarkPrefix(val);
+    setShippingMark(upper);
     setResolvedOwner(null);
     if (markDebounceRef.current) clearTimeout(markDebounceRef.current);
     markDebounceRef.current = setTimeout(async () => {
@@ -404,7 +405,11 @@ export default function BulkAndConsolidationModal({
       >
         <div className="flex justify-between items-center mb-3">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Bulk tracking / Consolidation
+            {addBulk && addConsol
+              ? "Bulk tracking / Consolidation"
+              : addBulk
+              ? "Bulk tracking"
+              : "Consolidation"}
           </h3>
           <button
             type="button"
@@ -435,7 +440,7 @@ export default function BulkAndConsolidationModal({
                   value={shippingMark}
                   onChange={(e) => handleMarkChange(e.target.value)}
                   placeholder="FIM000 or BSC000"
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white caret-current"
                   required
                 />
                 {(markLoading || markOptions.length > 0) && (
@@ -491,29 +496,11 @@ export default function BulkAndConsolidationModal({
             )}
           </div>
 
-          {canBulk ? (
+          {false && canBulk ? (
             <div className="flex flex-wrap items-center gap-4">
               <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">
                 Include:
               </span>
-              <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={addBulk}
-                  onChange={(e) => setAddBulk(e.target.checked)}
-                  className="rounded border-gray-300"
-                />
-                Bulk tracking
-              </label>
-              <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={addConsol}
-                  onChange={(e) => setAddConsol(e.target.checked)}
-                  className="rounded border-gray-300"
-                />
-                Consolidation
-              </label>
             </div>
           ) : null}
 
