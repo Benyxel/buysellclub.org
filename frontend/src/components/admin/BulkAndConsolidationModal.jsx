@@ -423,17 +423,20 @@ export default function BulkAndConsolidationModal({
         <form onSubmit={handleSubmit} className="space-y-3">
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Mark ID{" "}
-                {resolvedOwner ? (
-                  <span className="text-green-600 dark:text-green-400">✓</span>
-                ) : null}
-                *
-              </label>
-              <MarkPrefixChooser
-                value={shippingMark}
-                onChange={handleMarkChange}
-              />
+              <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Mark ID{" "}
+                  {resolvedOwner ? (
+                    <span className="text-green-600 dark:text-green-400">✓</span>
+                  ) : null}
+                  *
+                </label>
+                <MarkPrefixChooser
+                  value={shippingMark}
+                  onChange={handleMarkChange}
+                  className="flex gap-2"
+                />
+              </div>
               <div className="relative">
                 <input
                   type="text"
@@ -475,7 +478,7 @@ export default function BulkAndConsolidationModal({
 
             {containers.length > 0 ? (
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="mb-1 block h-8 text-sm font-medium leading-8 text-gray-700 dark:text-gray-300">
                   Container (optional)
                 </label>
                 <select

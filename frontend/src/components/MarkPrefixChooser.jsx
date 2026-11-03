@@ -5,9 +5,14 @@ import { markPrefixOf, MARK_PREFIXES, switchMarkPrefix } from "../utils/markIdFo
  * FIM / BSC toggle for admin Mark ID fields.
  * Keeps typed digits when switching prefix.
  */
-export default function MarkPrefixChooser({ value, onChange, disabled = false }) {
+export default function MarkPrefixChooser({
+  value,
+  onChange,
+  disabled = false,
+  className = "mb-2 flex gap-2",
+}) {
   return (
-    <div className="mb-2 flex gap-2">
+    <div className={className}>
       {MARK_PREFIXES.map((prefix) => {
         const active = markPrefixOf(value) === prefix;
         return (
