@@ -19,7 +19,7 @@ import html2canvas from "html2canvas";
 import API from "../../api";
 import { CACHE_DURATION } from "../../api";
 import ConfirmModal from "../../components/shared/ConfirmModal";
-import RepackTrackingModal from "../../components/admin/RepackTrackingModal";
+import BulkAndConsolidationModal from "../../components/admin/BulkAndConsolidationModal";
 import TrackingNumberCell from "../../components/admin/TrackingNumberCell";
 import { usePersistedPagination } from "../../hooks/usePersistedPagination";
 import {
@@ -89,6 +89,7 @@ const TrackingManagement = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [showBulkAddForm, setShowBulkAddForm] = useState(false);
   const [showRepackForm, setShowRepackForm] = useState(false);
+  const [showBulkConsolForm, setShowBulkConsolForm] = useState(false);
   const [bulkShippingMark, setBulkShippingMark] = useState("");
   const [bulkMarkSearchOptions, setBulkMarkSearchOptions] = useState([]);
   const [bulkMarkSearchLoading, setBulkMarkSearchLoading] = useState(false);
@@ -1063,31 +1064,10 @@ const TrackingManagement = () => {
           </button>
           <button
             type="button"
-            onClick={() => {
-              if (bulkMarkDebounceRef.current) {
-                clearTimeout(bulkMarkDebounceRef.current);
-                bulkMarkDebounceRef.current = null;
-              }
-              setBulkShippingMark("");
-              setBulkMarkSearchOptions([]);
-              setBulkMarkSearchLoading(false);
-              setBulkResolvedOwner(null);
-              setBulkNumbersText("");
-              setBulkCbmPerLineText("");
-              setBulkTotalCbm("");
-              setBulkContainerId("");
-              setShowBulkAddForm(true);
-            }}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2"
-          >
-            <FaPlus /> Bulk tracking
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowRepackForm(true)}
+            onClick={() => setShowBulkConsolForm(true)}
             className="px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition-colors flex items-center gap-2"
           >
-            <FaPlus /> Repack tracking
+            <FaPlus /> Bulk + Consolidation
           </button>
           <button
             onClick={exportToCSV}
@@ -1759,14 +1739,16 @@ const TrackingManagement = () => {
         </div>
       )}
 
-      <RepackTrackingModal
-        open={showRepackForm}
-        onClose={() => setShowRepackForm(false)}
+      <BulkAndConsolidationModal
+        open={showBulkConsolForm}
+        onClose={() => setShowBulkConsolForm(false)}
         onSuccess={() => fetchTrackings()}
         containers={containers}
+        initialMode="both"
+        allowBulk
       />
 
-      {showBulkAddForm && (
+      {false && showBulkAddForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-lg my-8">
             <div className="flex justify-between items-center mb-4">
